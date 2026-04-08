@@ -1,8 +1,8 @@
 """Regenerate rendered UML diagrams for project documentation.
 
 Usage:
-  python docs/regenerate_docs.py
-  python docs/regenerate_docs.py --watch
+  python scripts/regenerate_docs.py
+  python scripts/regenerate_docs.py --watch
 """
 
 from __future__ import annotations
@@ -56,7 +56,6 @@ def watch(interval_sec: float = 1.0) -> None:
     for src in sorted(SEQUENCE_SRC_DIR.glob("*.puml")):
         mtimes[src] = src.stat().st_mtime
 
-    # Initial full render.
     total = render_all(verbose=True)
     print(f"initial render done: {total} file(s)")
 
@@ -74,7 +73,6 @@ def watch(interval_sec: float = 1.0) -> None:
             render_one(src, out)
             print(f"updated: {out.relative_to(PROJECT_ROOT)}")
 
-        # Handle removed files in source directory.
         removed = [path for path in mtimes if path not in current_files]
         for path in removed:
             mtimes.pop(path, None)

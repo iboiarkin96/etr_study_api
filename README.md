@@ -120,13 +120,15 @@ The server reads `APP_HOST` and `APP_PORT` from `.env` (see [Configuration](#con
 
 Variables are loaded from `.env` in the project root (see `app/core/config.py`).
 
-| Variable          | Description                                      | Example              |
-| ----------------- | ------------------------------------------------ | -------------------- |
-| `APP_NAME`        | Title shown in OpenAPI                           | `Study App API`      |
-| `APP_ENV`         | Logical environment label                        | `local`              |
-| `APP_HOST`        | Bind address for Uvicorn                         | `127.0.0.1`          |
-| `APP_PORT`        | Listen port                                      | `8000`               |
-| `SQLITE_DB_PATH`  | SQLite database file (relative or absolute path) | `study_app.db`       |
+<!-- BEGIN:CONFIG_TABLE -->
+| Variable | Description | Example |
+| -------- | ----------- | ------- |
+| `APP_NAME` | Title shown in OpenAPI | `Study App API` |
+| `APP_ENV` | Logical environment label | `local` |
+| `APP_HOST` | Bind address for Uvicorn | `127.0.0.1` |
+| `APP_PORT` | Listen port | `8000` |
+| `SQLITE_DB_PATH` | SQLite database file (relative or absolute path) | `study_app.db` |
+<!-- END:CONFIG_TABLE -->
 
 > **Security:** do not commit `.env` with secrets. The repository includes `.env.example` only. Local `*.db` files are listed in `.gitignore`.
 
@@ -147,10 +149,12 @@ Interactive docs include request schemas, response models, and validation rules 
 
 ## HTTP endpoints
 
+<!-- BEGIN:HTTP_ENDPOINTS -->
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| `GET`  | `/health` | Liveness / health check |
-| `POST` | `/api/v1/users/register` | Register or update a user (validated body) |
+| `POST` | `/api/v1/users/register` | Register user |
+| `GET` | `/health` | Health check |
+<!-- END:HTTP_ENDPOINTS -->
 
 ---
 
@@ -168,16 +172,19 @@ Interactive docs include request schemas, response models, and validation rules 
 
 ## Makefile reference
 
+<!-- BEGIN:MAKEFILE_REF -->
 | Command | Purpose |
 | ------- | ------- |
-| `make help` | Print available targets |
-| `make venv` | Create `.venv` if missing |
-| `make install` | Install `requirements.txt` into `.venv` |
-| `make run` | Run API with Uvicorn (reload), using `.env` |
-| `make migrate` | `alembic upgrade head` |
-| `make migration name=...` | `alembic revision --autogenerate -m "..."` |
-| `make docs` | Regenerate UML PNGs once |
-| `make docs-watch` | Watch UML and regenerate |
+| `make venv` | Create virtual environment |
+| `make install` | Install dependencies |
+| `make run` | Start FastAPI dev server |
+| `make migrate` | Apply all Alembic migrations |
+| `make migration name=…` | Auto-generate new Alembic migration |
+| `make docs` | Regenerate UML docs once |
+| `make docs-watch` | Watch UML sources, regenerate on change |
+| `make check` | Verify env, deps, and DB connectivity |
+| `make sync-docs` | Auto-update README.md & docs/index.html from code |
+<!-- END:MAKEFILE_REF -->
 
 
 ---
