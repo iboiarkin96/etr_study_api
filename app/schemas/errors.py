@@ -43,4 +43,3 @@ class LegacyValidationErrorItem(BaseModel):
     msg: str
     input: Any
     ctx: dict[str, Any] | None = None
-

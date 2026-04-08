@@ -25,7 +25,7 @@ Adopt mandatory endpoint-level automated testing as a release gate.
 - Test framework: `pytest`
 - Test location: `tests/`
 - API baseline tests:
-  - `tests/api/v1/test_users_register.py`
+  - `tests/api/v1/test_user_create.py`
 - Make targets:
   - `make test`
   - `make test-one path=...`
@@ -51,7 +51,7 @@ Typical flow:
 
 ```bash
 make test
-make test-one path=tests/api/v1/test_users_register.py
+make test-one path=tests/api/v1/test_user_create.py
 make pre-deploy
 ```
 

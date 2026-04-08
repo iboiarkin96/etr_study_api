@@ -30,4 +30,4 @@ class System(Base):
     code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    users: Mapped[list["User"]] = relationship(back_populates="system")
+    users: Mapped[list[User]] = relationship(back_populates="system")

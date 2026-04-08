@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -14,7 +14,7 @@ from app.models.base import Base
 
 def _utc_now() -> datetime:
     """Timezone-aware UTC instant for column defaults."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 if TYPE_CHECKING:
@@ -72,7 +72,7 @@ class User(Base):
         default="UTC",
     )
 
-    system: Mapped["System"] = relationship(back_populates="users")
-    invalidation_reason: Mapped["InvalidationReason"] = relationship(
+    system: Mapped[System] = relationship(back_populates="users")
+    invalidation_reason: Mapped[InvalidationReason] = relationship(
         back_populates="users",
     )

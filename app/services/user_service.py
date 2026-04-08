@@ -1,15 +1,18 @@
-"""Business logic for user registration workflow."""
+"""Business logic for user create workflow."""
 
 from __future__ import annotations
 
-from typing import Any
+import logging
 import uuid
+from typing import Any
 
 from fastapi import HTTPException
 
 from app.models.core.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserRegisterRequest
+from app.schemas.user import UserCreateRequest
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -30,17 +33,18 @@ class UserService:
         """Generate a robust, random, unique UUID4 string."""
         return str(uuid.uuid4())
 
-    def register(self, payload: UserRegisterRequest) -> User:
+    def create(self, payload: UserCreateRequest) -> User:
         """Create new user or raise if already exists."""
         su_id = str(payload.system_user_id)
 
         user = self.repository.get_by_system_user_id(su_id)
         if user is not None:
+            logger.warning("create_user_duplicate system_user_id=%s", su_id)
             raise HTTPException(
                 status_code=400,
                 detail={
                     "code": "101",
-                    "key": "USR_REG_ALREADY_EXISTS",
+                    "key": "USR_CREATE_ALREADY_EXISTS",
                     "message": "User with this `system_user_id` already exists.",
                     "source": "business",
                 },
@@ -55,4 +59,10 @@ class UserService:
             invalidation_reason_uuid=self._uuid_to_str(payload.invalidation_reason_uuid),
             is_row_invalid=payload.is_row_invalid,
         )
-        return self.repository.save(user)
+        persisted_user = self.repository.save(user)
+        logger.info(
+            "create_user_persisted system_user_id=%s client_uuid=%s",
+            persisted_user.system_user_id,
+            persisted_user.client_uuid,
+        )
+        return persisted_user

@@ -18,78 +18,78 @@ class ValidationCodeRule:
     message: str
 
 
-REGISTER_VALIDATION_RULES: dict[tuple[str, str], ValidationCodeRule] = {
+CREATE_USER_VALIDATION_RULES: dict[tuple[str, str], ValidationCodeRule] = {
     ("system_user_id", "missing"): ValidationCodeRule(
         code="001",
-        key="USR_REG_SYSTEM_USER_ID_REQUIRED",
+        key="USR_CREATE_SYSTEM_USER_ID_REQUIRED",
         message="Field `system_user_id` is required.",
     ),
     ("system_user_id", "uuid_parsing"): ValidationCodeRule(
         code="002",
-        key="USR_REG_SYSTEM_USER_ID_INVALID",
+        key="USR_CREATE_SYSTEM_USER_ID_INVALID",
         message="Field `system_user_id` must be a valid UUID.",
     ),
     ("full_name", "missing"): ValidationCodeRule(
         code="003",
-        key="USR_REG_FULL_NAME_REQUIRED",
+        key="USR_CREATE_FULL_NAME_REQUIRED",
         message="Field `full_name` is required.",
     ),
     ("full_name", "string_too_short"): ValidationCodeRule(
         code="004",
-        key="USR_REG_FULL_NAME_TOO_SHORT",
+        key="USR_CREATE_FULL_NAME_TOO_SHORT",
         message="Field `full_name` must not be empty.",
     ),
     ("full_name", "string_too_long"): ValidationCodeRule(
         code="005",
-        key="USR_REG_FULL_NAME_TOO_LONG",
+        key="USR_CREATE_FULL_NAME_TOO_LONG",
         message="Field `full_name` exceeds max length.",
     ),
     ("username", "string_too_long"): ValidationCodeRule(
         code="006",
-        key="USR_REG_USERNAME_TOO_LONG",
+        key="USR_CREATE_USERNAME_TOO_LONG",
         message="Field `username` exceeds max length.",
     ),
     ("timezone", "value_error"): ValidationCodeRule(
         code="007",
-        key="USR_REG_TIMEZONE_INVALID",
+        key="USR_CREATE_TIMEZONE_INVALID",
         message="Field `timezone` must be a valid IANA timezone.",
     ),
     ("timezone", "string_too_long"): ValidationCodeRule(
         code="008",
-        key="USR_REG_TIMEZONE_TOO_LONG",
+        key="USR_CREATE_TIMEZONE_TOO_LONG",
         message="Field `timezone` exceeds max length.",
     ),
     ("system_uuid", "uuid_parsing"): ValidationCodeRule(
         code="009",
-        key="USR_REG_SYSTEM_UUID_INVALID",
+        key="USR_CREATE_SYSTEM_UUID_INVALID",
         message="Field `system_uuid` must be a valid UUID.",
     ),
     ("invalidation_reason_uuid", "uuid_parsing"): ValidationCodeRule(
         code="010",
-        key="USR_REG_INVALIDATION_REASON_UUID_INVALID",
+        key="USR_CREATE_INVALIDATION_REASON_UUID_INVALID",
         message="Field `invalidation_reason_uuid` must be a valid UUID.",
     ),
     ("is_row_invalid", "int_parsing"): ValidationCodeRule(
         code="011",
-        key="USR_REG_IS_ROW_INVALID_TYPE",
+        key="USR_CREATE_IS_ROW_INVALID_TYPE",
         message="Field `is_row_invalid` must be an integer.",
     ),
     ("is_row_invalid", "greater_than_equal"): ValidationCodeRule(
         code="012",
-        key="USR_REG_IS_ROW_INVALID_MIN",
+        key="USR_CREATE_IS_ROW_INVALID_MIN",
         message="Field `is_row_invalid` must be >= 0.",
     ),
     ("is_row_invalid", "less_than_equal"): ValidationCodeRule(
         code="013",
-        key="USR_REG_IS_ROW_INVALID_MAX",
+        key="USR_CREATE_IS_ROW_INVALID_MAX",
         message="Field `is_row_invalid` must be <= 1.",
     ),
 }
 
-DEFAULT_REGISTER_VALIDATION_RULE = ValidationCodeRule(
+DEFAULT_CREATE_USER_VALIDATION_RULE = ValidationCodeRule(
     code="099",
-    key="USR_REG_VALIDATION_ERROR",
-    message="Request validation failed for `POST /api/v1/users/register`.",
+    key="USR_CREATE_VALIDATION_ERROR",
+    message="Request validation failed for `POST /api/v1/user`.",
 )
 
 
@@ -110,26 +110,24 @@ def _field_from_loc(loc: list[Any]) -> str | None:
     return None
 
 
-def _resolve_register_rule(field: str | None, error_type: str) -> ValidationCodeRule:
-    if field is not None and (field, error_type) in REGISTER_VALIDATION_RULES:
-        return REGISTER_VALIDATION_RULES[(field, error_type)]
-    return DEFAULT_REGISTER_VALIDATION_RULE
+def _resolve_create_user_rule(field: str | None, error_type: str) -> ValidationCodeRule:
+    if field is not None and (field, error_type) in CREATE_USER_VALIDATION_RULES:
+        return CREATE_USER_VALIDATION_RULES[(field, error_type)]
+    return DEFAULT_CREATE_USER_VALIDATION_RULE
 
 
-def build_validation_error_payload(
-    request: Request, exc: RequestValidationError
-) -> dict[str, Any]:
+def build_validation_error_payload(request: Request, exc: RequestValidationError) -> dict[str, Any]:
     """Build a stable, code-driven 422 payload."""
     errors: list[dict[str, Any]] = []
     endpoint = f"{request.method} {request.url.path}"
 
     for item in exc.errors():
-        loc = list[Any](item.get("loc", []))
+        loc = list(item.get("loc", []))
         error_type = str(item.get("type", "value_error"))
         field = _field_from_loc(loc)
 
-        if endpoint == "POST /api/v1/users/register":
-            rule = _resolve_register_rule(field, error_type)
+        if endpoint == "POST /api/v1/user":
+            rule = _resolve_create_user_rule(field, error_type)
         else:
             rule = ValidationCodeRule(
                 code="000",
@@ -154,4 +152,3 @@ def build_validation_error_payload(
         )
 
     return {"error_type": "validation_error", "endpoint": endpoint, "errors": errors}
-

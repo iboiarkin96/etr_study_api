@@ -14,15 +14,17 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
+import os
 import re
 import sys
-import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-COLOR_RESET = "\033[0m"
-COLOR_GREEN = "\033[32m"
-COLOR_CYAN = "\033[36m"
+NO_COLOR = os.getenv("NO_COLOR", "0") == "1"
+COLOR_RESET = "" if NO_COLOR else "\033[0m"
+COLOR_GREEN = "" if NO_COLOR else "\033[32m"
+COLOR_CYAN = "" if NO_COLOR else "\033[36m"
 ICON_OK = f"{COLOR_GREEN}✓{COLOR_RESET}"
 ICON_STEP = f"{COLOR_CYAN}→{COLOR_RESET}"
 ICON_INFO = "·"
@@ -38,6 +40,7 @@ def _step(message: str) -> None:
 
 def _info(message: str) -> None:
     print(f"{ICON_INFO} {message}")
+
 
 # ---------------------------------------------------------------------------
 # Marker replacement engine
@@ -133,9 +136,7 @@ def _render_endpoints_md(routes: list[tuple[str, str, str]]) -> str:
 def _render_endpoints_html(routes: list[tuple[str, str, str]]) -> str:
     lines = ['      <div class="card">']
     for method, path, summary in routes:
-        lines.append(
-            f'        <p><span class="badge">{method} {path}</span> {summary}</p>'
-        )
+        lines.append(f'        <p><span class="badge">{method} {path}</span> {summary}</p>')
     lines.append("      </div>")
     return "\n".join(lines)
 
@@ -185,9 +186,19 @@ def _render_config_table(entries: list[tuple[str, str]]) -> str:
 # ---------------------------------------------------------------------------
 
 _SKIP_DIRS = {
-    ".venv", "venv", "__pycache__", ".git", ".cursor",
-    "node_modules", ".mypy_cache", ".ruff_cache", ".pytest_cache",
-    ".tox", ".nox", ".eggs", "htmlcov",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".git",
+    ".cursor",
+    "node_modules",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    ".tox",
+    ".nox",
+    ".eggs",
+    "htmlcov",
 }
 
 # Show only high-level architecture blocks at repository root.
@@ -201,24 +212,25 @@ _MAX_DEPTH_BY_ROOT = {
 }
 
 _DIR_COMMENTS: dict[str, str] = {
-    "app":                "Application package",
-    "app/api":            "HTTP layer",
-    "app/api/v1":         "v1 routers",
-    "app/core":           "Settings, DB session",
-    "app/models":         "ORM models",
-    "app/models/core":    "Core domain entities",
+    "app": "Application package",
+    "app/api": "HTTP layer",
+    "app/api/v1": "v1 routers",
+    "app/core": "Settings, DB session",
+    "app/models": "ORM models",
+    "app/models/core": "Core domain entities",
     "app/models/reference": "Reference / lookup entities",
-    "app/repositories":   "Data-access layer",
-    "app/schemas":        "Pydantic request/response models",
-    "app/services":       "Business logic",
-    "alembic":            "Migration environment",
-    "alembic/versions":   "Migration scripts",
-    "docs":               "HTML docs & UML sources",
-    "docs/uml":           "PlantUML diagrams",
+    "app/repositories": "Data-access layer",
+    "app/schemas": "Pydantic request/response models",
+    "app/services": "Business logic",
+    "alembic": "Migration environment",
+    "alembic/versions": "Migration scripts",
+    "docs": "HTML docs & UML sources",
+    "docs/uml": "PlantUML diagrams",
     "docs/uml/sequences": "Sequence diagram sources",
-    "docs/uml/rendered":  "Rendered PNGs",
-    "scripts":            "Dev & CI helper scripts",
+    "docs/uml/rendered": "Rendered PNGs",
+    "scripts": "Dev & CI helper scripts",
 }
+
 
 def _build_tree() -> str:
     """Render a concise architecture tree with directories only."""
@@ -232,7 +244,8 @@ def _build_tree() -> str:
 
         entries = sorted(
             [
-                child for child in directory.iterdir()
+                child
+                for child in directory.iterdir()
                 if child.is_dir() and child.name not in _SKIP_DIRS
             ],
             key=lambda p: p.name,

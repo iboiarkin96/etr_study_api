@@ -12,7 +12,7 @@ SYSTEM_UUID_EXAMPLES: Final[list[str]] = ["b2c3d4e5-0002-4000-8000-000000000002"
 INVALIDATION_REASON_UUID_EXAMPLES: Final[list[str]] = ["c3d4e5f6-0003-4000-8000-000000000003"]
 IS_ROW_INVALID_EXAMPLES: Final[list[int]] = [0, 1]
 
-USER_REGISTER_REQUEST_EXAMPLES: Final[dict[str, dict[str, object]]] = {
+USER_CREATE_REQUEST_EXAMPLES: Final[dict[str, dict[str, object]]] = {
     "default": {
         "summary": "Basic registration",
         "value": {
@@ -33,4 +33,3 @@ USER_REGISTER_REQUEST_EXAMPLES: Final[dict[str, dict[str, object]]] = {
         },
     },
 }
-

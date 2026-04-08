@@ -1,6 +1,6 @@
 # Study App API
 
-REST API for user registration and related domain logic. Built with **FastAPI**, **SQLAlchemy 2**, **Alembic**, and **SQLite**, with configuration from environment variables and request/response validation via **Pydantic v2**.
+REST API for user creation and related domain logic. Built with **FastAPI**, **SQLAlchemy 2**, **Alembic**, and **SQLite**, with configuration from environment variables and request/response validation via **Pydantic v2**.
 
 ---
 
@@ -18,7 +18,11 @@ REST API for user registration and related domain logic. Built with **FastAPI**,
 - [Non-functional requirements](#non-functional-requirements)
 - [Error matrix](#error-matrix)
 - [Development guide](#development-guide)
+- [Make-first local workflow (mandatory)](#make-first-local-workflow-mandatory)
+- [Code formatting and linting](#code-formatting-and-linting)
 - [Testing policy (mandatory)](#testing-policy-mandatory)
+- [Logging policy (mandatory)](#logging-policy-mandatory)
+- [API versioning policy (mandatory)](#api-versioning-policy-mandatory)
 - [Database and migrations](#database-and-migrations)
 - [Project documentation (HTML & UML)](#project-documentation-html--uml)
 - [Docs as Code workflow](#docs-as-code-workflow)
@@ -87,7 +91,7 @@ study_app/
 ## Prerequisites
 
 - **Python** 3.11 or newer (tested with 3.14)
-- **make** (optional but recommended; all common tasks are wrapped in the `Makefile`)
+- **make** (required for local development workflows in this project)
 
 ---
 
@@ -142,9 +146,17 @@ Variables are loaded from `.env` in the project root (see `app/core/config.py`).
 | `APP_HOST` | Bind address for Uvicorn | `127.0.0.1` |
 | `APP_PORT` | Listen port | `8000` |
 | `SQLITE_DB_PATH` | SQLite database file (relative or absolute path) | `study_app.db` |
+| `LOG_DIR` |  | `logs` |
+| `LOG_FILE_NAME` |  | `app.log` |
+| `LOG_LEVEL` |  | `INFO` |
 <!-- END:CONFIG_TABLE -->
 
 > **Security:** do not commit `.env` with secrets. The repository includes `.env.example` only. Local `*.db` files are listed in `.gitignore`.
+
+Logging variables:
+- `LOG_DIR` - directory where runtime logs are stored (default: `logs`).
+- `LOG_FILE_NAME` - active log file name (default: `app.log`).
+- `LOG_LEVEL` - minimum log level for file output (default: `INFO`).
 
 ---
 
@@ -166,7 +178,7 @@ Interactive docs include request schemas, response models, and validation rules 
 <!-- BEGIN:HTTP_ENDPOINTS -->
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| `POST` | `/api/v1/users/register` | Register user |
+| `POST` | `/api/v1/user` | Create user |
 | `GET` | `/health` | Health check |
 <!-- END:HTTP_ENDPOINTS -->
 
@@ -260,6 +272,93 @@ Error Matrix documents the **approach and extension rules**, not an exhaustive l
 
 ---
 
+## Make-first local workflow (mandatory)
+
+This project uses a strict **Make-first** local workflow:
+
+- Run local operations through `make` targets only (`run`, `test`, `sync-docs`, `lint-check`, `type-check`, `pre-deploy`, etc.).
+- Avoid ad-hoc direct commands in daily flow (`pytest`, `ruff`, `mypy`, custom scripts) unless you are debugging a target itself.
+- Keep command behavior consistent for all developers by using the same Makefile entrypoints.
+
+Checks are intentionally split into two levels:
+
+- Before commit: `make pre-commit-check` (fast local filter from `.pre-commit-config.yaml`).
+- Before PR/deploy: `make quality-check` and `make pre-deploy` (full project quality gate).
+
+Recommended flow:
+
+```bash
+# one-time setup
+make venv
+make install
+
+# daily development loop
+make format
+make lint-check
+make type-check
+make test
+make sync-docs
+
+# before release/deploy
+make pre-deploy
+```
+
+---
+
+## Code formatting and linting
+
+This project follows a "fast feedback, consistent style" approach:
+
+- **Formatting:** `ruff format` (single canonical formatter).
+- **Linting:** `ruff check` for correctness, import order, and common bug patterns.
+- **Type checks:** `mypy` baseline for static type safety.
+- **Local hook automation:** `pre-commit` runs checks before commit.
+
+Configuration files:
+
+- `pyproject.toml` - `ruff`, `mypy` settings.
+- `.pre-commit-config.yaml` - pre-commit hooks.
+
+Recommended daily workflow:
+
+```bash
+make format
+make lint-check
+make type-check
+make test
+```
+
+Before commit:
+
+```bash
+make pre-commit-install   # one-time per clone
+make pre-commit-check
+```
+
+Rule: keep both commands. `pre-commit-check` is a fast pre-commit filter, while `quality-check` is a broader pre-PR gate.
+
+Before PR/deploy:
+
+```bash
+make quality-check
+make pre-deploy
+```
+
+Optional simplification:
+- You can add alias `make verify` -> `make quality-check` for naming convenience.
+- Keep `make pre-commit-check` anyway for faster feedback before each commit.
+
+Terminal UX notes:
+- Colored status output is enabled by default.
+- Use `NO_COLOR=1` for plain output (useful in CI logs), e.g. `NO_COLOR=1 make pre-deploy`.
+
+Policy:
+- PRs should not include formatting noise unrelated to feature changes.
+- New code should pass lint/type checks without adding broad ignores.
+- If a rule is too strict, adjust config centrally instead of bypassing per-file where possible.
+
+---
+
 ## Testing policy (mandatory)
 
 Tests are a release gate in this project.
@@ -274,16 +373,15 @@ Commands:
 
 ```bash
 make test
-make test-one path=tests/api/v1/test_users_register.py
+make test-one path=tests/api/v1/test_user_create.py
+make quality-check
 make pre-deploy
 make deploy DEPLOY_CMD="echo Deploying to staging"
 ```
 
 Pre-deploy gate (`make pre-deploy`) runs mandatory sequence:
-1. Environment check (`make check`)
-2. Test suite (`make test`)
-3. UML regeneration (`make docs`)
-4. Documentation sync (`make sync-docs`)
+1. Environment check (`make env-check`)
+2. Full quality gate (`make quality-check`)
 
 Deployment wrapper:
 - `make deploy DEPLOY_CMD="..."` always runs `make pre-deploy` first.
@@ -291,7 +389,74 @@ Deployment wrapper:
 
 Current baseline:
 - API tests live in `tests/`.
-- Example endpoint coverage is implemented for `POST /api/v1/users/register`.
+- Example endpoint coverage is implemented for `POST /api/v1/user`.
+
+---
+
+## Logging policy (mandatory)
+
+Logging is centralized and file-based by default for local environments:
+
+- Standard setup is configured in `app/core/logging.py` and initialized from `app/main.py`.
+- Runtime logs are written to `logs/app.log` (configurable via `.env`: `LOG_DIR`, `LOG_FILE_NAME`, `LOG_LEVEL`).
+- Request lifecycle is logged consistently (method, path, status, elapsed time).
+- Validation and business-flow events are logged in API/service layers for traceability.
+- Log files are local artifacts and are excluded from Git (`logs/`, `*.log`).
+
+Quick check:
+
+```bash
+make run
+# then inspect logs/app.log in another terminal/editor
+```
+
+---
+
+## API versioning policy (mandatory)
+
+Public API contract is versioned by path prefix and governed by strict compatibility rules.
+
+### Version model
+
+- Major API version lives in URL prefix (current: `/api/v1/...`).
+- `v1` is stable: only backward-compatible changes are allowed.
+- Breaking changes are introduced only in a new major version (for example `/api/v2/...`).
+
+### Breaking changes (not allowed inside same major)
+
+- Removing or renaming endpoints, fields, or enum values.
+- Changing type or semantic meaning of existing fields.
+- Changing requiredness of existing request fields (`optional -> required`).
+- Changing semantic meaning of existing error `code` / `key`.
+
+### Allowed non-breaking changes in `v1`
+
+- Adding new endpoints.
+- Adding new optional request/response fields.
+- Adding new error codes without changing existing ones.
+- Improving docs/examples without runtime contract change.
+
+### Deprecation window and migration
+
+- Any deprecated contract must have a migration window of at least 90 days (or 2 release cycles, whichever is longer).
+- Deprecated behavior should be documented in `README.md`, `docs/index.html`, and ADR notes.
+- If header-based deprecation is introduced, use:
+  - `Deprecation: true`
+  - `Sunset: <date>`
+  - `Link: <migration-guide>; rel="deprecation"`
+
+### Compatibility rules
+
+- Existing behavior must remain valid for current major clients.
+- Error contract is immutable for existing codes: `code` + `key` semantics are never repurposed.
+- Contract evolution is additive by default.
+
+### Delivery checklist for contract changes
+
+- Update router `responses`, schemas, and OpenAPI examples.
+- Add or update tests for compatibility and migration paths.
+- Run `make pre-deploy` and `make sync-docs`.
+- Record major policy/contract decisions in ADR.
 
 ---
 
@@ -302,11 +467,10 @@ Current baseline:
   - `docs/uml/architecture/*.puml` - C4 architecture views
   - `docs/uml/sequences/*.puml` - sequence diagrams
 - Rendered PNGs are stored in `docs/uml/rendered/`.
-- To regenerate all UML images:
+- To regenerate diagrams and sync docs in one command:
 
   ```bash
-  make docs
-  make docs-watch   # watch docs/uml/**/*.puml and regenerate on changes
+  make sync-docs
   ```
 
 ---
@@ -329,7 +493,6 @@ Documentation is treated as a first-class artifact, same as source code.
 ```bash
 # during development
 make test
-make docs
 make sync-docs
 
 # before PR / deploy
@@ -338,14 +501,13 @@ make pre-deploy
 
 ### Docs quality checks
 
-`make docs-check` verifies that:
-- rendered UML files are up to date (`scripts/regenerate_docs.py --check`);
-- marker-managed docs sections are synchronized (`scripts/sync_docs.py --check`).
+`make sync-docs` is the single docs command and performs:
+- UML regeneration (`scripts/regenerate_docs.py`);
+- marker-based docs synchronization (`scripts/sync_docs.py`).
 
 If it fails, run:
 
 ```bash
-make docs
 make sync-docs
 ```
 
@@ -354,35 +516,27 @@ make sync-docs
 - API changes are incomplete without:
   - tests,
   - updated OpenAPI contracts/examples,
-  - synchronized docs (`make sync-docs`),
-  - passing docs checks (`make docs-check`).
+  - synchronized docs (`make sync-docs`).
 
 ---
 
 ## Documentation generation workflow
 
-This project has **two independent doc-generation flows**:
+Documentation generation is unified under one command: `make sync-docs`.
 
-1. **Diagram rendering flow** (`make docs`, `make docs-watch`)
-   - Source of truth: `docs/uml/**/*.puml`
-   - Output: `docs/uml/rendered/*.png`
-   - Script: `scripts/regenerate_docs.py`
+What it does:
+1. Regenerates UML diagrams from `docs/uml/**/*.puml` into `docs/uml/rendered/*.png`.
+2. Synchronizes marker-based sections in `README.md` and `docs/index.html` from code sources.
 
-2. **Text sync flow** (`make sync-docs`)
-   - Sources of truth:
-     - `Makefile` (command reference)
-     - `app.main` routes (HTTP endpoints)
-     - `.env.example` (configuration table)
-     - repository directory structure
-   - Outputs:
-     - `README.md` sections between `<!-- BEGIN:... -->` and `<!-- END:... -->`
-     - API contracts block in `docs/index.html` (`API_CONTRACTS`)
-   - Script: `scripts/sync_docs.py`
+Code sources for sync:
+- `Makefile` (command reference)
+- `app.main` routes (HTTP endpoints)
+- `.env.example` (configuration table)
+- repository directory structure
 
 Recommended update sequence after architecture/API/doc changes:
 
 ```bash
-make docs
 make sync-docs
 ```
 
@@ -397,21 +551,31 @@ Important:
 <!-- BEGIN:MAKEFILE_REF -->
 | Command | Purpose |
 | ------- | ------- |
+| `make quality-check` | # local quality gate |
+| `make sync-docs` | # single docs pipeline (render + sync) |
+| `make pre-deploy` | # release gate before deploy |
+| `make deploy DEPLOY_CMD='…'` | # run deploy after gate |
 | `make venv` | Create virtual environment |
 | `make install` | Install dependencies |
 | `make requirements` | Auto-generate requirements.txt from .venv |
 | `make run` | Start FastAPI dev server |
 | `make migrate` | Apply all Alembic migrations |
 | `make migration name=…` | Auto-generate new Alembic migration |
-| `make docs` | Regenerate UML docs once |
-| `make docs-watch` | Watch UML sources, regenerate on change |
-| `make docs-check` | Verify generated docs are up to date |
+| `make format` | Auto-format Python code |
+| `make format-check` | Verify code formatting (no changes) |
+| `make lint-check` | Run Ruff lint checks |
+| `make lint-fix` | Run Ruff with auto-fixes |
+| `make type-check` | Run mypy type checks |
+| `make env-check` | Verify env, deps, and DB connectivity |
+| `make quality-check` | Run lint-check + type-check + test + sync-docs |
 | `make test` | Run full test suite (pytest) |
 | `make test-one path=…` | Run one test file or node |
+| `make test-warnings` | Run tests with full warning details |
+| `make sync-docs` | Auto-update README.md & docs/index.html from code |
+| `make pre-commit-install` | Install git pre-commit hooks |
+| `make pre-commit-check` | Run all pre-commit hooks |
 | `make pre-deploy` | Run full quality gate before deploy |
 | `make deploy DEPLOY_CMD='…'` | Run pre-deploy then deploy command |
-| `make check` | Verify env, deps, and DB connectivity |
-| `make sync-docs` | Auto-update README.md & docs/index.html from code |
 <!-- END:MAKEFILE_REF -->
 
 

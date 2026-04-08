@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from typing import Annotated
+from zoneinfo import available_timezones
 
 from pydantic import AfterValidator
-from zoneinfo import available_timezones
 
 VALID_TIMEZONES: frozenset[str] = frozenset(available_timezones())
 

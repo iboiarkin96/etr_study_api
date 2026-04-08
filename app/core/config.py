@@ -20,6 +20,9 @@ class Settings:
     app_host: str
     app_port: int
     sqlite_db_path: str
+    log_dir: str
+    log_file_name: str
+    log_level: str
 
     @property
     def sqlite_url(self) -> str:
@@ -42,4 +45,7 @@ def get_settings() -> Settings:
         app_host=os.getenv("APP_HOST", "127.0.0.1").strip() or "127.0.0.1",
         app_port=int(os.getenv("APP_PORT", "8000")),
         sqlite_db_path=db_path,
+        log_dir=os.getenv("LOG_DIR", "logs").strip() or "logs",
+        log_file_name=os.getenv("LOG_FILE_NAME", "app.log").strip() or "app.log",
+        log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",
     )

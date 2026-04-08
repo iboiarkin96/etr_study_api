@@ -6,18 +6,18 @@ from typing import Final
 
 USER_EXISTS_ERROR_EXAMPLE: Final[dict[str, object]] = {
     "code": "101",
-    "key": "USR_REG_ALREADY_EXISTS",
+    "key": "USR_CREATE_ALREADY_EXISTS",
     "message": "User with this `system_user_id` already exists.",
     "source": "business",
 }
 
 TIMEZONE_VALIDATION_ERROR_EXAMPLE: Final[dict[str, object]] = {
     "error_type": "validation_error",
-    "endpoint": "POST /api/v1/users/register",
+    "endpoint": "POST /api/v1/user",
     "errors": [
         {
             "code": "007",
-            "key": "USR_REG_TIMEZONE_INVALID",
+            "key": "USR_CREATE_TIMEZONE_INVALID",
             "message": "Field `timezone` must be a valid IANA timezone.",
             "field": "timezone",
             "source": "validation",
@@ -31,13 +31,13 @@ TIMEZONE_VALIDATION_ERROR_EXAMPLE: Final[dict[str, object]] = {
     ],
 }
 
-REGISTER_REQUIRED_FIELD_ERROR_EXAMPLE: Final[dict[str, object]] = {
+USER_CREATE_REQUIRED_FIELD_ERROR_EXAMPLE: Final[dict[str, object]] = {
     "error_type": "validation_error",
-    "endpoint": "POST /api/v1/users/register",
+    "endpoint": "POST /api/v1/user",
     "errors": [
         {
             "code": "001",
-            "key": "USR_REG_SYSTEM_USER_ID_REQUIRED",
+            "key": "USR_CREATE_SYSTEM_USER_ID_REQUIRED",
             "message": "Field `system_user_id` is required.",
             "field": "system_user_id",
             "source": "validation",
@@ -53,4 +53,3 @@ REGISTER_REQUIRED_FIELD_ERROR_EXAMPLE: Final[dict[str, object]] = {
         }
     ],
 }
-

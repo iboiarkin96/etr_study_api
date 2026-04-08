@@ -1,4 +1,4 @@
-"""Pydantic schemas for user registration endpoint."""
+"""Pydantic schemas for user create endpoint."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from app.openapi.examples import (
 from app.schemas.enums import TimezoneField
 
 
-class UserRegisterRequest(BaseModel):
+class UserCreateRequest(BaseModel):
     """Incoming payload for creating/updating user."""
 
     system_user_id: UUID = Field(
@@ -66,7 +66,7 @@ class UserRegisterRequest(BaseModel):
     )
 
 
-class UserRegisterResponse(BaseModel):
+class UserCreateResponse(BaseModel):
     """Outgoing payload with persisted user data."""
 
     model_config = ConfigDict(from_attributes=True)

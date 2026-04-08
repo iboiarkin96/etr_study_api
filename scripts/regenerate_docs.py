@@ -8,6 +8,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import tempfile
 import time
@@ -17,9 +18,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 UML_SRC_DIR = PROJECT_ROOT / "docs" / "uml"
 UML_OUT_DIR = PROJECT_ROOT / "docs" / "uml" / "rendered"
 KROKI_URL = "https://kroki.io/plantuml/png"
-COLOR_RESET = "\033[0m"
-COLOR_GREEN = "\033[32m"
-COLOR_CYAN = "\033[36m"
+NO_COLOR = os.getenv("NO_COLOR", "0") == "1"
+COLOR_RESET = "" if NO_COLOR else "\033[0m"
+COLOR_GREEN = "" if NO_COLOR else "\033[32m"
+COLOR_CYAN = "" if NO_COLOR else "\033[36m"
 ICON_OK = f"{COLOR_GREEN}✓{COLOR_RESET}"
 ICON_STEP = f"{COLOR_CYAN}→{COLOR_RESET}"
 
@@ -148,8 +150,12 @@ def watch(interval_sec: float = 1.0) -> None:
 def main() -> None:
     """CLI entrypoint."""
     parser = argparse.ArgumentParser(description="Regenerate UML diagrams for docs.")
-    parser.add_argument("--watch", action="store_true", help="Watch source files and rerender on changes.")
-    parser.add_argument("--interval", type=float, default=1.0, help="Watch polling interval in seconds.")
+    parser.add_argument(
+        "--watch", action="store_true", help="Watch source files and rerender on changes."
+    )
+    parser.add_argument(
+        "--interval", type=float, default=1.0, help="Watch polling interval in seconds."
+    )
     parser.add_argument(
         "--check",
         action="store_true",

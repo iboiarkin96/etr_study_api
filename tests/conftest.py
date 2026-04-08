@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
-
 
 # Configure test DB before importing app modules.
 TEST_DB_PATH = Path(__file__).resolve().parent / "test_app.sqlite3"
@@ -18,8 +18,8 @@ os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("APP_HOST", "127.0.0.1")
 os.environ.setdefault("APP_PORT", "8001")
 
-from app.main import app  # noqa: E402
 from app.core.database import SessionLocal, engine  # noqa: E402
+from app.main import app  # noqa: E402
 from app.models import Base  # noqa: E402
 
 
@@ -36,7 +36,7 @@ def _seed_reference_data() -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def prepare_database() -> None:
+def prepare_database() -> Iterator[None]:
     """Create clean schema for the test session."""
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
@@ -59,4 +59,3 @@ def clean_users_table() -> None:
 def client() -> TestClient:
     """FastAPI test client fixture."""
     return TestClient(app)
-

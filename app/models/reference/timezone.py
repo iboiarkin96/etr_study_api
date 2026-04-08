@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
-
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,6 +15,9 @@ class Timezone(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     code: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True,
+        String(64),
+        unique=True,
+        nullable=False,
+        index=True,
     )
     utc_offset: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -309,7 +309,7 @@
       <h2>6. API Contracts (Required)</h2>
       <!-- BEGIN:API_CONTRACTS -->
       <div class="card">
-        <p><span class="badge">POST /api/v1/users/register</span> Register user</p>
+        <p><span class="badge">POST /api/v1/user</span> Create user</p>
         <p><span class="badge">GET /health</span> Health check</p>
       </div>
       <!-- END:API_CONTRACTS -->
@@ -440,10 +440,18 @@
         <h3>9.6 Pre-Deploy Procedure (Mandatory)</h3>
         <ul>
           <li>Before deployment, run <code>make pre-deploy</code> as a quality gate.</li>
-          <li>Pipeline includes: <code>make check</code>, <code>make test</code>, <code>make docs</code>, <code>make sync-docs</code>.</li>
+          <li>Pipeline includes: <code>make env-check</code>, <code>make quality-check</code>, <code>make sync-docs</code>.</li>
           <li>Deployment must be blocked if any step fails.</li>
           <li>This keeps tests and documentation always aligned with deployed API behavior.</li>
           <li>Use <code>make deploy DEPLOY_CMD="..."</code> to enforce pre-deploy gate before real deployment command.</li>
+        </ul>
+
+        <h3>9.7 Code Formatting and Linting</h3>
+        <ul>
+          <li>Use <code>make format</code> to keep code style consistent before review.</li>
+          <li>Use <code>make lint-check</code> and <code>make type-check</code> as mandatory static checks.</li>
+          <li>Use <code>make quality-check</code> for combined lint + typecheck + tests + docs sync.</li>
+          <li>Install hooks once with <code>make pre-commit-install</code> and run with <code>make pre-commit-check</code>.</li>
         </ul>
       </div>
     </section>
@@ -465,9 +473,10 @@
 
         <h3>10.2 Required Commands</h3>
         <ul>
-          <li>During implementation: <code>make test</code>, <code>make docs</code>, <code>make sync-docs</code>.</li>
-          <li>Before release: <code>make pre-deploy</code>.</li>
-          <li>Integrity check: <code>make docs-check</code> (must pass in PR/release flow).</li>
+          <li>During implementation: <code>make format</code>, <code>make lint-check</code>, <code>make type-check</code>, <code>make test</code>.</li>
+          <li>Docs flow: <code>make sync-docs</code> (single command for render + sync).</li>
+          <li>Before release: <code>make quality-check</code>, <code>make pre-deploy</code>.</li>
+          <li>Documentation integrity is included in <code>make sync-docs</code> and release pipeline.</li>
         </ul>
 
         <h3>10.3 Expansion Rule</h3>
@@ -475,6 +484,53 @@
           <li>Any API change must update tests, OpenAPI examples, and docs in the same change.</li>
           <li>Contract changes must remain backward-compatible unless explicitly versioned.</li>
           <li>Generated docs must be sync-safe and reproducible by command.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <h2>11. API Versioning Policy (Required)</h2>
+      <div class="card">
+        <p>
+          Public API evolves via path-based major versioning with additive changes by default.
+        </p>
+
+        <h3>11.1 Version Model</h3>
+        <ul>
+          <li>Major version is part of URL prefix (current: <code>/api/v1</code>).</li>
+          <li>Current major is backward-compatible by default.</li>
+          <li>Breaking changes are released only in a new major version (for example <code>/api/v2</code>).</li>
+        </ul>
+
+        <h3>11.2 Breaking Changes (Not Allowed in Same Major)</h3>
+        <ul>
+          <li>Removing or renaming endpoints, fields, or enum values.</li>
+          <li>Changing field type or semantic meaning.</li>
+          <li>Changing requiredness of existing request fields (<code>optional -> required</code>).</li>
+          <li>Repurposing existing error <code>code</code>/<code>key</code> semantics.</li>
+        </ul>
+
+        <h3>11.3 Allowed Non-Breaking Changes</h3>
+        <ul>
+          <li>Adding new endpoints.</li>
+          <li>Adding optional fields in request/response payloads.</li>
+          <li>Adding new error codes without changing existing ones.</li>
+          <li>Updating docs/examples without runtime contract change.</li>
+        </ul>
+
+        <h3>11.4 Deprecation Window</h3>
+        <ul>
+          <li>Deprecated contract elements keep at least 90 days (or two release cycles) migration window.</li>
+          <li>Deprecation timeline and migration path must be documented in README and this page.</li>
+          <li>If deprecation headers are used: <code>Deprecation</code>, <code>Sunset</code>, and migration <code>Link</code>.</li>
+        </ul>
+
+        <h3>11.5 Delivery Checklist for Contract Changes</h3>
+        <ul>
+          <li>Update schemas, router <code>responses</code>, and OpenAPI examples.</li>
+          <li>Add compatibility/regression tests.</li>
+          <li>Run <code>make pre-deploy</code> and <code>make sync-docs</code>.</li>
+          <li>Capture policy-level decisions in ADR (see <code>docs/adr/0004-api-versioning-policy.md</code>).</li>
         </ul>
       </div>
     </section>

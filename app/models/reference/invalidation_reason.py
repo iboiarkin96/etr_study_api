@@ -30,4 +30,4 @@ class InvalidationReason(Base):
     code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    users: Mapped[list["User"]] = relationship(back_populates="invalidation_reason")
+    users: Mapped[list[User]] = relationship(back_populates="invalidation_reason")
