@@ -14,9 +14,9 @@ class UserRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def get_by_telegram_user_id(self, telegram_user_id: int) -> User | None:
-        """Fetch user by Telegram id."""
-        stmt = select(User).where(User.telegram_user_id == telegram_user_id)
+    def get_by_system_user_id(self, system_user_id: str) -> User | None:
+        """Fetch user by unique system_user_id."""
+        stmt = select(User).where(User.system_user_id == system_user_id)
         return self.session.execute(stmt).scalar_one_or_none()
 
     def save(self, user: User) -> User:

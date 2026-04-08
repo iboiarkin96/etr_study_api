@@ -2,7 +2,7 @@ PYTHON := .venv/bin/python
 PIP    := .venv/bin/pip
 ENV    := .env
 
-.PHONY: help venv install run migrate migration docs docs-watch check sync-docs
+.PHONY: help venv install requirements run migrate migration docs docs-watch check sync-docs
 
 # ──────────────────────────────────────────────
 # Help
@@ -13,6 +13,7 @@ help:
 	@echo "  ─────────────────────────────────────────"
 	@echo "  make venv             Create virtual environment"
 	@echo "  make install          Install dependencies"
+	@echo "  make requirements     Auto-generate requirements.txt from .venv"
 	@echo "  make run              Start FastAPI dev server"
 	@echo "  make migrate          Apply all Alembic migrations"
 	@echo "  make migration name=… Auto-generate new Alembic migration"
@@ -42,6 +43,14 @@ install:
 	@echo "→ Installing requirements…"
 	@$(PIP) install -r requirements.txt -q
 	@echo "✓ Dependencies installed"
+
+requirements:
+	@if [ ! -d ".venv" ]; then \
+		echo "✗ .venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@echo "→ Generating requirements.txt from current .venv…"
+	@$(PIP) freeze | LC_ALL=C sort > requirements.txt
+	@echo "✓ requirements.txt updated"
 
 # ──────────────────────────────────────────────
 # Run

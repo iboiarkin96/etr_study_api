@@ -48,25 +48,28 @@ REST API for user registration and related domain logic. Built with **FastAPI**,
 
 ## Repository layout
 
+<!-- BEGIN:REPO_LAYOUT -->
 ```text
 study_app/
-├── app/
-│   ├── main.py              # FastAPI app factory & routers
-│   ├── api/v1/              # HTTP routers (handlers)
-│   ├── core/                # Settings, DB session
-│   ├── models/
-│   │   ├── core/            # Core domain entities (e.g. User)
-│   │   └── reference/       # Reference / lookup entities
-│   ├── repositories/      # Data access
-│   ├── schemas/             # Pydantic request/response models
-│   └── services/            # Business logic
-├── alembic/                 # Migration scripts
-├── docs/                    # HTML docs & PlantUML sources
-├── requirements.txt
-├── Makefile
-├── .env.example             # Copy to `.env` and adjust
-└── README.md
+├── app/  # Application package
+│   ├── api/  # HTTP layer
+│   │   └── v1/  # v1 routers
+│   ├── core/  # Settings, DB session
+│   ├── models/  # ORM models
+│   │   ├── core/  # Core domain entities
+│   │   └── reference/  # Reference / lookup entities
+│   ├── repositories/  # Data-access layer
+│   ├── schemas/  # Pydantic request/response models
+│   └── services/  # Business logic
+├── alembic/  # Migration environment
+│   └── versions/  # Migration scripts
+├── docs/  # HTML docs & UML sources
+│   └── uml/  # PlantUML diagrams
+│       ├── rendered/  # Rendered PNGs
+│       └── sequences/  # Sequence diagram sources
+└── scripts/  # Dev & CI helper scripts
 ```
+<!-- END:REPO_LAYOUT -->
 
 ---
 

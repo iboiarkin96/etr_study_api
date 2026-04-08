@@ -162,6 +162,89 @@ def _render_config_table(entries: list[tuple[str, str]]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Repository layout tree
+# ---------------------------------------------------------------------------
+
+_SKIP_DIRS = {
+    ".venv", "venv", "__pycache__", ".git", ".cursor",
+    "node_modules", ".mypy_cache", ".ruff_cache", ".pytest_cache",
+    ".tox", ".nox", ".eggs", "htmlcov",
+}
+
+# Show only high-level architecture blocks at repository root.
+_ARCHITECTURE_ROOT_DIRS = ("app", "alembic", "docs", "scripts")
+
+# Default depth is 2 (root + one nested level), but some domains are worth 3.
+_MAX_DEPTH_DEFAULT = 2
+_MAX_DEPTH_BY_ROOT = {
+    "app": 3,
+    "docs": 3,
+}
+
+_DIR_COMMENTS: dict[str, str] = {
+    "app":                "Application package",
+    "app/api":            "HTTP layer",
+    "app/api/v1":         "v1 routers",
+    "app/core":           "Settings, DB session",
+    "app/models":         "ORM models",
+    "app/models/core":    "Core domain entities",
+    "app/models/reference": "Reference / lookup entities",
+    "app/repositories":   "Data-access layer",
+    "app/schemas":        "Pydantic request/response models",
+    "app/services":       "Business logic",
+    "alembic":            "Migration environment",
+    "alembic/versions":   "Migration scripts",
+    "docs":               "HTML docs & UML sources",
+    "docs/uml":           "PlantUML diagrams",
+    "docs/uml/sequences": "Sequence diagram sources",
+    "docs/uml/rendered":  "Rendered PNGs",
+    "scripts":            "Dev & CI helper scripts",
+}
+
+def _build_tree() -> str:
+    """Render a concise architecture tree with directories only."""
+
+    lines: list[str] = [f"{ROOT.name}/"]
+
+    def _walk(directory: Path, prefix: str, rel: str, max_depth: int) -> None:
+        current_depth = len(rel.split("/")) if rel else 0
+        if current_depth >= max_depth:
+            return
+
+        entries = sorted(
+            [
+                child for child in directory.iterdir()
+                if child.is_dir() and child.name not in _SKIP_DIRS
+            ],
+            key=lambda p: p.name,
+        )
+
+        for i, entry in enumerate(entries):
+            is_last = i == len(entries) - 1
+            connector = "└── " if is_last else "├── "
+            child_rel = f"{rel}/{entry.name}" if rel else entry.name
+            comment = _DIR_COMMENTS.get(child_rel, "")
+            suffix = f"  # {comment}" if comment else ""
+            lines.append(f"{prefix}{connector}{entry.name}/{suffix}")
+            extension = "    " if is_last else "│   "
+            _walk(entry, prefix + extension, child_rel, max_depth)
+
+    existing_roots = [ROOT / name for name in _ARCHITECTURE_ROOT_DIRS if (ROOT / name).is_dir()]
+    for i, directory in enumerate(existing_roots):
+        is_last = i == len(existing_roots) - 1
+        connector = "└── " if is_last else "├── "
+        rel = directory.name
+        comment = _DIR_COMMENTS.get(rel, "")
+        suffix = f"  # {comment}" if comment else ""
+        lines.append(f"{connector}{directory.name}/{suffix}")
+        extension = "    " if is_last else "│   "
+        max_depth = _MAX_DEPTH_BY_ROOT.get(directory.name, _MAX_DEPTH_DEFAULT)
+        _walk(directory, extension, rel, max_depth)
+
+    return "```text\n" + "\n".join(lines) + "\n```"
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -171,10 +254,13 @@ def sync() -> None:
     routes = _get_fastapi_routes()
     env_entries = _parse_env_example()
 
+    repo_layout = _build_tree()
+
     # --- README.md ---
     readme_path = ROOT / "README.md"
     if readme_path.exists():
         readme_sections: dict[str, str] = {}
+        readme_sections["REPO_LAYOUT"] = repo_layout
         if makefile_entries:
             readme_sections["MAKEFILE_REF"] = _render_makefile_table(makefile_entries)
         if routes:

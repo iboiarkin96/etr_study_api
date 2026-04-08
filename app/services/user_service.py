@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from typing import Any
+import uuid
+
+from fastapi import HTTPException
 
 from app.models.core.user import User
 from app.repositories.user_repository import UserRepository
@@ -10,7 +13,7 @@ from app.schemas.user import UserRegisterRequest
 
 
 class UserService:
-    """Service that handles create-or-update registration behavior."""
+    """Service that handles all behaviors related to user."""
 
     def __init__(self, repository: UserRepository) -> None:
         self.repository = repository
@@ -22,29 +25,26 @@ class UserService:
             return None
         return str(value)
 
-    def register(self, payload: UserRegisterRequest) -> User:
-        """Create new user or update existing one by telegram_user_id."""
-        user = self.repository.get_by_telegram_user_id(payload.telegram_user_id)
-        if user is None:
-            user = User(
-                telegram_user_id=payload.telegram_user_id,
-                username=payload.username,
-                full_name=payload.full_name,
-                timezone=payload.timezone,
-                system_uuid=self._uuid_to_str(payload.system_uuid),
-                invalidation_reason_uuid=self._uuid_to_str(payload.invalidation_reason_uuid),
-                system_user_uuid=self._uuid_to_str(payload.system_user_uuid),
-                sysmem_name_uuid=self._uuid_to_str(payload.sysmem_name_uuid),
-                is_row_invalid=payload.is_row_invalid,
-            )
-            return self.repository.save(user)
+    @staticmethod
+    def _uuid_generation() -> str:
+        """Generate a robust, random, unique UUID4 string."""
+        return str(uuid.uuid4())
 
-        user.username = payload.username
-        user.full_name = payload.full_name
-        user.timezone = payload.timezone
-        user.system_uuid = self._uuid_to_str(payload.system_uuid)
-        user.invalidation_reason_uuid = self._uuid_to_str(payload.invalidation_reason_uuid)
-        user.system_user_uuid = self._uuid_to_str(payload.system_user_uuid)
-        user.sysmem_name_uuid = self._uuid_to_str(payload.sysmem_name_uuid)
-        user.is_row_invalid = payload.is_row_invalid
+    def register(self, payload: UserRegisterRequest) -> User:
+        """Create new user or raise if already exists."""
+        su_id = str(payload.system_user_id)
+
+        user = self.repository.get_by_system_user_id(su_id)
+        if user is not None:
+            raise HTTPException(status_code=400, detail="User already exists")
+
+        user = User(
+            system_user_id=su_id,
+            username=payload.username,
+            full_name=payload.full_name,
+            timezone=payload.timezone,
+            system_uuid=self._uuid_generation(),
+            invalidation_reason_uuid=self._uuid_to_str(payload.invalidation_reason_uuid),
+            is_row_invalid=payload.is_row_invalid,
+        )
         return self.repository.save(user)

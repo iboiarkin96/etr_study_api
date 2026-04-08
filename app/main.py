@@ -12,7 +12,7 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
-    description="Study App API. First implemented endpoint: POST /api/v1/users/register",
+    description="Study App API",
 )
 
 
