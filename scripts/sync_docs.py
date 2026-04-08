@@ -167,6 +167,20 @@ _CONFIG_DESCRIPTIONS: dict[str, str] = {
     "APP_HOST": "Bind address for Uvicorn",
     "APP_PORT": "Listen port",
     "SQLITE_DB_PATH": "SQLite database file (relative or absolute path)",
+    "LOG_DIR": "Directory where app logs are written",
+    "LOG_FILE_NAME": "Application log filename",
+    "LOG_LEVEL": "Root log level",
+    "CORS_ALLOW_ORIGINS": "Allowed browser origins (CSV)",
+    "CORS_ALLOW_METHODS": "Allowed CORS methods (CSV)",
+    "CORS_ALLOW_HEADERS": "Allowed CORS headers (CSV)",
+    "CORS_ALLOW_CREDENTIALS": "Whether CORS credentials are allowed",
+    "API_BODY_MAX_BYTES": "Maximum request body size in bytes",
+    "API_RATE_LIMIT_REQUESTS": "Requests per window for one client+path",
+    "API_RATE_LIMIT_WINDOW_SECONDS": "Rate-limit window in seconds",
+    "API_AUTH_STRATEGY": "Auth mode (`mock_api_key` or `disabled`)",
+    "API_MOCK_API_KEY": "Mock API key value for local/dev",
+    "API_AUTH_HEADER": "Header name used for API key auth",
+    "API_PROTECTED_PREFIX": "URL prefix where auth/rate-limit are enforced",
 }
 
 

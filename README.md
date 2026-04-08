@@ -28,25 +28,14 @@ Swagger:
 
 Primary sources: `docs/system-analysis.html`, `docs/engineering-practices.html`
 
-- Developer entry point: [`docs/engineering-practices.html#developer-handbook`](docs/engineering-practices.html#developer-handbook)
-- Non-functional requirements: [`docs/system-analysis.html#dev-nfr`](docs/system-analysis.html#dev-nfr)
-- Error matrix and contracts: [`docs/system-analysis.html#dev-error-matrix`](docs/system-analysis.html#dev-error-matrix)
-- Development workflow and quality gates: [`docs/engineering-practices.html#dev-guide`](docs/engineering-practices.html#dev-guide)
-- Docs-as-code process: [`docs/engineering-practices.html#dev-docs-as-code`](docs/engineering-practices.html#dev-docs-as-code)
-- API versioning policy: [`docs/engineering-practices.html#dev-versioning`](docs/engineering-practices.html#dev-versioning)
-- ADR catalog: `docs/adr/`
-- ADR index: `docs/adr/README.html`
-- ADR template: `docs/adr/0000-template.html`
-- Developer docs index: `docs/developer/README.html`
-- Requirements guide: `docs/developer/0001-requirements.html`
-- Schemas/contracts guide: `docs/developer/0002-schemas-and-contracts.html`
-- Business logic guide: `docs/developer/0003-business-logic.html`
-- Beginner guide (`POST /api/v1/contract` plan): `docs/developer/0004-how-to-add-post-contract.html`
-- Runbooks index: `docs/runbooks/README.html`
-- Runbook template: `docs/runbooks/0000-template.html`
-- Pre-commit runbook: `docs/runbooks/0004-pre-commit-failing.html`
-- Quality-check runbook: `docs/runbooks/0005-quality-check-failing.html`
-- Runbook mini-SLA policy: `docs/runbooks/README.html`
+- [Developer handbook](docs/engineering-practices.html#developer-handbook)
+- [Error matrix](docs/system-analysis.html#dev-error-matrix)
+- [Dev workflow](docs/engineering-practices.html#dev-guide)
+- [Docs process](docs/engineering-practices.html#dev-docs-as-code)
+- [API versioning](docs/engineering-practices.html#dev-versioning)
+- [ADR index](docs/adr/README.html)
+- [Developer docs](docs/developer/README.html), [requirements](docs/developer/0001-requirements.html), [schemas](docs/developer/0002-schemas-and-contracts.html), [logic](docs/developer/0003-business-logic.html), [beginner guide](docs/developer/0004-how-to-add-post-contract.html)
+- [Runbooks](docs/runbooks/README.html), [template](docs/runbooks/0000-template.html), [pre-commit](docs/runbooks/0004-pre-commit-failing.html), [quality-check](docs/runbooks/0005-quality-check-failing.html),
 
 Policy:
 - Local operations are executed via `make` targets from `Makefile`.
@@ -104,9 +93,20 @@ Configuration is loaded from `.env` (based on `.env.example`).
 | `APP_HOST` | Bind address for Uvicorn | `127.0.0.1` |
 | `APP_PORT` | Listen port | `8000` |
 | `SQLITE_DB_PATH` | SQLite database file (relative or absolute path) | `study_app.db` |
-| `LOG_DIR` |  | `logs` |
-| `LOG_FILE_NAME` |  | `app.log` |
-| `LOG_LEVEL` |  | `INFO` |
+| `LOG_DIR` | Directory where app logs are written | `logs` |
+| `LOG_FILE_NAME` | Application log filename | `app.log` |
+| `LOG_LEVEL` | Root log level | `INFO` |
+| `CORS_ALLOW_ORIGINS` | Allowed browser origins (CSV) | `http://127.0.0.1:3000,http://localhost:3000` |
+| `CORS_ALLOW_METHODS` | Allowed CORS methods (CSV) | `GET,POST,PUT,PATCH,DELETE,OPTIONS` |
+| `CORS_ALLOW_HEADERS` | Allowed CORS headers (CSV) | `Authorization,Content-Type,X-API-Key` |
+| `CORS_ALLOW_CREDENTIALS` | Whether CORS credentials are allowed | `false` |
+| `API_BODY_MAX_BYTES` | Maximum request body size in bytes | `1048576` |
+| `API_RATE_LIMIT_REQUESTS` | Requests per window for one client+path | `60` |
+| `API_RATE_LIMIT_WINDOW_SECONDS` | Rate-limit window in seconds | `60` |
+| `API_AUTH_STRATEGY` | Auth mode (`mock_api_key` or `disabled`) | `mock_api_key` |
+| `API_MOCK_API_KEY` | Mock API key value for local/dev | `local-dev-key` |
+| `API_AUTH_HEADER` | Header name used for API key auth | `X-API-Key` |
+| `API_PROTECTED_PREFIX` | URL prefix where auth/rate-limit are enforced | `/api/v1` |
 <!-- END:CONFIG_TABLE -->
 
 ---

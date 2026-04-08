@@ -53,3 +53,24 @@ USER_CREATE_REQUIRED_FIELD_ERROR_EXAMPLE: Final[dict[str, object]] = {
         }
     ],
 }
+
+SECURITY_AUTH_REQUIRED_ERROR_EXAMPLE: Final[dict[str, object]] = {
+    "code": "COMMON_401",
+    "key": "SECURITY_AUTH_REQUIRED",
+    "message": "Missing or invalid API key in header `X-API-Key`.",
+    "source": "security",
+}
+
+SECURITY_RATE_LIMIT_EXCEEDED_ERROR_EXAMPLE: Final[dict[str, object]] = {
+    "code": "COMMON_429",
+    "key": "SECURITY_RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests. Retry later.",
+    "source": "security",
+}
+
+SECURITY_BODY_TOO_LARGE_ERROR_EXAMPLE: Final[dict[str, object]] = {
+    "code": "COMMON_413",
+    "key": "SECURITY_REQUEST_BODY_TOO_LARGE",
+    "message": "Request body exceeds configured maximum size.",
+    "source": "security",
+}

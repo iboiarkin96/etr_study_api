@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
+
+from app.main import app
+
 
 def test_create_user_success(client) -> None:
     payload = {
@@ -55,3 +59,20 @@ def test_create_user_invalid_timezone_returns_code_based_422(client) -> None:
     assert body["errors"][0]["code"] == "USER_007"
     assert body["errors"][0]["field"] == "timezone"
     assert body["errors"][0]["source"] == "validation"
+
+
+def test_create_user_requires_api_key() -> None:
+    client = TestClient(app)
+    payload = {
+        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000099",
+        "full_name": "Ivan Petrov",
+        "timezone": "UTC",
+    }
+
+    response = client.post("/api/v1/user", json=payload)
+
+    assert response.status_code == 401
+    detail = response.json()["detail"]
+    assert detail["code"] == "COMMON_401"
+    assert detail["key"] == "SECURITY_AUTH_REQUIRED"
+    assert detail["source"] == "security"

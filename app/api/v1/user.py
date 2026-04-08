@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
 from app.openapi.examples import (
+    SECURITY_AUTH_REQUIRED_ERROR_EXAMPLE,
+    SECURITY_BODY_TOO_LARGE_ERROR_EXAMPLE,
+    SECURITY_RATE_LIMIT_EXCEEDED_ERROR_EXAMPLE,
     TIMEZONE_VALIDATION_ERROR_EXAMPLE,
     USER_CREATE_REQUEST_EXAMPLES,
     USER_CREATE_REQUIRED_FIELD_ERROR_EXAMPLE,
@@ -62,6 +65,48 @@ router = APIRouter(prefix="/user", tags=["User"])
                             "summary": "Invalid timezone name",
                             "value": TIMEZONE_VALIDATION_ERROR_EXAMPLE,
                         },
+                    }
+                }
+            },
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ApiErrorResponse,
+            "description": "Missing or invalid API key header.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "auth_required": {
+                            "summary": "Auth header required",
+                            "value": SECURITY_AUTH_REQUIRED_ERROR_EXAMPLE,
+                        }
+                    }
+                }
+            },
+        },
+        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE: {
+            "model": ApiErrorResponse,
+            "description": "Request body exceeds configured maximum size.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "body_too_large": {
+                            "summary": "Body size limit exceeded",
+                            "value": SECURITY_BODY_TOO_LARGE_ERROR_EXAMPLE,
+                        }
+                    }
+                }
+            },
+        },
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "model": ApiErrorResponse,
+            "description": "Per-client request rate limit exceeded.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "rate_limit_exceeded": {
+                            "summary": "Too many requests",
+                            "value": SECURITY_RATE_LIMIT_EXCEEDED_ERROR_EXAMPLE,
+                        }
                     }
                 }
             },

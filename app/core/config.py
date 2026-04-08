@@ -23,6 +23,17 @@ class Settings:
     log_dir: str
     log_file_name: str
     log_level: str
+    cors_allow_origins: tuple[str, ...]
+    cors_allow_methods: tuple[str, ...]
+    cors_allow_headers: tuple[str, ...]
+    cors_allow_credentials: bool
+    api_body_max_bytes: int
+    api_rate_limit_requests: int
+    api_rate_limit_window_seconds: int
+    api_auth_strategy: str
+    api_mock_api_key: str
+    api_auth_header: str
+    api_protected_prefix: str
 
     @property
     def sqlite_url(self) -> str:
@@ -39,6 +50,16 @@ def get_settings() -> Settings:
     if not db_path:
         raise ValueError("Missing SQLITE_DB_PATH in environment.")
 
+    def _split_csv(value: str, default: tuple[str, ...]) -> tuple[str, ...]:
+        parts = tuple(item.strip() for item in value.split(",") if item.strip())
+        return parts or default
+
+    def _as_bool(value: str, default: bool) -> bool:
+        normalized = value.strip().lower()
+        if not normalized:
+            return default
+        return normalized in {"1", "true", "yes", "on"}
+
     return Settings(
         app_name=os.getenv("APP_NAME", "Study App API").strip() or "Study App API",
         app_env=os.getenv("APP_ENV", "local").strip() or "local",
@@ -48,4 +69,23 @@ def get_settings() -> Settings:
         log_dir=os.getenv("LOG_DIR", "logs").strip() or "logs",
         log_file_name=os.getenv("LOG_FILE_NAME", "app.log").strip() or "app.log",
         log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",
+        cors_allow_origins=_split_csv(
+            os.getenv("CORS_ALLOW_ORIGINS", "http://127.0.0.1:3000,http://localhost:3000"),
+            ("http://127.0.0.1:3000", "http://localhost:3000"),
+        ),
+        cors_allow_methods=_split_csv(
+            os.getenv("CORS_ALLOW_METHODS", "GET,POST,PUT,PATCH,DELETE,OPTIONS"), ("*",)
+        ),
+        cors_allow_headers=_split_csv(
+            os.getenv("CORS_ALLOW_HEADERS", "Authorization,Content-Type,X-API-Key"),
+            ("Authorization", "Content-Type", "X-API-Key"),
+        ),
+        cors_allow_credentials=_as_bool(os.getenv("CORS_ALLOW_CREDENTIALS", "false"), False),
+        api_body_max_bytes=max(1024, int(os.getenv("API_BODY_MAX_BYTES", "1048576"))),
+        api_rate_limit_requests=max(1, int(os.getenv("API_RATE_LIMIT_REQUESTS", "60"))),
+        api_rate_limit_window_seconds=max(1, int(os.getenv("API_RATE_LIMIT_WINDOW_SECONDS", "60"))),
+        api_auth_strategy=os.getenv("API_AUTH_STRATEGY", "mock_api_key").strip() or "mock_api_key",
+        api_mock_api_key=os.getenv("API_MOCK_API_KEY", "local-dev-key").strip() or "local-dev-key",
+        api_auth_header=os.getenv("API_AUTH_HEADER", "X-API-Key").strip() or "X-API-Key",
+        api_protected_prefix=os.getenv("API_PROTECTED_PREFIX", "/api/v1").strip() or "/api/v1",
     )

@@ -52,12 +52,12 @@ help:
 	@echo "  make migration name=…     Auto-generate new Alembic migration"
 	@echo ""
 	@echo "  # Code Formatting"
-	@echo "  make format               Auto-format Python code"
+	@echo "  make format-fix           Auto-format Python code"
 	@echo "  make format-check         Verify code formatting (no changes)"
 	@echo ""
 	@echo "  # Linting"
-	@echo "  make lint-check           Run Ruff lint checks"
 	@echo "  make lint-fix             Run Ruff with auto-fixes"
+	@echo "  make lint-check           Run Ruff lint checks"
 	@echo ""
 	@echo "  # Type Checking"
 	@echo "  make type-check           Run mypy type checks"
@@ -164,7 +164,7 @@ migration:
 # Code quality
 # ──────────────────────────────────────────────
 # Auto-format Python codebase.
-format:
+format-fix:
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi

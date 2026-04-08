@@ -17,6 +17,12 @@ os.environ.setdefault("APP_NAME", "Study App API (tests)")
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("APP_HOST", "127.0.0.1")
 os.environ.setdefault("APP_PORT", "8001")
+os.environ.setdefault("API_AUTH_STRATEGY", "mock_api_key")
+os.environ.setdefault("API_AUTH_HEADER", "X-API-Key")
+os.environ.setdefault("API_MOCK_API_KEY", "test-api-key")
+os.environ.setdefault("API_RATE_LIMIT_REQUESTS", "100")
+os.environ.setdefault("API_RATE_LIMIT_WINDOW_SECONDS", "60")
+os.environ.setdefault("API_BODY_MAX_BYTES", "1048576")
 
 from app.core.database import SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
@@ -58,4 +64,4 @@ def clean_users_table() -> None:
 @pytest.fixture()
 def client() -> TestClient:
     """FastAPI test client fixture."""
-    return TestClient(app)
+    return TestClient(app, headers={"X-API-Key": "test-api-key"})
