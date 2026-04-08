@@ -1,42 +1,56 @@
 @startuml
-title ETR - Review/Retrieve Sequence (Smart UML)
+title Study App - Sequence: Review Retrieve
 
 autonumber
+hide footbox
 skinparam shadowing false
-skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
 skinparam sequenceMessageAlign center
-skinparam maxMessageSize 100
+skinparam responseMessageBelowArrow true
+skinparam maxMessageSize 80
+skinparam ParticipantPadding 16
+skinparam BoxPadding 8
+skinparam ArrowColor #334155
 
-actor Client
-participant "HTTP Handler\n(domains/http/handlers.py)" as Http
-participant "LogicEndpoints\n(domains/general/logic_endpoints.py)" as Logic
-participant "ConspectusService\n(services.py)" as Service
-database "SQLite Session\n(database.py + SQLAlchemy)" as Db
+actor "Client App" as Client
+boundary "HTTP API" as Api
+control "RetrieveService" as Service
+database "Repos + DB" as RepoDb
 
-Client -> Http: POST /api/v1/conspectuses/{id}/review\n(tag=easy|hard|forgot)
-activate Http
-Http -> Logic: review_conspectus(...)
-activate Logic
-Logic -> Service: mark_retrieval(user_id, id, tag, notes)
-activate Service
-Service -> Db: SELECT current_slot
-Db --> Service: current_slot
+Client -> Api: POST /conspectuses/{id}/review
+activate Api
+Api -> Api: validate payload
 
-alt tag == easy
-  Service -> Service: to_slot = NEXT_SLOT[current_slot]
-else tag in {hard, forgot}
-  Service -> Service: to_slot = "A"
+alt invalid payload
+  Api --> Client: 422 Validation Error
+  deactivate Api
+else valid payload
+  Api -> Service: apply_review(user_id, id, tag)
+  activate Service
+  Service -> RepoDb: load conspectus
+  RepoDb --> Service: record or empty
+
+  alt conspectus not found
+    Service --> Api: NotFound
+    deactivate Service
+    Api --> Client: 404 Not Found
+    deactivate Api
+  else found
+    Service -> Service: compute next slot
+    Service -> RepoDb: update slot + insert log
+    alt transaction failed
+      Service --> Api: Conflict
+      deactivate Service
+      Api --> Client: 409 Conflict
+      deactivate Api
+    else transaction success
+      Service --> Api: ReviewResponse
+      deactivate Service
+      Api --> Client: 200 OK
+      deactivate Api
+    end
+  end
 end
-
-Service -> Service: next_review_at = now + SLOT_TO_DELAY_DAYS[to_slot]
-Service -> Db: UPDATE conspectus(slot, next_review_at)
-Service -> Db: INSERT retrieval_log(from_slot, to_slot, tag)
-Db --> Service: committed
-Service --> Logic: {"from_slot","to_slot","next_review_at"}
-deactivate Service
-Logic --> Http: response payload
-deactivate Logic
-Http --> Client: 200 OK\nReviewResponse
-deactivate Http
 
 @enduml

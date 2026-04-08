@@ -1,31 +1,55 @@
 @startuml
-title ETR - Error Log Sequence (Smart UML)
+title Study App - Sequence: Create Error Log
 
 autonumber
+hide footbox
 skinparam shadowing false
-skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
 skinparam sequenceMessageAlign center
-skinparam maxMessageSize 100
+skinparam responseMessageBelowArrow true
+skinparam maxMessageSize 80
+skinparam ParticipantPadding 16
+skinparam BoxPadding 8
+skinparam ArrowColor #334155
 
-actor Client
-participant "HTTP Handler\n(domains/http/handlers.py)" as Http
-participant "LogicEndpoints\n(domains/general/logic_endpoints.py)" as Logic
-participant "ErrorLogService\n(services.py)" as Service
-database "SQLite Session\n(database.py + SQLAlchemy)" as Db
+actor "Client App" as Client
+boundary "HTTP API" as Api
+control "ErrorLogService" as Service
+database "Repos + DB" as RepoDb
 
-Client -> Http: POST /api/v1/errors\n(ErrorLogCreateRequest)
-activate Http
-Http -> Logic: create_error_log(...)
-activate Logic
-Logic -> Service: add(user_id, conspectus_id, ...)
-activate Service
-Service -> Db: INSERT error_log
-Db --> Service: committed
-Service --> Logic: success
-deactivate Service
-Logic --> Http: {"message":"Error log saved."}
-deactivate Logic
-Http --> Client: 201 Created
-deactivate Http
+Client -> Api: POST /errors
+activate Api
+Api -> Api: validate payload
+
+alt invalid payload
+  Api --> Client: 422 Validation Error
+  deactivate Api
+else valid payload
+  Api -> Service: add_error(user_id, payload)
+  activate Service
+  Service -> RepoDb: verify owner and conspectus
+  RepoDb --> Service: found or missing
+
+  alt not found
+    Service --> Api: NotFound
+    deactivate Service
+    Api --> Client: 404 Not Found
+    deactivate Api
+  else found
+    Service -> RepoDb: insert error log
+    alt transaction failed
+      Service --> Api: Conflict
+      deactivate Service
+      Api --> Client: 409 Conflict
+      deactivate Api
+    else transaction success
+      Service --> Api: ErrorLogResponse
+      deactivate Service
+      Api --> Client: 201 Created
+      deactivate Api
+    end
+  end
+end
 
 @enduml

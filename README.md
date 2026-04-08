@@ -17,6 +17,7 @@ REST API for user registration and related domain logic. Built with **FastAPI**,
 - [HTTP endpoints](#http-endpoints)
 - [Database and migrations](#database-and-migrations)
 - [Project documentation (HTML & UML)](#project-documentation-html--uml)
+- [Documentation generation workflow](#documentation-generation-workflow)
 - [Makefile reference](#makefile-reference)
 - [Git](#git)
 
@@ -65,6 +66,7 @@ study_app/
 │   └── versions/  # Migration scripts
 ├── docs/  # HTML docs & UML sources
 │   └── uml/  # PlantUML diagrams
+│       ├── architecture/
 │       ├── rendered/  # Rendered PNGs
 │       └── sequences/  # Sequence diagram sources
 └── scripts/  # Dev & CI helper scripts
@@ -164,12 +166,49 @@ Interactive docs include request schemas, response models, and validation rules 
 ## Project documentation (HTML & UML)
 
 - Human-readable requirements and diagrams: open **`docs/index.html`** in a browser.
-- PlantUML sources live under `docs/uml/`; rendered PNGs can be regenerated with:
+- PlantUML sources live under `docs/uml/`:
+  - `docs/uml/architecture/*.puml` - C4 architecture views
+  - `docs/uml/sequences/*.puml` - sequence diagrams
+- Rendered PNGs are stored in `docs/uml/rendered/`.
+- To regenerate all UML images:
 
   ```bash
   make docs
-  make docs-watch   # regenerate when .puml files change
+  make docs-watch   # watch docs/uml/**/*.puml and regenerate on changes
   ```
+
+---
+
+## Documentation generation workflow
+
+This project has **two independent doc-generation flows**:
+
+1. **Diagram rendering flow** (`make docs`, `make docs-watch`)
+   - Source of truth: `docs/uml/**/*.puml`
+   - Output: `docs/uml/rendered/*.png`
+   - Script: `scripts/regenerate_docs.py`
+
+2. **Text sync flow** (`make sync-docs`)
+   - Sources of truth:
+     - `Makefile` (command reference)
+     - `app.main` routes (HTTP endpoints)
+     - `.env.example` (configuration table)
+     - repository directory structure
+   - Outputs:
+     - `README.md` sections between `<!-- BEGIN:... -->` and `<!-- END:... -->`
+     - API contracts block in `docs/index.html` (`API_CONTRACTS`)
+   - Script: `scripts/sync_docs.py`
+
+Recommended update sequence after architecture/API/doc changes:
+
+```bash
+make docs
+make sync-docs
+```
+
+Important:
+- Edit only content **outside** auto-generated marker blocks if you want manual text to persist.
+- Marker blocks are managed by scripts and may be overwritten on the next sync.
 
 ---
 
@@ -180,6 +219,7 @@ Interactive docs include request schemas, response models, and validation rules 
 | ------- | ------- |
 | `make venv` | Create virtual environment |
 | `make install` | Install dependencies |
+| `make requirements` | Auto-generate requirements.txt from .venv |
 | `make run` | Start FastAPI dev server |
 | `make migrate` | Apply all Alembic migrations |
 | `make migration name=…` | Auto-generate new Alembic migration |

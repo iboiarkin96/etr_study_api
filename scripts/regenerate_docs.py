@@ -13,9 +13,27 @@ import time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SEQUENCE_SRC_DIR = PROJECT_ROOT / "docs" / "uml" / "sequences"
-SEQUENCE_OUT_DIR = PROJECT_ROOT / "docs" / "uml" / "rendered"
+UML_SRC_DIR = PROJECT_ROOT / "docs" / "uml"
+UML_OUT_DIR = PROJECT_ROOT / "docs" / "uml" / "rendered"
 KROKI_URL = "https://kroki.io/plantuml/png"
+
+
+def _source_files() -> list[Path]:
+    """Return all PlantUML source files under docs/uml, excluding rendered."""
+    files = sorted(UML_SRC_DIR.rglob("*.puml"))
+    return [f for f in files if "rendered" not in f.parts]
+
+
+def _output_for(source_path: Path) -> Path:
+    """Map source .puml to a stable output filename in rendered/."""
+    rel = source_path.relative_to(UML_SRC_DIR)
+    # Keep legacy names for sequence diagrams to avoid breaking docs/index.html.
+    if rel.parts and rel.parts[0] == "sequences":
+        safe_name = source_path.stem + ".png"
+    else:
+        # Keep filenames stable and unique across non-sequence subdirectories.
+        safe_name = "__".join(rel.with_suffix("").parts) + ".png"
+    return UML_OUT_DIR / safe_name
 
 
 def render_one(source_path: Path, output_path: Path) -> None:
@@ -39,10 +57,10 @@ def render_one(source_path: Path, output_path: Path) -> None:
 
 
 def render_all(verbose: bool = True) -> int:
-    """Render all sequence diagrams and return number of files."""
-    files = sorted(SEQUENCE_SRC_DIR.glob("*.puml"))
+    """Render all UML diagrams and return number of files."""
+    files = _source_files()
     for src in files:
-        out = SEQUENCE_OUT_DIR / f"{src.stem}.png"
+        out = _output_for(src)
         render_one(src, out)
         if verbose:
             print(f"rendered: {out.relative_to(PROJECT_ROOT)}")
@@ -50,10 +68,10 @@ def render_all(verbose: bool = True) -> int:
 
 
 def watch(interval_sec: float = 1.0) -> None:
-    """Watch sequence source files and rerender changed ones."""
-    print("watch mode enabled: monitoring docs/uml/sequences/*.puml")
+    """Watch UML source files and rerender changed ones."""
+    print("watch mode enabled: monitoring docs/uml/**/*.puml")
     mtimes: dict[Path, float] = {}
-    for src in sorted(SEQUENCE_SRC_DIR.glob("*.puml")):
+    for src in _source_files():
         mtimes[src] = src.stat().st_mtime
 
     total = render_all(verbose=True)
@@ -61,7 +79,7 @@ def watch(interval_sec: float = 1.0) -> None:
 
     while True:
         changed = []
-        current_files = sorted(SEQUENCE_SRC_DIR.glob("*.puml"))
+        current_files = _source_files()
         for src in current_files:
             mtime = src.stat().st_mtime
             if src not in mtimes or mtimes[src] != mtime:
@@ -69,14 +87,14 @@ def watch(interval_sec: float = 1.0) -> None:
                 mtimes[src] = mtime
 
         for src in changed:
-            out = SEQUENCE_OUT_DIR / f"{src.stem}.png"
+            out = _output_for(src)
             render_one(src, out)
             print(f"updated: {out.relative_to(PROJECT_ROOT)}")
 
         removed = [path for path in mtimes if path not in current_files]
         for path in removed:
             mtimes.pop(path, None)
-            out = SEQUENCE_OUT_DIR / f"{path.stem}.png"
+            out = _output_for(path)
             if out.exists():
                 out.unlink()
                 print(f"removed: {out.relative_to(PROJECT_ROOT)}")
