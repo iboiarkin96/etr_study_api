@@ -2,11 +2,11 @@
   "id": null,
   "uid": "study-app-observability",
   "title": "Study App Observability",
-  "description": "Local hosts: API 127.0.0.1:8000, Prometheus 127.0.0.1:9090, Grafana 127.0.0.1:3001.",
-  "tags": ["study-app", "api"],
+  "description": "SLOs (ADR 0011): HTTP 5xx, readiness probe, p95 latency, error budget. Local: API :8000, Prometheus :9090, Grafana :3001, Blackbox :9115.",
+  "tags": ["study-app", "api", "slo"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
   "time": {
     "from": "now-15m",
@@ -20,27 +20,27 @@
       "targetBlank": true
     },
     {
+      "title": "Prometheus Alerts",
+      "type": "link",
+      "url": "http://127.0.0.1:9090/alerts",
+      "targetBlank": true
+    },
+    {
       "title": "Prometheus: Request Rate (RPS)",
       "type": "link",
       "url": "http://127.0.0.1:9090/graph?g0.expr=sum%28rate%28http_requests_total%5B1m%5D%29%29&g0.tab=0",
       "targetBlank": true
     },
     {
-      "title": "Prometheus: Error Rate (%)",
+      "title": "Prometheus: 5xx rate (%)",
       "type": "link",
-      "url": "http://127.0.0.1:9090/graph?g0.expr=100%20*%20sum%28rate%28http_requests_total%7Bstatus_code%3D~%225..%7C4..%22%7D%5B5m%5D%29%29%20%2F%20sum%28rate%28http_requests_total%5B5m%5D%29%29&g0.tab=0",
+      "url": "http://127.0.0.1:9090/graph?g0.expr=100%20*%20sum%28rate%28http_requests_total%7Bstatus_code%3D~%225..%22%7D%5B5m%5D%29%29%20%2F%20sum%28rate%28http_requests_total%5B5m%5D%29%29&g0.tab=0",
       "targetBlank": true
     },
     {
-      "title": "Prometheus: API p95 (ms)",
+      "title": "Prometheus: API p95 SLO routes (ms)",
       "type": "link",
-      "url": "http://127.0.0.1:9090/graph?g0.expr=1000%20*%20histogram_quantile%280.95%2C%20sum%28rate%28http_request_duration_seconds_bucket%5B5m%5D%29%29%20by%20%28le%29%29&g0.tab=0",
-      "targetBlank": true
-    },
-    {
-      "title": "Prometheus: DB p95 (ms)",
-      "type": "link",
-      "url": "http://127.0.0.1:9090/graph?g0.expr=1000%20*%20histogram_quantile%280.95%2C%20sum%28rate%28db_operation_duration_seconds_bucket%5B5m%5D%29%29%20by%20%28le%29%29&g0.tab=0",
+      "url": "http://127.0.0.1:9090/graph?g0.expr=job%3Astudy_app%3Aapi_latency_p95_ms&g0.tab=0",
       "targetBlank": true
     }
   ],
@@ -60,24 +60,25 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "Error Rate (%)",
+      "title": "Client + server error rate (%) — not SLO",
+      "description": "4xx and 5xx combined. SLO uses 5xx-only panel below.",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
           "expr": "100 * sum(rate(http_requests_total{status_code=~\"5..|4..\"}[5m])) / sum(rate(http_requests_total[5m]))",
-          "legendFormat": "error rate"
+          "legendFormat": "4xx+5xx %"
         }
       ]
     },
     {
       "id": 3,
       "type": "timeseries",
-      "title": "API Latency P95 (ms)",
+      "title": "API Latency P95 (ms) — all routes",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
           "expr": "1000 * histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
-          "legendFormat": "p95"
+          "legendFormat": "p95 all routes"
         }
       ]
     },
@@ -92,6 +93,87 @@
           "legendFormat": "p95"
         }
       ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "SLO: HTTP 5xx rate (%)",
+      "description": "Target: at most 0.1% 5xx over 30d rolling (99.9% availability).",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "100 * job:study_app:http_5xx_ratio:ratio5m",
+          "legendFormat": "5xx % (5m)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "SLO: Readiness probe (/ready via Blackbox)",
+      "description": "probe_success=1 when GET /ready returns 200.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "probe_success{job=\"study-app-blackbox\"}",
+          "legendFormat": "probe_success"
+        },
+        {
+          "expr": "job:study_app:ready_probe_success:avg5m",
+          "legendFormat": "5m avg"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "SLO: API p95 latency (ms) excl. /metrics,/live,/ready",
+      "description": "Target: 500ms p95. Recording rule job:study_app:api_latency_p95_ms.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "job:study_app:api_latency_p95_ms",
+          "legendFormat": "p95 ms"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "SLO: HTTP error budget burn (30d)",
+      "description": "Ratio of actual 5xx share to allowed 0.1%. >1 means budget exhausted.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "job:study_app:http_5xx:burn30d",
+          "legendFormat": "burn factor"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.8 },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }

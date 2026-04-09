@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>API load testing (step-by-step)</title>
+    <link rel="stylesheet" href="../assets/docs.css" />
+    <script defer src="../assets/docs-nav.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>API load testing (step-by-step)</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lead">
+        Practical guide to synthetic traffic for checking metrics, limits, and SLOs. Policy reference:
+        <a href="../adr/0012-testing-strategy-and-load-testing.html">ADR 0012</a>.
+      </p>
+
+      <h2>1. Why run load-style traffic</h2>
+      <ul>
+        <li>
+          Automated tests (<code>make test</code>) prove contract correctness; a traffic run helps you see the mix of
+          <strong>2xx / 4xx / 5xx</strong>, latency, and errors in Grafana/Prometheus.
+        </li>
+        <li>
+          This is <strong>not a replacement</strong> for pytest: the runner issues real HTTP calls; user-create
+          scenarios <strong>write to the database</strong>.
+        </li>
+      </ul>
+
+      <h2>2. Environment setup</h2>
+      <ol>
+        <li>Virtualenv: <code>make venv &amp;&amp; make install</code> (or equivalent).</li>
+        <li>
+          <code>.env</code> from <code>env/example</code> (<code>make env-init</code>), with valid <code>APP_HOST</code> and
+          <code>APP_PORT</code>.
+        </li>
+        <li>Migrations: <code>make migrate</code>.</li>
+        <li>
+          For GET-by-id scenarios (optional <code>scenarios/user/get.py</code>), set
+          <code>ROTATE_SYSTEM_USER_IDS</code> to real <code>system_user_id</code> values and adjust
+          <code>SHARE_OF_GROUP</code> between <code>user/create.py</code> and <code>user/get.py</code> so they sum to
+          <code>1.0</code> per user group.
+        </li>
+      </ol>
+
+      <h2>3. Simulating HTTP 500 (local / non-prod only)</h2>
+      <p>
+        You cannot reliably get a stable 500 from normal business endpoints. To record 5xx in the <strong>same
+        process</strong> as the API (so <code>http_requests_total</code> includes them), set in <code>.env</code>:
+      </p>
+      <pre><code>LOADTEST_HTTP_500=true</code></pre>
+      <p>
+        After restarting the app, only the internal route <code>GET /__loadtest/http500</code> is available (hidden from
+        OpenAPI). Do not enable this flag in production.
+      </p>
+
+      <h2>4. Starting the API</h2>
+      <p>From the repository root (adjust the path):</p>
+      <pre><code>cd /path/to/study_app
+        source .venv/bin/activate
+        make run</code></pre>
+        <p>
+          If you also want Grafana and Prometheus locally, either run <code>make observability-up</code> in another terminal
+          (while <code>make run</code> keeps the API in the first), or use <code>make run-project</code> to bring up the Docker
+          stack and then start the API in the foreground (requires Docker). Details:
+          <a href="./0007-local-development.html">Local development</a>.
+        </p>
+        <p>In a <strong>second</strong> terminal, run the traffic generator (see below).</p>
+
+        <h2>5. Generator configuration (Python)</h2>
+        <p>
+          Scenarios live under <code>tools/load_testing/scenarios/</code>. See
+          <code>tools/load_testing/README.html</code> for the full contract (with diagrams). Summary:
+        </p>
+        <ul>
+          <li><code>scenarios/weights.py</code> — <code>GROUP_WEIGHTS</code> (e.g. <code>user</code>, <code>observability_5xx</code>).</li>
+          <li>Each scenario module exports <code>GROUP</code>, <code>SHARE_OF_GROUP</code>, <code>MIX</code> (sums to 1.0 within the file), and <code>SCENARIOS</code> (scenario key → callable building a request).</li>
+          <li>Validation failures for user create are typically <strong>422</strong> — see <code>user_payload.py</code> and <code>user/create.py</code>.</li>
+          <li>HTTP 500 without touching the DB: small share via <code>scenarios/observability/http500.py</code> and <code>LOADTEST_HTTP_500=true</code>.</li>
+        </ul>
+
+        <h2>6. Commands</h2>
+        <p>Plan only (no network):</p>
+        <pre><code>python -m tools.load_testing.runner --dry-run</code></pre>
+        <p>Full run (default 100 requests; set <code>LOAD_TEST_BASE_URL</code> / <code>LOAD_TEST_API_KEY</code> if needed):</p>
+        <pre><code>python -m tools.load_testing.runner --total-requests 200</code></pre>
+        <p>Optional delay between requests:</p>
+        <pre><code>python -m tools.load_testing.runner --total-requests 200 --delay-ms 50</code></pre>
+
+        <h2>7. Layout</h2>
+        <pre><code>tools/load_testing/
+          runner.py
+          README.html
+          scenarios/
+          weights.py
+          user/create.py
+          user/get.py          # optional; set ROTATE_SYSTEM_USER_IDS
+          observability/http500.py
+          conspectus/README.txt</code></pre>
+
+          <h2>8. Observability</h2>
+          <p>
+            Start the stack before or alongside the API (<code>make run-project</code> or <code>make observability-up</code>).
+            After the traffic run, open Grafana (port from <code>.env</code>, default 3001) and the Study App Observability
+            dashboard; in Prometheus, <code>/alerts</code> when SLO rules are configured.
+          </p>
+
+          <h2>9. Common issues</h2>
+          <ul>
+            <li><strong>Connection refused</strong> — API not running or wrong <code>base_url</code>.</li>
+            <li>
+              <strong>Script errors on “#”</strong> — a comment was passed as an argument; run the command without a trailing
+              <code># ...</code>.
+            </li>
+            <li><strong>Expected 200, got 404</strong> on user GET — fix <code>ROTATE_SYSTEM_USER_IDS</code> in <code>user/get.py</code>.</li>
+            <li><strong>429 Too Many Requests</strong> — lower intensity (<code>--delay-ms</code>) or raise the dev rate limit.</li>
+          </ul>
+
+          <h2>See also</h2>
+          <ul>
+            <li><a href="../adr/0012-testing-strategy-and-load-testing.html">ADR 0012 — testing strategy</a></li>
+            <li><a href="../adr/0011-slo-sla-error-budget.html">ADR 0011 — SLOs and alerts</a></li>
+            <li><a href="./0007-local-development.html">Local development</a></li>
+            <li><a href="./README.html">Developer docs index</a></li>
+          </ul>
+        </main>
+      </body>
+    </html>

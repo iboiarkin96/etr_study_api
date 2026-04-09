@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help venv install requirements env-init run migrate migration format-fix format-check lint-check lint-fix type-check openapi-check contract-test openapi-accept-changes fix verify verify-ci release-check release pre-commit-install pre-commit-check test test-one test-warnings env-check docs-fix docs-check observability-up observability-down observability-smoke
+.PHONY: help venv install requirements env-init run run-loadtest-api run-loadtest-api-serve run-project migrate migration format-fix format-check lint-check lint-fix type-check openapi-check contract-test openapi-accept-changes fix verify verify-ci release-check release pre-commit-install pre-commit-check test test-one test-warnings env-check docs-fix docs-check observability-up observability-down observability-smoke
 
 # ──────────────────────────────────────────────
 # Help
@@ -50,6 +50,9 @@ help:
 	@echo ""
 	@echo "  # Application"
 	@echo "  make run                  Start FastAPI dev server"
+	@echo "  make run-loadtest-api     Start API (high rate limit) → run tools.load_testing.runner → stop"
+	@echo "  make run-loadtest-api-serve  Like run, but high API rate limit (foreground; use in 2nd terminal with runner)"
+	@echo "  make run-project          Start observability stack (Prometheus/Grafana/…) + FastAPI"
 	@echo ""
 	@echo "  # Database / Migrations"
 	@echo "  make migrate              Apply all Alembic migrations"
@@ -157,6 +160,42 @@ run:
 	APP_HOST=$${APP_HOST:-127.0.0.1}; \
 	APP_PORT=$${APP_PORT:-8000}; \
 	$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload
+
+# Start API with high rate limits, wait for /ready, run tools.load_testing.runner, stop API.
+# Asks for confirmation (server is temporary; port must be free). CI: LOADTEST_SKIP_CONFIRM=1
+# Optional: LOADTEST_TOTAL_REQUESTS=200 LOADTEST_DELAY_MS=0 LOADTEST_RUNNER_EXTRA='--verbose'
+# Defaults in .env: LOADTEST_DEFAULT_TOTAL_REQUESTS, LOADTEST_DEFAULT_DELAY_MS (see env/example)
+# Script: tools/load_testing/run_with_local_api.sh
+run-loadtest-api:
+	@if [ ! -f "$(ENV)" ]; then \
+		printf "$(ICON_ERR) %s\n" "$(ENV) not found. Run 'make env-init' (or cp env/example .env)."; exit 1; \
+	fi
+	@if [ ! -f ".venv/bin/python" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "run-loadtest-api: start API → runner → stop (see tools/load_testing/run_with_local_api.sh)"
+	@ENV_FILE="$(ENV)" bash "$(CURDIR)/tools/load_testing/run_with_local_api.sh"
+
+# Start API like `run`, but override rate limits for local load testing (long-running; run runner in another shell).
+# Defaults: API_RATE_LIMIT_REQUESTS_LOADTEST=1000000000 API_RATE_LIMIT_WINDOW_SECONDS_LOADTEST=60
+run-loadtest-api-serve:
+	@if [ ! -f "$(ENV)" ]; then \
+		printf "$(ICON_ERR) %s\n" "$(ENV) not found. Run 'make env-init' (or cp env/example .env)."; exit 1; \
+	fi
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Starting server (loadtest rate limits; dev machine only)…"
+	@set -a; . ./$(ENV); set +a; \
+	export API_RATE_LIMIT_REQUESTS="$${API_RATE_LIMIT_REQUESTS_LOADTEST:-1000000000}"; \
+	export API_RATE_LIMIT_WINDOW_SECONDS="$${API_RATE_LIMIT_WINDOW_SECONDS_LOADTEST:-60}"; \
+	printf "$(ICON_INFO) %s\n" "API_RATE_LIMIT_REQUESTS=$$API_RATE_LIMIT_REQUESTS API_RATE_LIMIT_WINDOW_SECONDS=$$API_RATE_LIMIT_WINDOW_SECONDS"; \
+	APP_HOST=$${APP_HOST:-127.0.0.1}; \
+	APP_PORT=$${APP_PORT:-8000}; \
+	$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload
+
+# Start Docker observability stack, then FastAPI (foreground). Requires Docker.
+run-project: observability-up run
 
 # ──────────────────────────────────────────────
 # Database / Migrations

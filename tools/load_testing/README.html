@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Нагрузочное тестирование (load_testing)</title>
+    <link rel="stylesheet" href="../../docs/assets/docs.css" />
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+      });
+    </script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Нагрузочное тестирование (<code>tools/load_testing</code>)</h1>
+      <p class="lead">
+        Реальные HTTP-запросы, в том числе с записью в БД. Подробный сценарий политики:
+        <a href="../../docs/developer/0006-api-load-testing.html">Developer: API load testing</a>,
+        <a href="../../docs/adr/0012-testing-strategy-and-load-testing.html">ADR 0012</a>.
+      </p>
+      <p>
+        Раннер не вызывает Python-функцию обработчика напрямую (это был бы другой вид теста): запросы идут по сети, как с
+        <strong>curl</strong>, чтобы в метрики попадали те же middleware и статусы. Чтобы не дублировать контракт ручки,
+        тела для user строятся через <code>UserCreateRequest</code> из <code>app.schemas.user</code>, путь —
+        <code>USER_HTTP_BASE_PATH</code> в <code>app.api.v1.user</code>.
+      </p>
+
+      <h2>Архитектура (обзор)</h2>
+      <p>
+        Раннер подхватывает Python-модули из <code>scenarios/</code>, строит план по весам и отправляет запросы. Цепочка
+        совпадает с идеей планирования нагрузки:
+      </p>
+      <pre class="mermaid">
+flowchart LR
+  subgraph scenarioTree [scenarios_directory]
+    W[weights_py]
+    U[user_create_py]
+    O[observability_http500_py]
+  end
+  R[runner_py]
+  R --> scenarioTree
+  R --> H[httpx_Client]
+  H --> API[FastAPI]
+  API --> DB[(database)]
+      </pre>
+
+      <h2>Расчёт доли сценария</h2>
+      <p>Итоговый вес одного именованного сценария:</p>
+      <pre class="mermaid">
+flowchart TD
+  GW["GROUP_WEIGHTS[group]"]
+  SH["SHARE_OF_GROUP[file]"]
+  MX["MIX[scenario_key]"]
+  F["weight = GW * SH * MX"]
+  GW --> F
+  SH --> F
+  MX --> F
+      </pre>
+      <p>
+        В каждом файле сценариев <code>MIX</code> суммируется в ~1.0; по всем файлам одной группы сумма
+        <code>SHARE_OF_GROUP</code> = ~1.0; <code>GROUP_WEIGHTS</code> в <code>weights.py</code> в сумме ~1.0.
+      </p>
+
+      <h2>Запуск</h2>
+      <p>Из корня репозитория (виртуальное окружение активировано):</p>
+      <pre><code>python -m tools.load_testing.runner --dry-run
+python -m tools.load_testing.runner --total-requests 200
+python -m tools.load_testing.runner --total-requests 200 -q
+LOAD_TEST_BASE_URL=http://127.0.0.1:8000 python -m tools.load_testing.runner --delay-ms 0</code></pre>
+      <p>
+        Во время реального прогона в терминал пишутся строка «Старт» и периодический прогресс
+        <code>[N/total] сценарий → HTTP код</code>; без этого вывод был бы только в конце (долгие паузы из‑за
+        <code>--delay-ms</code>). Флаг <code>-q</code> / <code>--quiet</code> отключает этот прогресс.
+      </p>
+      <p>
+        Переменные окружения: <code>LOAD_TEST_BASE_URL</code>, <code>LOAD_TEST_API_KEY</code>,
+        <code>LOAD_TEST_DELAY_MS</code> (по умолчанию ~1 с между запросами, чтобы не упираться в лимит API),
+        <code>LOAD_TEST_VERBOSE=1</code> или флаг <code>-v</code> / <code>--verbose</code> — показать, какие модули
+        пропущены из‑за нулевого веса группы (например <code>observability_5xx</code>).
+      </p>
+      <h3>Если в логе «несовпадения» и 404 / 429</h3>
+      <p>
+        Это обычно не ошибка в коде раннера. <strong>404</strong> на <code>/__loadtest/http500</code> — маршрут есть
+        только при <code>LOADTEST_HTTP_500=true</code> на сервере; по умолчанию вес группы
+        <code>observability_5xx</code> в <code>scenarios/weights.py</code> равен 0, сценарий не гоняется.
+        <strong>429</strong> — сработал rate limit. Варианты: увеличить <code>--delay-ms</code>; для нагрузки только на
+        своей машине поднять лимит на стороне API — <code>make run-loadtest-api</code> (поднимает API с высоким лимитом,
+        ждёт <code>/ready</code>, запускает <code>python -m tools.load_testing.runner</code>, останавливает API; см.
+        <code>tools/load_testing/run_with_local_api.sh</code> (перед стартом — предупреждение и вопрос
+        «продолжить?»; отмена без прогона; для CI: <code>LOADTEST_SKIP_CONFIRM=1</code>). Лимит для прогонов по умолчанию
+        <code>1000000000</code> запросов за окно (переменная <code>API_RATE_LIMIT_REQUESTS_LOADTEST</code>). Долгоживущий
+        сервер с тем же лимитом — <code>make run-loadtest-api-serve</code>. Либо временно увеличить
+        <code>API_RATE_LIMIT_REQUESTS</code> / <code>API_RATE_LIMIT_WINDOW_SECONDS</code> в <code>.env</code> (не для prod).
+      </p>
+
+      <h2>Структура каталога</h2>
+      <ul>
+        <li><code>scenarios/weights.py</code> — <code>GROUP_WEIGHTS</code> (доли групп: <code>user</code>, <code>observability_5xx</code>, …)</li>
+        <li><code>scenarios/user/create.py</code> — <code>POST /api/v1/user</code>, <code>MIX</code>, <code>SCENARIOS</code>, <code>SHARE_OF_GROUP</code></li>
+        <li><code>scenarios/observability/http500.py</code> — <code>GET /__loadtest/http500</code> (нужен <code>LOADTEST_HTTP_500=true</code>)</li>
+        <li><code>scenarios/conspectus/</code> — заготовка под новые ручки (<code>README.txt</code> внутри каталога)</li>
+      </ul>
+
+      <h2>Как добавить ручку</h2>
+      <ol>
+        <li>Создай файл <code>tools/load_testing/scenarios/&lt;сущность&gt;/&lt;имя&gt;.py</code>.</li>
+        <li>
+          Задай <code>GROUP</code> (ключ из <code>weights.py</code>), <code>SHARE_OF_GROUP</code>, <code>MIX</code> (сумма ~1.0),
+          <code>SCENARIOS</code> (ключ → <code>callable(ctx) -&gt; BuiltRequest</code>).
+        </li>
+        <li>При новой сущности добавь долю группы в <code>GROUP_WEIGHTS</code>.</li>
+        <li>Ключи сценариев глобально уникальны (например <code>conspectus.create.ok</code>).</li>
+      </ol>
+
+      <h2>Несколько файлов в одной группе</h2>
+      <p>
+        Например <code>user/create.py</code> и <code>user/get.py</code>: сумма <code>SHARE_OF_GROUP</code> по этим файлам
+        должна быть ~1.0; в каждом файле <code>MIX</code> суммируется в ~1.0.
+      </p>
+
+      <h2>422 при создании пользователя</h2>
+      <p>
+        См. <code>user_payload.apply_break_field</code> и поля в <code>scenarios/user/create.py</code>.
+      </p>
+    </main>
+  </body>
+</html>

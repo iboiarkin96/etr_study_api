@@ -1,22 +1,26 @@
-"""Tests for POST /api/v1/user."""
+"""Tests for POST /api/v1/user and GET /api/v1/user/{system_user_id}."""
 
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.api.v1.user_test_utils import (
+    USER_CREATE_OPERATION,
+    USER_HTTP_BASE_PATH,
+    user_create_body,
+    user_resource_path,
+)
 
 
 def test_create_user_success(client) -> None:
-    payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000001",
-        "full_name": "Ivan Petrov",
-        "username": "ipetrov",
-        "timezone": "UTC",
-    }
+    payload = user_create_body(
+        "a1b2c3d4-0001-4000-8000-000000000001",
+        username="ipetrov",
+    )
 
     response = client.post(
-        "/api/v1/user",
+        USER_HTTP_BASE_PATH,
         json=payload,
         headers={"Idempotency-Key": "create-user-success-1"},
     )
@@ -30,19 +34,15 @@ def test_create_user_success(client) -> None:
 
 
 def test_create_user_duplicate_returns_business_error(client) -> None:
-    payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000002",
-        "full_name": "Ivan Petrov",
-        "timezone": "UTC",
-    }
+    payload = user_create_body("a1b2c3d4-0001-4000-8000-000000000002")
 
     first = client.post(
-        "/api/v1/user",
+        USER_HTTP_BASE_PATH,
         json=payload,
         headers={"Idempotency-Key": "create-user-dup-1"},
     )
     second = client.post(
-        "/api/v1/user",
+        USER_HTTP_BASE_PATH,
         json=payload,
         headers={"Idempotency-Key": "create-user-dup-2"},
     )
@@ -56,14 +56,11 @@ def test_create_user_duplicate_returns_business_error(client) -> None:
 
 
 def test_create_user_invalid_timezone_returns_code_based_422(client) -> None:
-    payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000003",
-        "full_name": "Ivan Petrov",
-        "timezone": "Europe/123",
-    }
+    payload = user_create_body("a1b2c3d4-0001-4000-8000-000000000003")
+    payload["timezone"] = "Europe/123"
 
     response = client.post(
-        "/api/v1/user",
+        USER_HTTP_BASE_PATH,
         json=payload,
         headers={"Idempotency-Key": "create-user-timezone-1"},
     )
@@ -71,21 +68,17 @@ def test_create_user_invalid_timezone_returns_code_based_422(client) -> None:
     assert response.status_code == 422
     body = response.json()
     assert body["error_type"] == "validation_error"
-    assert body["endpoint"] == "POST /api/v1/user"
+    assert body["endpoint"] == USER_CREATE_OPERATION
     assert body["errors"][0]["code"] == "USER_007"
     assert body["errors"][0]["field"] == "timezone"
     assert body["errors"][0]["source"] == "validation"
 
 
 def test_create_user_short_system_user_id_is_valid(client) -> None:
-    payload = {
-        "system_user_id": "1",
-        "full_name": "Ivan Petrov",
-        "timezone": "UTC",
-    }
+    payload = user_create_body("1")
 
     response = client.post(
-        "/api/v1/user",
+        USER_HTTP_BASE_PATH,
         json=payload,
         headers={"Idempotency-Key": "create-user-system-user-id-short-valid-1"},
     )
@@ -97,14 +90,10 @@ def test_create_user_short_system_user_id_is_valid(client) -> None:
 
 def test_create_user_requires_api_key() -> None:
     client = TestClient(app)
-    payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000099",
-        "full_name": "Ivan Petrov",
-        "timezone": "UTC",
-    }
+    payload = user_create_body("a1b2c3d4-0001-4000-8000-000000000099")
 
     response = client.post(
-        "/api/v1/user",
+        USER_HTTP_BASE_PATH,
         json=payload,
         headers={"Idempotency-Key": "create-user-auth-required-1"},
     )
@@ -117,15 +106,11 @@ def test_create_user_requires_api_key() -> None:
 
 
 def test_create_user_idempotent_replay_returns_same_result(client) -> None:
-    payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000004",
-        "full_name": "Ivan Petrov",
-        "timezone": "UTC",
-    }
+    payload = user_create_body("a1b2c3d4-0001-4000-8000-000000000004")
     headers = {"Idempotency-Key": "create-user-idempotent-replay-1"}
 
-    first = client.post("/api/v1/user", json=payload, headers=headers)
-    second = client.post("/api/v1/user", json=payload, headers=headers)
+    first = client.post(USER_HTTP_BASE_PATH, json=payload, headers=headers)
+    second = client.post(USER_HTTP_BASE_PATH, json=payload, headers=headers)
 
     assert first.status_code == 201
     assert second.status_code == 201
@@ -134,19 +119,14 @@ def test_create_user_idempotent_replay_returns_same_result(client) -> None:
 
 def test_create_user_idempotency_key_conflict_returns_409(client) -> None:
     base_headers = {"Idempotency-Key": "create-user-idempotent-conflict-1"}
-    first_payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000005",
-        "full_name": "Ivan Petrov",
-        "timezone": "UTC",
-    }
-    second_payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000006",
-        "full_name": "Petr Ivanov",
-        "timezone": "UTC",
-    }
+    first_payload = user_create_body("a1b2c3d4-0001-4000-8000-000000000005")
+    second_payload = user_create_body(
+        "a1b2c3d4-0001-4000-8000-000000000006",
+        full_name="Petr Ivanov",
+    )
 
-    first = client.post("/api/v1/user", json=first_payload, headers=base_headers)
-    second = client.post("/api/v1/user", json=second_payload, headers=base_headers)
+    first = client.post(USER_HTTP_BASE_PATH, json=first_payload, headers=base_headers)
+    second = client.post(USER_HTTP_BASE_PATH, json=second_payload, headers=base_headers)
 
     assert first.status_code == 201
     assert second.status_code == 409
@@ -156,26 +136,18 @@ def test_create_user_idempotency_key_conflict_returns_409(client) -> None:
 
 
 def test_create_user_without_idempotency_key_returns_422(client) -> None:
-    payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000007",
-        "full_name": "Ivan Petrov",
-        "timezone": "UTC",
-    }
+    payload = user_create_body("a1b2c3d4-0001-4000-8000-000000000007")
 
-    response = client.post("/api/v1/user", json=payload)
+    response = client.post(USER_HTTP_BASE_PATH, json=payload)
 
     assert response.status_code == 422
 
 
 def test_create_user_with_empty_idempotency_key_returns_422(client) -> None:
-    payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000008",
-        "full_name": "Ivan Petrov",
-        "timezone": "UTC",
-    }
+    payload = user_create_body("a1b2c3d4-0001-4000-8000-000000000008")
 
     response = client.post(
-        "/api/v1/user",
+        USER_HTTP_BASE_PATH,
         json=payload,
         headers={"Idempotency-Key": ""},
     )
@@ -184,19 +156,15 @@ def test_create_user_with_empty_idempotency_key_returns_422(client) -> None:
 
 
 def test_get_user_by_system_user_id_success(client) -> None:
-    payload = {
-        "system_user_id": "42",
-        "full_name": "Ivan Petrov",
-        "timezone": "UTC",
-    }
+    payload = user_create_body("42")
     create = client.post(
-        "/api/v1/user",
+        USER_HTTP_BASE_PATH,
         json=payload,
         headers={"Idempotency-Key": "get-user-success-seed-1"},
     )
     assert create.status_code == 201
 
-    response = client.get("/api/v1/user/42")
+    response = client.get(user_resource_path("42"))
 
     assert response.status_code == 200
     body = response.json()
@@ -205,7 +173,7 @@ def test_get_user_by_system_user_id_success(client) -> None:
 
 
 def test_get_user_by_system_user_id_not_found_returns_404(client) -> None:
-    response = client.get("/api/v1/user/not-existing")
+    response = client.get(user_resource_path("not-existing"))
 
     assert response.status_code == 404
     detail = response.json()["detail"]
@@ -216,7 +184,7 @@ def test_get_user_by_system_user_id_not_found_returns_404(client) -> None:
 
 def test_create_user_unknown_validation_shape_falls_back_to_common_code(client) -> None:
     response = client.post(
-        "/api/v1/user",
+        USER_HTTP_BASE_PATH,
         json=[],
         headers={"Idempotency-Key": "create-user-validation-fallback-1"},
     )
@@ -224,6 +192,6 @@ def test_create_user_unknown_validation_shape_falls_back_to_common_code(client) 
     assert response.status_code == 422
     body = response.json()
     assert body["error_type"] == "validation_error"
-    assert body["endpoint"] == "POST /api/v1/user"
+    assert body["endpoint"] == USER_CREATE_OPERATION
     assert body["errors"][0]["code"] == "COMMON_000"
     assert body["errors"][0]["key"] == "COMMON_VALIDATION_ERROR"

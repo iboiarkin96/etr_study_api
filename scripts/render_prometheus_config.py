@@ -15,10 +15,18 @@ def main() -> int:
     if not scrape_target:
         raise ValueError("PROMETHEUS_SCRAPE_TARGET must not be empty.")
 
+    ready_probe_url = os.getenv(
+        "PROMETHEUS_READY_PROBE_URL",
+        "http://host.docker.internal:8000/ready",
+    ).strip()
+    if not ready_probe_url:
+        raise ValueError("PROMETHEUS_READY_PROBE_URL must not be empty.")
+
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
     rendered = template.replace("${PROMETHEUS_SCRAPE_TARGET}", scrape_target)
+    rendered = rendered.replace("${PROMETHEUS_READY_PROBE_URL}", ready_probe_url)
     OUTPUT_PATH.write_text(rendered, encoding="utf-8")
-    print(f"Rendered {OUTPUT_PATH} with target {scrape_target}")
+    print(f"Rendered {OUTPUT_PATH} with target {scrape_target}, ready probe {ready_probe_url}")
     return 0
 
 

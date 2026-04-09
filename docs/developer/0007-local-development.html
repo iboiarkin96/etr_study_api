@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Local development (environment and run targets)</title>
+    <link rel="stylesheet" href="../assets/docs.css" />
+    <script defer src="../assets/docs-nav.js"></script>
+  </head>
+
+  <body>
+    <main class="container">
+      <h1>Local development (environment and run targets)</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lead">
+        How to run the API locally, optionally with the Docker observability stack (Prometheus, Grafana,
+        Blackbox exporter). For metrics URLs and probe checks, the repository root
+        <a href="../../README.md">README.md</a> has a concise observability quick start.
+      </p>
+
+      <h2>1. First-time setup</h2>
+      <ol>
+        <li><code>make venv</code> then <code>make install</code> (activate <code>.venv</code> if you prefer).</li>
+        <li>Create <code>.env</code>: <code>make env-init</code> (or copy <code>env/example</code>), then set <code>APP_ENV</code> and secrets as needed.</li>
+        <li><code>make migrate</code> to apply Alembic migrations.</li>
+        <li>Optional: <code>make env-check</code> to verify config and database path.</li>
+      </ol>
+
+      <h2>2. Run targets</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>make run</code></td>
+            <td>
+              Starts the FastAPI app with Uvicorn (reload). Reads <code>.env</code>. Use this when you only need the API.
+            </td>
+          </tr>
+          <tr>
+            <td><code>make run-project</code></td>
+            <td>
+              Runs <code>make observability-up</code> first (renders Prometheus config, starts
+              <code>docker-compose.observability.yml</code>: Blackbox, Prometheus, Grafana), then the same Uvicorn command as
+              <code>make run</code>. Requires Docker. The API process stays in the foreground; stop it with Ctrl+C.
+            </td>
+          </tr>
+          <tr>
+            <td><code>make observability-up</code> / <code>make observability-down</code></td>
+            <td>
+              Start or stop the observability stack alone. Use when you already run <code>make run</code> in one terminal
+              and want metrics dashboards without restarting the API.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>3. Default local ports</h2>
+      <p>Override via <code>.env</code> where documented in <code>env/example</code>.</p>
+      <ul>
+        <li>API: <code>127.0.0.1:8000</code> (from <code>APP_HOST</code> / <code>APP_PORT</code>)</li>
+        <li>Prometheus: <code>127.0.0.1:9090</code></li>
+        <li>Grafana: <code>127.0.0.1:3001</code> (container maps host 3001 → Grafana 3000)</li>
+        <li>Blackbox exporter: <code>127.0.0.1:9115</code></li>
+      </ul>
+
+      <h2>4. After you stop the API</h2>
+      <p>
+        Containers from <code>make run-project</code> or <code>make observability-up</code> keep running until you run
+        <code>make observability-down</code> (or <code>docker compose -f docker-compose.observability.yml down</code>).
+      </p>
+
+      <h2>5. Sanity checks</h2>
+      <ul>
+        <li>API: <code>curl -s http://127.0.0.1:8000/live</code>, <code>/ready</code>, <code>/metrics</code></li>
+        <li>Observability endpoints: <code>make observability-smoke</code></li>
+      </ul>
+
+      <h2>See also</h2>
+      <ul>
+        <li><a href="../adr/0009-health-readiness-and-observability.html">ADR 0009 — health, readiness, observability</a></li>
+        <li><a href="./0006-api-load-testing.html">API load testing (tools.load_testing.runner)</a></li>
+        <li><a href="../runbooks/0008-observability-scrape-failing.html">Runbook: observability scrape failing</a></li>
+        <li><a href="./README.html">Developer docs index</a></li>
+      </ul>
+    </main>
+  </body>
+
+</html>

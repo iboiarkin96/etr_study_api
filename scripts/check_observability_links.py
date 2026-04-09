@@ -47,6 +47,7 @@ def _build_default_urls() -> list[str]:
         f"{api_base}/ready",
         f"{api_base}/metrics",
         f"{prom_base}/-/healthy",
+        f"{prom_base}/alerts",
         f"{prom_base}/targets",
         f"{prom_base}/graph?g0.expr=sum%28rate%28http_requests_total%5B1m%5D%29%29&g0.tab=0",
         f"{prom_base}/graph?g0.expr=100%20*%20sum%28rate%28http_requests_total%7Bstatus_code%3D~%225..%7C4..%22%7D%5B5m%5D%29%29%20%2F%20sum%28rate%28http_requests_total%5B5m%5D%29%29&g0.tab=0",

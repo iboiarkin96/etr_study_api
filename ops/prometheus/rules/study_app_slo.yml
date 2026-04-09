@@ -1,0 +1,97 @@
+# Recording and alerting rules for Study App SLOs (ADR 0011).
+# Requires scrape jobs: study-app-api, study-app-blackbox
+
+groups:
+  - name: study_app_slo_recording
+    interval: 30s
+    rules:
+      - record: job:study_app:http_5xx_ratio:ratio5m
+        expr: |
+          sum(rate(http_requests_total{job="study-app-api",status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_requests_total{job="study-app-api"}[5m])), 1e-12)
+
+      - record: job:study_app:api_latency_p95_ms
+        expr: |
+          1000 * histogram_quantile(
+            0.95,
+            sum(
+              rate(http_request_duration_seconds_bucket{job="study-app-api",path_template!~"/metrics|/live|/ready"}[5m])
+            ) by (le)
+          )
+
+      - record: job:study_app:http_5xx:burn30d
+        expr: |
+          (
+            sum(increase(http_requests_total{job="study-app-api",status_code=~"5.."}[30d]))
+            /
+            clamp_min(sum(increase(http_requests_total{job="study-app-api"}[30d])), 1)
+          )
+          /
+          0.001
+
+      - record: job:study_app:ready_probe_success:avg5m
+        expr: avg_over_time(probe_success{job="study-app-blackbox"}[5m])
+
+  - name: study_app_slo_alerts
+    rules:
+      - alert: StudyAppHighHttp5xxRate
+        expr: job:study_app:http_5xx_ratio:ratio5m > 0.01
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Study App 5xx ratio above 1% (5m)
+          description: >-
+            HTTP 5xx ratio is {{ $value | printf "%.4f" }} over 5m. Monthly SLO allows 0.1% 5xx over 30d.
+
+      - alert: StudyAppLatencySLOViolation
+        expr: job:study_app:api_latency_p95_ms > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: API p95 latency above 500ms SLO
+          description: >-
+            p95 is {{ $value | printf "%.1f" }} ms (routes excluding /metrics, /live, /ready).
+
+      - alert: StudyAppErrorBudgetExhausted
+        expr: job:study_app:http_5xx:burn30d > 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: HTTP error budget exhausted (30d rolling)
+          description: >-
+            5xx share exceeds allowed 0.1% over 30d (burn factor {{ $value | printf "%.2f" }}). Follow error budget runbook.
+
+      - alert: StudyAppErrorBudgetCritical
+        expr: job:study_app:http_5xx:burn30d > 0.8
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: HTTP error budget critically low
+          description: >-
+            More than 80% of the 30d error budget consumed (burn {{ $value | printf "%.2f" }}).
+
+      - alert: StudyAppReadyProbeFailing
+        expr: probe_success{job="study-app-blackbox"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: Readiness probe to /ready is failing
+          description: >-
+            Blackbox probe_success is 0. Check API, database, and PROMETHEUS_READY_PROBE_URL.
+
+      # 14.4 * 0.001 = 0.0144 — fast burn heuristic vs monthly 0.1% budget (see ADR 0011).
+      - alert: StudyAppFast5xxBurn
+        expr: job:study_app:http_5xx_ratio:ratio5m > 0.0144
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Fast burn — 5xx ratio very high vs monthly budget
+          description: >-
+            5m 5xx ratio {{ $value | printf "%.4f" }} exceeds 1.44%.

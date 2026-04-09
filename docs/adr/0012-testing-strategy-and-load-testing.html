@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ADR 0012: Testing Strategy — Automated, Contract, and Load</title>
+    <link rel="stylesheet" href="../assets/docs.css" />
+    <script defer src="../assets/docs-nav.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>ADR 0012: Testing Strategy — Automated, Contract, and Load</h1>
+      <div id="docs-top-nav"></div>
+      <h2>Status</h2>
+      <p>Accepted</p>
+
+      <h2>Context</h2>
+      <p>
+        <a href="./0002-testing-policy.html">ADR 0002</a> mandates automated API tests and a quality gate.
+        <a href="./0007-openapi-governance-and-usability-standard.html">ADR 0007</a> adds OpenAPI contract checks.
+        The team still needs a single place that defines <strong>what we test where</strong>, how
+        <strong>load testing</strong> relates to CI, and how it connects to observability
+        (<a href="./0009-health-readiness-and-observability.html">ADR 0009</a>,
+        <a href="./0011-slo-sla-error-budget.html">ADR 0011</a>).
+      </p>
+
+      <h2>Decision</h2>
+      <h3>Layers</h3>
+      <ol>
+        <li>
+          <strong>Automated API / integration tests (required)</strong> — <code>pytest</code> against the FastAPI app
+          (in-process <code>TestClient</code> or equivalent). Covers happy paths, validation, auth, and business errors.
+          This is the default regression net before merge.
+        </li>
+        <li>
+          <strong>Contract / OpenAPI governance (required)</strong> — <code>make openapi-check</code> and
+          <code>make contract-test</code> guard schema drift and breaking changes relative to the checked-in baseline.
+        </li>
+        <li>
+          <strong>Manual exploratory testing</strong> — allowed for UX and edge cases not worth automating; findings
+          should become tests or ADRs when behavior must stay fixed.
+        </li>
+        <li>
+          <strong>Load and traffic-shape testing (optional, not a default CI gate)</strong> — used to validate
+          latency/error mix, rate limits, and dashboards under synthetic traffic. Implemented via the repository tool
+          <code>python -m tools.load_testing.runner</code> with Python scenarios under <code>tools/load_testing/scenarios/</code>. Run against local or staging instances, not as
+          a substitute for unit/API tests.
+        </li>
+      </ol>
+
+      <h3>Load testing and safety</h3>
+      <ul>
+        <li>
+          Simulating HTTP <strong>5xx</strong> against the same process for metrics requires an explicit opt-in
+          endpoint enabled only when <code>LOADTEST_HTTP_500=true</code> (see application configuration). Never enable
+          in production.
+        </li>
+        <li>
+          Load scripts must not embed secrets; use the same <code>.env</code> / key conventions as local development.
+        </li>
+        <li>
+          Interpret results together with Prometheus/Grafana (SLO panels per ADR 0011), not raw request counts alone.
+        </li>
+      </ul>
+
+      <h2>Implementation in this repository</h2>
+      <ul>
+        <li>Tests: <code>tests/</code>, entrypoints <code>make test</code>, <code>make verify-ci</code>.</li>
+        <li>Traffic runner: <code>tools/load_testing/runner.py</code>, scenarios <code>tools/load_testing/scenarios/</code>, <code>tools/load_testing/README.html</code>.</li>
+        <li>
+          Developer-facing walkthrough:
+          <a href="../developer/0006-api-load-testing.html">API load testing (step-by-step)</a>.
+        </li>
+      </ul>
+
+      <h2>Consequences</h2>
+      <h3>Positive</h3>
+      <ul>
+        <li>Clear separation: CI proves correctness; load tools prove behavior under volume and error mix.</li>
+        <li>Repeatable traffic recipes checked into git (YAML).</li>
+      </ul>
+      <h3>Trade-offs</h3>
+      <ul>
+        <li>Load scenarios can go stale; owners must update YAML when routes or auth change.</li>
+        <li>High request rates may hit in-memory rate limits — throttle via <code>--delay-ms</code> or test profiles.</li>
+      </ul>
+
+      <h2>Related</h2>
+      <ul>
+        <li><a href="./0002-testing-policy.html">ADR 0002</a> — mandatory API testing policy.</li>
+        <li><a href="../developer/0006-api-load-testing.html">Developer guide: API load testing</a></li>
+      </ul>
+    </main>
+  </body>
+</html>

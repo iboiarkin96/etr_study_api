@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app import main as app_main
 from app.core.security import InMemoryRateLimiter
+from tests.api.v1.user_test_utils import USER_HTTP_BASE_PATH, user_create_body
 
 
 def test_live_response_contains_security_headers(client) -> None:
@@ -64,13 +65,10 @@ def test_metrics_endpoint_exposes_prometheus_metrics(client) -> None:
 
 def test_create_user_rejects_too_large_body(client) -> None:
     oversized_name = "A" * (app_main.settings.api_body_max_bytes + 32)
-    payload = {
-        "system_user_id": "a1b2c3d4-0001-4000-8000-000000000050",
-        "full_name": oversized_name,
-        "timezone": "UTC",
-    }
+    payload = user_create_body("a1b2c3d4-0001-4000-8000-000000000050")
+    payload["full_name"] = oversized_name
 
-    response = client.post("/api/v1/user", json=payload)
+    response = client.post(USER_HTTP_BASE_PATH, json=payload)
 
     assert response.status_code == 413
     detail = response.json()["detail"]
@@ -82,22 +80,20 @@ def test_rate_limit_returns_429(client) -> None:
     original_limiter = app_main.rate_limiter
     app_main.rate_limiter = InMemoryRateLimiter(limit=1, window_seconds=60)
     try:
-        payload = {
-            "system_user_id": "a1b2c3d4-0001-4000-8000-000000000051",
-            "full_name": "Rate Limit User",
-            "timezone": "UTC",
-        }
+        payload = user_create_body(
+            "a1b2c3d4-0001-4000-8000-000000000051",
+            full_name="Rate Limit User",
+        )
         first = client.post(
-            "/api/v1/user",
+            USER_HTTP_BASE_PATH,
             json=payload,
             headers={"Idempotency-Key": "security-rate-limit-1"},
         )
         second = client.post(
-            "/api/v1/user",
-            json={
-                **payload,
-                "system_user_id": "a1b2c3d4-0001-4000-8000-000000000052",
-            },
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(
+                "a1b2c3d4-0001-4000-8000-000000000052", full_name="Rate Limit User"
+            ),
             headers={"Idempotency-Key": "security-rate-limit-2"},
         )
     finally:

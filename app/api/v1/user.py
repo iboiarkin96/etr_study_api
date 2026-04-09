@@ -34,6 +34,10 @@ api_key_security = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 router = APIRouter(prefix="/user", tags=["User"])
 
+# Публичный путь этого роутера: в main — include_router(..., prefix="/api/v1").
+# Используй в клиентах и load-тестах, чтобы не дублировать строку "/api/v1/user".
+USER_HTTP_BASE_PATH = "/api/v1/user"
+
 
 @router.post(
     "",

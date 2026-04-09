@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from time import perf_counter
 
 from fastapi import FastAPI, Request
@@ -276,4 +277,14 @@ def custom_swagger_ui() -> Response:
 
 
 app.include_router(user_router, prefix="/api/v1")
+
+
+if os.getenv("LOADTEST_HTTP_500", "").lower() in ("1", "true", "yes"):
+
+    @app.get("/__loadtest/http500", include_in_schema=False)
+    def loadtest_http500() -> JSONResponse:
+        """Explicit HTTP 500 for traffic/load scripts; enable only via LOADTEST_HTTP_500."""
+        return JSONResponse(status_code=500, content={"detail": "loadtest_http500"})
+
+
 logger.info("application_started env=%s log_file=%s", settings.app_env, log_file_path)

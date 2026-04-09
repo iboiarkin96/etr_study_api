@@ -1,12 +1,26 @@
 services:
+  blackbox:
+    image: prom/blackbox-exporter:latest
+    container_name: study-app-blackbox
+    command:
+      - "--config.file=/config/blackbox.yml"
+    volumes:
+      - ./ops/prometheus/blackbox.yml:/config/blackbox.yml:ro
+    ports:
+      - "${BLACKBOX_EXPORTER_PORT:-9115}:9115"
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:latest
     container_name: study-app-prometheus
+    depends_on:
+      - blackbox
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
     volumes:
       - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ADR 0011: SLOs, SLAs, Error Budget, and Monitoring Alerts</title>
+    <link rel="stylesheet" href="../assets/docs.css" />
+    <script defer src="../assets/docs-nav.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>ADR 0011: SLOs, SLAs, Error Budget, and Monitoring Alerts</h1>
+      <div id="docs-top-nav"></div>
+      <h2>Status</h2>
+      <p>Accepted</p>
+
+      <h2>Context</h2>
+      <p>
+        <a href="./0009-health-readiness-and-observability.html">ADR 0009</a> established metrics, probes, and dashboards.
+        Raw time series without explicit targets do not support release discipline, on-call prioritization, or
+        Google SRE–style error budgeting.
+      </p>
+
+      <h2>Decision</h2>
+      <h3>Service level indicators (SLIs)</h3>
+      <ul>
+        <li>
+          <strong>HTTP availability (5xx)</strong> — fraction of requests that do not return a 5xx status, measured from
+          <code>http_requests_total</code> (Prometheus job <code>study-app-api</code>).
+        </li>
+        <li>
+          <strong>API latency</strong> — 95th percentile of <code>http_request_duration_seconds</code> for routes whose
+          <code>path_template</code> is not <code>/metrics</code>, <code>/live</code>, or <code>/ready</code>, so health
+          and scrape traffic do not dominate the SLI.
+        </li>
+        <li>
+          <strong>Readiness</strong> — success of an HTTP GET to <code>/ready</code> expecting status 200, measured via the
+          Prometheus <a href="https://github.com/prometheus/blackbox_exporter">Blackbox exporter</a> (job
+          <code>study-app-blackbox</code>, metric <code>probe_success</code>). This reflects dependency readiness; it is
+          distinct from the HTTP error SLI on application routes.
+        </li>
+      </ul>
+
+      <h3>Service level objectives (SLOs)</h3>
+      <p>Targets are evaluated over a <strong>rolling 30-day</strong> window unless stated otherwise.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>SLI</th>
+            <th>Objective</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>HTTP availability (non-5xx)</td>
+            <td>99.9% of requests succeed without 5xx</td>
+            <td>Complementary view: 5xx ratio must stay within 0.1% of traffic over the window.</td>
+          </tr>
+          <tr>
+            <td>API latency (p95)</td>
+            <td>95% of in-scope requests complete in under 500&nbsp;ms</td>
+            <td>Measured as histogram p95 over 5&nbsp;min rate windows for alerting; SLO is a monthly/rolling intent.</td>
+          </tr>
+          <tr>
+            <td>Readiness probe</td>
+            <td><code>/ready</code> returns HTTP 200 at least 99.9% of probe intervals</td>
+            <td>Blackbox-based; indicates DB and dependency health from outside the process.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Error budget</h3>
+      <p>
+        For HTTP availability, the <strong>allowed bad event ratio</strong> is <code>1 − 0.999 = 0.001</code> (0.1% of
+        requests may fail with 5xx over the rolling window). Prometheus recording rules expose
+        <code>job:study_app:http_5xx:burn30d</code>: the ratio of actual 5xx share to the allowed 0.001 share. Values
+        above <code>1</code> mean the error budget for the window is exhausted.
+      </p>
+      <p>
+        Fast burn (short windows) and sustained high 5xx rates are alerted separately so on-call can act before the
+        full 30-day budget is consumed.
+      </p>
+
+      <h3>Optional external SLA</h3>
+      <p>
+        An <strong>SLA</strong> is a commitment to customers or internal consumers (support tickets, credits, page).
+        This ADR defines internal <strong>SLOs</strong> only. If a public SLA is published, it should be <em>equal to or
+        stricter than</em> these SLOs, with measurement clauses referencing Prometheus/Grafana and the
+        <a href="../runbooks/0009-error-budget-exhaustion.html">error budget exhaustion runbook</a> for breach handling.
+      </p>
+
+      <h3>Alerting</h3>
+      <p>
+        Prometheus <strong>alerting rules</strong> live under <code>ops/prometheus/rules/</code>. Alertmanager is not
+        required for evaluation: firing alerts appear in the Prometheus UI (<code>/alerts</code>). Wiring Alertmanager
+        for notifications is a follow-up.
+      </p>
+
+      <h2>Implementation</h2>
+      <ul>
+        <li><code>ops/prometheus/rules/study_app_slo.yml</code> — recording and alert rules.</li>
+        <li><code>ops/prometheus/blackbox.yml</code> — Blackbox module <code>http_2xx</code> for <code>/ready</code>.</li>
+        <li><code>ops/prometheus/prometheus.tpl.yml</code> — <code>rule_files</code>, API scrape, Blackbox scrape.</li>
+        <li><code>scripts/render_prometheus_config.py</code> — substitutes scrape target and ready-probe URL.</li>
+        <li><code>docker-compose.observability.yml</code> — Blackbox service; Prometheus mounts rules directory.</li>
+        <li><code>ops/grafana/dashboards/study-app-observability.json</code> — SLO panels (5xx, readiness, budget, p95).</li>
+        <li>
+          <a href="../runbooks/0009-error-budget-exhaustion.html">Runbook: Error budget exhaustion</a> — policy and
+          triage when budget is burned or alerts fire.
+        </li>
+      </ul>
+
+      <h2>Consequences</h2>
+      <h3>Positive</h3>
+      <ul>
+        <li>Shared language for reliability and explicit trade-offs between velocity and stability.</li>
+        <li>Alerts grounded in SLOs rather than ad hoc thresholds alone.</li>
+      </ul>
+      <h3>Trade-offs</h3>
+      <ul>
+        <li>Low-traffic environments can make 30-day windows noisy or flat; tune evaluation windows for non-prod if needed.</li>
+        <li>Blackbox adds a container and requires the API reachable from Docker (same defaults as Prometheus scrape).</li>
+      </ul>
+    </main>
+  </body>
+</html>

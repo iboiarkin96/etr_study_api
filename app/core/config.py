@@ -30,7 +30,18 @@ def _normalize_app_env(raw: str) -> str:
     return normalized
 
 
+# Переменные, уже заданные в окружении до импорта (например `export` перед uvicorn),
+# не должны затираться профилем `env/<APP_ENV>` — иначе `make run-loadtest-api` теряет
+# API_RATE_LIMIT_REQUESTS_LOADTEST, когда env/dev снова выставляет 60.
+_PARENT_WINS_KEYS = (
+    "API_RATE_LIMIT_REQUESTS",
+    "API_RATE_LIMIT_WINDOW_SECONDS",
+)
+
+
 def _load_env_files() -> None:
+    parent_wins = {k: os.environ[k] for k in _PARENT_WINS_KEYS if k in os.environ}
+
     base_env = ROOT / ".env"
     if base_env.exists():
         load_dotenv(base_env, override=False)
@@ -42,6 +53,9 @@ def _load_env_files() -> None:
     profile_env = ENV_DIR / app_env
     if profile_env.is_file():
         load_dotenv(profile_env, override=True)
+
+    for key, value in parent_wins.items():
+        os.environ[key] = value
 
     explicit_env_file = os.getenv("ENV_FILE", "").strip()
     if explicit_env_file:

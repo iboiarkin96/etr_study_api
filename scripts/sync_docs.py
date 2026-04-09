@@ -226,6 +226,9 @@ _HANDBOOK_DESCRIPTION_OVERRIDES: dict[str, str] = {
     "developer/0004-how-to-add-post-contract.html": (
         "Step-by-step guide for adding POST /api/v1/contract."
     ),
+    "developer/0007-local-development.html": (
+        "Local run targets (make run, make run-project), observability stack, ports, and shutdown."
+    ),
     "adr/0005-api-security-defaults.html": (
         "Security-by-default policy for auth, rate-limit, CORS, headers, and body-size limits."
     ),

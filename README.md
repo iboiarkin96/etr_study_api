@@ -1,131 +1,81 @@
 # Study App API
 
-FastAPI service for Study App domain workflows.
-
-`README` is intentionally short. Detailed documentation lives in `docs/system-analysis.html`
-and `docs/engineering-practices.html`.
-
----
+FastAPI service for Study App domain workflows. Long-form documentation: [system analysis](docs/system-analysis.html), [engineering practices](docs/engineering-practices.html).
 
 ## Quick start
 
 ```bash
-make venv
-source .venv/bin/activate
+make venv && source .venv/bin/activate
 make install
 make env-init
 make migrate
 make run
 ```
 
-Swagger:
-- [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-
-### Observability quick start (beginner-friendly)
-
-1) Start the API:
-```bash
-make run
-```
-
-2) Check probes and metrics endpoint:
-```bash
-curl http://127.0.0.1:8000/live
-curl http://127.0.0.1:8000/ready
-curl http://127.0.0.1:8000/metrics
-```
-
-3) Start Prometheus + Grafana:
-```bash
-make observability-up
-```
-
-4) Open tools in browser:
-- Prometheus: [http://127.0.0.1:9090](http://127.0.0.1:9090)
-  - Targets: [http://127.0.0.1:9090/targets](http://127.0.0.1:9090/targets)
-- Grafana: [http://127.0.0.1:3001](http://127.0.0.1:3001)
-  - Dashboard (Study App Observability): [http://127.0.0.1:3001/d/study-app-observability/study-app-observability?orgId=1](http://127.0.0.1:3001/d/study-app-observability/study-app-observability?orgId=1)
-  - login: `admin` / `admin`
-
-Hosts used in local monitoring:
-- API app: `127.0.0.1:8000`
-- Prometheus UI: `127.0.0.1:9090`
-- Grafana UI: `127.0.0.1:3001`
-- Prometheus scrape target from Docker: `host.docker.internal:8000` (template `ops/prometheus/prometheus.tpl.yml`, rendered into `ops/prometheus/prometheus.yml`)
-- You can override these via env: `OBS_API_HOST`, `OBS_API_PORT`, `OBS_PROM_HOST`, `OBS_PROM_PORT`, `OBS_GRAF_HOST`, `OBS_GRAF_PORT`.
-
-5) Generate traffic so graphs move:
-```bash
-for i in {1..20}; do curl -s http://127.0.0.1:8000/live > /dev/null; done
-for i in {1..20}; do curl -s http://127.0.0.1:8000/ready > /dev/null; done
-```
-
-6) Verify key metrics in Prometheus:
-- `http_requests_total`
-- `http_request_duration_seconds_bucket`
-- `db_operation_duration_seconds_bucket`
-
-Ready-to-open Prometheus queries:
-- Request rate (RPS): [http://127.0.0.1:9090/graph?g0.expr=sum%28rate%28http_requests_total%5B1m%5D%29%29&g0.tab=0](http://127.0.0.1:9090/graph?g0.expr=sum%28rate%28http_requests_total%5B1m%5D%29%29&g0.tab=0)
-- Error rate (%): [http://127.0.0.1:9090/graph?g0.expr=100%20*%20sum%28rate%28http_requests_total%7Bstatus_code%3D~%225..%7C4..%22%7D%5B5m%5D%29%29%20%2F%20sum%28rate%28http_requests_total%5B5m%5D%29%29&g0.tab=0](http://127.0.0.1:9090/graph?g0.expr=100%20*%20sum%28rate%28http_requests_total%7Bstatus_code%3D~%225..%7C4..%22%7D%5B5m%5D%29%29%20%2F%20sum%28rate%28http_requests_total%5B5m%5D%29%29&g0.tab=0)
-- API latency p95 (ms): [http://127.0.0.1:9090/graph?g0.expr=1000%20*%20histogram_quantile%280.95%2C%20sum%28rate%28http_request_duration_seconds_bucket%5B5m%5D%29%29%20by%20%28le%29%29&g0.tab=0](http://127.0.0.1:9090/graph?g0.expr=1000%20*%20histogram_quantile%280.95%2C%20sum%28rate%28http_request_duration_seconds_bucket%5B5m%5D%29%29%20by%20%28le%29%29&g0.tab=0)
-- DB latency p95 (ms): [http://127.0.0.1:9090/graph?g0.expr=1000%20*%20histogram_quantile%280.95%2C%20sum%28rate%28db_operation_duration_seconds_bucket%5B5m%5D%29%29%20by%20%28le%29%29&g0.tab=0](http://127.0.0.1:9090/graph?g0.expr=1000%20*%20histogram_quantile%280.95%2C%20sum%28rate%28db_operation_duration_seconds_bucket%5B5m%5D%29%29%20by%20%28le%29%29&g0.tab=0)
-
-7) Stop observability stack when done:
-```bash
-make observability-down
-```
-
-Optional smoke-check of monitoring links:
-```bash
-make observability-smoke
-```
-
-### Configuration and environments (`APP_ENV`)
-
-**Which stand am I on?** The process reads **`APP_ENV`** (`dev`, `qa`, or `prod`). Set it in **`.env`** on your laptop, or in the **host environment** in production (container / systemd / platform config). **`GET /live`** returns JSON with `"app_env"` so you can verify the running profile without guessing.
-
-**Repository layout (tracked):**
-
-| Path | Role |
-| ---- | ---- |
-| `env/example` | **Only** committed template — copy once to `.env` (`make env-init`) or `cp env/example .env` |
-| `env/dev`, `env/qa`, `env/prod` | Small overrides for that profile (optional; merged automatically) |
-
-**Load order (later wins):**
-
-1. `.env` in the project root (your secrets and `APP_ENV=…`)
-2. `env/<APP_ENV>` (e.g. `env/dev` when `APP_ENV=dev`)
-3. Optional `ENV_FILE` (absolute path or path relative to project root) for secrets / host-specific files
-
-Automated tests force **`APP_ENV=qa`** (same governance rules as QA). Legacy value `APP_ENV=test` is accepted and mapped to **`qa`**.
-
-**Useful commands:** `make env-check` (loads config and prints effective DB path), `curl -s http://127.0.0.1:8000/live | jq` (see `app_env`).
+- API docs (Swagger): [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- Full stack (API + Docker observability): `make run-project` instead of `make run` (see below).
 
 ---
 
-## Developer documentation
+## Observability (local)
 
-Primary sources: `docs/system-analysis.html`, `docs/engineering-practices.html`
+Stack: **Prometheus**, **Grafana**, **Blackbox exporter** (`docker-compose.observability.yml`). Prometheus scrapes the API via `host.docker.internal:8000` (see `ops/prometheus/prometheus.tpl.yml` → rendered `ops/prometheus/prometheus.yml`).
 
-- [Developer handbook](docs/engineering-practices.html#developer-handbook)
-- [Error matrix](docs/system-analysis.html#dev-error-matrix)
-- [Dev workflow](docs/engineering-practices.html#dev-guide)
-- [Docs process](docs/engineering-practices.html#dev-docs-as-code)
-- [API versioning](docs/engineering-practices.html#dev-versioning)
-- [ADR index](docs/adr/README.html)
-- [ADR idempotency policy](docs/adr/0006-idempotency-write-operations.html)
-- [Developer docs](docs/developer/README.html), [requirements](docs/developer/0001-requirements.html), [schemas](docs/developer/0002-schemas-and-contracts.html), [logic](docs/developer/0003-business-logic.html), [beginner guide](docs/developer/0004-how-to-add-post-contract.html)
-- [Runbooks](docs/runbooks/README.html), [template](docs/runbooks/0000-template.html), [pre-commit](docs/runbooks/0004-pre-commit-failing.html), [quality-check](docs/runbooks/0005-quality-check-failing.html), [api security](docs/runbooks/0006-api-security-failing.html), [openapi contract-test](docs/runbooks/0007-openapi-contract-test-failing.html), [observability scrape](docs/runbooks/0008-observability-scrape-failing.html)
+### Default URLs
 
-Policy:
-- Local operations are executed via `make` targets from `Makefile`.
-- Use scenario entrypoints for daily work: `make fix`, `make verify`, `make release-check`, `make release DEPLOY_CMD='...'`.
-- Atomic targets remain available for granular control (`format-*`, `lint-*`, `type-check`, `test*`, `docs-*`, `openapi-*`).
-- Docs synchronization and HTML normalization: `make docs-fix`.
-- Docs drift validation (no updates expected): `make docs-check`.
-- Before commit: `make pre-commit-check`
-- Before PR/deploy: `make verify` and `make release-check`
+| What | URL | Notes |
+| ---- | --- | ----- |
+| API | [http://127.0.0.1:8000](http://127.0.0.1:8000) | `APP_HOST` / `APP_PORT` |
+| Liveness / readiness / metrics | `/live`, `/ready`, `/metrics` | |
+| Prometheus UI | [http://127.0.0.1:9090](http://127.0.0.1:9090) | [Targets](http://127.0.0.1:9090/targets) |
+| Grafana | [http://127.0.0.1:3001](http://127.0.0.1:3001) | maps host **3001** → container 3000; login `admin` / `admin` |
+| Blackbox exporter | [http://127.0.0.1:9115](http://127.0.0.1:9115) | probe metrics for Prometheus |
+| Dashboard (imported) | [Study App Observability](http://127.0.0.1:3001/d/study-app-observability/study-app-observability?orgId=1) | Grafana |
+
+Override host/port labels for docs and smoke checks: `OBS_API_*`, `OBS_PROM_*`, `OBS_GRAF_*` (see `env/example`).
+
+### How to run it
+
+1. Start the API: `make run` (or use `make run-project` to bring up Docker observability and then the API in one flow).
+2. If the API is already running: `make observability-up` (renders Prometheus config, starts Compose).
+3. Check `/live`, `/ready`, and `/metrics` (e.g. `curl -s http://127.0.0.1:8000/live`).
+4. When finished: `make observability-down`. Optional link check: `make observability-smoke`.
+
+More detail (ports, Blackbox, stopping containers): [Local development](docs/developer/0007-local-development.html). Architecture and SLO/error-budget context: [ADR 0009](docs/adr/0009-health-readiness-and-observability.html), [ADR 0011](docs/adr/0011-slo-sla-error-budget.html).
+
+### Metrics useful in Prometheus / Grafana
+
+Examples: `http_requests_total`, `http_request_duration_seconds_bucket`, `db_operation_duration_seconds_bucket`. Use the Grafana dashboard above for charts; in Prometheus UI use **Graph** and paste PromQL (e.g. `sum(rate(http_requests_total[1m]))` for overall RPS).
+
+---
+
+## Environment (`APP_ENV`)
+
+The process reads **`APP_ENV`** (`dev`, `qa`, `prod`). Set it in **`.env`** or the host environment. **`GET /live`** includes `"app_env"` for a quick check.
+
+| Path | Role |
+| ---- | ---- |
+| `env/example` | Committed template — copy to `.env` (`make env-init`) |
+| `env/dev`, `env/qa`, `env/prod` | Optional profile overrides (merged automatically) |
+
+**Load order (later wins):** root `.env` → `env/<APP_ENV>` → optional `ENV_FILE`.
+Tests use **`APP_ENV=qa`**. Legacy `APP_ENV=test` is mapped to **`qa`**.
+
+Useful: `make env-check`, `curl -s http://127.0.0.1:8000/live | jq`.
+
+---
+
+## Documentation
+
+| Topic | Link |
+| ----- | ---- |
+| Engineering practices & handbook | [engineering-practices.html](docs/engineering-practices.html) |
+| System analysis & error matrix | [system-analysis.html](docs/system-analysis.html) |
+| Developer guides (requirements, contracts, load testing, local dev) | [docs/developer/README.html](docs/developer/README.html) |
+| ADRs | [docs/adr/README.html](docs/adr/README.html) |
+| Runbooks | [docs/runbooks/README.html](docs/runbooks/README.html) |
+
+Daily workflow: prefer `make` targets (`make help`). Common flows: `make fix`, `make verify`, `make release-check`. Before commit: `make pre-commit-check`. Docs sync: `make docs-fix`; verify: `make docs-check`.
 
 ---
 
@@ -167,14 +117,12 @@ study_app/
 
 ---
 
-## Configuration
-
-Configuration is loaded from `.env` (create it from `env/example`). See **Configuration and environments** above.
+## Environment variables (from `env/example`)
 
 <!-- BEGIN:CONFIG_TABLE -->
 | Variable | Description | Example |
 | -------- | ----------- | ------- |
-| `APP_NAME` | Title shown in OpenAPI | `Study App API` |
+| `APP_NAME` | Title shown in OpenAPI | `"Study App API"` |
 | `APP_ENV` | Logical environment label | `dev` |
 | `APP_HOST` | Bind address for Uvicorn | `127.0.0.1` |
 | `APP_PORT` | Listen port | `8000` |
@@ -193,6 +141,8 @@ Configuration is loaded from `.env` (create it from `env/example`). See **Config
 | `API_MOCK_API_KEY` | Mock API key value for local/dev | `local-dev-key` |
 | `API_AUTH_HEADER` | Header name used for API key auth | `X-API-Key` |
 | `API_PROTECTED_PREFIX` | URL prefix where auth/rate-limit are enforced | `/api/v1` |
+| `LOADTEST_DEFAULT_TOTAL_REQUESTS` |  | `100` |
+| `LOADTEST_DEFAULT_DELAY_MS` |  | `0` |
 | `METRICS_ENABLED` |  | `true` |
 | `METRICS_PATH` |  | `/metrics` |
 | `READINESS_DB_TIMEOUT_MS` |  | `250` |
