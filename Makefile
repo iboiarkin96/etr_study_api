@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help venv install requirements env-init run migrate migration format-fix format-check lint-check lint-fix type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one test-warnings env-check docs-fix docs-check observability-up observability-down observability-smoke
+.PHONY: help venv install requirements env-init run migrate migration format-fix format-check lint-check lint-fix type-check openapi-check contract-test openapi-accept-changes fix verify verify-ci release-check release pre-commit-install pre-commit-check test test-one test-warnings env-check docs-fix docs-check observability-up observability-down observability-smoke
 
 # ──────────────────────────────────────────────
 # Help
@@ -35,7 +35,8 @@ help:
 	@echo ""
 	@echo "  Scenario flows (recommended entry points)"
 	@echo "  make fix                    # apply auto-fixes before local run"
-	@echo "  make verify                 # run local quality gate"
+	@echo "  make verify                 # run local quality gate (docs auto-sync)"
+	@echo "  make verify-ci              # CI gate: same as verify but docs-check (no doc writes)"
 	@echo "  make release-check          # run full release gate"
 	@echo "  make release DEPLOY_CMD='…' # release gate + deploy command"
 	@echo ""
@@ -76,9 +77,10 @@ help:
 	@echo "  # Quality Gates"
 	@echo "  make fix                  Run auto-fixes (format-fix + lint-fix + docs-fix)"
 	@echo "  make verify               Run lint-check + type-check + openapi-check + contract-test + test + docs-fix"
+	@echo "  make verify-ci            Run lint-check + type-check + openapi-check + contract-test + test + docs-check"
 	@echo ""
 	@echo "  # Tests"
-	@echo "  make test                 Run full test suite (pytest)"
+	@echo "  make test                 Run full test suite (pytest + coverage per pyproject.toml)"
 	@echo "  make test-one path=…      Run one test file or node"
 	@echo "  make test-warnings        Run tests with full warning details"
 	@echo ""
@@ -152,7 +154,9 @@ run:
 	fi
 	@printf "$(ICON_STEP) %s\n" "Starting server (reading $(ENV))…"
 	@set -a; . ./$(ENV); set +a; \
-	$(PYTHON) -m uvicorn app.main:app --host $$APP_HOST --port $$APP_PORT --reload
+	APP_HOST=$${APP_HOST:-127.0.0.1}; \
+	APP_PORT=$${APP_PORT:-8000}; \
+	$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload
 
 # ──────────────────────────────────────────────
 # Database / Migrations
@@ -292,6 +296,23 @@ verify:
 	@$(MAKE) docs-fix
 	@printf "$(COLOR_GREEN)== VERIFY: SUCCESS ==$(COLOR_RESET)\n"
 
+# Same as verify but fails if docs are out of sync (for CI; does not write docs).
+verify-ci:
+	@printf "$(COLOR_CYAN)== VERIFY-CI: START ==$(COLOR_RESET)\n"
+	@printf "$(ICON_INFO) %s\n" "[1/6] lint-check"
+	@$(MAKE) lint-check
+	@printf "$(ICON_INFO) %s\n" "[2/6] type-check"
+	@$(MAKE) type-check
+	@printf "$(ICON_INFO) %s\n" "[3/6] openapi-check"
+	@$(MAKE) openapi-check
+	@printf "$(ICON_INFO) %s\n" "[4/6] contract-test"
+	@$(MAKE) contract-test
+	@printf "$(ICON_INFO) %s\n" "[5/6] test"
+	@$(MAKE) test
+	@printf "$(ICON_INFO) %s\n" "[6/6] docs-check"
+	@$(MAKE) docs-check
+	@printf "$(COLOR_GREEN)== VERIFY-CI: SUCCESS ==$(COLOR_RESET)\n"
+
 # Install git pre-commit hooks for local checks.
 pre-commit-install:
 	@if [ ! -d ".venv" ]; then \
@@ -426,7 +447,7 @@ observability-up:
 	@printf "$(ICON_STEP) %s\n" "Starting observability stack..."
 	@$(PYTHON) scripts/render_prometheus_config.py
 	@docker compose -f docker-compose.observability.yml up -d
-	@printf "$(ICON_OK) %s\n" "Observability stack is up (Prometheus:9090, Grafana:3001)"
+	@printf "$(ICON_OK) %s\n" "Observability stack is up (Prometheus:9090, Grafana:3001, Blackbox:9115)"
 
 # Stop local Prometheus + Grafana observability stack.
 observability-down:

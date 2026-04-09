@@ -207,6 +207,8 @@ Configuration is loaded from `.env` (create it from `env/example`). See **Config
 | `PROMETHEUS_PORT` |  | `9090` |
 | `GRAFANA_PORT` |  | `3001` |
 | `PROMETHEUS_SCRAPE_TARGET` |  | `host.docker.internal:8000` |
+| `PROMETHEUS_READY_PROBE_URL` |  | `http://host.docker.internal:8000/ready` |
+| `BLACKBOX_EXPORTER_PORT` |  | `9115` |
 | `GRAFANA_ADMIN_USER` |  | `admin` |
 | `GRAFANA_ADMIN_PASSWORD` |  | `admin` |
 <!-- END:CONFIG_TABLE -->

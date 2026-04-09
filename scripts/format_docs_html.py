@@ -161,6 +161,13 @@ def format_html_file(path: Path) -> bool:
 def main() -> None:
     updated_count = 0
     for html_path in sorted(DOCS_ROOT.glob("**/*.html")):
+        try:
+            rel = html_path.relative_to(DOCS_ROOT)
+        except ValueError:
+            continue
+        # Backlog pages use custom layout; skip indentation normalization that can break structure.
+        if rel.parts and rel.parts[0] == "backlog":
+            continue
         if format_html_file(html_path):
             updated_count += 1
     print(f"Formatted docs HTML files: {updated_count} updated")

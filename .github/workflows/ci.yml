@@ -1,0 +1,33 @@
+# Quality gate aligned with `make verify-ci` (lint, types, OpenAPI, contract tests,
+# pytest + coverage floor, docs-check). GitHub-hosted runners are free for public repos
+# and include a monthly allowance for private repos on free accounts.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Quality gate
+        run: make verify-ci
+
+      - name: Pre-commit hooks
+        run: .venv/bin/pre-commit run --all-files
