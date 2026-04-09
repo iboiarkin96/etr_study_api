@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Documentation pipeline (docs-as-code)</title>
+    <link rel="stylesheet" href="../assets/docs.css" />
+    <script defer src="../assets/docs-nav.js"></script>
+  </head>
+
+  <body>
+    <main class="container">
+      <h1>Documentation pipeline (docs-as-code)</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lead">
+        How generated documentation is produced, which paths are owned by automation, and how
+        <code>make docs-check</code> enforces that committed artifacts match the pipeline.
+        See also <a href="../adr/0001-docs-as-code.html">ADR 0001: Adopt Docs as Code</a>.
+      </p>
+
+      <h2>1. <code>make docs-fix</code> stages</h2>
+      <ol>
+        <li>
+          <strong>UML</strong> — <code>scripts/regenerate_docs.py</code> renders
+          <code>docs/uml/**/*.puml</code> to PNG under <code>docs/uml/rendered/</code> (Kroki; requires network).
+        </li>
+        <li>
+          <strong>Marker sync</strong> — <code>scripts/sync_docs.py</code> refreshes marker blocks in
+          <code>README.md</code>, <code>docs/system-analysis.html</code>, and
+          <code>docs/engineering-practices.html</code> from the Makefile, FastAPI routes, and env templates.
+        </li>
+        <li>
+          <strong>Optional Markdown → HTML</strong> — <code>scripts/render_docs_html.py</code> rewrites
+          <code>*.html</code> next to any <code>*.md</code> in <code>docs/adr/</code>, <code>docs/developer/</code>,
+          and <code>docs/runbooks/</code> when those <code>.md</code> files exist.
+        </li>
+        <li>
+          <strong>HTML normalization</strong> — <code>scripts/format_docs_html.py</code> normalizes
+          <code>docs/**/*.html</code> except under <code>docs/backlog/</code>.
+        </li>
+      </ol>
+
+      <h2>2. Generated and managed paths</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Path / pattern</th>
+            <th>Source of truth</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>docs/uml/rendered/*.png</code></td>
+            <td>Generated from sibling <code>docs/uml/**/*.puml</code> (edit PlantUML; commit PNGs after <code>docs-fix</code>).</td>
+          </tr>
+          <tr>
+            <td>Marker blocks in <code>README.md</code>, <code>docs/system-analysis.html</code>, <code>docs/engineering-practices.html</code></td>
+            <td>Human prose outside markers; inside markers overwritten by <code>sync_docs.py</code>.</td>
+          </tr>
+          <tr>
+            <td><code>docs/**/*.html</code> (except <code>docs/backlog/</code> formatting skips)</td>
+            <td>Hand-edited HTML; normalized by <code>format_docs_html.py</code>. Prose for ADRs, runbooks, and developer guides is maintained as HTML in this repository.</td>
+          </tr>
+          <tr>
+            <td>Optional <code>docs/adr/*.md</code>, <code>docs/developer/*.md</code>, <code>docs/runbooks/*.md</code></td>
+            <td>If added, companions drive generated <code>.html</code> next to them via <code>render_docs_html.py</code>.</td>
+          </tr>
+          <tr>
+            <td><code>docs/openapi/openapi-baseline.json</code></td>
+            <td>Updated via OpenAPI governance flows (<code>make openapi-accept-changes</code>), not <code>docs-fix</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>3. <code>make docs-check</code> (CI)</h2>
+      <p>
+        <code>docs-check</code> records <code>git diff HEAD</code>, runs <code>docs-fix</code>, then compares the new
+        <code>git diff HEAD</code> to the first. If they differ, the pipeline changed the working tree—committed docs
+        are out of date. Run <code>make docs-fix</code>, review, and commit. This check covers every file the pipeline
+        can modify, not only README and two HTML files.
+      </p>
+      <p>
+        Uncommitted edits in paths that <code>docs-fix</code> does not touch are left unchanged; the before/after
+        full-tree diff stays identical when generated docs already match HEAD.
+      </p>
+
+      <h2>4. Optional published doc site</h2>
+      <p>
+        Browsing <code>docs/</code> in the editor or on Git hosting is enough for many teams. If you need global
+        search, multi-version docs, or a branded microsite, add a static-site generator (for example
+        <a href="https://www.mkdocs.org/">MkDocs</a> with Material, or <a href="https://docusaurus.io/">Docusaurus</a>)
+        and publish with <a href="https://pages.github.com/">GitHub Pages</a> or your CI host. That is orthogonal to
+        this repo’s Makefile-driven pipeline: migrate content incrementally and keep <code>docs-fix</code> as the
+        source of generated PNGs and synced markers until you replace those steps.
+      </p>
+    </main>
+  </body>
+
+</html>

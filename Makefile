@@ -464,22 +464,25 @@ docs-fix:
 	@printf "$(COLOR_GREEN)== DOCS-FIX: SUCCESS ==$(COLOR_RESET)\n"
 
 # Verify docs are already synchronized (no drift allowed).
+# Compare the full working tree diff vs HEAD before and after docs-fix. If identical,
+# docs-fix did not change any file—so committed generated artifacts match the pipeline.
+# (Local edits in unrelated paths are preserved as long as docs-fix leaves the tree unchanged.)
 docs-check:
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
-	git diff -- README.md docs/system-analysis.html docs/engineering-practices.html > "$$tmp_before"; \
+	git diff HEAD > "$$tmp_before"; \
 	$(MAKE) docs-fix; \
-	git diff -- README.md docs/system-analysis.html docs/engineering-practices.html > "$$tmp_after"; \
+	git diff HEAD > "$$tmp_after"; \
 	if cmp -s "$$tmp_before" "$$tmp_after"; then \
 		printf "$(ICON_OK) %s\n" "Docs check passed (no drift)"; \
+		rm -f "$$tmp_before" "$$tmp_after"; \
 	else \
-		printf "$(ICON_ERR) %s\n" "Docs drift detected in synchronized docs. Run 'make docs-fix' and commit updated files."; \
+		printf "$(ICON_ERR) %s\n" "Docs drift detected. Run 'make docs-fix' and commit updated files."; \
 		rm -f "$$tmp_before" "$$tmp_after"; \
 		exit 1; \
-	fi; \
-	rm -f "$$tmp_before" "$$tmp_after"
+	fi
 
 # Start local Prometheus + Grafana observability stack.
 observability-up:
