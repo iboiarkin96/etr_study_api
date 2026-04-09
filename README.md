@@ -153,6 +153,7 @@ study_app/
 ├── docs/  # HTML docs & UML sources
 │   ├── adr/
 │   ├── assets/
+│   ├── backlog/
 │   ├── developer/  # Developer guides and onboarding
 │   ├── openapi/
 │   ├── runbooks/  # Operational troubleshooting guides

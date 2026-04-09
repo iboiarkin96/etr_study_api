@@ -50,6 +50,9 @@ function activeTarget(relPath) {
   if (relPath.startsWith("developer/")) {
     return "developer/README.html";
   }
+  if (relPath.startsWith("backlog/")) {
+    return "backlog/README.html";
+  }
   if (relPath.startsWith("runbooks/")) {
     return "runbooks/README.html";
   }
@@ -72,6 +75,7 @@ function renderTopNav() {
     { label: "System Analysis", target: "system-analysis.html" },
     { label: "Engineering Practices", target: "engineering-practices.html" },
     { label: "Developer Docs", target: "developer/README.html" },
+    { label: "Backlog", target: "backlog/README.html" },
     { label: "ADR", target: "adr/README.html" },
     { label: "Runbooks", target: "runbooks/README.html" },
   ];
