@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Runbook: OpenAPI Contract-Test Failing</title>
+    <link rel="stylesheet" href="../assets/docs.css" />
+    <script defer src="../assets/docs-nav.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Runbook: OpenAPI Contract-Test Failing</h1>
+      <div id="docs-top-nav"></div>
+      <h2>Trigger</h2>
+      <ul>
+        <li><code>make contract-test</code> fails.</li>
+        <li><code>make verify</code> fails on the <code>contract-test</code> stage.</li>
+        <li>CI reports OpenAPI snapshot drift vs baseline.</li>
+      </ul>
+
+      <h2>Fast triage</h2>
+      <ol>
+        <li>Run <code>make contract-test</code> to see the diff summary.</li>
+        <li>Identify whether changes are intentional or accidental.</li>
+        <li>If accidental, revert/fix API contract changes in code.</li>
+        <li>If intentional, validate compatibility and docs, then accept baseline update.</li>
+      </ol>
+
+      <h2>Most common causes</h2>
+      <ul>
+        <li>Field type changed in request/response schema.</li>
+        <li>Error code/key mapping changed unintentionally.</li>
+        <li>Response status set changed (for example removed <code>422</code> or <code>404</code>).</li>
+        <li>Requiredness changed for existing fields/parameters.</li>
+        <li>OpenAPI examples or router response declarations diverged from implementation.</li>
+      </ul>
+
+      <h2>Recovery paths</h2>
+      <h3>1) Unintentional contract drift</h3>
+      <ul>
+        <li>Fix schema/router/validation code to restore expected contract.</li>
+        <li>Re-run <code>make openapi-check</code> and <code>make contract-test</code>.</li>
+        <li>Run <code>make verify</code> before commit.</li>
+      </ul>
+
+      <h3>2) Intentional contract change</h3>
+      <ul>
+        <li>Confirm change is backward-compatible for current API major version.</li>
+        <li>Update tests, examples, and related docs/ADR notes.</li>
+        <li>Accept new baseline: <code>make openapi-accept-changes</code>.</li>
+        <li>Re-run <code>make contract-test</code> and <code>make verify</code>.</li>
+      </ul>
+
+      <h2>Final recovery sequence</h2>
+      <ol>
+        <li><code>make openapi-check</code></li>
+        <li><code>make contract-test</code></li>
+        <li><code>make verify</code></li>
+      </ol>
+
+      <h2>Exit criteria</h2>
+      <ul>
+        <li><code>make contract-test</code> passes.</li>
+        <li><code>make verify</code> passes end-to-end.</li>
+        <li>Baseline update (if any) is explicit and justified in the change.</li>
+      </ul>
+
+      <h2>Follow-up</h2>
+      <ul>
+        <li>If policy/compatibility boundary changed, update ADR and developer docs.</li>
+        <li>If this incident repeats, add stronger lint rules in <code>scripts/openapi_governance.py</code>.</li>
+      </ul>
+    </main>
+  </body>
+</html>

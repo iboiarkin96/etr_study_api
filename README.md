@@ -35,7 +35,7 @@ Primary sources: `docs/system-analysis.html`, `docs/engineering-practices.html`
 - [ADR index](docs/adr/README.html)
 - [ADR idempotency policy](docs/adr/0006-idempotency-write-operations.html)
 - [Developer docs](docs/developer/README.html), [requirements](docs/developer/0001-requirements.html), [schemas](docs/developer/0002-schemas-and-contracts.html), [logic](docs/developer/0003-business-logic.html), [beginner guide](docs/developer/0004-how-to-add-post-contract.html)
-- [Runbooks](docs/runbooks/README.html), [template](docs/runbooks/0000-template.html), [pre-commit](docs/runbooks/0004-pre-commit-failing.html), [quality-check](docs/runbooks/0005-quality-check-failing.html), [api security](docs/runbooks/0006-api-security-failing.html)
+- [Runbooks](docs/runbooks/README.html), [template](docs/runbooks/0000-template.html), [pre-commit](docs/runbooks/0004-pre-commit-failing.html), [quality-check](docs/runbooks/0005-quality-check-failing.html), [api security](docs/runbooks/0006-api-security-failing.html), [openapi contract-test](docs/runbooks/0007-openapi-contract-test-failing.html)
 
 Policy:
 - Local operations are executed via `make` targets from `Makefile`.

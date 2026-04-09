@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import sys
 from pathlib import Path
@@ -245,6 +246,34 @@ def run_breaking_check(baseline: dict[str, Any], current: dict[str, Any]) -> lis
     return issues
 
 
+def run_snapshot_check(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
+    """Ensure current OpenAPI equals accepted baseline snapshot."""
+    if baseline == current:
+        return []
+
+    baseline_json = json.dumps(baseline, ensure_ascii=True, indent=2, sort_keys=True).splitlines()
+    current_json = json.dumps(current, ensure_ascii=True, indent=2, sort_keys=True).splitlines()
+    diff_lines = list(
+        difflib.unified_diff(
+            baseline_json,
+            current_json,
+            fromfile="openapi-baseline.json",
+            tofile="current-openapi.json",
+            lineterm="",
+        )
+    )
+
+    issues = [
+        "OpenAPI snapshot differs from baseline.",
+        "If changes are intentional, run: make openapi-accept-changes",
+    ]
+    max_diff_lines = 40
+    if diff_lines:
+        issues.append(f"Snapshot diff (first {max_diff_lines} lines):")
+        issues.extend(diff_lines[:max_diff_lines])
+    return issues
+
+
 def _print_issues(title: str, issues: list[str]) -> None:
     if not issues:
         print(f"✓ {title}: passed")
@@ -267,6 +296,14 @@ def command_check() -> int:
     return 1 if lint_issues or breaking_issues else 0
 
 
+def command_contract_test() -> int:
+    current = _load_current_openapi()
+    baseline = _load_baseline()
+    snapshot_issues = run_snapshot_check(baseline, current)
+    _print_issues("OpenAPI snapshot contract", snapshot_issues)
+    return 1 if snapshot_issues else 0
+
+
 def command_update_baseline() -> int:
     current = _load_current_openapi()
     _write_baseline(current)
@@ -278,13 +315,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="OpenAPI governance checks and baseline update.")
     parser.add_argument(
         "command",
-        choices=["check", "update-baseline"],
+        choices=["check", "contract-test", "update-baseline"],
         help="Run checks or update baseline from current app.openapi() output.",
     )
     args = parser.parse_args()
 
     if args.command == "check":
         raise SystemExit(command_check())
+    if args.command == "contract-test":
+        raise SystemExit(command_contract_test())
     raise SystemExit(command_update_baseline())
 
 

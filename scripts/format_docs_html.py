@@ -9,17 +9,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS_ROOT = ROOT / "docs"
 
-NAV_ITEMS: tuple[tuple[str, Path], ...] = (
-    ("System Analysis", DOCS_ROOT / "system-analysis.html"),
-    ("Engineering Practices", DOCS_ROOT / "engineering-practices.html"),
-    ("Developer Docs", DOCS_ROOT / "developer" / "README.html"),
-    ("ADR", DOCS_ROOT / "adr" / "README.html"),
-    ("Runbooks", DOCS_ROOT / "runbooks" / "README.html"),
-)
-
 STYLE_BLOCK_RE = re.compile(r"(?is)\s*<style>.*?</style>\s*")
 STYLESHEET_TAG_RE = re.compile(r'(?ims)^[ \t]*<link\s+rel="stylesheet"[^>]*>\s*')
 TOP_NAV_RE = re.compile(r'(?ims)^[ \t]*<nav class="top-nav"[^>]*>.*?</nav>\s*')
+TOP_NAV_HOST_RE = re.compile(r'(?ims)^[ \t]*<div id="docs-top-nav"></div>\s*')
+NAV_SCRIPT_TAG_RE = re.compile(
+    r'(?ims)^[ \t]*<script\s+defer\s+src="[^"]*docs-nav\.js"[^>]*></script>\s*'
+)
 MAIN_WITHOUT_CLASS_RE = re.compile(r"(?is)<main(?![^>]*class=)([^>]*)>")
 H1_RE = re.compile(r"(?is)<h1[^>]*>.*?</h1>")
 TAG_NAME_RE = re.compile(r"^</?\s*([a-zA-Z0-9:_-]+)")
@@ -46,31 +42,6 @@ def _rel_href(current_file: Path, target_file: Path) -> str:
     return rel if rel.startswith(".") else f"./{rel}"
 
 
-def _active_nav_target(current_file: Path) -> Path:
-    rel = current_file.relative_to(DOCS_ROOT)
-    if rel.parts[0] == "adr":
-        return DOCS_ROOT / "adr" / "README.html"
-    if rel.parts[0] == "developer":
-        return DOCS_ROOT / "developer" / "README.html"
-    if rel.parts[0] == "runbooks":
-        return DOCS_ROOT / "runbooks" / "README.html"
-    if rel.name == "engineering-practices.html":
-        return DOCS_ROOT / "engineering-practices.html"
-    return DOCS_ROOT / "system-analysis.html"
-
-
-def _nav_block(current_file: Path) -> str:
-    active_target = _active_nav_target(current_file)
-    link_lines: list[str] = []
-    for label, target in NAV_ITEMS:
-        class_attr = ' class="is-active" aria-current="page"' if target == active_target else ""
-        link_lines.append(
-            f'      <a href="{_rel_href(current_file, target)}"{class_attr}>{label}</a>'
-        )
-    links = "\n".join(link_lines)
-    return f'    <nav class="top-nav" aria-label="Documentation navigation">\n{links}\n    </nav>'
-
-
 def _normalize_stylesheet(text: str, current_file: Path) -> str:
     normalized = STYLE_BLOCK_RE.sub("\n", text)
     href = _rel_href(current_file, DOCS_ROOT / "assets" / "docs.css")
@@ -86,16 +57,28 @@ def _normalize_main(text: str) -> str:
     return MAIN_WITHOUT_CLASS_RE.sub(r'<main class="container"\1>', text)
 
 
-def _normalize_nav(text: str, current_file: Path) -> str:
-    nav = _nav_block(current_file)
-    if TOP_NAV_RE.search(text):
-        return TOP_NAV_RE.sub(f"{nav}\n", text, count=1)
-
-    h1 = H1_RE.search(text)
-    if h1:
-        return text[: h1.end()] + "\n" + nav + "\n" + text[h1.end() :]
-
+def _normalize_nav_script(text: str, current_file: Path) -> str:
+    script_src = _rel_href(current_file, DOCS_ROOT / "assets" / "docs-nav.js")
+    script_line = f'  <script defer src="{script_src}"></script>'
+    if NAV_SCRIPT_TAG_RE.search(text):
+        return NAV_SCRIPT_TAG_RE.sub(f"{script_line}\n", text, count=1)
+    if "</head>" in text:
+        return text.replace("</head>", f"{script_line}\n</head>", 1)
     return text
+
+
+def _normalize_nav(text: str) -> str:
+    nav_host = '    <div id="docs-top-nav"></div>'
+    without_nav = TOP_NAV_RE.sub("", text, count=1)
+
+    if TOP_NAV_HOST_RE.search(without_nav):
+        return TOP_NAV_HOST_RE.sub(f"{nav_host}\n", without_nav, count=1)
+
+    h1 = H1_RE.search(without_nav)
+    if h1:
+        return without_nav[: h1.end()] + "\n" + nav_host + "\n" + without_nav[h1.end() :]
+
+    return without_nav
 
 
 def _normalize_newlines(text: str) -> str:
@@ -164,8 +147,9 @@ def _normalize_indentation(text: str) -> str:
 def format_html_file(path: Path) -> bool:
     original = path.read_text(encoding="utf-8")
     updated = _normalize_stylesheet(original, path)
+    updated = _normalize_nav_script(updated, path)
     updated = _normalize_main(updated)
-    updated = _normalize_nav(updated, path)
+    updated = _normalize_nav(updated)
     updated = _normalize_indentation(updated)
     updated = _normalize_newlines(updated)
     if updated == original:

@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help venv install requirements run migrate migration format-fix format-check lint-check lint-fix type-check openapi-check openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one test-warnings env-check docs-fix docs-check
+.PHONY: help venv install requirements run migrate migration format-fix format-check lint-check lint-fix type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one test-warnings env-check docs-fix docs-check
 
 # ──────────────────────────────────────────────
 # Help
@@ -66,6 +66,7 @@ help:
 	@echo ""
 	@echo "  # OpenAPI Contract Governance"
 	@echo "  make openapi-check        Run OpenAPI lint + breaking-change guard"
+	@echo "  make contract-test        Run OpenAPI snapshot contract test (baseline diff)"
 	@echo "  make openapi-accept-changes Accept intentional OpenAPI changes (update baseline)"
 	@echo ""
 	@echo "  # Environment Health"
@@ -73,7 +74,7 @@ help:
 	@echo ""
 	@echo "  # Quality Gates"
 	@echo "  make fix                  Run auto-fixes (format-fix + lint-fix + docs-fix)"
-	@echo "  make verify               Run lint-check + type-check + openapi-check + test + docs-fix"
+	@echo "  make verify               Run lint-check + type-check + openapi-check + contract-test + test + docs-fix"
 	@echo ""
 	@echo "  # Tests"
 	@echo "  make test                 Run full test suite (pytest)"
@@ -230,6 +231,17 @@ openapi-check:
 	@printf "$(ICON_OK) %s\n" "OpenAPI checks passed"
 	@printf "$(COLOR_GREEN)== OPENAPI-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
+# Run strict OpenAPI snapshot contract test against accepted baseline.
+contract-test:
+	@printf "$(COLOR_CYAN)== CONTRACT-TEST: START ==$(COLOR_RESET)\n"
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Running OpenAPI snapshot contract test..."
+	@$(PYTHON) scripts/openapi_governance.py contract-test
+	@printf "$(ICON_OK) %s\n" "OpenAPI contract-test passed"
+	@printf "$(COLOR_GREEN)== CONTRACT-TEST: SUCCESS ==$(COLOR_RESET)\n"
+
 # Accept intentional OpenAPI changes by refreshing baseline snapshot.
 openapi-accept-changes:
 	@if [ ! -d ".venv" ]; then \
@@ -250,18 +262,20 @@ fix:
 	@$(MAKE) docs-fix
 	@printf "$(COLOR_GREEN)== FIX: SUCCESS ==$(COLOR_RESET)\n"
 
-# Run full local quality gate (lint, types, openapi, tests, docs sync).
+# Run full local quality gate (lint, types, openapi, contract, tests, docs sync).
 verify:
 	@printf "$(COLOR_CYAN)== VERIFY: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/5] lint-check"
+	@printf "$(ICON_INFO) %s\n" "[1/6] lint-check"
 	@$(MAKE) lint-check
-	@printf "$(ICON_INFO) %s\n" "[2/5] type-check"
+	@printf "$(ICON_INFO) %s\n" "[2/6] type-check"
 	@$(MAKE) type-check
-	@printf "$(ICON_INFO) %s\n" "[3/5] openapi-check"
+	@printf "$(ICON_INFO) %s\n" "[3/6] openapi-check"
 	@$(MAKE) openapi-check
-	@printf "$(ICON_INFO) %s\n" "[4/5] test"
+	@printf "$(ICON_INFO) %s\n" "[4/6] contract-test"
+	@$(MAKE) contract-test
+	@printf "$(ICON_INFO) %s\n" "[5/6] test"
 	@$(MAKE) test
-	@printf "$(ICON_INFO) %s\n" "[5/5] docs-fix"
+	@printf "$(ICON_INFO) %s\n" "[6/6] docs-fix"
 	@$(MAKE) docs-fix
 	@printf "$(COLOR_GREEN)== VERIFY: SUCCESS ==$(COLOR_RESET)\n"
 
