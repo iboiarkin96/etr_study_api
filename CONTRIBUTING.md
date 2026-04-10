@@ -20,6 +20,12 @@
 
 - New decisions: copy [docs/adr/0000-template.html](docs/adr/0000-template.html), use the next number, add a row to [docs/adr/README.html](docs/adr/README.html), and follow the structure in [ADR 0001](docs/adr/0001-docs-as-code.html).
 
+## Changelog
+
+- User-facing edits under `app/`, `docs/openapi/`, or the root `README.md` should include an update to `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md) in the same pull request.
+- To skip the changelog requirement for mechanical changes, put `[skip changelog]` or `skip-changelog` in the PR title (or in commit messages on pushes to `main`/`master`). Policy and CI details: [ADR 0013](docs/adr/0013-changelog-and-release-notes.html).
+- Optional: run `python scripts/changelog_draft.py --print-log` to inspect git input, or set `OPENAI_API_KEY` (and optionally `OPENAI_BASE_URL`) for a draft printed to stdout—still reviewed by humans before merge.
+
 ## Further reading
 
 - Developer guides index: [docs/developer/README.html](docs/developer/README.html)

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ADR 0013: Changelog and Release Notes</title>
+    <link rel="stylesheet" href="../assets/docs.css" />
+    <script defer src="../assets/docs-nav.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>ADR 0013: Changelog and Release Notes</h1>
+      <div id="docs-top-nav"></div>
+      <h2>Status</h2>
+      <p>Accepted</p>
+
+      <h2>Context</h2>
+      <p>
+        API consumers, operators, and contributors need <strong>traceability</strong> between shipped behavior,
+        documentation, and the work that landed in the default branch. Ad hoc release notes in chat or issues do not
+        scale. A single, reviewable source of truth next to the code keeps expectations aligned with
+        <a href="./0001-docs-as-code.html">Docs as Code</a> and supports future tagging or GitHub Releases.
+      </p>
+
+      <h2>Decision</h2>
+      <h3>Where and how</h3>
+      <ul>
+        <li>
+          The repository maintains a root <code>CHANGELOG.md</code> following
+          <a href="https://keepachangelog.com/">Keep a Changelog</a>, with an <code>[Unreleased]</code> section for
+          ongoing work and dated sections when versions are released.
+        </li>
+        <li>
+          <strong>User-facing</strong> changes (behavior, API contract, security, notable fixes) belong under
+          <code>### Added</code>, <code>### Changed</code>, <code>### Fixed</code>, <code>### Deprecated</code>,
+          <code>### Removed</code>, <code>### Security</code> as appropriate. Purely internal refactors, test-only
+          edits, or mechanical CI updates that do not affect consumers may be omitted when they do not match the
+          trigger paths in Validation (below).
+        </li>
+      </ul>
+
+      <h3>Merge and PR conventions</h3>
+      <ul>
+        <li>
+          <strong>Prefer squash merge</strong> into <code>main</code> (or <code>master</code>) so one commit per
+          change carries a clear summary; that message is a good place for a changelog-related pointer when useful.
+        </li>
+        <li>
+          When a pull request touches user-facing areas (see Validation), it must also update
+          <code>[Unreleased]</code> in <code>CHANGELOG.md</code> in the same PR, unless an escape hatch applies.
+        </li>
+        <li>
+          <strong>Escape hatches</strong> (documented for automation and humans):
+          <ul>
+            <li>
+              Include <code>[skip changelog]</code> or <code>skip-changelog</code> in the <strong>PR title</strong>
+              (for pull-request checks) or in <strong>commit messages</strong> in the pushed range (for post-merge
+              push checks) when the change is mechanical and needs no release note.
+            </li>
+            <li>
+              Optional GitHub label <code>skip changelog</code> may be used where enabled; teams should mirror the same
+              intent as the text tokens above.
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <h3>Automation (LLM)</h3>
+      <p>
+        An optional script may call an HTTP API (OpenAI-compatible or similar) using keys from the developer or CI
+        environment to <strong>draft</strong> bullet points from <code>git log</code>. The output is assistive only:
+        humans review and edit before merge. Nothing automatically overwrites <code>CHANGELOG.md</code> on
+        <code>main</code> without a normal PR.
+      </p>
+
+      <h2>Validation</h2>
+      <ul>
+        <li>
+          <strong>Pull requests</strong> targeting <code>main</code> or <code>master</code>: if the diff changes any
+          path under <code>app/</code>, <code>docs/openapi/</code>, or the root
+          <code>README.md</code>, then <code>CHANGELOG.md</code> must appear in the same diff unless a skip hatch
+          applies.
+        </li>
+        <li>
+          <strong>Pushes</strong> to <code>main</code> or <code>master</code>: the same path rule applies to the
+          range <code>before..after</code> from GitHub Actions. Commit messages in that range may satisfy the skip
+          hatch. If <code>before</code> is all zeros (e.g. new branch pointer), the gate does not apply to that push.
+        </li>
+      </ul>
+
+      <h2>Consequences</h2>
+      <h3>Positive</h3>
+      <ul>
+        <li>Consumers and contributors share one obvious place for “what changed.”</li>
+        <li>CI enforces the habit without parsing every intermediate commit in a multi-commit branch.</li>
+      </ul>
+      <h3>Trade-offs</h3>
+      <ul>
+        <li>Path filters may need tuning; false positives are mitigated by skip tokens and documented exemptions.</li>
+        <li>Optional LLM usage requires secrets hygiene and is never required for the core app runtime.</li>
+      </ul>
+
+      <h2>Related</h2>
+      <ul>
+        <li><a href="../../CHANGELOG.md">CHANGELOG.md</a> (repository root)</li>
+        <li><a href="./0001-docs-as-code.html">ADR 0001 — Docs as Code</a></li>
+        <li><a href="./0007-openapi-governance-and-usability-standard.html">ADR 0007 — OpenAPI governance</a></li>
+      </ul>
+    </main>
+  </body>
+</html>

@@ -69,6 +69,7 @@ Useful: `make env-check`, `curl -s http://127.0.0.1:8000/live | jq`.
 
 | Topic | Link |
 | ----- | ---- |
+| Changelog | [CHANGELOG.md](CHANGELOG.md) |
 | Contributing (verify, docs, OpenAPI, ADRs) | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Engineering practices & handbook | [engineering-practices.html](docs/engineering-practices.html) |
 | System analysis & error matrix | [system-analysis.html](docs/system-analysis.html) |

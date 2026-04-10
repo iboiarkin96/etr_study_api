@@ -9,6 +9,34 @@ on:
   pull_request:
 
 jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request' && (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'master')) ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: PR changelog gate
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          python3 scripts/changelog_gate.py \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}" \
+            --event pr
+
+      - name: Push changelog gate
+        if: github.event_name == 'push'
+        run: |
+          python3 scripts/changelog_gate.py \
+            --base "${{ github.event.before }}" \
+            --head "${{ github.event.after }}" \
+            --event push
+
   quality:
     runs-on: ubuntu-latest
     steps:

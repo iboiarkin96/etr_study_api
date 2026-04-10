@@ -1,0 +1,43 @@
+# Optional: draft [Unreleased] bullets via OpenAI-compatible API (repository secret).
+# Does not run on forks (no secrets). Human review required before merging text into CHANGELOG.md.
+name: Changelog draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: "Git ref for range start (e.g. main)"
+        required: true
+        default: main
+      head:
+        description: "Git ref for range end (e.g. HEAD)"
+        required: true
+        default: HEAD
+
+jobs:
+  draft:
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Draft changelog bullets
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python scripts/changelog_draft.py \
+            --since "${{ inputs.since }}" \
+            --head "${{ inputs.head }}"
