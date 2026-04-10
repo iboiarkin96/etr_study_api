@@ -1,0 +1,139 @@
+# =============================================================================
+# Study App API — environment template
+# =============================================================================
+#
+# Usage
+# -----
+#   cp env/example .env          # or: make env-init
+#   Edit .env: set APP_ENV, secrets, and any overrides for your machine.
+#
+# Load order (later wins; see app/core/config.py)
+# -----------------------------------------------
+#   1. Root .env (if present) — base values.
+#   2. env/<APP_ENV> — optional profile file (e.g. env/dev) merged on top.
+#   3. ENV_FILE — optional extra file (secrets, deployment-specific); path is
+#      relative to project root or absolute.
+#
+# If you export variables in the shell before starting Uvicorn, some keys are
+# preserved so Makefile-driven flows (e.g. load tests) are not overwritten by
+# profile reload — see _PARENT_WINS_KEYS in app/core/config.py.
+#
+# APP_ENV must be one of: dev | qa | prod (aliases like "local" → dev, "test" → qa).
+# Stricter rules apply in qa/prod (auth, metrics, CORS, log level); see get_settings().
+#
+# Sections in this file
+# ---------------------
+#   Application bind / SQLite
+#   Logging
+#   CORS and API security (body size, rate limits, auth)
+#   Load testing helpers (Makefile / tools.load_testing)
+#   Metrics and readiness
+#   Observability — host:port labels for scripts and docs (not all read by the app)
+#   Docker Compose — Prometheus, Grafana, Blackbox (make observability-up)
+#
+# =============================================================================
+
+# --- Application & database -------------------------------------------------
+
+# Shown in OpenAPI metadata.
+APP_NAME="Study App API"
+
+# Logical environment: dev | qa | prod
+APP_ENV=dev
+
+# HTTP server bind (Uvicorn).
+APP_HOST=127.0.0.1
+APP_PORT=8000
+
+# Optional: extra file applied last (secrets, host-specific). Uncomment and set.
+# Path: relative to project root or absolute.
+# ENV_FILE=
+
+# SQLite database file: relative name (created under cwd) or absolute path.
+SQLITE_DB_PATH=study_app.db
+
+# --- Logging ---------------------------------------------------------------
+
+LOG_DIR=logs
+LOG_FILE_NAME=app.log
+# Typical: DEBUG, INFO, WARNING, ERROR (prod forbids DEBUG).
+LOG_LEVEL=INFO
+
+# --- CORS (browser clients) ------------------------------------------------
+
+# Comma-separated origins, methods, headers.
+CORS_ALLOW_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
+CORS_ALLOW_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
+CORS_ALLOW_HEADERS=Authorization,Content-Type,X-API-Key
+CORS_ALLOW_CREDENTIALS=false
+
+# --- API security & limits --------------------------------------------------
+
+# Maximum JSON body size in bytes (request rejected if larger).
+API_BODY_MAX_BYTES=1048576
+
+# Sliding-window rate limit per client+path (see app middleware).
+API_RATE_LIMIT_REQUESTS=60
+API_RATE_LIMIT_WINDOW_SECONDS=60
+
+# For local load-test servers (make run-loadtest-api / run-loadtest-api-serve) the
+# Makefile exports very high limits unless you set API_RATE_LIMIT_REQUESTS_LOADTEST
+# in the environment. Otherwise raise API_RATE_LIMIT_* here for load tests.
+
+# mock_api_key: require X-API-Key on protected routes; disabled: no API-key check (dev only).
+API_AUTH_STRATEGY=mock_api_key
+API_MOCK_API_KEY=local-dev-key
+API_AUTH_HEADER=X-API-Key
+
+# URL prefix where auth + rate limiting apply (e.g. /api/v1).
+API_PROTECTED_PREFIX=/api/v1
+
+# --- Load testing (optional endpoints & runner defaults) --------------------
+
+# When true, exposes GET /__loadtest/http500 for synthetic 5xx (local/traffic tests only).
+LOADTEST_HTTP_500=false
+
+# Defaults for tools/load_testing/run_with_local_api.sh when LOADTEST_TOTAL_REQUESTS
+# and LOADTEST_DELAY_MS are not set (see Makefile run-loadtest-api).
+LOADTEST_DEFAULT_TOTAL_REQUESTS=100
+LOADTEST_DEFAULT_DELAY_MS=0
+
+# --- Metrics & readiness (application) -------------------------------------
+
+METRICS_ENABLED=true
+METRICS_PATH=/metrics
+
+# Max wait when checking DB during GET /ready.
+READINESS_DB_TIMEOUT_MS=250
+
+# Histogram bucket boundaries for Prometheus metrics (seconds, comma-separated).
+METRICS_BUCKETS_HTTP=0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2.5,5
+METRICS_BUCKETS_DB=0.001,0.0025,0.005,0.01,0.025,0.05,0.1,0.25
+
+# --- Observability — labels for docs & helper scripts -----------------------
+# These host/port pairs are used by README tables, observability-smoke, etc.
+# They do not replace APP_HOST/APP_PORT for the API process.
+
+OBS_API_HOST=127.0.0.1
+OBS_API_PORT=8000
+OBS_PROM_HOST=127.0.0.1
+OBS_PROM_PORT=9090
+OBS_GRAF_HOST=127.0.0.1
+OBS_GRAF_PORT=3001
+
+# --- Docker: Prometheus, Grafana, Blackbox (docker-compose.observability) ---
+
+PROMETHEUS_PORT=9090
+GRAFANA_PORT=3001
+# Target the API from inside Docker (macOS/Windows Docker Desktop).
+PROMETHEUS_SCRAPE_TARGET=host.docker.internal:8000
+
+# URL Blackbox probes for readiness SLO; rendered into ops/prometheus/prometheus.yml
+# by scripts/render_prometheus_config.py.
+PROMETHEUS_READY_PROBE_URL=http://host.docker.internal:8000/ready
+
+BLACKBOX_EXPORTER_PORT=9115
+
+# Grafana first-login credentials (change in real deployments).
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=admin

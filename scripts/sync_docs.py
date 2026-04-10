@@ -1,7 +1,7 @@
 """Auto-generate documentation sections from code sources.
 
-Reads the Makefile help target, FastAPI app routes, and env/example,
-then patches marker-delimited sections in README.md, docs/system-analysis.html,
+Reads the Makefile help target and FastAPI app routes, then patches
+marker-delimited sections in README.md, docs/system-analysis.html,
 and docs/engineering-practices.html.
 
 Markers have the form:
@@ -338,60 +338,6 @@ def _render_handbook_rows_html(entries: list[tuple[str, str, str, str]]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# env/example parser
-# ---------------------------------------------------------------------------
-
-_ENV_LINE_RE = re.compile(r"^([A-Z_]+)=(.*)$")
-
-
-def _parse_env_example() -> list[tuple[str, str]]:
-    """Return (variable, example_value) pairs from env/example."""
-    path = ROOT / "env" / "example"
-    if not path.exists():
-        return []
-    entries: list[tuple[str, str]] = []
-    for line in path.read_text().splitlines():
-        m = _ENV_LINE_RE.match(line.strip())
-        if m:
-            entries.append((m.group(1), m.group(2)))
-    return entries
-
-
-_CONFIG_DESCRIPTIONS: dict[str, str] = {
-    "APP_NAME": "Title shown in OpenAPI",
-    "APP_ENV": "Logical environment label",
-    "APP_HOST": "Bind address for Uvicorn",
-    "APP_PORT": "Listen port",
-    "SQLITE_DB_PATH": "SQLite database file (relative or absolute path)",
-    "LOG_DIR": "Directory where app logs are written",
-    "LOG_FILE_NAME": "Application log filename",
-    "LOG_LEVEL": "Root log level",
-    "CORS_ALLOW_ORIGINS": "Allowed browser origins (CSV)",
-    "CORS_ALLOW_METHODS": "Allowed CORS methods (CSV)",
-    "CORS_ALLOW_HEADERS": "Allowed CORS headers (CSV)",
-    "CORS_ALLOW_CREDENTIALS": "Whether CORS credentials are allowed",
-    "API_BODY_MAX_BYTES": "Maximum request body size in bytes",
-    "API_RATE_LIMIT_REQUESTS": "Requests per window for one client+path",
-    "API_RATE_LIMIT_WINDOW_SECONDS": "Rate-limit window in seconds",
-    "API_AUTH_STRATEGY": "Auth mode (`mock_api_key` or `disabled`)",
-    "API_MOCK_API_KEY": "Mock API key value for local/dev",
-    "API_AUTH_HEADER": "Header name used for API key auth",
-    "API_PROTECTED_PREFIX": "URL prefix where auth/rate-limit are enforced",
-}
-
-
-def _render_config_table(entries: list[tuple[str, str]]) -> str:
-    rows = [
-        "| Variable | Description | Example |",
-        "| -------- | ----------- | ------- |",
-    ]
-    for var, val in entries:
-        desc = _CONFIG_DESCRIPTIONS.get(var, "")
-        rows.append(f"| `{var}` | {desc} | `{val}` |")
-    return "\n".join(rows)
-
-
-# ---------------------------------------------------------------------------
 # Repository layout tree
 # ---------------------------------------------------------------------------
 
@@ -497,7 +443,6 @@ def sync(check: bool = False) -> int:
     _step("Syncing docs from code sources...")
     makefile_entries = _parse_makefile_help()
     routes = _get_fastapi_routes()
-    env_entries = _parse_env_example()
     stale_files = 0
 
     repo_layout = _build_tree()
@@ -511,8 +456,6 @@ def sync(check: bool = False) -> int:
             readme_sections["MAKEFILE_REF"] = _render_makefile_table(makefile_entries)
         if routes:
             readme_sections["HTTP_ENDPOINTS"] = _render_endpoints_md(routes)
-        if env_entries:
-            readme_sections["CONFIG_TABLE"] = _render_config_table(env_entries)
 
         original = readme_path.read_text()
         updated = _replace_markers(original, readme_sections)
