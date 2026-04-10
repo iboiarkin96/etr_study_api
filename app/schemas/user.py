@@ -1,4 +1,4 @@
-"""Pydantic schemas for user create endpoint."""
+"""Pydantic schemas for user create and update endpoints."""
 
 from __future__ import annotations
 
@@ -72,8 +72,92 @@ class UserCreateRequest(BaseModel):
     )
 
 
+class UserPatchRequest(BaseModel):
+    """JSON body for ``PATCH /api/v1/user/{system_user_id}`` — partial update; omit fields to leave unchanged."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    username: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Username or login; set null to clear.",
+        examples=USERNAME_EXAMPLES,
+    )
+    full_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        description="Full name; omit to leave unchanged.",
+        examples=FULL_NAME_EXAMPLES,
+    )
+    timezone: TimezoneField | None = Field(
+        default=None,
+        description="IANA timezone; omit to leave unchanged.",
+        examples=TIMEZONE_EXAMPLES,
+    )
+    system_uuid: UUID | None = Field(
+        default=None,
+        description="Related system UUID; set null to clear.",
+        examples=SYSTEM_UUID_EXAMPLES,
+    )
+    invalidation_reason_uuid: UUID | None = Field(
+        default=None,
+        description="Invalidation reason UUID; set null to clear.",
+        examples=INVALIDATION_REASON_UUID_EXAMPLES,
+    )
+    is_row_invalid: int | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="Invalid row flag (0/1).",
+        examples=IS_ROW_INVALID_EXAMPLES,
+    )
+
+
+class UserUpdateRequest(BaseModel):
+    """JSON body for ``PUT /api/v1/user/{system_user_id}`` — full replacement of mutable profile fields."""
+
+    username: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Username or login.",
+        examples=USERNAME_EXAMPLES,
+    )
+    full_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Full name of the user.",
+        examples=FULL_NAME_EXAMPLES,
+    )
+    timezone: TimezoneField = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="IANA timezone name (e.g. 'UTC', 'Europe/Moscow').",
+        examples=TIMEZONE_EXAMPLES,
+    )
+    system_uuid: UUID | None = Field(
+        default=None,
+        description="Related system UUID; set null to clear.",
+        examples=SYSTEM_UUID_EXAMPLES,
+    )
+    invalidation_reason_uuid: UUID | None = Field(
+        default=None,
+        description="Related invalidation reason UUID.",
+        examples=INVALIDATION_REASON_UUID_EXAMPLES,
+    )
+    is_row_invalid: int = Field(
+        default=0,
+        ge=0,
+        le=1,
+        description="Invalid row flag (0/1).",
+        examples=IS_ROW_INVALID_EXAMPLES,
+    )
+
+
 class UserCreateResponse(BaseModel):
-    """User resource returned by create (201) and get (200); maps ORM :class:`~app.models.core.user.User`.
+    """User resource returned by create (201), get (200), update (200), and patch (200); maps ORM :class:`~app.models.core.user.User`.
 
     Attributes:
         client_uuid: Internal client identifier (UUID string).

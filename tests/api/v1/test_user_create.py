@@ -1,4 +1,4 @@
-"""Tests for POST /api/v1/user and GET /api/v1/user/{system_user_id}."""
+"""Tests for POST /api/v1/user and GET/PUT/PATCH /api/v1/user/{system_user_id}."""
 
 from __future__ import annotations
 
@@ -9,7 +9,9 @@ from tests.api.v1.user_test_utils import (
     USER_CREATE_OPERATION,
     USER_HTTP_BASE_PATH,
     user_create_body,
+    user_patch_body,
     user_resource_path,
+    user_update_body,
 )
 
 
@@ -180,6 +182,251 @@ def test_get_user_by_system_user_id_not_found_returns_404(client) -> None:
     assert detail["code"] == "USER_404"
     assert detail["key"] == "USER_NOT_FOUND"
     assert detail["source"] == "business"
+
+
+def test_put_user_by_system_user_id_success(client) -> None:
+    sid = "put-user-ok-1"
+    create = client.post(
+        USER_HTTP_BASE_PATH,
+        json=user_create_body(sid),
+        headers={"Idempotency-Key": "put-user-seed-1"},
+    )
+    assert create.status_code == 201
+
+    upd = user_update_body(full_name="Updated Name", timezone="Europe/Moscow")
+    response = client.put(
+        user_resource_path(sid),
+        json=upd,
+        headers={"Idempotency-Key": "put-user-ok-1"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["system_user_id"] == sid
+    assert body["full_name"] == "Updated Name"
+    assert body["timezone"] == "Europe/Moscow"
+
+
+def test_put_user_not_found_returns_404(client) -> None:
+    response = client.put(
+        user_resource_path("missing-put-1"),
+        json=user_update_body(),
+        headers={"Idempotency-Key": "put-user-missing-1"},
+    )
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert detail["code"] == "USER_404"
+    assert detail["key"] == "USER_NOT_FOUND"
+
+
+def test_put_user_idempotent_replay_returns_same_result(client) -> None:
+    sid = "put-user-idem-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "put-user-idem-seed"},
+        ).status_code
+        == 201
+    )
+    payload = user_update_body(full_name="Same Every Time")
+    headers = {"Idempotency-Key": "put-user-idem-key"}
+    first = client.put(user_resource_path(sid), json=payload, headers=headers)
+    second = client.put(user_resource_path(sid), json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()
+
+
+def test_put_user_idempotency_key_conflict_returns_409(client) -> None:
+    sid = "put-user-conflict-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "put-user-conflict-seed"},
+        ).status_code
+        == 201
+    )
+    headers = {"Idempotency-Key": "put-user-conflict-key"}
+    first = client.put(
+        user_resource_path(sid),
+        json=user_update_body(full_name="A"),
+        headers=headers,
+    )
+    second = client.put(
+        user_resource_path(sid),
+        json=user_update_body(full_name="B"),
+        headers=headers,
+    )
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert second.json()["detail"]["key"] == "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD"
+
+
+def test_put_user_invalid_timezone_returns_code_based_422(client) -> None:
+    sid = "put-user-tz-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "put-user-tz-seed"},
+        ).status_code
+        == 201
+    )
+    # Invalid timezone must bypass UserUpdateRequest construction (client validates body).
+    bad = {
+        "full_name": "Petr Ivanov",
+        "timezone": "Europe/123",
+        "username": "ipetrov_updated",
+        "is_row_invalid": 0,
+    }
+    response = client.put(
+        user_resource_path(sid),
+        json=bad,
+        headers={"Idempotency-Key": "put-user-tz-bad"},
+    )
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error_type"] == "validation_error"
+    assert body["endpoint"] == f"PUT {user_resource_path(sid)}"
+    assert body["errors"][0]["code"] == "USER_018"
+    assert body["errors"][0]["field"] == "timezone"
+
+
+def test_patch_user_updates_timezone_only(client) -> None:
+    sid = "patch-user-tz-only"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid, timezone="UTC"),
+            headers={"Idempotency-Key": "patch-tz-only-seed"},
+        ).status_code
+        == 201
+    )
+    response = client.patch(
+        user_resource_path(sid),
+        json={"timezone": "Europe/Moscow"},
+        headers={"Idempotency-Key": "patch-tz-only-1"},
+    )
+    assert response.status_code == 200
+    assert response.json()["timezone"] == "Europe/Moscow"
+
+
+def test_patch_user_by_system_user_id_success(client) -> None:
+    sid = "patch-user-ok-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "patch-user-seed-1"},
+        ).status_code
+        == 201
+    )
+    response = client.patch(
+        user_resource_path(sid),
+        json=user_patch_body(full_name="Patched Name"),
+        headers={"Idempotency-Key": "patch-user-ok-1"},
+    )
+    assert response.status_code == 200
+    assert response.json()["full_name"] == "Patched Name"
+    assert response.json()["system_user_id"] == sid
+
+
+def test_patch_user_empty_body_returns_400(client) -> None:
+    sid = "patch-user-empty-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "patch-user-empty-seed"},
+        ).status_code
+        == 201
+    )
+    response = client.patch(
+        user_resource_path(sid),
+        json={},
+        headers={"Idempotency-Key": "patch-user-empty-1"},
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "USER_102"
+    assert detail["key"] == "USER_PATCH_BODY_EMPTY"
+
+
+def test_patch_user_not_found_returns_404(client) -> None:
+    response = client.patch(
+        user_resource_path("patch-missing-1"),
+        json=user_patch_body(),
+        headers={"Idempotency-Key": "patch-user-missing-1"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"]["key"] == "USER_NOT_FOUND"
+
+
+def test_patch_user_idempotent_replay_returns_same_result(client) -> None:
+    sid = "patch-user-idem-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "patch-user-idem-seed"},
+        ).status_code
+        == 201
+    )
+    payload = user_patch_body(full_name="Idem Patch")
+    headers = {"Idempotency-Key": "patch-user-idem-key"}
+    first = client.patch(user_resource_path(sid), json=payload, headers=headers)
+    second = client.patch(user_resource_path(sid), json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()
+
+
+def test_patch_user_idempotency_key_conflict_returns_409(client) -> None:
+    sid = "patch-user-conflict-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "patch-user-conflict-seed"},
+        ).status_code
+        == 201
+    )
+    headers = {"Idempotency-Key": "patch-user-conflict-key"}
+    first = client.patch(
+        user_resource_path(sid),
+        json=user_patch_body(full_name="A"),
+        headers=headers,
+    )
+    second = client.patch(
+        user_resource_path(sid),
+        json=user_patch_body(full_name="B"),
+        headers=headers,
+    )
+    assert first.status_code == 200
+    assert second.status_code == 409
+
+
+def test_patch_user_invalid_timezone_returns_code_based_422(client) -> None:
+    sid = "patch-user-tz-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "patch-user-tz-seed"},
+        ).status_code
+        == 201
+    )
+    bad = {"timezone": "Europe/123"}
+    response = client.patch(
+        user_resource_path(sid),
+        json=bad,
+        headers={"Idempotency-Key": "patch-user-tz-bad"},
+    )
+    assert response.status_code == 422
+    body = response.json()
+    assert body["endpoint"] == f"PATCH {user_resource_path(sid)}"
+    assert body["errors"][0]["code"] == "USER_018"
 
 
 def test_create_user_unknown_validation_shape_falls_back_to_common_code(client) -> None:

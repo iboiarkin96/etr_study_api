@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.api.v1.user import USER_HTTP_BASE_PATH
-from app.schemas.user import UserCreateRequest
+from app.schemas.user import UserCreateRequest, UserPatchRequest, UserUpdateRequest
 
 # Re-export for tests: single import instead of duplicating the path string.
 __all__ = [
@@ -13,6 +13,8 @@ __all__ = [
     "USER_CREATE_OPERATION",
     "user_create_body",
     "user_resource_path",
+    "user_patch_body",
+    "user_update_body",
 ]
 
 USER_CREATE_OPERATION: str = f"POST {USER_HTTP_BASE_PATH}"
@@ -53,4 +55,25 @@ def user_create_body(
         full_name=full_name,
         timezone=timezone,
         username=username,
+    ).model_dump(mode="json")
+
+
+def user_patch_body(*, full_name: str = "Patch Only Name") -> dict[str, Any]:
+    """Build a minimal valid JSON body for ``PATCH /api/v1/user/{id}``."""
+    return UserPatchRequest(full_name=full_name).model_dump(mode="json", exclude_unset=True)
+
+
+def user_update_body(
+    *,
+    full_name: str = "Petr Ivanov",
+    timezone: str = "UTC",
+    username: str | None = "ipetrov_updated",
+    is_row_invalid: int = 0,
+) -> dict[str, Any]:
+    """Build a valid JSON body for ``PUT /api/v1/user/{id}`` via :class:`~app.schemas.user.UserUpdateRequest`."""
+    return UserUpdateRequest(
+        full_name=full_name,
+        timezone=timezone,
+        username=username,
+        is_row_invalid=is_row_invalid,
     ).model_dump(mode="json")

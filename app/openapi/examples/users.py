@@ -12,6 +12,43 @@ SYSTEM_UUID_EXAMPLES: Final[list[str]] = ["b2c3d4e5-0002-4000-8000-000000000002"
 INVALIDATION_REASON_UUID_EXAMPLES: Final[list[str]] = ["c3d4e5f6-0003-4000-8000-000000000003"]
 IS_ROW_INVALID_EXAMPLES: Final[list[int]] = [0, 1]
 
+USER_PATCH_REQUEST_EXAMPLES: Final[dict[str, dict[str, object]]] = {
+    "single_field": {
+        "summary": "Change full name only",
+        "value": {
+            "full_name": "Maria Petrova",
+        },
+    },
+    "timezone_only": {
+        "summary": "Change timezone only",
+        "value": {
+            "timezone": "America/New_York",
+        },
+    },
+}
+
+USER_UPDATE_REQUEST_EXAMPLES: Final[dict[str, dict[str, object]]] = {
+    "default": {
+        "summary": "Update profile fields",
+        "value": {
+            "full_name": FULL_NAME_EXAMPLES[0],
+            "username": USERNAME_EXAMPLES[0],
+            "timezone": TIMEZONE_EXAMPLES[0],
+            "system_uuid": SYSTEM_UUID_EXAMPLES[0],
+            "invalidation_reason_uuid": None,
+            "is_row_invalid": 0,
+        },
+    },
+    "minimal": {
+        "summary": "Required fields only",
+        "value": {
+            "full_name": FULL_NAME_EXAMPLES[0],
+            "timezone": "UTC",
+            "is_row_invalid": 0,
+        },
+    },
+}
+
 USER_CREATE_REQUEST_EXAMPLES: Final[dict[str, dict[str, object]]] = {
     "default": {
         "summary": "Basic registration",

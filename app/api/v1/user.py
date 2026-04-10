@@ -17,6 +17,12 @@ from app.openapi.examples import (
     USER_EXISTS_ERROR_EXAMPLE,
     USER_NOT_FOUND_ERROR_EXAMPLE,
 )
+from app.openapi.examples.errors import (
+    USER_PATCH_BODY_EMPTY_EXAMPLE,
+    USER_PATCH_VALIDATION_ERROR_EXAMPLES,
+    USER_UPDATE_VALIDATION_ERROR_EXAMPLES,
+)
+from app.openapi.examples.users import USER_PATCH_REQUEST_EXAMPLES, USER_UPDATE_REQUEST_EXAMPLES
 from app.openapi.responses import (
     COMMON_BODY_TOO_LARGE_413_RESPONSE,
     COMMON_IDEMPOTENCY_CONFLICT_409_RESPONSE,
@@ -26,7 +32,12 @@ from app.openapi.responses import (
 from app.repositories.idempotency_repository import IdempotencyRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.errors import ApiErrorResponse, ValidationErrorResponse
-from app.schemas.user import UserCreateRequest, UserCreateResponse
+from app.schemas.user import (
+    UserCreateRequest,
+    UserCreateResponse,
+    UserPatchRequest,
+    UserUpdateRequest,
+)
 from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
@@ -218,3 +229,237 @@ def get_user(
     service = UserService(UserRepository(session))
     user = service.get_or_404(system_user_id=system_user_id)
     return UserCreateResponse.model_validate(user)
+
+
+@router.put(
+    "/{system_user_id}",
+    response_model=UserCreateResponse,
+    operation_id="updateUserBySystemUserId",
+    summary="Update user by system_user_id",
+    description=(
+        "Updates mutable profile fields for an existing user. "
+        "Requires `Idempotency-Key` for safe retry semantics.\n\n"
+        "### Example request (curl)\n"
+        "```bash\n"
+        "curl -X PUT 'http://127.0.0.1:8000/api/v1/user/2' \\\n"
+        "  -H 'accept: application/json' \\\n"
+        "  -H 'Content-Type: application/json' \\\n"
+        "  -H 'X-API-Key: ....' \\\n"
+        "  -H 'Idempotency-Key: update-user-sample-1' \\\n"
+        '  -d \'{"full_name":"Ivan Petrov","timezone":"Europe/Moscow","is_row_invalid":0}\'\n'
+        "```\n"
+    ),
+    responses={
+        status.HTTP_200_OK: {
+            "description": "User updated successfully.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ApiErrorResponse,
+            "description": "User not found.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "user_not_found": {
+                            "summary": "No user with given system_user_id",
+                            "value": USER_NOT_FOUND_ERROR_EXAMPLE,
+                        }
+                    }
+                }
+            },
+        },
+        status.HTTP_409_CONFLICT: COMMON_IDEMPOTENCY_CONFLICT_409_RESPONSE,
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+            "model": ValidationErrorResponse,
+            "description": "Request validation errors for user update body rules.",
+            "content": {"application/json": {"examples": USER_UPDATE_VALIDATION_ERROR_EXAMPLES}},
+        },
+        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE: COMMON_BODY_TOO_LARGE_413_RESPONSE,
+        **common_protected_route_responses(),
+    },
+)
+def update_user(
+    system_user_id: Annotated[str, Path(min_length=1, max_length=36)],
+    payload: Annotated[UserUpdateRequest, Body(openapi_examples=USER_UPDATE_REQUEST_EXAMPLES)],
+    session: Annotated[Session, Depends(get_db_session)],
+    idempotency_key: Annotated[
+        str,
+        Header(
+            alias="Idempotency-Key",
+            min_length=1,
+            max_length=128,
+            pattern=r"^[ -~]+$",
+            description=(
+                "Required idempotency key for write deduplication. "
+                "Use printable ASCII only (no Cyrillic/Unicode)."
+            ),
+        ),
+    ],
+    api_key: Annotated[str | None, Security(api_key_security)] = None,
+) -> UserCreateResponse:
+    """Handle ``PUT /api/v1/user/{system_user_id}`` with idempotent replay semantics."""
+    _ = api_key
+    if not idempotency_key:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "COMMON_400",
+                "key": "IDEMPOTENCY_KEY_REQUIRED",
+                "message": "Missing required `Idempotency-Key` header for write operation.",
+                "source": "business",
+            },
+        )
+
+    payload_dump = payload.model_dump(mode="json")
+    payload_hash = build_payload_hash(payload_dump)
+    idempotency_repository = IdempotencyRepository(session)
+    endpoint_path = f"/api/v1/user/{system_user_id}"
+    record = idempotency_repository.get(
+        endpoint_path=endpoint_path, idempotency_key=idempotency_key
+    )
+    if record is not None:
+        if record.payload_hash != payload_hash:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "COMMON_409",
+                    "key": "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD",
+                    "message": "Idempotency key was already used with another payload.",
+                    "source": "business",
+                },
+            )
+        logger.info("update_user_idempotent_replay key=%s", idempotency_key)
+        return UserCreateResponse.model_validate(record.response_body)
+
+    logger.info("update_user_requested system_user_id=%s", system_user_id)
+    service = UserService(UserRepository(session))
+    user = service.update(system_user_id=system_user_id, payload=payload)
+    response_model = UserCreateResponse.model_validate(user)
+    idempotency_repository.save(
+        endpoint_path=endpoint_path,
+        idempotency_key=idempotency_key,
+        payload_hash=payload_hash,
+        status_code=status.HTTP_200_OK,
+        response_body=response_model.model_dump(mode="json"),
+    )
+    return response_model
+
+
+@router.patch(
+    "/{system_user_id}",
+    response_model=UserCreateResponse,
+    operation_id="patchUserBySystemUserId",
+    summary="Partially update user by system_user_id",
+    description=(
+        "Updates only the fields present in the JSON body; omitted fields stay unchanged. "
+        "Requires `Idempotency-Key`. Use `PUT` for a full replacement of mutable fields.\n\n"
+        "### Example request (curl)\n"
+        "```bash\n"
+        "curl -X PATCH 'http://127.0.0.1:8000/api/v1/user/2' \\\n"
+        "  -H 'accept: application/json' \\\n"
+        "  -H 'Content-Type: application/json' \\\n"
+        "  -H 'X-API-Key: ....' \\\n"
+        "  -H 'Idempotency-Key: patch-user-sample-1' \\\n"
+        '  -d \'{"full_name":"Maria Petrova"}\'\n'
+        "```\n"
+    ),
+    responses={
+        status.HTTP_200_OK: {
+            "description": "User updated successfully.",
+        },
+        status.HTTP_400_BAD_REQUEST: build_common_business_400_response(
+            extra_examples={
+                "patch_body_empty": {
+                    "summary": "No fields to patch",
+                    "value": USER_PATCH_BODY_EMPTY_EXAMPLE,
+                },
+            }
+        ),
+        status.HTTP_404_NOT_FOUND: {
+            "model": ApiErrorResponse,
+            "description": "User not found.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "user_not_found": {
+                            "summary": "No user with given system_user_id",
+                            "value": USER_NOT_FOUND_ERROR_EXAMPLE,
+                        }
+                    }
+                }
+            },
+        },
+        status.HTTP_409_CONFLICT: COMMON_IDEMPOTENCY_CONFLICT_409_RESPONSE,
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+            "model": ValidationErrorResponse,
+            "description": "Request validation errors for user patch body rules.",
+            "content": {"application/json": {"examples": USER_PATCH_VALIDATION_ERROR_EXAMPLES}},
+        },
+        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE: COMMON_BODY_TOO_LARGE_413_RESPONSE,
+        **common_protected_route_responses(),
+    },
+)
+def patch_user(
+    system_user_id: Annotated[str, Path(min_length=1, max_length=36)],
+    payload: Annotated[UserPatchRequest, Body(openapi_examples=USER_PATCH_REQUEST_EXAMPLES)],
+    session: Annotated[Session, Depends(get_db_session)],
+    idempotency_key: Annotated[
+        str,
+        Header(
+            alias="Idempotency-Key",
+            min_length=1,
+            max_length=128,
+            pattern=r"^[ -~]+$",
+            description=(
+                "Required idempotency key for write deduplication. "
+                "Use printable ASCII only (no Cyrillic/Unicode)."
+            ),
+        ),
+    ],
+    api_key: Annotated[str | None, Security(api_key_security)] = None,
+) -> UserCreateResponse:
+    """Handle ``PATCH /api/v1/user/{system_user_id}`` with idempotent replay semantics."""
+    _ = api_key
+    if not idempotency_key:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "COMMON_400",
+                "key": "IDEMPOTENCY_KEY_REQUIRED",
+                "message": "Missing required `Idempotency-Key` header for write operation.",
+                "source": "business",
+            },
+        )
+
+    payload_dump = payload.model_dump(mode="json", exclude_unset=True)
+    payload_hash = build_payload_hash(payload_dump)
+    idempotency_repository = IdempotencyRepository(session)
+    endpoint_path = f"PATCH {USER_HTTP_BASE_PATH}/{system_user_id}"
+    record = idempotency_repository.get(
+        endpoint_path=endpoint_path, idempotency_key=idempotency_key
+    )
+    if record is not None:
+        if record.payload_hash != payload_hash:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "COMMON_409",
+                    "key": "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD",
+                    "message": "Idempotency key was already used with another payload.",
+                    "source": "business",
+                },
+            )
+        logger.info("patch_user_idempotent_replay key=%s", idempotency_key)
+        return UserCreateResponse.model_validate(record.response_body)
+
+    logger.info("patch_user_requested system_user_id=%s", system_user_id)
+    service = UserService(UserRepository(session))
+    user = service.patch(system_user_id=system_user_id, payload=payload)
+    response_model = UserCreateResponse.model_validate(user)
+    idempotency_repository.save(
+        endpoint_path=endpoint_path,
+        idempotency_key=idempotency_key,
+        payload_hash=payload_hash,
+        status_code=status.HTTP_200_OK,
+        response_body=response_model.model_dump(mode="json"),
+    )
+    return response_model

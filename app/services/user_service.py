@@ -4,19 +4,19 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from fastapi import HTTPException
 
 from app.models.core.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreateRequest
+from app.schemas.user import UserCreateRequest, UserPatchRequest, UserUpdateRequest
 
 logger = logging.getLogger(__name__)
 
 
 class UserService:
-    """Domain logic for user creation and lookup by ``system_user_id``."""
+    """Domain logic for user create, update, and lookup by ``system_user_id``."""
 
     def __init__(self, repository: UserRepository) -> None:
         """Create a service that uses ``repository`` for persistence.
@@ -92,6 +92,50 @@ class UserService:
             persisted_user.client_uuid,
         )
         return persisted_user
+
+    def update(self, system_user_id: str, payload: UserUpdateRequest) -> User:
+        """Apply full ``payload`` to the user identified by ``system_user_id``."""
+        user = self.get_or_404(system_user_id)
+        user.username = cast(Any, payload.username)
+        user.full_name = payload.full_name
+        user.timezone = payload.timezone
+        user.invalidation_reason_uuid = cast(
+            Any, self._uuid_to_str(payload.invalidation_reason_uuid)
+        )
+        user.is_row_invalid = payload.is_row_invalid
+        user.system_uuid = cast(Any, self._uuid_to_str(payload.system_uuid))
+        return self.repository.save(user)
+
+    def patch(self, system_user_id: str, payload: UserPatchRequest) -> User:
+        """Merge non-omitted fields from ``payload`` into the user for ``system_user_id``."""
+        user = self.get_or_404(system_user_id)
+        data = payload.model_dump(exclude_unset=True)
+        if not data:
+            logger.warning("patch_user_empty_body system_user_id=%s", system_user_id)
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "USER_102",
+                    "key": "USER_PATCH_BODY_EMPTY",
+                    "message": "PATCH body must include at least one field to update.",
+                    "source": "business",
+                },
+            )
+        if "username" in data:
+            user.username = cast(Any, data["username"])
+        if "full_name" in data and data["full_name"] is not None:
+            user.full_name = data["full_name"]
+        if "timezone" in data and data["timezone"] is not None:
+            user.timezone = data["timezone"]
+        if "invalidation_reason_uuid" in data:
+            user.invalidation_reason_uuid = cast(
+                Any, self._uuid_to_str(data["invalidation_reason_uuid"])
+            )
+        if "is_row_invalid" in data and data["is_row_invalid"] is not None:
+            user.is_row_invalid = data["is_row_invalid"]
+        if "system_uuid" in data:
+            user.system_uuid = cast(Any, self._uuid_to_str(data["system_uuid"]))
+        return self.repository.save(user)
 
     def get_or_404(self, system_user_id: str) -> User:
         """Return the user for ``system_user_id`` or raise a business 404.

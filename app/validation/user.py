@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
+
+PUT_USER_BY_SYSTEM_ID_PATH = re.compile(r"^/api/v1/user/[^/]+$")
 
 
 @dataclass(frozen=True)
@@ -92,6 +95,64 @@ CREATE_USER_VALIDATION_RULES: dict[tuple[str, str], ValidationCodeRule] = {
     ),
 }
 
+UPDATE_USER_VALIDATION_RULES: dict[tuple[str, str], ValidationCodeRule] = {
+    ("full_name", "missing"): ValidationCodeRule(
+        code="USER_014",
+        key="USER_UPDATE_FULL_NAME_REQUIRED",
+        message="Field `full_name` is required.",
+    ),
+    ("full_name", "string_too_short"): ValidationCodeRule(
+        code="USER_015",
+        key="USER_UPDATE_FULL_NAME_TOO_SHORT",
+        message="Field `full_name` must not be empty.",
+    ),
+    ("full_name", "string_too_long"): ValidationCodeRule(
+        code="USER_016",
+        key="USER_UPDATE_FULL_NAME_TOO_LONG",
+        message="Field `full_name` exceeds max length.",
+    ),
+    ("username", "string_too_long"): ValidationCodeRule(
+        code="USER_017",
+        key="USER_UPDATE_USERNAME_TOO_LONG",
+        message="Field `username` exceeds max length.",
+    ),
+    ("timezone", "value_error"): ValidationCodeRule(
+        code="USER_018",
+        key="USER_UPDATE_TIMEZONE_INVALID",
+        message="Field `timezone` must be a valid IANA timezone.",
+    ),
+    ("timezone", "string_too_long"): ValidationCodeRule(
+        code="USER_019",
+        key="USER_UPDATE_TIMEZONE_TOO_LONG",
+        message="Field `timezone` exceeds max length.",
+    ),
+    ("system_uuid", "uuid_parsing"): ValidationCodeRule(
+        code="USER_020",
+        key="USER_UPDATE_SYSTEM_UUID_INVALID",
+        message="Field `system_uuid` must be a valid UUID.",
+    ),
+    ("invalidation_reason_uuid", "uuid_parsing"): ValidationCodeRule(
+        code="USER_021",
+        key="USER_UPDATE_INVALIDATION_REASON_UUID_INVALID",
+        message="Field `invalidation_reason_uuid` must be a valid UUID.",
+    ),
+    ("is_row_invalid", "int_parsing"): ValidationCodeRule(
+        code="USER_022",
+        key="USER_UPDATE_IS_ROW_INVALID_TYPE",
+        message="Field `is_row_invalid` must be an integer.",
+    ),
+    ("is_row_invalid", "greater_than_equal"): ValidationCodeRule(
+        code="USER_023",
+        key="USER_UPDATE_IS_ROW_INVALID_MIN",
+        message="Field `is_row_invalid` must be >= 0.",
+    ),
+    ("is_row_invalid", "less_than_equal"): ValidationCodeRule(
+        code="USER_024",
+        key="USER_UPDATE_IS_ROW_INVALID_MAX",
+        message="Field `is_row_invalid` must be <= 1.",
+    ),
+}
+
 
 def _json_safe(value: Any) -> Any:
     """Recursively coerce values for inclusion in JSON error ``details``.
@@ -123,6 +184,17 @@ def _field_from_loc(loc: list[Any]) -> str | None:
     if len(loc) >= 2 and loc[0] == "body" and isinstance(loc[1], str):
         return loc[1]
     return None
+
+
+def _resolve_update_user_rule(field: str | None, error_type: str) -> ValidationCodeRule:
+    """Map ``(field, error_type)`` for ``PUT``/``PATCH`` ``/api/v1/user/{system_user_id}`` body validation."""
+    if field is not None and (field, error_type) in UPDATE_USER_VALIDATION_RULES:
+        return UPDATE_USER_VALIDATION_RULES[(field, error_type)]
+    return ValidationCodeRule(
+        code="COMMON_000",
+        key="COMMON_VALIDATION_ERROR",
+        message="Request validation failed.",
+    )
 
 
 def _resolve_create_user_rule(field: str | None, error_type: str) -> ValidationCodeRule:
@@ -165,6 +237,10 @@ def build_validation_error_payload(request: Request, exc: RequestValidationError
 
         if endpoint == "POST /api/v1/user":
             rule = _resolve_create_user_rule(field, error_type)
+        elif request.method in ("PUT", "PATCH") and PUT_USER_BY_SYSTEM_ID_PATH.match(
+            request.url.path
+        ):
+            rule = _resolve_update_user_rule(field, error_type)
         else:
             rule = ValidationCodeRule(
                 code="COMMON_000",

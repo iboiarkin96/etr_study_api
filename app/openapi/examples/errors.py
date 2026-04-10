@@ -18,9 +18,17 @@ USER_NOT_FOUND_ERROR_EXAMPLE: Final[dict[str, object]] = {
     "source": "business",
 }
 
+USER_PATCH_BODY_EMPTY_EXAMPLE: Final[dict[str, object]] = {
+    "code": "USER_102",
+    "key": "USER_PATCH_BODY_EMPTY",
+    "message": "PATCH body must include at least one field to update.",
+    "source": "business",
+}
+
 
 def _validation_error_example(
     *,
+    endpoint: str = "POST /api/v1/user",
     code: str,
     key: str,
     message: str,
@@ -33,6 +41,7 @@ def _validation_error_example(
     """Build one documented 422 example body for OpenAPI ``examples`` maps.
 
     Args:
+        endpoint: ``endpoint`` field in the error payload (method + path).
         code: Stable validation error code.
         key: Machine-readable error key.
         message: Human-readable message.
@@ -47,7 +56,7 @@ def _validation_error_example(
     """
     return {
         "error_type": "validation_error",
-        "endpoint": "POST /api/v1/user",
+        "endpoint": endpoint,
         "errors": [
             {
                 "code": code,
@@ -238,6 +247,57 @@ USER_CREATE_VALIDATION_ERROR_EXAMPLES: Final[dict[str, dict[str, object]]] = {
             loc=["body", "is_row_invalid"],
             input_value=2,
             ctx={"le": 1},
+        ),
+    },
+}
+
+_USER_UPDATE_EP = "PUT /api/v1/user/134tg"
+_USER_PATCH_EP = "PATCH /api/v1/user/134tg"
+
+USER_UPDATE_VALIDATION_ERROR_EXAMPLES: Final[dict[str, dict[str, object]]] = {
+    "missing_full_name": {
+        "summary": "Missing required field full_name (update)",
+        "value": _validation_error_example(
+            endpoint=_USER_UPDATE_EP,
+            code="USER_014",
+            key="USER_UPDATE_FULL_NAME_REQUIRED",
+            message="Field `full_name` is required.",
+            field="full_name",
+            error_type="missing",
+            loc=["body", "full_name"],
+            input_value={"timezone": "UTC", "is_row_invalid": 0},
+            ctx=None,
+        ),
+    },
+    "invalid_timezone": {
+        "summary": "Invalid timezone name (update)",
+        "value": _validation_error_example(
+            endpoint=_USER_UPDATE_EP,
+            code="USER_018",
+            key="USER_UPDATE_TIMEZONE_INVALID",
+            message="Field `timezone` must be a valid IANA timezone.",
+            field="timezone",
+            error_type="value_error",
+            loc=["body", "timezone"],
+            input_value="Europe/Mscow",
+            ctx={"error": {}},
+        ),
+    },
+}
+
+USER_PATCH_VALIDATION_ERROR_EXAMPLES: Final[dict[str, dict[str, object]]] = {
+    "invalid_timezone": {
+        "summary": "Invalid timezone name (patch)",
+        "value": _validation_error_example(
+            endpoint=_USER_PATCH_EP,
+            code="USER_018",
+            key="USER_UPDATE_TIMEZONE_INVALID",
+            message="Field `timezone` must be a valid IANA timezone.",
+            field="timezone",
+            error_type="value_error",
+            loc=["body", "timezone"],
+            input_value="Europe/Mscow",
+            ctx={"error": {}},
         ),
     },
 }

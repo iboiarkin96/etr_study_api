@@ -22,7 +22,7 @@
 
 ## Changelog
 
-- User-facing edits under `app/`, `docs/openapi/`, or the root `README.md` should include an update to `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md) in the same pull request.
+- User-facing edits under `app/`, `docs/openapi/`, or the root `README.md` should include an update under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md) in the same pull request. Add a new dated `[x.y.z]` section only when you cut a release—do not stack multiple version sections for the same unpublished work, and avoid editing the log twice for one uncommitted batch.
 - To skip the changelog requirement for mechanical changes, put `[skip changelog]` or `skip-changelog` in the PR title (or in commit messages on pushes to `main`/`master`). Policy and CI details: [ADR 0013](docs/adr/0013-changelog-and-release-notes.html).
 - Optional: run `python scripts/changelog_draft.py --print-log` to inspect git input, or set `OPENAI_API_KEY` (and optionally `OPENAI_BASE_URL`) for a draft printed to stdout—still reviewed by humans before merge.
 

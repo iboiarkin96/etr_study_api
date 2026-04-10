@@ -126,6 +126,8 @@ study_app/
 | ------ | ---- | ----------- |
 | `POST` | `/api/v1/user` | Create user |
 | `GET` | `/api/v1/user/{system_user_id}` | Get user by system_user_id |
+| `PATCH` | `/api/v1/user/{system_user_id}` | Partially update user by system_user_id |
+| `PUT` | `/api/v1/user/{system_user_id}` | Update user by system_user_id |
 | `GET` | `/docs` | Custom Swagger Ui |
 | `GET` | `/live` | Liveness probe |
 | `GET` | `/metrics` | Metrics Endpoint |
