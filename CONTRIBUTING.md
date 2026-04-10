@@ -3,7 +3,8 @@
 ## Quality gate
 
 - **`make verify`** — Local gate: lint, types, OpenAPI checks, contract tests, tests, then **`make docs-fix`** (applies doc generation and formatting).
-- **`make verify-ci`** — Same as verify but runs **`make docs-check`** instead of `docs-fix`. Use before pushing; CI runs this on every PR.
+- **`make verify-ci`** — Same as verify but runs **`make docs-check`** instead of `docs-fix`. Use before pushing to catch stale generated docs.
+- **CI** (GitHub Actions on PR/push) runs **`make verify`** (ends with **`docs-fix`** on the runner, not `docs-check`), so the pipeline does not fail when the last committed tree differs slightly from a fresh `docs-fix` output.
 
 ## Dead code and unused imports
 

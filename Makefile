@@ -36,7 +36,7 @@ help:
 	@echo "  Scenario flows (recommended entry points)"
 	@echo "  make fix                    # apply auto-fixes before local run"
 	@echo "  make verify                 # run local quality gate (docs auto-sync)"
-	@echo "  make verify-ci              # CI gate: same as verify but docs-check (no doc writes)"
+	@echo "  make verify-ci              # like verify but docs-check (pre-push); GitHub Actions uses verify"
 	@echo "  make release-check          # run full release gate"
 	@echo "  make release DEPLOY_CMD='…' # release gate + deploy command"
 	@echo ""
