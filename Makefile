@@ -542,7 +542,7 @@ api-docs:
 	fi
 	@printf "$(COLOR_CYAN)== API-DOCS: START ==$(COLOR_RESET)\n"
 	@rm -rf docs/api
-	@$(PYTHON) -m pdoc app -o docs/api
+	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o docs/api
 	@printf "$(ICON_OK) %s\n" "Open docs/api/index.html in a browser (Python package: app); linked from docs/index.html for GitHub Pages"
 	@printf "$(COLOR_GREEN)== API-DOCS: SUCCESS ==$(COLOR_RESET)\n"
 
