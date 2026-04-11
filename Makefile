@@ -29,7 +29,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help venv install requirements env-init run run-loadtest-api run-loadtest-api-serve run-project container-start migrate migration format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify verify-ci release-check release pre-commit-install pre-commit-check test test-one test-warnings env-check docs-fix docs-check changelog-draft llm-ping observability-up observability-down observability-smoke docker-build k8s-render-configmap k8s-apply
+.PHONY: help venv install requirements env-init run run-loadtest-api run-loadtest-api-serve run-project container-start migrate migration format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify verify-ci release-check release pre-commit-install pre-commit-check test test-one test-warnings env-check docs-fix docs-check api-docs changelog-draft llm-ping observability-up observability-down observability-smoke docker-build k8s-render-configmap k8s-apply
 
 # ──────────────────────────────────────────────
 # Help
@@ -101,6 +101,7 @@ help:
 	@echo "  # Documentation"
 	@echo "  make docs-fix             Auto-update docs (UML + marker sync + html render + html format)"
 	@echo "  make docs-check           Verify docs are already in sync (fails on drift)"
+	@echo "  make api-docs             Generate Python API HTML (pdoc) into docs/api/ (gitignored)"
 	@echo ""
 	@echo "  # Changelog — optional LLM draft (OPENROUTER_API_KEY or OPENAI_API_KEY in .env; see env/example)"
 	@echo "  make changelog-draft      Draft from $(CHANGELOG_SINCE)..$(CHANGELOG_HEAD) → $(CHANGELOG_DRAFT) (merge into CHANGELOG.md by hand)"
@@ -113,7 +114,7 @@ help:
 	@echo ""
 	@echo "  # Container & local Kubernetes (see docs/developer/0009-docker-and-kubernetes-local.html)"
 	@echo "  make docker-build         Build image study-app-api:local (requires Docker)"
-	@echo "  make k8s-render-configmap Regenerate k8s/configmap.yaml from k8s/app.env"
+	@echo "  make k8s-render-configmap Render k8s/configmap.yaml from k8s/app.env (same as docs-fix step)"
 	@echo "  make k8s-apply            kubectl apply manifests (requires kubectl; see guide)"
 	@echo ""
 	@echo "  # Pre-commit Hooks"
@@ -531,6 +532,17 @@ docs-check:
 		rm -f "$$tmp_before" "$$tmp_after"; \
 		exit 1; \
 	fi
+
+# Generate Python API reference from docstrings (pdoc). Output under docs/api/ (gitignored; not docs-fix).
+api-docs:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(COLOR_CYAN)== API-DOCS: START ==$(COLOR_RESET)\n"
+	@rm -rf docs/api
+	@$(PYTHON) -m pdoc app -o docs/api
+	@printf "$(ICON_OK) %s\n" "Open docs/api/index.html in a browser (Python package: app)"
+	@printf "$(COLOR_GREEN)== API-DOCS: SUCCESS ==$(COLOR_RESET)\n"
 
 # LLM-assisted Keep a Changelog draft (scripts/changelog_draft.py). Writes local file; edit CHANGELOG.md yourself.
 changelog-draft:
