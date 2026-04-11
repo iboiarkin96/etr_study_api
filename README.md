@@ -58,7 +58,7 @@ Day-to-day development does **not** depend on Docker or Kubernetes: use **`make 
 - **Prerequisites:** Docker (Desktop or Engine), `kubectl`, and a local cluster (Docker Desktop Kubernetes, minikube, or kind). Install links and options are in [§0 of the Docker & Kubernetes guide](docs/developer/0009-docker-and-kubernetes-local.html#prerequisites).
 - **Docker:** `make docker-build` produces image `study-app-api:local` (see `Dockerfile`). The container runs `scripts/container_entrypoint.sh` (Alembic, then Uvicorn) — the same script as `make container-start` on the host (without `--reload`). Dependencies are the same pinned `requirements.txt` as `make install` (no second lockfile).
 - **Kubernetes:** non-secret pod env is edited in **`k8s/app.env`** (single source); `make k8s-render-configmap` (also run from `make docs-fix`) regenerates `k8s/configmap.yaml`. Default profile is **`APP_ENV=dev`** — no API key Secret required. Then `make k8s-apply` and `kubectl -n study-app port-forward svc/study-app-api 8000:8000`.
-- **Guide (optional tooling, real deploy outline, step-by-step):** [Docker & local Kubernetes](docs/developer/0009-docker-and-kubernetes-local.html). **ADR:** [0015](docs/adr/0015-container-image-and-local-kubernetes.html). **Optional Secret for `qa`:** [k8s/secret.example.yaml](k8s/secret.example.yaml).
+- **Guide (optional tooling, real deploy outline, step-by-step):** [Docker & local Kubernetes](docs/developer/0009-docker-and-kubernetes-local.html). **ADRs:** [0015](docs/adr/0015-container-image-and-local-kubernetes.html) (container image), [0021](docs/adr/0021-continuous-delivery-github-actions-and-ghcr.html) (CI → GHCR). **Optional Secret for `qa`:** [k8s/secret.example.yaml](k8s/secret.example.yaml).
 
 ---
 

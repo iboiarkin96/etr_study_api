@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ADR 0021: Continuous delivery — GitHub Actions and GitHub Container Registry</title>
+    <link rel="stylesheet" href="../assets/docs.css" />
+    <script defer src="../assets/docs-nav.js"></script>
+  </head>
+
+  <body>
+    <main class="container" data-adr-weight="7">
+      <h1>ADR 0021: Continuous delivery — GitHub Actions and GitHub Container Registry</h1>
+      <div id="docs-top-nav"></div>
+      <details class="adr-weight-help">
+        <summary>How to set valid status (click to open)</summary>
+        <p class="small">
+          On <code>&lt;main&gt;</code>, set a single attribute <code>data-adr-weight</code> to the
+          <strong>current</strong>
+          milestone (−1 … 7). The page derives <strong>Current status</strong> and paints the <strong>Status log</strong>
+          from that one number (values are not shown as plain text on the page).
+        </p>
+        <table>
+          <caption>Which number means which step (single global order 0 → 7)</caption>
+          <thead>
+            <tr>
+              <th>Value</th>
+              <th>Meaning (current milestone)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>-1</code></td>
+              <td>Status not set (or unknown)</td>
+            </tr>
+            <tr>
+              <td><code>0</code></td>
+              <td><strong>Decision</strong> — Proposed</td>
+            </tr>
+            <tr>
+              <td><code>1</code></td>
+              <td><strong>Decision</strong> — Accepted</td>
+            </tr>
+            <tr>
+              <td><code>2</code></td>
+              <td><strong>Decision</strong> — Superseded</td>
+            </tr>
+            <tr>
+              <td><code>3</code></td>
+              <td><strong>Documentation</strong> — Draft</td>
+            </tr>
+            <tr>
+              <td><code>4</code></td>
+              <td><strong>Documentation</strong> — Ready</td>
+            </tr>
+            <tr>
+              <td><code>5</code></td>
+              <td><strong>Implementation</strong> — Not started</td>
+            </tr>
+            <tr>
+              <td><code>6</code></td>
+              <td><strong>Implementation</strong> — In progress</td>
+            </tr>
+            <tr>
+              <td><code>7</code></td>
+              <td><strong>Implementation</strong> — Done</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small">
+          Example: <code>data-adr-weight="4"</code> → <strong>Current status</strong> is Documentation · Ready; earlier
+          steps in the log are green, later steps gray. <strong>Implementation: Done</strong> (<code>7</code>) uses green
+          when it is the current value. Out-of-range values are clamped in <code>docs/assets/docs-nav.js</code>.
+        </p>
+      </details>
+      <h2>Ratification</h2>
+      <p>
+        Record the discussion Issue, merge PR, and acceptance date here when ratified via the repository issue template
+        (see <a href="./0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>).
+      </p>
+      <ul>
+        <li>Discussion Issue: <em>TBD</em></li>
+        <li>Merge PR: <em>TBD</em></li>
+        <li>Accepted: 2026-04-12</li>
+      </ul>
+
+      <h2 id="context-heading">Context</h2>
+      <p>
+        This ADR explains <strong>why</strong> we automate publishing a container image from Git, <strong>what
+        problem</strong>
+        that solves for newcomers and operators, and <strong>how far</strong> automation goes in this repository (registry
+        delivery, not full production rollout).
+      </p>
+
+      <h3>What problem are we solving?</h3>
+      <p>
+        Before this decision, the service could be built and tested locally and in <strong>CI</strong> (continuous
+        integration), but there was no single, repeatable path that said: “every accepted change on the integration
+        branch produces the <strong>same</strong> container image artifact in a <strong>registry</strong> that others can
+        pull.” That gap matters because:
+      </p>
+      <ul>
+        <li>
+          <strong>Reproducibility</strong> — A deployment (even a manual one) should start from a known image digest or
+          tag,
+          not from “whatever was built on someone’s laptop yesterday.”
+        </li>
+        <li>
+          <strong>Traceability</strong> — You want a straight line from a Git commit (or release tag) to the image that
+          runs in an environment, for debugging and compliance.
+        </li>
+        <li>
+          <strong>Onboarding</strong> — New contributors read “we have a <code>Dockerfile</code>”
+          (<a href="./0015-container-image-and-local-kubernetes.html">ADR 0015</a>) but may not know how that image gets
+          to a place where Kubernetes, a VM, or a PaaS can consume it. This ADR documents the <strong>first automated
+          hop</strong>: build → push to <strong>GHCR</strong>.
+        </li>
+      </ul>
+
+      <h3>CI vs CD (for beginners)</h3>
+      <p>
+        <strong>Continuous integration (CI)</strong> answers: “Is this code in a good state?” — tests, lint, types,
+        generated docs, and related checks run on a clean machine (for example GitHub Actions) when you open a pull
+        request or push to the integration branch. CI does not, by itself, put your app on the internet.
+      </p>
+      <p>
+        <strong>Continuous delivery (CD)</strong> usually means: “After CI passes, <strong>deliver</strong> a deployable
+        artifact.” In practice that often means building a <strong>Docker image</strong> and pushing it to a
+        <strong>container registry</strong> so any environment authorized to pull can run that exact image. Some teams
+        also automate the <strong>next</strong> step (deploy to staging/production) in the same pipeline; this repository
+        stops at <strong>registry delivery</strong> unless you add external steps yourself.
+      </p>
+      <p>
+        <strong>Why stop at the registry?</strong> Hosting (VM, Kubernetes cluster, managed service) needs secrets,
+        database URLs, networking, and policies that are specific to <em>your</em> infrastructure. Those belong in the
+        deployment platform or runbooks, not hard-coded in a generic open-source workflow. This ADR still delivers a
+        concrete, automatable outcome: a published image per successful pipeline.
+      </p>
+
+      <h3>Why GitHub Container Registry (GHCR)?</h3>
+      <p>
+        GHCR (<code>ghcr.io</code>) is GitHub’s container registry. It fits this project because:
+      </p>
+      <ul>
+        <li>
+          The source code already lives on GitHub; the workflow can authenticate with the default
+          <code>GITHUB_TOKEN</code>
+          (with <code>packages: write</code> on the publish job) — no extra secrets for the push path.
+        </li>
+        <li>
+          Image names align with the repository (for example <code>ghcr.io/&lt;owner&gt;/&lt;repo&gt;</code>, lowercased),
+          which is easy to document and discover under the repo’s <strong>Packages</strong> view.
+        </li>
+        <li>
+          Teams that later prefer AWS ECR, Google Artifact Registry, or Docker Hub can mirror the same
+          <code>Dockerfile</code> build; the decision here is the <strong>default</strong> path, not an exclusive lock-in.
+        </li>
+      </ul>
+
+      <h3>How this relates to ADR 0015</h3>
+      <p>
+        <a href="./0015-container-image-and-local-kubernetes.html">ADR 0015</a> defines <strong>what</strong> goes into
+        the
+        image (Dockerfile layout, entrypoint, local Kubernetes manifests). This ADR defines <strong>automation</strong>
+        that
+        builds that image in CI and pushes it to GHCR after the same quality gates that protect merges. It does not
+        replace
+        local development with <code>make run</code>; it complements packaging for downstream environments.
+      </p>
+
+      <h2 id="decision-heading">Decision</h2>
+      <ul>
+        <li>
+          Add a GitHub Actions job <strong><code>publish-image</code></strong> in
+          <code>.github/workflows/ci.yml</code> that builds the repository root <code>Dockerfile</code> and pushes to
+          <strong>GHCR</strong> at <code>ghcr.io/&lt;lowercase owner/repo&gt;</code>, using Docker Buildx and
+          <code>docker/metadata-action</code> for tags.
+        </li>
+        <li>
+          <strong>When it runs</strong> — only on <code>push</code> (not on pull requests), after successful jobs
+          <code>quality</code> and <code>changelog</code>, and only when the ref is <code>main</code>,
+          <code>master</code>,
+          or a semantic version tag matching <code>v*</code> (for example <code>v1.2.0</code>). The
+          <code>changelog</code> job is included in the graph for tag pushes so dependent jobs are not skipped by GitHub
+          Actions’ <code>needs</code> rules.
+        </li>
+        <li>
+          <strong>Tags applied to the image</strong> — short Git SHA; <code>latest</code> when the push is to
+          <code>main</code> or <code>master</code>; semver-style tags when the Git ref is a version tag (per metadata
+          action configuration).
+        </li>
+        <li>
+          <strong>Authentication</strong> — <code>docker/login-action</code> to <code>ghcr.io</code> with
+          <code>secrets.GITHUB_TOKEN</code>; job permission <code>packages: write</code>. No custom repository secrets are
+          required for the push path.
+        </li>
+        <li>
+          <strong>Build cache</strong> — use GitHub Actions cache backends for layer cache (<code>type=gha</code>) to keep
+          builds reasonably fast.
+        </li>
+        <li>
+          <strong>Runtime configuration</strong> — environment variables for the database, <code>APP_ENV</code>, API keys,
+          and similar settings are <strong>not</strong> injected by this workflow; they are the responsibility of whoever
+          runs the container (host, PaaS, or Kubernetes), consistent with
+          <a href="./0010-env-profiles-and-config-governance.html">ADR 0010</a>.
+        </li>
+      </ul>
+
+      <h2>Scope</h2>
+      <ul>
+        <li>
+          <strong>In scope:</strong> GitHub Actions workflow changes, GHCR as the default registry, tagging policy tied to
+          branches and <code>v*</code> release tags (<a href="./0017-branch-naming-and-repository-workflow.html">ADR
+          0017</a>),
+          documentation and ADR index updates.
+        </li>
+        <li>
+          <strong>Out of scope:</strong> automated deployment to a specific cloud, VM, or cluster; Helm or GitOps; image
+          vulnerability scanning gates; multi-architecture image matrices; promoting images across staging/production
+          environments with manual approvals. Those may be added later as separate decisions.
+        </li>
+      </ul>
+
+      <h2>Alternatives considered</h2>
+      <ol>
+        <li>
+          <span class="code-ctx">Manual <code>docker build</code> and <code>docker push</code> only</span>
+          <ul>
+            <li><strong>Плюсы:</strong> не расходуются минуты CI, полный ручной контроль.</li>
+            <li><strong>Минусы:</strong> легко забыть, несогласованные теги, нет гарантии, что собранный образ
+              соответствует коммиту, прошедшему CI; вариант отклонён как дефолтный для integration-ветки.</li>
+            </ul>
+          </li>
+          <li>
+            <span class="code-ctx">Отдельный workflow-файл только для CD</span>
+            <ul>
+              <li><strong>Плюсы:</strong> более явное разделение “CI” и “CD” в интерфейсе GitHub Actions.</li>
+              <li><strong>Минусы:</strong> дублирование условий запуска; один workflow с <code>needs</code> поддерживает
+                очевидный порядок; мы оставили CD в <code>ci.yml</code> для простоты.</li>
+              </ul>
+            </li>
+            <li>
+              <span class="code-ctx">Деплой на хост (SSH, kubectl) в том же job</span>
+              <ul>
+                <li><strong>Плюсы:</strong> end-to-end автоматизация от пуша до работающего сервиса.</li>
+                <li><strong>Минусы:</strong> требуют секретов и инфраструктуры, не универсальны; отложено до появления целевой
+                  среды.</li>
+                </ul>
+              </li>
+            </ol>
+
+            <h2>Consequences</h2>
+            <h3>Положительные стороны</h3>
+            <ul>
+              <li>Каждый успешный merge в integration-ветку (и версия-теги) приводит к готовому для pull образу,
+                соответствующему Dockerfile ADR 0015.</li>
+                <li>Новые контрибьюторы могут использовать единый путь: CI green → образ на GHCR → pull и запуск где угодно, где
+                  доступен Docker.</li>
+                  <li>Для стандартного публикационного сценария на GitHub-hosted runners не требуется дополнительно настраивать PAT.
+                  </li>
+                </ul>
+                <h3>Компромиссы</h3>
+                <ul>
+                  <li>Начисляются минуты GitHub Actions (на публичных репозиториях лимиты щедрые; в приватных стоит следить за
+                    биллингом).</li>
+                    <li>Видимость пакета и аутентификация pull для <em>потребителей</em> образа остаются заботой операторов (нужно
+                      настраивать видимость пакета или использовать токены при необходимости).</li>
+                      <li>Для запуска контейнера в проде всё равно требуются настоящая БД и секреты вне workflow.</li>
+                    </ul>
+
+                    <h2>Совместимость и миграция</h2>
+                    <ul>
+                      <li>Импакт на обратную совместимость: <strong>нет</strong> для API-контрактов; автоматизация и документация —
+                        только дополнения.</li>
+                        <li>План миграции: не требуется для consumers API.</li>
+                        <li>Стратегия отката: убрать или отключить job <code>publish-image</code>; локальный workflow не меняется.</li>
+                      </ul>
+
+                      <h2>Валидация</h2>
+                      <ul>
+                        <li>
+                          Технически: workflow при push в <code>main</code> успешно завершает job <code>publish-image</code>; образ
+                          отображается в packages репозитория и доступен для pull при корректной аутентификации.
+                        </li>
+                        <li>Документация: этот ADR, <a href="../adr/README.html">ADR index</a> и contributor notes содержат необходимые
+                          ссылки.</li>
+                        </ul>
+
+                        <h2>Ссылки</h2>
+                        <ul>
+                          <li>
+                            Связанные ADR:
+                            <a href="./0015-container-image-and-local-kubernetes.html">0015</a> (container image и локальный Kubernetes),
+                            <a href="./0013-changelog-and-release-notes.html">0013</a> (changelog gates),
+                            <a href="./0017-branch-naming-and-repository-workflow.html">0017</a> (ветки и <code>v*</code>-теги),
+                            <a href="./0010-env-profiles-and-config-governance.html">0010</a> (runtime configuration),
+                            <a href="./0008-make-command-taxonomy-and-workflow-entrypoints.html">0008</a> (Make entrypoints и
+                            CI-согласование)
+                          </li>
+                          <li>
+                            Workflow: <code>.github/workflows/ci.yml</code> (job <code>publish-image</code>).
+                          </li>
+                          <li>
+                            Developer guide:
+                            <a href="../developer/0009-docker-and-kubernetes-local.html">Docker image и локальный Kubernetes</a> (локальная
+                            сборка; ссылки на автоматизацию registry).
+                          </li>
+                        </ul>
+                        alignment)
+                      </li>
+                      <li>
+                        Workflow: <code>.github/workflows/ci.yml</code> (job <code>publish-image</code>).
+                      </li>
+                      <li>
+                        Developer guide:
+                        <a href="../developer/0009-docker-and-kubernetes-local.html">Docker image and local Kubernetes</a> (local build;
+                        links to registry automation).
+                      </li>
+                    </ul>
+                  </main>
+                </body>
+
+              </html>
+              Developer guide:
+              <a href="../developer/0009-docker-and-kubernetes-local.html">Docker image and local Kubernetes</a> (local build;
+              links to registry automation).
+            </li>
+          </ul>
+        </main>
+      </body>
+
+    </html>

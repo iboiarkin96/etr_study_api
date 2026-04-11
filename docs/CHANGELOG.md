@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- [ADR 0021](adr/0021-continuous-delivery-github-actions-and-ghcr.html): continuous delivery via GitHub Actions — build <code>Dockerfile</code>, push to GHCR after CI, beginner-oriented context (CI vs CD), scope, and references; developer guide <a href="developer/0009-docker-and-kubernetes-local.html">0009</a> links to registry automation.
+
 - [ADR 0019](adr/0019-python-dependency-security-pip-audit-and-pinning-policy.html): Python dependency security—`requirements.txt` as exact pin, `pip-audit`, Make/CI expectations, severity handling, and exception process (implements backlog policy; `make deps-audit` / CI wiring tracked there).
 
 - Documentation changelog (`docs/CHANGELOG.md`) and ADR lifecycle policy ([ADR 0018](adr/0018-adr-lifecycle-ratification-and-badges.html)): Issue discussion with `[ADR]` title, ratification via Issue + PR, `data-adr-weight`, and `docs/CHANGELOG.md` update expectations.
