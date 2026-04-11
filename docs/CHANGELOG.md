@@ -9,3 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Documentation changelog (`docs/CHANGELOG.md`) and ADR lifecycle policy ([ADR 0018](adr/0018-adr-lifecycle-ratification-and-badges.html)): decision badges, optional ratification via GitHub Issue + PR, and `docs/CHANGELOG.md` update expectations.
+
+### Changed
+
+- API reference generation: `scripts/normalize_pdoc_output.py` strips unstable `at 0x…` fragments from pdoc HTML so `make docs-check` stays reproducible; `make api-docs` runs with `PYTHONHASHSEED=0`.
