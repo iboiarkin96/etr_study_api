@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ADR 0022: Embedded Swagger — static validation (superseded)</title>
+    <link rel="stylesheet" href="../assets/docs.css" />
+    <script defer src="../assets/docs-nav.js"></script>
+  </head>
+
+  <body>
+    <main class="container" data-adr-weight="2">
+      <h1>ADR 0022: Embedded Swagger — static OpenAPI validation (superseded)</h1>
+      <div id="docs-top-nav"></div>
+      <details class="adr-weight-help">
+        <summary>How to set valid status (click to open)</summary>
+        <p class="small">
+          On <code>&lt;main&gt;</code>, set a single attribute <code>data-adr-weight</code> to the
+          <strong>current</strong>
+          milestone (−1 … 7). The page derives <strong>Current status</strong> and paints the <strong>Status log</strong>
+          from that one number (values are not shown as plain text on the page).
+        </p>
+        <table>
+          <caption>Which number means which step (single global order 0 → 7)</caption>
+          <thead>
+            <tr>
+              <th>Value</th>
+              <th>Meaning (current milestone)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>-1</code></td>
+              <td>Status not set (or unknown)</td>
+            </tr>
+            <tr>
+              <td><code>0</code></td>
+              <td><strong>Decision</strong> — Proposed</td>
+            </tr>
+            <tr>
+              <td><code>1</code></td>
+              <td><strong>Decision</strong> — Accepted</td>
+            </tr>
+            <tr>
+              <td><code>2</code></td>
+              <td><strong>Decision</strong> — Superseded</td>
+            </tr>
+            <tr>
+              <td><code>3</code></td>
+              <td><strong>Documentation</strong> — Draft</td>
+            </tr>
+            <tr>
+              <td><code>4</code></td>
+              <td><strong>Documentation</strong> — Ready</td>
+            </tr>
+            <tr>
+              <td><code>5</code></td>
+              <td><strong>Implementation</strong> — Not started</td>
+            </tr>
+            <tr>
+              <td><code>6</code></td>
+              <td><strong>Implementation</strong> — In progress</td>
+            </tr>
+            <tr>
+              <td><code>7</code></td>
+              <td><strong>Implementation</strong> — Done</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small">
+          Example: <code>data-adr-weight="4"</code> → <strong>Current status</strong> is Documentation · Ready; earlier
+          steps in the log are green, later steps gray. <strong>Implementation: Done</strong> (<code>7</code>) uses green
+          when it is the current value. Out-of-range values are clamped in <code>docs/assets/docs-nav.js</code>.
+        </p>
+      </details>
+      <h2>Ratification</h2>
+      <p>
+        This ADR records a <strong>superseded</strong> decision (see below). Discussion Issue and merge PR may be linked
+        per <a href="./0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a> if the supersession is ratified as a
+        formal change.
+      </p>
+      <ul>
+        <li>Discussion Issue: <em>TBD</em></li>
+        <li>Merge PR: <em>TBD</em></li>
+        <li>Accepted: <em>TBD</em></li>
+      </ul>
+
+      <h2>Context (historical)</h2>
+      <p>
+        The documentation site was to embed <strong>Swagger UI</strong> against
+        <code>docs/openapi/openapi-baseline.json</code> (see
+        <a href="./0007-openapi-governance-and-usability-standard.html">ADR 0007</a>) so readers could explore the contract
+        without running the API. An additional goal was <strong>browser-side validation</strong> of JSON request bodies
+        (Ajv, interceptors, no real HTTP to the API from that page).
+      </p>
+
+      <h2>Superseded decision</h2>
+      <p>
+        The approach described in earlier drafts of this ADR — <strong>static validation</strong> of
+        <code>application/json</code> bodies in the browser via Ajv, Swagger <code>requestInterceptor</code> /
+        <code>responseInterceptor</code>, and related client-side wiring — is <strong>cancelled</strong> as a product
+        commitment. It proved brittle (CDN loading, <code>file://</code>, Swagger UI versions, ref resolution) and did
+        not deliver a reliable experience.
+      </p>
+
+      <h2>What was implemented instead</h2>
+      <p>
+        <code>docs/openapi-explorer.html</code> is labeled <strong>OpenAPI (test)</strong> in the docs nav. It loads
+        <strong>Swagger UI</strong> from the CDN and points at the committed <code>openapi-baseline.json</code> for
+        <strong>visual exploration only</strong>: operations, schemas, and documentation text. <strong>Try it out</strong>
+        is <strong>disabled</strong> on this page. <strong>No validation</strong> runs in the browser; there is no
+        Ajv/ref-parser bundle and no <code>openapi-sandbox.js</code>.
+      </p>
+      <p>
+        For real HTTP <strong>Try it out</strong> against a running server, use the application’s interactive docs at
+        <code>/docs</code> (configure CORS for your browser origin).
+      </p>
+
+      <h2>On hold</h2>
+      <p>
+        A future iteration may revisit <strong>browser-side or docs-integrated contract validation</strong> (static or
+        against a mock), with clearer scope and tooling. Until then the task is <strong>on hold</strong>. Contract
+        correctness remains enforced by <code>make contract-test</code> / CI on <code>openapi-baseline.json</code>, not by
+        this page.
+      </p>
+
+      <h2>Consequences</h2>
+      <ul>
+        <li>Readers still get a quick visual view of the OpenAPI snapshot from the static site.</li>
+        <li>No claim of client-side validation; no maintenance burden for the previous interceptor/Ajv stack.</li>
+        <li>ADR 0007 / governance of the baseline file is unchanged.</li>
+      </ul>
+
+      <h2>References</h2>
+      <ul>
+        <li>
+          Related:
+          <a href="./0007-openapi-governance-and-usability-standard.html">ADR 0007</a>,
+          <a href="./0001-docs-as-code.html">ADR 0001</a>.
+        </li>
+        <li>Page: <code>docs/openapi-explorer.html</code> (OpenAPI test).</li>
+      </ul>
+    </main>
+  </body>
+
+</html>

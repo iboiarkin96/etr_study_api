@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- [ADR 0022](adr/0022-embedded-swagger-ui-openapi-sandbox.html) superseded: browser validation cancelled; `openapi-explorer.html` is OpenAPI (test), Swagger browse-only; task on hold. Removed `openapi-live.html` (use app `/docs` for Try it out).
+
 ### Added
+
+- [ADR 0021](adr/0021-continuous-delivery-github-actions-and-ghcr.html): continuous delivery via GitHub Actions — build <code>Dockerfile</code>, push to GHCR after CI, beginner-oriented context (CI vs CD), scope, and references; developer guide <a href="developer/0009-docker-and-kubernetes-local.html">0009</a> links to registry automation.
 
 - [ADR 0019](adr/0019-python-dependency-security-pip-audit-and-pinning-policy.html): Python dependency security—`requirements.txt` as exact pin, `pip-audit`, Make/CI expectations, severity handling, and exception process (implements backlog policy; `make deps-audit` / CI wiring tracked there).
 
