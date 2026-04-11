@@ -242,7 +242,7 @@ def format_html_file(path: Path) -> bool:
 
 
 def main() -> None:
-    """Walk all ``docs/**/*.html`` (except ``docs/backlog/**``) and normalize in place.
+    """Walk all ``docs/**/*.html`` (except ``docs/backlog/**`` and ``docs/api/**``) and normalize in place.
 
     Prints the count of updated files.
     """
