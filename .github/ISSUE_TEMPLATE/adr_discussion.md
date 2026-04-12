@@ -36,4 +36,14 @@ When ready, open a PR that:
 - Adds an entry under `[Unreleased]` in `docs/CHANGELOG.md` when readers should know
 - Fills **Ratification** (link to **this** Issue, merge PR, acceptance date) and sets `data-adr-weight` on `<main>`
 
+### Example: Ratification block on the merged ADR page
+
+After merge, the HTML under `docs/adr/` should include a **Ratification** section similar to:
+
+- **Discussion Issue:** URL of this Issue (the thread you are reading now).
+- **Merge PR:** URL of the PR that merged the ADR.
+- **Accepted:** `YYYY-MM-DD` (merge or explicit acceptance date).
+
+ADRs adopted before ADR 0018 use a shorter ratification note; see `docs/adr/0018-adr-lifecycle-ratification-and-badges.html` and older numbered ADRs.
+
 Close this Issue after the ADR PR is merged (or when the proposal is withdrawn).

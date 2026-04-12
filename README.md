@@ -2,6 +2,21 @@
 
 FastAPI service for Study App domain workflows. Long-form documentation: [system analysis](docs/system-analysis.html), [engineering practices](docs/engineering-practices.html).
 
+## Contents
+
+| Section | What you get |
+| ------- | ------------ |
+| [Quick start](#quick-start) | Install, migrate, run the API locally |
+| [Environment and configuration](#environment-and-configuration) | `APP_ENV`, `.env`, profile files |
+| [Documentation and workflows](#documentation-and-workflows) | Changelog, guides, ADRs, Make entrypoints |
+| [Observability (local)](#observability-local) | Prometheus, Grafana, metrics URLs |
+| [Container image and Kubernetes (optional)](#container-image-and-local-kubernetes-optional) | Docker image, local cluster |
+| [Repository layout](#repository-layout) | Top-level tree |
+| [HTTP endpoints](#http-endpoints) | Route summary |
+| [License](#license) | MIT |
+
+---
+
 ## Quick start
 
 ```bash
@@ -12,8 +27,45 @@ make migrate
 make run
 ```
 
-- API docs (Swagger): [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- Full stack (API + Docker observability): `make run-project` instead of `make run` (see below).
+👉**API + Docker observability in one flow:** `make run-project` instead of `make run` (details under [Observability](#observability-local)).
+
+---
+
+## Environment and configuration
+
+The process reads **`APP_ENV`** (`dev`, `qa`, `prod`). Set it in **`.env`** or the host environment. **`GET /live`** includes `"app_env"` for a quick check.
+
+| Path | Role |
+| ---- | ---- |
+| `env/example` | Committed template — copy to `.env` (`make env-init`). **All variables, defaults, and semantics are documented in this file** (single source of truth; not duplicated in the README). |
+| `env/dev`, `env/qa`, `env/prod` | Optional profile overrides (merged automatically) |
+
+**Load order (later wins):** root `.env` → `env/<APP_ENV>` → optional `ENV_FILE`.
+Tests use **`APP_ENV=qa`**. Legacy `APP_ENV=test` is mapped to **`qa`**.
+
+Useful: `make env-check`, `curl -s http://127.0.0.1:8000/live | jq`.
+
+---
+
+## Documentation and workflows
+
+| Topic | Link |
+| ----- | ---- |
+| Интерактивная документация API (Swagger UI; нужен запущенный `make run`) | [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) |
+| Changelog | [CHANGELOG.md](CHANGELOG.md) |
+| Contributing (verify, docs, OpenAPI, ADRs) | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Make commands & workflows (diagrams, scenarios) | [0010-make-commands-and-workflows.html](docs/developer/0010-make-commands-and-workflows.html) |
+| Engineering practices & handbook | [engineering-practices.html](docs/engineering-practices.html) |
+| System analysis & error matrix | [system-analysis.html](docs/system-analysis.html) |
+| Developer guides (requirements, contracts, load testing, local dev, Docker/K8s) | [docs/developer/README.html](docs/developer/README.html) |
+| ADRs | [docs/adr/README.html](docs/adr/README.html) |
+| Runbooks | [docs/runbooks/README.html](docs/runbooks/README.html) |
+| OpenAPI (test) — Swagger UI for the baseline spec (browse only; no in-browser validation) | [docs/openapi-explorer.html](docs/openapi-explorer.html) |
+
+**Daily workflow:** prefer `make` targets (`make help`).
+1) Common flows: `make fix`, `make verify`, `make verify-ci` before push, `make release-check`.
+2) Before commit: `make pre-commit-check`. Docs sync: `make docs-fix`; strict sync check: `make docs-check`.
+
 
 ---
 
@@ -49,52 +101,16 @@ Examples: `http_requests_total`, `http_request_duration_seconds_bucket`, `db_ope
 
 ---
 
-## Container image & local Kubernetes (optional)
+## Container image and local Kubernetes (optional)
 
 Day-to-day development does **not** depend on Docker or Kubernetes: use **`make run`**, tests, and **`make verify`** as usual. The cycle (feature → tests → merge) stays the same.
 
 **Why add Docker at all?** In most real environments the service runs as a **container image**: the same artifact is promoted through staging and production. Building an image (`make docker-build`) is the standard packaging step when you prepare a release or run in a remote environment. **Local Kubernetes** (`k8s/`, `make k8s-apply`) is optional — mainly for learning and for checking manifests; it is not required for every feature.
 
-- **Prerequisites:** Docker (Desktop or Engine), `kubectl`, and a local cluster (Docker Desktop Kubernetes, minikube, or kind). Install links and options are in [§0 of the Docker & Kubernetes guide](docs/developer/0009-docker-and-kubernetes-local.html#prerequisites).
+- **Prerequisites:** Docker (Desktop or Engine), `kubectl`, and a local cluster (Docker Desktop Kubernetes, minikube, or kind). Install links and options are in the [Docker & Kubernetes guide — Prerequisites](docs/developer/0009-docker-and-kubernetes-local.html#prerequisites).
 - **Docker:** `make docker-build` produces image `study-app-api:local` (see `Dockerfile`). The container runs `scripts/container_entrypoint.sh` (Alembic, then Uvicorn) — the same script as `make container-start` on the host (without `--reload`). Dependencies are the same pinned `requirements.txt` as `make install` (no second lockfile).
 - **Kubernetes:** non-secret pod env is edited in **`k8s/app.env`** (single source); `make k8s-render-configmap` (also run from `make docs-fix`) regenerates `k8s/configmap.yaml`. Default profile is **`APP_ENV=dev`** — no API key Secret required. Then `make k8s-apply` and `kubectl -n study-app port-forward svc/study-app-api 8000:8000`.
 - **Guide (optional tooling, real deploy outline, step-by-step):** [Docker & local Kubernetes](docs/developer/0009-docker-and-kubernetes-local.html). **ADRs:** [0015](docs/adr/0015-container-image-and-local-kubernetes.html) (container image), [0021](docs/adr/0021-continuous-delivery-github-actions-and-ghcr.html) (CI → GHCR). **Optional Secret for `qa`:** [k8s/secret.example.yaml](k8s/secret.example.yaml).
-
----
-
-## Environment (`APP_ENV`)
-
-The process reads **`APP_ENV`** (`dev`, `qa`, `prod`). Set it in **`.env`** or the host environment. **`GET /live`** includes `"app_env"` for a quick check.
-
-| Path | Role |
-| ---- | ---- |
-| `env/example` | Committed template — copy to `.env` (`make env-init`). **All variables, defaults, and semantics are documented in this file** (single source of truth; not duplicated in the README). |
-| `env/dev`, `env/qa`, `env/prod` | Optional profile overrides (merged automatically) |
-
-**Load order (later wins):** root `.env` → `env/<APP_ENV>` → optional `ENV_FILE`.
-Tests use **`APP_ENV=qa`**. Legacy `APP_ENV=test` is mapped to **`qa`**.
-
-Useful: `make env-check`, `curl -s http://127.0.0.1:8000/live | jq`.
-
----
-
-## Documentation
-
-| Topic | Link |
-| ----- | ---- |
-| Changelog | [CHANGELOG.md](CHANGELOG.md) |
-| Contributing (verify, docs, OpenAPI, ADRs) | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Engineering practices & handbook | [engineering-practices.html](docs/engineering-practices.html) |
-| System analysis & error matrix | [system-analysis.html](docs/system-analysis.html) |
-| Developer guides (requirements, contracts, load testing, local dev, Docker/K8s) | [docs/developer/README.html](docs/developer/README.html) |
-| ADRs | [docs/adr/README.html](docs/adr/README.html) |
-| Runbooks | [docs/runbooks/README.html](docs/runbooks/README.html) |
-| OpenAPI (test) — Swagger UI for the baseline spec (browse only; no in-browser validation) | [docs/openapi-explorer.html](docs/openapi-explorer.html) |
-
-Serve the `docs/` folder over HTTP when using that page (for example `cd docs && python -m http.server 8765`). For interactive API docs against a running app, use FastAPI’s `/docs` when CORS allows your browser origin.
-
-Daily workflow: prefer `make` targets (`make help`). Common flows: `make fix`, `make verify`, `make release-check`. Before commit: `make pre-commit-check`. Docs sync: `make docs-fix`; verify: `make docs-check`.
-
 
 ---
 

@@ -2,9 +2,11 @@
 
 ## Quality gate
 
+- **Onboarding map (grouped targets, diagrams, if-then flows):** [docs/developer/0010-make-commands-and-workflows.html](docs/developer/0010-make-commands-and-workflows.html) — use together with **`make help`** and [ADR 0008](docs/adr/0008-make-command-taxonomy-and-workflow-entrypoints.html).
+
 - **`make verify`** — Local gate: lint, types, OpenAPI checks, contract tests, tests, then **`make docs-fix`** (applies doc generation and formatting).
-- **`make verify-ci`** — Same as verify but runs **`make docs-check`** instead of `docs-fix`. **Run this before you push** (or before you consider a branch ready to merge).
-- **CI** (GitHub Actions on PR/push) runs **`make verify`** (ends with **`docs-fix`** on the runner, not `docs-check`), so the pipeline does not fail when the last committed tree differs slightly from a fresh `docs-fix` output.
+- **`make verify-ci`** — Runs **`make deps-audit`** first, then the same steps as **`make verify`** but **`make docs-check`** instead of `docs-fix`. **Run this before you push** (or before you consider a branch ready to merge).
+- **CI** (GitHub Actions on PR/push) runs **`make deps-audit`** then **`make verify`** (ends with **`docs-fix`** on the runner, not `docs-check`), so the pipeline does not fail when the last committed tree differs slightly from a fresh `docs-fix` output.
 - **CD** (same workflow): on push to **`main`** / **`master`** or a **`v*`** tag, after CI succeeds, the **`publish-image`** job pushes the API container image to **GitHub Container Registry** (`ghcr.io/<owner>/<repo>`). No extra repository secrets are required; use **Packages** settings if the image should be public for pulls without authentication.
 
 ### Why `make verify-ci` locally is required
