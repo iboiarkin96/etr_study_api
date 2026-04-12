@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- [Developer guide 0010](developer/0010-make-commands-and-workflows.html): Make commands and workflows — PlantUML sources under [`docs/uml/make/`](uml/make/) (rendered PNGs via `make docs-fix`), composite pipeline and run/observability figures, tables of atomic targets by theme, if-then onboarding scenarios; linked from [docs index](index.html), [developer README](developer/README.html), [CONTRIBUTING](../CONTRIBUTING.md), [ADR 0008](adr/0008-make-command-taxonomy-and-workflow-entrypoints.html), [engineering-practices](engineering-practices.html), and [local development](developer/0007-local-development.html).
+
 ### Changed
+
+- [ADR 0019](adr/0019-python-dependency-security-pip-audit-and-pinning-policy.html): implementation marked **Done** (`data-adr-weight="7"`). [Backlog item-4](backlog/README.html#item-4) marked **Done**; `Makefile` **`verify-ci`** now includes **`deps-audit`** (engineering-practices table synced).
 
 - [ADR 0022](adr/0022-embedded-swagger-ui-openapi-sandbox.html) superseded: browser validation cancelled; `openapi-explorer.html` is OpenAPI (test), Swagger browse-only; task on hold. Removed `openapi-live.html` (use app `/docs` for Try it out).
 

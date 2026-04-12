@@ -42,7 +42,7 @@ help:
 	@echo "  Scenario flows (recommended entry points)"
 	@echo "  make fix                    # apply auto-fixes before local run"
 	@echo "  make verify                 # run local quality gate (docs auto-sync)"
-	@echo "  make verify-ci              # like verify but docs-check (pre-push); GitHub Actions uses verify"
+	@echo "  make verify-ci              # deps-audit + like verify but docs-check (pre-push); CI runs deps-audit then verify"
 	@echo "  make release-check          # run full release gate"
 	@echo "  make release DEPLOY_CMD='…' # release gate + deploy command"
 	@echo ""
@@ -91,7 +91,7 @@ help:
 	@echo "  # Quality Gates"
 	@echo "  make fix                  Run auto-fixes (format-fix + lint-fix + docs-fix)"
 	@echo "  make verify               Run lint-check + type-check + openapi-check + contract-test + test + docs-fix"
-	@echo "  make verify-ci            Run lint-check + type-check + openapi-check + contract-test + test + docs-check"
+	@echo "  make verify-ci            Run deps-audit + lint-check + type-check + openapi-check + contract-test + test + docs-check"
 	@echo ""
 	@echo "  # Supply chain (ADR 0019)"
 	@echo "  make deps-audit           Scan requirements.txt with pip-audit (OSV); fails on known CVEs"
@@ -397,19 +397,22 @@ verify:
 	@printf "$(COLOR_GREEN)== VERIFY: SUCCESS ==$(COLOR_RESET)\n"
 
 # Same as verify but fails if docs are out of sync (for CI; does not write docs).
+# Includes deps-audit first so local pre-push matches the quality job (CI: deps-audit then verify).
 verify-ci:
 	@printf "$(COLOR_CYAN)== VERIFY-CI: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/6] lint-check"
+	@printf "$(ICON_INFO) %s\n" "[1/7] deps-audit"
+	@$(MAKE) deps-audit
+	@printf "$(ICON_INFO) %s\n" "[2/7] lint-check"
 	@$(MAKE) lint-check
-	@printf "$(ICON_INFO) %s\n" "[2/6] type-check"
+	@printf "$(ICON_INFO) %s\n" "[3/7] type-check"
 	@$(MAKE) type-check
-	@printf "$(ICON_INFO) %s\n" "[3/6] openapi-check"
+	@printf "$(ICON_INFO) %s\n" "[4/7] openapi-check"
 	@$(MAKE) openapi-check
-	@printf "$(ICON_INFO) %s\n" "[4/6] contract-test"
+	@printf "$(ICON_INFO) %s\n" "[5/7] contract-test"
 	@$(MAKE) contract-test
-	@printf "$(ICON_INFO) %s\n" "[5/6] test"
+	@printf "$(ICON_INFO) %s\n" "[6/7] test"
 	@$(MAKE) test
-	@printf "$(ICON_INFO) %s\n" "[6/6] docs-check"
+	@printf "$(ICON_INFO) %s\n" "[7/7] docs-check"
 	@$(MAKE) docs-check
 	@printf "$(COLOR_GREEN)== VERIFY-CI: SUCCESS ==$(COLOR_RESET)\n"
 

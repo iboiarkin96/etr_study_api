@@ -4,6 +4,7 @@ Policy and conventions (C4 mapping, palette, file layout): ../adr/0020-c4-plantu
 
 Layout
   architecture/*.puml     C4-style views (context, container, component)
+  make/*.puml             Makefile composite / run-target overview (developer guide 0010)
   sequences/*.puml        Sequence diagrams
   include/style.puml      Shared skin — injected after @startuml by scripts/regenerate_docs.py
                           (Kroki needs one file; !include is not expanded server-side.)
