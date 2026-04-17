@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
@@ -62,9 +64,22 @@ class DocsSearchTelemetryStore:
         conn.row_factory = sqlite3.Row
         return conn
 
+    @contextmanager
+    def _managed_connection(self) -> Iterator[sqlite3.Connection]:
+        """Yield a SQLite connection that is always closed.
+
+        Yields:
+            Open SQLite connection object.
+        """
+        conn = self._connection()
+        try:
+            yield conn
+        finally:
+            conn.close()
+
     def _ensure_schema(self) -> None:
         """Create telemetry schema and indexes if absent."""
-        with self._lock, self._connection() as conn:
+        with self._lock, self._managed_connection() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute(
                 """
@@ -102,6 +117,7 @@ class DocsSearchTelemetryStore:
                 "CREATE INDEX IF NOT EXISTS idx_docs_search_events_session_id "
                 "ON docs_search_events(session_id)"
             )
+            conn.commit()
 
     def insert_event(self, payload: dict[str, Any]) -> None:
         """Persist one telemetry event payload.
@@ -114,7 +130,7 @@ class DocsSearchTelemetryStore:
             json.dumps(top_results, ensure_ascii=False) if top_results is not None else None
         )
         payload_json = json.dumps(payload, ensure_ascii=False)
-        with self._lock, self._connection() as conn:
+        with self._lock, self._managed_connection() as conn:
             conn.execute(
                 """
                 INSERT INTO docs_search_events(
@@ -157,6 +173,7 @@ class DocsSearchTelemetryStore:
                     payload_json,
                 ),
             )
+            conn.commit()
 
     def metrics(self, *, now_ms: int, window_minutes: int) -> DocsSearchTelemetryMetrics:
         """Compute search KPI aggregates for the requested horizon.
@@ -169,7 +186,7 @@ class DocsSearchTelemetryStore:
             Aggregated docs-search KPI set.
         """
         since_ms = max(0, now_ms - (window_minutes * 60_000))
-        with self._lock, self._connection() as conn:
+        with self._lock, self._managed_connection() as conn:
             total_queries = int(
                 conn.execute(
                     """

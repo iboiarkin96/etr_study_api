@@ -147,6 +147,7 @@ study_app/
 │   ├── internal/
 │   │   └── api/
 │   ├── openapi/
+│   ├── rfc/
 │   ├── runbooks/  # Operational troubleshooting guides
 │   └── uml/  # PlantUML diagrams
 │       ├── architecture/
