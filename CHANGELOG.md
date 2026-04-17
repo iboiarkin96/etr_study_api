@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+-
+
+## [1.1.1] — 2026-04-17
+
+### Added
+
+- Client-side docs search implementation package:
+  - index builder `scripts/build_docs_search_index.py`,
+  - generated artifact `docs/assets/search-index.json`,
+  - ranking/runtime UI integration in `docs/assets/docs-nav.js`,
+  - ADR `docs/adr/0027-client-side-docs-search-index-and-ranking.html`.
+
+- Docs-search telemetry ingestion and aggregation:
+  - store module `app/core/docs_search_telemetry.py`,
+  - API schema `app/schemas/telemetry.py`,
+  - ingest endpoint `POST /internal/telemetry/docs-search`,
+  - metrics endpoint `GET /internal/telemetry/docs-search/metrics`.
+
+- RFC documentation area for implementation-level specs:
+  - `docs/rfc/README.html`,
+  - `docs/rfc/0001-docs-search-implementation.html`.
+
+- Formal accessibility workflow: `.github/workflows/a11y-formal-checks.yml`.
+
+### Changed
+
+- Internal and top navigation updated to include ADR/RFC entry points and stable links from docs home and internal pages.
+
+- Local docs-search troubleshooting and validation guidance expanded in developer docs (`docs/developer/0007-local-development.html`), including CORS/preflight and SQLite verification steps.
+
 ## [1.1.1] — 2026-04-12
 
 ### Added

@@ -13,7 +13,7 @@ import time
 from time import perf_counter
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -42,6 +42,7 @@ from app.core.security import (
     is_protected_api_request,
 )
 from app.errors.common import COMMON_413, COMMON_429
+from app.schemas.errors import ValidationErrorResponse
 from app.schemas.system import LiveResponse, ReadyResponse
 from app.schemas.telemetry import (
     DocsSearchTelemetryIngestRequest,
@@ -374,6 +375,35 @@ app.add_api_route(
     include_in_schema=False,
 )
 
+DOCS_SEARCH_TELEMETRY_422_EXAMPLES = {
+    "missing_event": {
+        "summary": "Missing required event field",
+        "value": {
+            "error_type": "validation_error",
+            "endpoint": "POST /internal/telemetry/docs-search",
+            "errors": [
+                {
+                    "code": "USER_001",
+                    "key": "field_required",
+                    "message": "Field required",
+                    "field": "event",
+                    "source": "validation",
+                    "details": {
+                        "type": "missing",
+                        "loc": ["body", "event"],
+                        "input": {
+                            "emitted_at_ms": 1776420000000,
+                            "session_id": "s_123",
+                            "query_id": "q_123",
+                        },
+                        "ctx": None,
+                    },
+                }
+            ],
+        },
+    }
+}
+
 
 @app.post(
     "/internal/telemetry/docs-search",
@@ -381,6 +411,17 @@ app.add_api_route(
     summary="Ingest docs search telemetry event",
     operation_id="ingestDocsSearchTelemetryEvent",
     status_code=202,
+    responses={
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+            "model": ValidationErrorResponse,
+            "description": "Validation error for malformed telemetry payload.",
+            "content": {
+                "application/json": {
+                    "examples": DOCS_SEARCH_TELEMETRY_422_EXAMPLES,
+                }
+            },
+        }
+    },
 )
 def ingest_docs_search_telemetry(
     payload: DocsSearchTelemetryIngestRequest,
