@@ -253,7 +253,7 @@ def build_search_index(output: Path) -> int:
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
     return len(docs)
