@@ -108,12 +108,24 @@
    */
   const INTERNAL_SIDEBAR_NAV = [
     { label: "Overview", path: "internal/README.html" },
+    { label: "ADR", path: "adr/README.html" },
+    { label: "Runbooks", path: "runbooks/README.html" },
     { label: "Developers Docs", path: "internal/developers.html" },
     { label: "System design", path: "internal/system-design.html" },
     {
-      label: "API",
+      label: "Kafka",
       children: [
-        { label: "API hub", path: "internal/api/README.html" },
+        { label: "Overview", path: "kafka/README.html" },
+        { label: "Topics", path: "kafka/topics.html" },
+        { label: "Producers", path: "kafka/producers.html" },
+        { label: "Consumers", path: "kafka/consumers.html" },
+        { label: "Connectors", path: "kafka/connectors.html" },
+        { label: "Tools", path: "kafka/tools.html" },
+      ],
+    },
+    {
+      label: "API documentation",
+      children: [
         {
           label: "User",
           expand: "after-api-hub",
