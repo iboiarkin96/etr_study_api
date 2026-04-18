@@ -28,27 +28,27 @@
       <h2>Goals and non-goals</h2>
       <h3>Goals</h3>
       <ul>
-        <li>Fast client-side full-site search over all HTML docs pages.</li>
-        <li>Deterministic lexical ranking with predictable tuning levers.</li>
-        <li>Minimal runtime dependencies and static-hosting compatibility.</li>
-        <li>Collection of product-quality search telemetry: zero-result rate, query CTR, and time-to-first-success.</li>
+        <li>Fast client-side search across all HTML docs pages.</li>
+        <li>Lexical ranking that is deterministic and easy to tune.</li>
+        <li>Few runtime dependencies; works on static hosting.</li>
+        <li>Telemetry we can act on: zero-result rate, query click-through, and time-to-first-success.</li>
       </ul>
       <h3>Non-goals</h3>
       <ul>
-        <li>Semantic/vector retrieval, typo correction, language morphology.</li>
-        <li>External hosted search services.</li>
+        <li>Semantic/vector search, typo fixing, or language-specific word forms.</li>
+        <li>Hosted search products (e.g. cloud SaaS).</li>
       </ul>
     </section>
 
     <section class="card">
       <h2>Architecture overview</h2>
       <ol>
-        <li>Build step creates <code>docs/assets/search-index.json</code> from <code>docs/**/*.html</code>.</li>
-        <li>Browser loads the index once and executes query-time ranking in JS.</li>
-        <li>UI renders top-N results and supports keyboard navigation.</li>
-        <li>Telemetry events are emitted from browser and sent to API endpoint.</li>
-        <li>API persists events into SQLite table <code>docs_search_events</code>.</li>
-        <li>API aggregates and serves KPI snapshots via <code>/internal/telemetry/docs-search/metrics</code>.</li>
+        <li>The build writes <code>docs/assets/search-index.json</code> from <code>docs/**/*.html</code>.</li>
+        <li>The browser loads the index once; ranking runs in JavaScript at query time.</li>
+        <li>The UI shows the top results and supports keyboard navigation.</li>
+        <li>The browser sends telemetry events to the API.</li>
+        <li>The API appends rows to SQLite table <code>docs_search_events</code>.</li>
+        <li>The API exposes KPI snapshots at <code>/internal/telemetry/docs-search/metrics</code>.</li>
       </ol>
     </section>
 
@@ -122,9 +122,9 @@
         </ul>
         <h3>Transport behavior</h3>
         <ul>
-          <li>Primary transport: <code>fetch</code> with <code>keepalive: true</code>.</li>
-          <li>Local default endpoint resolution: docs host <code>127.0.0.1:8765</code> routes telemetry to API host <code>127.0.0.1:8000</code>.</li>
-          <li>Endpoint can be overridden with <code>&lt;meta name="docs-search-telemetry-endpoint" ...&gt;</code>.</li>
+          <li>Uses <code>fetch</code> with <code>keepalive: true</code>.</li>
+          <li>Locally, docs on <code>127.0.0.1:8765</code> sends telemetry to the API on <code>127.0.0.1:8000</code>.</li>
+          <li>You can override the endpoint with <code>&lt;meta name="docs-search-telemetry-endpoint" ...&gt;</code>.</li>
         </ul>
         <h3>Server-side ingestion and storage</h3>
         <ul>
@@ -152,52 +152,51 @@
       <section class="card">
         <h2>Local validation playbook</h2>
         <ol>
-          <li>Rebuild search index:
+          <li>Rebuild the search index:
             <pre><code>python3 scripts/build_docs_search_index.py</code></pre>
           </li>
-          <li>Run docs server:
+          <li>Serve docs over HTTP (not <code>file://</code>):
             <pre><code>cd docs
               python3 -m http.server 8765</code></pre>
             </li>
-            <li>Run API:
+            <li>Run the API:
               <pre><code>make run</code></pre>
             </li>
-            <li>Open <code>http://127.0.0.1:8765/index.html</code>, run queries, click a result.</li>
-            <li>Verify index fetch in browser network:
-              <code>GET /assets/search-index.json</code> returns <code>200</code> or <code>304</code>.</li>
-              <li>Verify DB writes:
-                <pre><code>sqlite3 study_app.db "select id,event,session_id,query_id,datetime(emitted_at_ms/1000,'unixepoch','localtime') from docs_search_events order by id desc limit 20;"</code></pre>
-              </li>
-              <li>Verify aggregate API:
-                <pre><code>curl "http://127.0.0.1:8000/internal/telemetry/docs-search/metrics?window_minutes=60"</code></pre>
-              </li>
-            </ol>
-          </section>
+            <li>Open <code>http://127.0.0.1:8765/index.html</code>, run searches, click a result.</li>
+            <li>In the browser network tab, confirm <code>GET /assets/search-index.json</code> returns <code>200</code> or <code>304</code>.</li>
+            <li>Check the database:
+              <pre><code>sqlite3 study_app.db "select id,event,session_id,query_id,datetime(emitted_at_ms/1000,'unixepoch','localtime') from docs_search_events order by id desc limit 20;"</code></pre>
+            </li>
+            <li>Check the metrics API:
+              <pre><code>curl "http://127.0.0.1:8000/internal/telemetry/docs-search/metrics?window_minutes=60"</code></pre>
+            </li>
+          </ol>
+        </section>
 
-          <section class="card">
-            <h2>Troubleshooting</h2>
-            <h3>Could not load search index</h3>
-            <ul>
-              <li>When opening docs via <code>file://</code>, fetch is blocked. Use HTTP server.</li>
-              <li>Wrong relative path can produce <code>/internal/assets/search-index.json</code> instead of <code>/assets/search-index.json</code>.</li>
-            </ul>
-            <h3>Telemetry preflight is 200 but no rows in DB</h3>
-            <ul>
-              <li><code>OPTIONS</code> only confirms preflight path; verify actual <code>POST</code> request and DB rows.</li>
-              <li>Use hard refresh to avoid stale JS cache.</li>
-              <li>SQLite viewers may not auto-refresh with WAL; validate via SQL query in terminal.</li>
-            </ul>
-          </section>
+        <section class="card">
+          <h2>Troubleshooting</h2>
+          <h3>Could not load search index</h3>
+          <ul>
+            <li>Browsers block <code>fetch</code> for <code>file://</code> pages. Serve docs over HTTP.</li>
+            <li>A bad relative path can request <code>/internal/assets/search-index.json</code> instead of <code>/assets/search-index.json</code>.</li>
+          </ul>
+          <h3>Telemetry preflight returns 200 but the DB has no rows</h3>
+          <ul>
+            <li><code>OPTIONS</code> only checks CORS; confirm a real <code>POST</code> and new rows in the DB.</li>
+            <li>Hard-refresh the page so the browser does not use an old <code>docs-nav.js</code>.</li>
+            <li>Some SQLite GUI tools do not refresh for WAL mode; use the terminal query above.</li>
+          </ul>
+        </section>
 
-          <section class="card">
-            <h2>Change management</h2>
-            <ul>
-              <li>Keep ADR for architectural decisions (what/why); update RFC for implementation details (how).</li>
-              <li>When ranking weights or formulas change, update this RFC and run local validation playbook.</li>
-              <li>When telemetry schema changes, keep backward compatibility for metrics endpoint where feasible.</li>
-            </ul>
-          </section>
-          <div class="docs-inpage-toc-mount" data-inpage-toc="auto"></div>
-        </main>
+        <section class="card">
+          <h2>Change management</h2>
+          <ul>
+            <li>ADRs stay for architecture (what/why); RFCs hold implementation details (how).</li>
+            <li>If ranking weights or formulas change, update this RFC and run the local validation playbook.</li>
+            <li>If the telemetry schema changes, keep the metrics endpoint backward compatible when you can.</li>
+          </ul>
+        </section>
+        <div class="docs-inpage-toc-mount" data-inpage-toc="auto"></div>
+      </main>
 
-      </body></html>
+    </body></html>
