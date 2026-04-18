@@ -17,14 +17,12 @@
     <div id="docs-top-nav"></div>
     <section id="overview" class="card">
       <h2>Overview</h2>
-      <p>This page explains local development (environment and run targets) for contributors.</p>
+      <p>How to run the API locally, with optional metrics and optional log search.</p>
     </section>
     <p class="lead">
-      How to run the API locally, optionally with the Docker observability stack (Prometheus, Grafana,
-      Blackbox exporter) and, separately, an optional logging stack (Elasticsearch, Kibana, Filebeat) for searchable
-      NDJSON logs. For metrics URLs, logging quick start, and probe checks, the repository root
-      <a href="../../README.md">README.md</a> is the short reference; details below complement
-      <a href="../adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.
+      Run the API with <code>make run</code>. Add Prometheus and Grafana via Docker if you want dashboards. For searchable
+      logs, you can start Elasticsearch, Kibana, and Filebeat (see below). Shortcuts and probe URLs: root
+      <a href="../../README.md">README.md</a>. Full logging policy: <a href="../adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.
     </p>
     <section class="card">
 
@@ -98,26 +96,28 @@
 
         <h2>5. Optional logging stack (Elasticsearch, Kibana, Filebeat)</h2>
         <p>
-          For searchable, structured logs locally, use NDJSON (<code>LOG_FORMAT=json</code> or leave
-          <code>LOG_FORMAT</code> unset—the application default is <strong><code>json</code></strong>; see
-          <code>env/example</code> and <code>app/core/config.py</code>) so the API writes lines under <code>LOG_DIR</code>
-          (default <code>logs/</code>).
-          Then start the Elastic stack (requires Docker; allocate roughly <strong>2 GiB RAM</strong> for Elasticsearch and
-          Kibana):
+          For searchable JSON logs, set NDJSON output (<code>LOG_FORMAT=json</code>, or leave unset — default is
+          <strong><code>json</code></strong>; see <code>env/example</code> and <code>app/core/config.py</code>). Logs go under
+          <code>LOG_DIR</code> (default <code>logs/</code>).
+        </p>
+        <p>
+          Start the Elastic stack (Docker; reserve about <strong>2 GiB RAM</strong> for Elasticsearch and Kibana):
         </p>
         <pre><code>make logging-up</code></pre>
         <p>
-          Filebeat tails the mounted <code>./logs</code> directory and ships lines to Elasticsearch. Open Kibana at
-          <code>http://127.0.0.1:5601</code> (default), create a <strong>data view</strong> whose index pattern is
-          <strong><code>*study-app-logs*</code></strong> (asterisks before and after — Elasticsearch 8 may store
-          documents in backing indices named <code>.ds-study-app-logs-…</code>, which <strong>do not</strong> match the
-          narrower pattern <code>study-app-logs-*</code>, so searches like <code>request_id: "…"</code> return nothing).
-          Then use <strong>Discover</strong> to search (filter by field <code>request_id</code> or paste the UUID into the
-          Kibana search bar). CLI check without Kibana: <code>make logging-es-query</code> (last few docs) or
-          <code>make logging-es-query QUERY=&lt;uuid&gt;</code> (same as
-          <code>python scripts/check_es_request_id.py &lt;uuid&gt;</code>).
-          Smoke checks: <code>make logging-smoke</code>. Stop with <code>make logging-down</code>. Licensing and scope:
-          <a href="../adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.
+          Filebeat reads the mounted <code>./logs</code> folder and sends lines to Elasticsearch.
+        </p>
+        <p>
+          Open Kibana at <code>http://127.0.0.1:5601</code>. Create a <strong>data view</strong> with index pattern
+          <strong><code>*study-app-logs*</code></strong> (wildcards on both sides). On Elasticsearch 8, backing indices look
+          like <code>.ds-study-app-logs-…</code>; a narrow pattern such as <code>study-app-logs-*</code> can miss them, so
+          Discover would show no rows.
+        </p>
+        <p>
+          Use <strong>Discover</strong> to filter (e.g. <code>request_id</code>) or paste a UUID in the search bar. Without
+          Kibana: <code>make logging-es-query</code> or <code>make logging-es-query QUERY=&lt;uuid&gt;</code> (same as
+          <code>python scripts/check_es_request_id.py &lt;uuid&gt;</code>). Smoke test: <code>make logging-smoke</code>. Stop:
+          <code>make logging-down</code>. Policy: <a href="../adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.
         </p>
 
         <h3>Data path (why Discover can be empty)</h3>
@@ -137,32 +137,26 @@
             <code>study-app-logs</code> (e.g. <code>.ds-study-app-logs-…</code>).
           </li>
           <li>
-            <strong>Kibana Discover</strong> reads from Elasticsearch only through a <strong>data view</strong> whose
-            pattern
-            matches those indices — use <strong><code>*study-app-logs*</code></strong>. Set the time range to include
-            “now”
-            (e.g. Last 15 minutes) after you generate traffic.
+            <strong>Kibana Discover</strong> needs a <strong>data view</strong> that matches those indices — use
+            <strong><code>*study-app-logs*</code></strong>. After you send traffic, set the time range to include “now” (e.g.
+            Last 15 minutes).
           </li>
         </ol>
 
         <h3>Clean slate (reset logs + Elastic)</h3>
         <p>
-          To remove old noise and old indices: <code>make logging-reset</code> stops the stack, deletes the Docker volume
-          holding Elasticsearch data (all indices and Kibana objects such as saved data views), and deletes
-          <code>logs/*.log</code>.
-          Then run <code>make logging-up</code>, open Kibana → <strong>Stack Management → Data views → Create data
-          view</strong>,
-          index pattern <strong><code>*study-app-logs*</code></strong>, timestamp field <code>@timestamp</code>. Start the
-          API
-          (<code>make run</code>), hit <code>/ready</code> a few times with <code>curl</code>, wait ~10–20 s, refresh
-          Discover.
+          <code>make logging-reset</code> stops the stack, removes the Docker volume (indices and Kibana saved objects),
+          and deletes <code>logs/*.log</code>. Then <code>make logging-up</code>, recreate the data view in Kibana
+          (<strong>Stack Management → Data views → Create data view</strong>) with pattern
+          <strong><code>*study-app-logs*</code></strong> and timestamp <code>@timestamp</code>. Start the API
+          (<code>make run</code>), call <code>/ready</code> a few times, wait ~10–20 s, refresh Discover.
         </p>
       </section>
       <section class="card">
 
         <h2>6. Local docs search smoke test (index + telemetry)</h2>
         <p>
-          Use this checklist to validate the docs search UI and telemetry pipeline locally.
+          Checklist to verify docs search and telemetry on your machine.
         </p>
         <ol>
           <li>
@@ -198,7 +192,7 @@
           <ul>
             <li>Telemetry may be sent with <code>navigator.sendBeacon</code>; in DevTools this is often shown as <em>ping/other</em>, not as fetch/XHR.</li>
             <li>When fallback <code>fetch</code> is used, browser sends CORS preflight <code>OPTIONS</code> before <code>POST</code>.</li>
-            <li>If you only see <code>OPTIONS</code>, use DB/API verification above as source of truth for successful ingestion.</li>
+            <li>If DevTools only shows <code>OPTIONS</code>, trust the SQLite/API checks above to confirm events arrived.</li>
           </ul>
         </section>
         <section class="card">
@@ -224,7 +218,7 @@
                     local Elasticsearch</a></li>
                     <li><a href="./0006-api-load-testing.html">API load testing (tools.load_testing.runner)</a></li>
                     <li><a href="../runbooks/0008-observability-scrape-failing.html">Runbook: observability scrape failing</a></li>
-                    <li><a href="./README.html">Developer docs index</a></li>
+                    <li><a href="../internal/developers.html#developer-guides">Developer guides index</a></li>
                   </ul>
                 </section>
                 <div class="docs-inpage-toc-mount" data-inpage-toc="auto"></div>
