@@ -146,11 +146,20 @@ body {
   line-height: 1.55;
 }
 
+/* Embedded figures / diagrams: never spill past the content column on narrow viewports. */
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
 main.container,
 .container {
   max-width: 1080px;
   margin: 0 auto;
   padding: 28px 20px 80px;
+  min-width: 0;
 }
 
 h1,
@@ -262,6 +271,8 @@ pre code {
   padding: 16px 18px;
   margin: 12px 0;
   box-shadow: var(--card-shadow);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .badge {
@@ -414,7 +425,7 @@ p.adr-track-branch-note {
   }
 }
 
-/* ADR: current status + linear status log (docs-nav.js, data-adr-weight on <main>) */
+/* ADR / RFC: current status + linear status log (docs-nav.js: data-adr-weight or data-rfc-weight on <main>) */
 @property --adr-status-border-angle {
   syntax: "<angle>";
   inherits: false;
@@ -548,6 +559,7 @@ p.adr-track-branch-note {
 /* ADR template: collapsible weight instructions (<details> in 0000-template.html) */
 /* docs-theory-help: same chrome for optional “theory background” blocks (e.g. internal README). */
 details.adr-weight-help,
+details.rfc-weight-help,
 details.docs-theory-help {
   margin: 0 0 18px;
   border: 1px solid var(--line);
@@ -557,6 +569,7 @@ details.docs-theory-help {
 }
 
 details.adr-weight-help summary,
+details.rfc-weight-help summary,
 details.docs-theory-help summary {
   cursor: pointer;
   font-weight: 600;
@@ -564,6 +577,7 @@ details.docs-theory-help summary {
 }
 
 details.adr-weight-help[open] summary,
+details.rfc-weight-help[open] summary,
 details.docs-theory-help[open] summary {
   margin-bottom: 8px;
   border-bottom: 1px solid var(--line);
@@ -775,6 +789,38 @@ td {
 th {
   background: var(--table-th-bg);
   font-weight: 600;
+}
+
+/*
+ * Hand-authored docs (`main.container`, not pdoc): keep tables in the content column on narrow viewports.
+ * Skip: .docs-table-scroll (horizontal scroll region), audit score/reference tables (own layout + wrapper).
+ */
+main.container:not(.container--swagger) :not(.docs-table-scroll) > table:not(.audit-ref-table):not(.audit-score-table) {
+  table-layout: fixed;
+  width: 100%;
+  max-width: 100%;
+}
+
+main.container:not(.container--swagger)
+  :not(.docs-table-scroll)
+  > table:not(.audit-ref-table):not(.audit-score-table)
+  th,
+main.container:not(.container--swagger)
+  :not(.docs-table-scroll)
+  > table:not(.audit-ref-table):not(.audit-score-table)
+  td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+main.container:not(.container--swagger)
+  :not(.docs-table-scroll)
+  > table:not(.audit-ref-table):not(.audit-score-table)
+  :not(pre)
+  > code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Assessment Table 2 — score column + legend layout (normative copy: audit-score-legend-fragment.html; ADR 0024). */
@@ -1088,8 +1134,8 @@ main.docs-page-layout [id] {
 /* Back to top — shown when viewport is near the document bottom (see docs-nav.js). */
 .docs-back-to-top {
   position: fixed;
-  right: 1.25rem;
-  bottom: 1.25rem;
+  right: max(1.25rem, env(safe-area-inset-right, 0px));
+  bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
   z-index: 40;
   width: 44px;
   height: 44px;
@@ -1226,4 +1272,77 @@ main.docs-page-layout [id] {
   line-height: 1.5;
   color: var(--muted);
   max-width: 52rem;
+}
+
+/*
+ * Narrow viewports: comfortable reading width, safe areas (notched phones), slightly smaller type.
+ * Wider layout rules: docs-site-nav.css (720px), .docs-page-layout (960px), ADR tracks (640px).
+ */
+@media (max-width: 520px) {
+  main.container,
+  .container {
+    padding-top: max(20px, env(safe-area-inset-top, 0px));
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(72px, env(safe-area-inset-bottom, 0px));
+  }
+
+  h1 {
+    font-size: 1.65rem;
+    overflow-wrap: break-word;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  .card {
+    padding: 14px 14px;
+    border-radius: 12px;
+  }
+
+  pre {
+    padding: 12px 12px;
+    font-size: 0.85rem;
+  }
+
+  ul,
+  ol {
+    margin-left: 18px;
+  }
+}
+
+@media (max-width: 380px) {
+  h1 {
+    font-size: 1.45rem;
+  }
+}
+
+/* Touch / stylus: larger tap targets; 16px input text avoids iOS zoom-on-focus in Safari. */
+@media (hover: none) and (pointer: coarse) {
+  .docs-search__input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .top-nav__links a {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .top-nav__toggle,
+  .top-nav__theme-btn {
+    min-height: 40px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .docs-inpage-toc nav a {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
 }

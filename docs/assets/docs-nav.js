@@ -114,10 +114,112 @@ const DOCS_SEARCH_MAX_RESULTS = 10;
 const DOCS_SEARCH_DEBOUNCE_MS = 120;
 const DOCS_SEARCH_MAX_PREFIX_EXPANSIONS = 24;
 const DOCS_SEARCH_SUCCESS_WINDOW_MS = 60_000;
-const DOCS_FEEDBACK_REPOSITORY = "iboiarkin96/study_bot";
+const DOCS_FEEDBACK_REPOSITORY = "iboiarkin96/etr-study-api";
 const DOCS_FEEDBACK_TEMPLATE = "docs_feedback.yml";
 const DOCS_FEEDBACK_LABELS = ["docs-feedback"];
 const DOCS_THEME_STORAGE_KEY = "docs-theme-preference";
+
+/** Bump when the shared ADR/RFC lifecycle help copy in `injectDocsLifecycleHelp` changes. */
+const DOCS_LIFECYCLE_HELP_SNIPPET_VERSION = "1";
+
+function docsPageDir() {
+  const rel = currentDocsRelPath();
+  const i = rel.lastIndexOf("/");
+  return i >= 0 ? rel.slice(0, i) : "";
+}
+
+function docsLifecycleHelpHref(targetRelPath) {
+  return relHref(docsPageDir(), targetRelPath);
+}
+
+/**
+ * Fills `<details class="adr-weight-help|rfc-weight-help" data-docs-lifecycle="…">` from a single source
+ * so policy wording and links stay consistent across ADR/RFC pages (see DOCS_LIFECYCLE_HELP_SNIPPET_VERSION).
+ */
+function injectDocsLifecycleHelp() {
+  const v = DOCS_LIFECYCLE_HELP_SNIPPET_VERSION;
+  for (const el of document.querySelectorAll("details[data-docs-lifecycle]")) {
+    const kind = el.getAttribute("data-docs-lifecycle");
+    el.setAttribute("data-docs-lifecycle-version", v);
+    if (kind === "adr-short") {
+      const h18 = docsLifecycleHelpHref("adr/0018-adr-lifecycle-ratification-and-badges.html");
+      const h0 = docsLifecycleHelpHref("adr/0000-template.html");
+      el.innerHTML = `<summary>ADR status on this page</summary>
+      <p class="small">
+        The lifecycle bar uses <code>data-adr-weight</code> on <code>&lt;main&gt;</code> (values −1…7). See
+        <a href="${h18}">ADR 0018</a> for what each step means, or the
+        <a href="${h0}">ADR template</a> for the full milestone table.
+      </p>`;
+    } else if (kind === "rfc-short") {
+      const h18 = docsLifecycleHelpHref("adr/0018-adr-lifecycle-ratification-and-badges.html");
+      el.innerHTML = `<summary>RFC status on this page</summary>
+      <p class="small">
+        The lifecycle bar uses <code>data-rfc-weight</code> on <code>&lt;main&gt;</code> (values −1…7), the same milestone
+        scale as ADRs (<a href="${h18}">ADR 0018</a>). Update the attribute
+        when this document\u2019s milestone changes.
+      </p>`;
+    } else if (kind === "adr-template") {
+      const h18 = docsLifecycleHelpHref("adr/0018-adr-lifecycle-ratification-and-badges.html");
+      el.innerHTML = `<summary>How to set status (author reference)</summary>
+      <p class="small">
+        On <code>&lt;main&gt;</code>, set one attribute <code>data-adr-weight</code> to the <strong>current</strong>
+        milestone (−1 … 7). The page derives <strong>Current status</strong> and the <strong>Status log</strong> from that
+        number. Full policy: <a href="${h18}">ADR 0018</a>.
+      </p>
+      <table>
+        <caption>Milestone scale (single order 0 → 7)</caption>
+        <thead>
+          <tr>
+            <th>Value</th>
+            <th>Meaning (current milestone)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>-1</code></td>
+            <td>Status not set (or unknown)</td>
+          </tr>
+          <tr>
+            <td><code>0</code></td>
+            <td><strong>Decision</strong> — Proposed</td>
+          </tr>
+          <tr>
+            <td><code>1</code></td>
+            <td><strong>Decision</strong> — Accepted</td>
+          </tr>
+          <tr>
+            <td><code>2</code></td>
+            <td><strong>Decision</strong> — Superseded</td>
+          </tr>
+          <tr>
+            <td><code>3</code></td>
+            <td><strong>Documentation</strong> — Draft</td>
+          </tr>
+          <tr>
+            <td><code>4</code></td>
+            <td><strong>Documentation</strong> — Ready</td>
+          </tr>
+          <tr>
+            <td><code>5</code></td>
+            <td><strong>Implementation</strong> — Not started</td>
+          </tr>
+          <tr>
+            <td><code>6</code></td>
+            <td><strong>Implementation</strong> — In progress</td>
+          </tr>
+          <tr>
+            <td><code>7</code></td>
+            <td><strong>Implementation</strong> — Done</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small">
+        Example: <code>data-adr-weight="4"</code> → <strong>Current status</strong> is Documentation · Ready. Invalid
+        values are clamped in <code>docs/assets/docs-nav.js</code>.
+      </p>`;
+    }
+  }
+}
 
 function getStoredDocsTheme() {
   try {
@@ -978,7 +1080,10 @@ function renderTopNav() {
   host.replaceChildren(breadcrumbNav, nav);
 }
 
-/** ADR: single `data-adr-weight` on <main> (−1…7) → current status + linear status log. */
+/**
+ * ADR / RFC lifecycle: one weight on `<main>` (−1…7) → current status + linear status log.
+ * ADRs use `data-adr-weight`; RFCs use `data-rfc-weight` (same steps as ADR 0018).
+ */
 
 const ADR_STEPS = [
   { w: 0, axis: "Decision", label: "Proposed" },
@@ -1003,10 +1108,6 @@ function parseAdrWeightValue(raw) {
     return 7;
   }
   return n;
-}
-
-function adrCurrentWeight(main) {
-  return parseAdrWeightValue(main.getAttribute("data-adr-weight"));
 }
 
 function stepKind(stepWeight, globalMax) {
@@ -1103,21 +1204,21 @@ function renderAdrStatusLogAfter(anchor, globalMax) {
   anchor.insertAdjacentElement("afterend", wrap);
 }
 
-function mainHasAdrWeight(main) {
-  return main.hasAttribute("data-adr-weight");
-}
-
-function renderAdr(main) {
-  if (!mainHasAdrWeight(main)) {
-    return;
-  }
-
+function renderLifecycleStatusBlocks(main) {
   const nav = main.querySelector("nav.top-nav");
   if (!nav) {
     return;
   }
+  const attr = main.hasAttribute("data-adr-weight")
+    ? "data-adr-weight"
+    : main.hasAttribute("data-rfc-weight")
+      ? "data-rfc-weight"
+      : null;
+  if (!attr) {
+    return;
+  }
 
-  const globalMax = adrCurrentWeight(main);
+  const globalMax = parseAdrWeightValue(main.getAttribute(attr));
 
   const anchor = renderAdrCurrentStatus(nav, globalMax);
   renderAdrStatusLogAfter(anchor, globalMax);
@@ -1611,7 +1712,6 @@ function initDocsSiteFooter() {
   }
 
   addLink("index.html", "Documentation home");
-  addLink("internal/developers.html", "Contributors");
   const gh = document.createElement("a");
   gh.href = `https://github.com/${DOCS_FEEDBACK_REPOSITORY}`;
   gh.textContent = "GitHub";
@@ -1622,7 +1722,7 @@ function initDocsSiteFooter() {
   const meta = document.createElement("p");
   meta.className = "docs-site-footer__meta";
   meta.textContent =
-    "Static HTML under docs/. Product changes are recorded in the repository root CHANGELOG; documentation-only changes are listed in docs/CHANGELOG.md.";
+    "Static HTML under docs/.\nProduct changes are recorded in the repository root CHANGELOG; documentation-only changes are listed in docs/CHANGELOG.md."
 
   inner.appendChild(nav);
   inner.appendChild(meta);
@@ -1631,12 +1731,13 @@ function initDocsSiteFooter() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  injectDocsLifecycleHelp();
   renderTopNav();
   applyDocsThemeFromMode(getEffectiveDocsThemeMode());
   syncDocsThemeToggleLabel();
   const main = document.querySelector("main.container");
   if (main) {
-    renderAdr(main);
+    renderLifecycleStatusBlocks(main);
   }
   injectAuditScoreLegends();
   injectDocsFeedbackCard();
