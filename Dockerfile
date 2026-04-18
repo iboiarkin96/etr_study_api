@@ -1,4 +1,4 @@
-# Runtime image for ETR Study App API (local Docker / Kubernetes).
+# Runtime image for ETR Study App API (Docker).
 # Build: docker build -t study-app-api:local .
 # See: docs/developer/0009-docker-image-and-container.html
 #

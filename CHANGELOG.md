@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Sample Kubernetes manifests (`k8s/`), `scripts/render_k8s_configmap.py`, and Make targets `k8s-render-configmap` / `k8s-apply`. Documentation and ADR 0015 now describe the Docker image only; see `docs/developer/0009-docker-image-and-container.html`.
+- Sample multi-file deployment manifests, the env-to-manifest render script, and the matching Make targets. Documentation and ADR 0015 now describe the Docker image only; see `docs/developer/0009-docker-image-and-container.html`.
 
 ## [1.1.1] — 2026-04-17
 
