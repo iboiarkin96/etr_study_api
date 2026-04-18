@@ -842,12 +842,16 @@ function docsHubHrefForPrefix(prefix) {
     adr: "adr/README.html",
     api: "api/index.html",
     audit: "audit/README.html",
+    "audit/docs": "audit/docs/README.html",
+    "audit/api": "audit/api/README.html",
     backlog: "backlog/README.html",
     developer: "developer/README.html",
     howto: "howto/README.html",
     internal: "internal/README.html",
     "internal/api": "internal/api/README.html",
     "internal/api/user": "internal/api/user/index.html",
+    "internal/api/conspectus": "internal/api/conspectus/index.html",
+    "internal/api/error-log": "internal/api/error-log/index.html",
     openapi: "openapi/openapi-explorer.html",
     rfc: "rfc/README.html",
     runbooks: "runbooks/README.html",
@@ -861,12 +865,16 @@ function docsBreadcrumbLabelForPrefix(prefix) {
     adr: "ADRs",
     api: "API reference",
     audit: "Assessments",
+    "audit/docs": "DX assessments",
+    "audit/api": "API assessments",
     backlog: "Backlog",
     developer: "Developer guides",
     howto: "How-to guides",
     internal: "Internal docs",
     "internal/api": "Internal API",
     "internal/api/user": "User",
+    "internal/api/conspectus": "Conspectus",
+    "internal/api/error-log": "Error log",
     "internal/api/user/operations": "Operations",
     openapi: "OpenAPI",
     rfc: "RFCs",
@@ -981,7 +989,7 @@ function renderTopNav() {
   const internalItems = [
     { label: "Home", target: "index.html" },
     { label: "Internal docs", target: "internal/README.html" },
-    { label: "API assessment reports", target: "audit/README.html" },
+    { label: "Assessments", target: "audit/README.html" },
     { label: "⭐Backlog", target: "backlog/README.html" },
   ];
   const publicItems = [
@@ -1224,6 +1232,34 @@ function renderLifecycleStatusBlocks(main) {
 }
 
 /**
+ * Markup fallback when `fetch()` cannot load `audit-score-legend-fragment.html` (e.g. `file://` pages).
+ * Keep in sync with the `<aside class="audit-score-legend">` in that file.
+ */
+const AUDIT_SCORE_LEGEND_ASIDE_FALLBACK = `<aside class="audit-score-legend" role="note" aria-labelledby="audit-score-legend-title">
+<h3 class="audit-score-legend-title" id="audit-score-legend-title">Score scale (1–10)</h3>
+<p class="audit-score-legend-intro">
+  Indicative maturity versus the reference practices in <em>this</em> document only. Not comparable across unrelated
+  assessments unless recalibrated. Does not rate individuals.
+</p>
+<ul class="audit-score-legend-bands">
+  <li>
+    <span class="audit-score-swatch score-excellent" aria-hidden="true"></span>
+    <span><strong>9–10 — Excellent.</strong> Strong fit for the stated scope (e.g. PET / small-team service where that
+      framing applies).</span>
+  </li>
+  <li>
+    <span class="audit-score-swatch score-good" aria-hidden="true"></span>
+    <span><strong>7–8 — Good.</strong> Solid, with clear room to improve.</span>
+  </li>
+  <li>
+    <span class="audit-score-swatch score-needs-attention" aria-hidden="true"></span>
+    <span><strong>1–6 — Needs attention.</strong> Missing, partial, narrow applicability, or below the reference bar for
+      this row.</span>
+  </li>
+</ul>
+</aside>`;
+
+/**
  * Inject shared audit score legend from `assets/audit-score-legend-fragment.html` into
  * `<div class="audit-score-legend-include" data-legend-id="optional-suffix"></div>`.
  * One source of truth for markup; styles remain in docs.css (ADR 0024).
@@ -1265,6 +1301,13 @@ async function injectAuditScoreLegends() {
     }
     htmlText = await res.text();
   } catch (e) {
+    htmlText = `<!DOCTYPE html><html><body>${AUDIT_SCORE_LEGEND_ASIDE_FALLBACK}</body></html>`;
+  }
+
+  const cleaned = stripLeadingHtmlComment(htmlText);
+  const parsed = new DOMParser().parseFromString(cleaned, "text/html");
+  const templateAside = parsed.querySelector("aside.audit-score-legend");
+  if (!templateAside) {
     for (const host of hosts) {
       const err = document.createElement("p");
       err.className = "audit-score-legend-error";
@@ -1273,13 +1316,6 @@ async function injectAuditScoreLegends() {
         "Could not load the score legend. Open this site over HTTP(S) or see ADR 0024 for the scale.";
       host.replaceWith(err);
     }
-    return;
-  }
-
-  const cleaned = stripLeadingHtmlComment(htmlText);
-  const parsed = new DOMParser().parseFromString(cleaned, "text/html");
-  const templateAside = parsed.querySelector("aside.audit-score-legend");
-  if (!templateAside) {
     return;
   }
 

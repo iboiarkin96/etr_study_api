@@ -8,12 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Unified audit template and layout:** [`docs/audit/AUDIT_TEMPLATE.html`](docs/audit/AUDIT_TEMPLATE.html) — Overview (`id="overview"`, no `lead`), Table 2 with **Justification** column, `pre.audit-scoring-formula`, `table.audit-gap-table` (TODO / IN PROGRESS / DONE). Assessments live under [`docs/audit/docs/`](docs/audit/docs/README.html) (documentation DX) and [`docs/audit/api/`](docs/audit/api/README.html) (REST API). Canonical DX and API reports: [`2026-04-14-documentation-experience-assessment.html`](docs/audit/docs/2026-04-14-documentation-experience-assessment.html), [`2026-04-14-rest-api-assessment.html`](docs/audit/api/2026-04-14-rest-api-assessment.html). CSS: gap workflow colours and formula blocks in [`docs/assets/docs.css`](assets/docs.css); dark theme in [`docs/assets/docs-theme.css`](assets/docs-theme.css).
+
 - **Dark theme** for hand-written documentation: [`docs/assets/docs-theme.css`](assets/docs-theme.css) (palette + overrides), loaded after [`docs/assets/docs.css`](assets/docs.css) on all pages that already linked `docs.css`.
 - **Theme control** in [`docs/assets/docs-nav.js`](assets/docs-nav.js): cycles **Auto** (follows `prefers-color-scheme`) → **Light** → **Dark** → Auto; preference stored in `localStorage` (`docs-theme-preference`). A short synchronous script in each page `<head>` applies the stored choice before first paint to limit flash of the wrong theme.
 - [`scripts/inject_docs_theme_assets.py`](../scripts/inject_docs_theme_assets.py): inserts the `docs-theme.css` `<link>` (after `docs.css`) and the early theme script into `docs/**/*.html` when adding or normalizing pages.
 - **Shared ADR/RFC lifecycle help** in [`docs/assets/docs-nav.js`](assets/docs-nav.js): `injectDocsLifecycleHelp()` fills `<details data-docs-lifecycle="adr-short" | "rfc-short" | "adr-template">` from one versioned source (`DOCS_LIFECYCLE_HELP_SNIPPET_VERSION`); relative links use `relHref` so `docs/adr/` and `docs/rfc/` stay correct. ADR pages use class `adr-weight-help`, RFC pages `rfc-weight-help`; the [ADR template](adr/0000-template.html) uses `adr-template` for the full milestone table. Injected nodes carry `data-docs-lifecycle-version` for traceability.
 
 ### Changed
+
+- **Assessments consolidated:** removed dated standalone files under `docs/audit/` root (`2026-04-14-*`, `2026-04-17-*`, `2026-04-18-*`); content merged into the `docs/` and `api/` trees above. [`docs/audit/README.html`](audit/README.html) and [ADR 0024](adr/0024-architecture-and-quality-assessment-documents.html) updated. Top nav label **Assessments** (was “API assessment reports”); breadcrumb hubs for `audit/docs` and `audit/api` in [`docs/assets/docs-nav.js`](assets/docs-nav.js).
 
 - Shared styling refactored around **CSS custom properties** in [`docs/assets/docs.css`](assets/docs.css), [`docs/assets/docs-site-nav.css`](assets/docs-site-nav.css), [`docs/assets/internal-layout.css`](assets/internal-layout.css), and [`docs/backlog/backlog.css`](backlog/backlog.css) so light and dark themes stay consistent (navigation, search, tables, ADR steppers, backlog pills, internal sidebar, diagrams).
 - **Top navigation:** removed the rotating conic **outline** treatment from the **⭐Backlog** pill so it matches other internal links; theme switcher sits in a dedicated top row (`.top-nav__theme-bar`) above the Internal / Code cards.
@@ -27,7 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Runbooks plain-language pass:** [`docs/runbooks/README.html`](runbooks/README.html) and all numbered runbooks (`0000`–`0010`) — shorter sentences and simpler vocabulary; [`docs/runbooks/0008-observability-scrape-failing.html`](runbooks/0008-observability-scrape-failing.html) gains a **Follow-up** section aligned with other runbooks.
 - **Developer guides plain-language pass:** [`docs/developer/`](developer/) — simpler overviews and leads; clearer lists in requirements, schemas, business logic, and error-matrix guides; shorter Kibana/Elastic instructions in [`docs/developer/0007-local-development.html`](developer/0007-local-development.html); docs pipeline and Docker/K8s pages tightened; **See also** links to the hub use anchor [`#developer-guides`](internal/developers.html#developer-guides) (fixes redirect target vs [`docs/internal/developers.html`](internal/developers.html) section id).
 - **Backlog plain-language pass:** [`docs/backlog/README.html`](backlog/README.html) — shorter intro (estimates vs ADR lifecycle), simpler legend and “how to update” steps, and tightened **Summary** / **Problem & value** text for backlog items.
-- **Audit plain-language pass:** [`docs/audit/README.html`](audit/README.html) (overview, industry context, index table blurbs); [`docs/audit/2026-04-14-documentation-experience-assessment.html`](audit/2026-04-14-documentation-experience-assessment.html) and [`docs/audit/2026-04-14-api-assessment.html`](audit/2026-04-14-api-assessment.html) (lead, methodology, table intros, scoring, gaps, mitigation, checklist); [`docs/audit/2026-04-17-documentation-experience-world-class-gap-assessment.html`](audit/2026-04-17-documentation-experience-world-class-gap-assessment.html) (summary, domain notes, critical gaps, design table, 90-day plan). Reference tables in the 14 Apr assessments are unchanged.
+- **Audit plain-language pass (superseded by 2026-04-18 layout):** earlier edits targeted the pre-restructure paths; current canonical assessments are under [`docs/audit/docs/`](audit/docs/README.html) and [`docs/audit/api/`](audit/api/README.html).
 
 ## 2026-04-17
 
@@ -96,15 +100,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - [ADR 0024](adr/0024-architecture-and-quality-assessment-documents.html): rewritten around a single **published assessment backbone** (ordered list: lead/TOC, scope/methodology, Table 1, Table 2 + injected legend, scoring summary, gaps 5.1–5.3, mitigation, optional beyond-baseline, checklist, document history); merged former implementation/validation into **Rollout and validation**; shorter alternatives; anchor `#published-assessment-backbone` replaces the old canonical-sections template list.
 
-- [API assessment](audit/2026-04-14-api-assessment.html): §8 actionable checklist, §9 document history, TOC entries for sections 7–9 (aligned with ADR 0024).
+- [API assessment](audit/api/2026-04-14-rest-api-assessment.html): §8 actionable checklist, §9 document history, TOC entries for sections 7–9 (aligned with ADR 0024).
 
-- [DX assessment](audit/2026-04-14-documentation-experience-assessment.html): same section order as the API assessment; Table 2 anchor `table-2-study-app-scores`; invalid nesting and duplicate blocks removed.
+- [DX assessment](audit/docs/2026-04-14-documentation-experience-assessment.html): same section order as the API assessment; Table 2 anchor `table-2-study-app-scores`; invalid nesting and duplicate blocks removed.
 
 - [ADR 0024](adr/0024-architecture-and-quality-assessment-documents.html): **Industry context and applicability** — how common large-org practices (RFC/launch/security/portal) relate to this repo’s lightweight rubric; **PET scale** and when low scores mean deferral, not failure; backbone now expects an industry/PET subsection under scope/methodology.
 
-- [API assessment](audit/2026-04-14-api-assessment.html): §1.6 industry/PET; restored §8 checklist and §9 document history (TOC).
+- [API assessment](audit/api/2026-04-14-rest-api-assessment.html): §1.6 industry/PET; restored §8 checklist and §9 document history (TOC).
 
-- [DX assessment](audit/2026-04-14-documentation-experience-assessment.html): §1.5 industry/PET; restored §7 checklist; Table 1 intro fixed; [audit index](audit/README.html) — “not a FAANG gate” card.
+- [DX assessment](audit/docs/2026-04-14-documentation-experience-assessment.html): §1.5 industry/PET; restored §7 checklist; Table 1 intro fixed; [audit index](audit/README.html) — “not a FAANG gate” card.
 
 ## <= 2026-04-12
 

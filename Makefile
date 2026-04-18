@@ -201,10 +201,11 @@ run:
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
-	@printf "$(ICON_STEP) %s\n" "Starting server (reading $(ENV))…"
+	@printf "$(ICON_STEP) %s\n" "Applying migrations then starting server (reading $(ENV))…"
 	@set -a; . ./$(ENV); set +a; \
 	APP_HOST=$${APP_HOST:-127.0.0.1}; \
 	APP_PORT=$${APP_PORT:-8000}; \
+	$(PYTHON) -m alembic upgrade head && \
 	$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload --no-access-log
 
 # Same sequence as the Docker image ENTRYPOINT: Alembic upgrade then Uvicorn (no --reload).
@@ -245,13 +246,14 @@ run-loadtest-api-serve:
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
-	@printf "$(ICON_STEP) %s\n" "Starting server (loadtest rate limits; dev machine only)…"
+	@printf "$(ICON_STEP) %s\n" "Applying migrations then starting server (loadtest rate limits; dev machine only)…"
 	@set -a; . ./$(ENV); set +a; \
 	export API_RATE_LIMIT_REQUESTS="$${API_RATE_LIMIT_REQUESTS_LOADTEST:-1000000000}"; \
 	export API_RATE_LIMIT_WINDOW_SECONDS="$${API_RATE_LIMIT_WINDOW_SECONDS_LOADTEST:-60}"; \
 	printf "$(ICON_INFO) %s\n" "API_RATE_LIMIT_REQUESTS=$$API_RATE_LIMIT_REQUESTS API_RATE_LIMIT_WINDOW_SECONDS=$$API_RATE_LIMIT_WINDOW_SECONDS"; \
 	APP_HOST=$${APP_HOST:-127.0.0.1}; \
 	APP_PORT=$${APP_PORT:-8000}; \
+	$(PYTHON) -m alembic upgrade head && \
 	$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload --no-access-log
 
 # Start Docker observability stack, then FastAPI (foreground). Requires Docker.

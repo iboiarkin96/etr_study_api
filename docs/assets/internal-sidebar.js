@@ -169,7 +169,9 @@
   function shouldOpenGroup(node, currentPath) {
     if (node.expand === "after-api-hub") {
       return (
-        currentPath === "internal/api/README.html" || currentPath.startsWith("internal/api/user/")
+        currentPath === "internal/api/README.html" ||
+        currentPath.startsWith("internal/api/user/") ||
+        currentPath.startsWith("internal/api/conspectus/")
       );
     }
     return navHasActiveChild(node, currentPath);
@@ -208,10 +210,31 @@
           expand: "after-api-hub",
           children: [
             { label: "Hub — business, contract & technical spec", path: "internal/api/user/index.html" },
-            { label: "Create — POST", path: "internal/api/user/operations/post-api-v1-user.html" },
-            { label: "Read — GET", path: "internal/api/user/operations/get-api-v1-user-system_uuid-system_user_id.html" },
-            { label: "Replace — PUT", path: "internal/api/user/operations/put-api-v1-user-system_uuid-system_user_id.html" },
-            { label: "Partial update — PATCH", path: "internal/api/user/operations/patch-api-v1-user-system_uuid-system_user_id.html" },
+            { label: "POST /user", path: "internal/api/user/operations/post-api-v1-user.html" },
+            { label: "GET /user/", path: "internal/api/user/operations/get-api-v1-user-system_uuid-system_user_id.html" },
+            { label: "PUT /user/", path: "internal/api/user/operations/put-api-v1-user-system_uuid-system_user_id.html" },
+            { label: "PATCH /user/", path: "internal/api/user/operations/patch-api-v1-user-system_uuid-system_user_id.html" },
+          ],
+        },
+        {
+          label: "Conspectus",
+          expand: "after-api-hub",
+          children: [
+            { label: "Hub — entity, ETR mapping & methods", path: "internal/api/conspectus/index.html" },
+            { label: "POST /conspectuses", path: "internal/api/conspectus/operations/post-api-v1-conspectuses.html" },
+            { label: "PATCH /conspectuses/{id}", path: "internal/api/conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html" },
+            { label: "POST …/actions/review", path: "internal/api/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html" },
+            { label: "GET /conspectuses/due/", path: "internal/api/conspectus/operations/get-api-v1-conspectuses-due.html" },
+            { label: "GET /schedule/summary/", path: "internal/api/conspectus/operations/get-api-v1-schedule-summary.html" },
+          ],
+        },
+        {
+          label: "Error log",
+          expand: "after-api-hub",
+          children: [
+            { label: "Hub — FR-4 & methods", path: "internal/api/error-log/index.html" },
+            { label: "GET /errors/", path: "internal/api/error-log/operations/get-api-v1-errors.html" },
+            { label: "POST /errors", path: "internal/api/error-log/operations/post-api-v1-errors.html" },
           ],
         },
       ],

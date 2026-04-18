@@ -1,4 +1,4 @@
-# Study App API
+# ETR Study App API
 
 FastAPI service for the Study App domain. Longer reads: [System design](docs/internal/system-design.html), [Developers](docs/internal/developers.html), [Architecture & quality assessments](docs/audit/README.html).
 
@@ -124,6 +124,7 @@ study_app/
 │   ├── api/  # HTTP layer
 │   │   └── v1/  # v1 routers
 │   ├── core/  # Settings, DB session
+│   ├── domain/
 │   ├── errors/
 │   ├── models/  # ORM models
 │   │   ├── core/  # Core domain entities
@@ -142,6 +143,8 @@ study_app/
 │   │   └── app/
 │   ├── assets/
 │   ├── audit/
+│   │   ├── api/
+│   │   └── docs/
 │   ├── backlog/
 │   ├── developer/  # Developer guides and onboarding
 │   ├── howto/
