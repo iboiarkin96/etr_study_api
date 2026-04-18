@@ -587,12 +587,16 @@ details.docs-theory-help[open] summary {
 /* Raster diagrams (legacy PNG exports) */
 .diagram {
   width: 100%;
+  max-width: 960px;
   height: auto;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--diagram-bg);
   padding: 8px;
   margin: 8px 0 6px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
 }
 
 /* System / C4 diagrams — Mermaid diagram chrome (vector, scalable) */
@@ -605,14 +609,57 @@ details.docs-theory-help[open] summary {
   box-shadow: var(--sys-diagram-frame-shadow);
 }
 
+/* Badge + title share row 1; subtitle spans full width on row 2 (no huge gap beside badge). */
 .sys-diagram__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 10px 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  align-items: start;
   padding: 14px 18px 12px;
   border-bottom: 1px solid var(--line);
   background: var(--sys-diagram-head-bg);
+}
+
+.sys-diagram__head > .sys-diagram__badge {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+}
+
+.sys-diagram__titles {
+  display: contents;
+}
+
+.sys-diagram__titles > h3 {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  align-self: center;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.sys-diagram__titles > .sys-diagram__sub {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin: 0;
+  margin-top: 4px;
+}
+
+/* Sequence diagrams: badge + h3 only (no .sys-diagram__titles wrapper). */
+.sys-diagram__head > h3 {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  align-self: center;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
 }
 
 .sys-diagram__badge {
@@ -630,21 +677,7 @@ details.docs-theory-help[open] summary {
   padding: 5px 11px;
 }
 
-.sys-diagram__titles {
-  flex: 1 1 220px;
-  min-width: 0;
-}
-
-.sys-diagram__title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 650;
-  color: var(--text);
-  letter-spacing: -0.01em;
-}
-
 .sys-diagram__sub {
-  margin: 4px 0 0;
   font-size: 0.88rem;
   color: var(--muted);
   line-height: 1.45;
@@ -667,18 +700,188 @@ details.docs-theory-help[open] summary {
   height: auto;
 }
 
-/* PlantUML PNGs: no double frame (card + .diagram already bordered globally). */
-.sys-diagram__canvas .diagram--uml {
+/* PlantUML SVG/PNG inside system-design figures: max width matches export scale (see docs/uml/include/style.puml). */
+.sys-diagram__canvas img {
   display: block;
-  /* Intrinsic pixel size: avoid scaling width:100% which compresses labels (text-on-text). */
-  width: auto;
-  max-width: none;
+  width: 100%;
+  max-width: 960px;
   height: auto;
   margin: 0 auto;
   border: none;
   padding: 0;
   box-shadow: none;
   background: transparent;
+}
+
+/* Avoid double frame: outer .sys-diagram already has a border; strip .diagram chrome here. */
+.sys-diagram__canvas img.diagram--uml {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+/* Wrapper for UML diagram + expand control (see docs-diagram-lightbox.js). */
+.diagram-uml-wrap {
+  position: relative;
+}
+
+.diagram-expand-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.diagram-expand-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+body.docs-diagram-lightbox-open {
+  overflow: hidden;
+}
+
+.docs-diagram-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: min(24px, 4vw);
+}
+
+.docs-diagram-lightbox[hidden] {
+  display: none;
+}
+
+.docs-diagram-lightbox__backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+/* Panel: fixed footprint; toolbar + viewport so zoom/pan has room (docs-diagram-lightbox.js). */
+.docs-diagram-lightbox__panel {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: min(96vw, 1400px);
+  height: min(92vh, 900px);
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 8px;
+}
+
+.docs-diagram-lightbox__close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+}
+
+.docs-diagram-lightbox__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 44px 10px 10px;
+  margin: 0 0 4px 0;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.docs-diagram-lightbox__tool-btn {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.docs-diagram-lightbox__tool-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--table-th-bg, var(--card));
+}
+
+.docs-diagram-lightbox__hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-left: auto;
+  user-select: none;
+}
+
+.docs-diagram-lightbox__viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.docs-diagram-lightbox__viewport.is-panning {
+  cursor: grabbing;
+}
+
+.docs-diagram-lightbox__stage {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.docs-diagram-lightbox__img {
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+  max-width: min(88vw, 1280px);
+  max-height: min(78vh, 820px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  /* Let viewport receive wheel / drag */
+  pointer-events: none;
+  user-select: none;
 }
 
 .sys-diagram__foot {
@@ -713,6 +916,26 @@ details.docs-theory-help[open] summary {
   width: max-content;
   min-width: 100%;
   margin: 0;
+}
+
+/* FR/NFR (system-design): fixed ID column; base table uses max-content which breaks % widths. */
+.docs-table-scroll.docs-table--req table {
+  width: 100%;
+  table-layout: fixed;
+  min-width: 100%;
+}
+
+.docs-table-scroll.docs-table--req col.docs-table__col--id {
+  width: 7rem;
+}
+
+.docs-table-scroll.docs-table--req col.docs-table__col--req {
+  width: 22%;
+}
+
+.docs-table-scroll.docs-table--req th:first-child,
+.docs-table-scroll.docs-table--req td:first-child {
+  white-space: nowrap;
 }
 
 /* Stacked endpoint rows (internal API docs): replaces wide 5-column tables. */

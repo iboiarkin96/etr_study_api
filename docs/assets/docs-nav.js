@@ -1014,11 +1014,11 @@ function renderTopNav() {
 
   const internalTitle = document.createElement("span");
   internalTitle.className = "top-nav__group-title";
-  internalTitle.textContent = "Internal";
+  internalTitle.textContent = "Project";
 
   const internalHint = document.createElement("span");
   internalHint.className = "top-nav__group-hint";
-  internalHint.textContent = "Team, architecture, and operations";
+  internalHint.textContent = "Main project artefacts";
 
   internalHead.appendChild(internalTitle);
   internalHead.appendChild(internalHint);
@@ -1049,7 +1049,7 @@ function renderTopNav() {
 
   const publicHint = document.createElement("span");
   publicHint.className = "top-nav__group-hint";
-  publicHint.textContent = "Development documentation";
+  publicHint.textContent = "Development artefacts";
 
   publicHead.appendChild(publicTitle);
   publicHead.appendChild(publicHint);

@@ -156,7 +156,7 @@ study_app/
 │       ├── architecture/
 │       ├── include/  # Shared PlantUML skin (merged at Kroki render)
 │       ├── make/
-│       ├── rendered/  # Rendered PNGs
+│       ├── rendered/  # Rendered SVGs
 │       └── sequences/  # Sequence diagram sources
 ├── ops/  # Prometheus, Grafana, Filebeat configs
 │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)

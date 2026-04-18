@@ -637,7 +637,7 @@ _DIR_COMMENTS: dict[str, str] = {
     "docs/uml": "PlantUML diagrams",
     "docs/uml/include": "Shared PlantUML skin (merged at Kroki render)",
     "docs/uml/sequences": "Sequence diagram sources",
-    "docs/uml/rendered": "Rendered PNGs",
+    "docs/uml/rendered": "Rendered SVGs",
     "ops": "Prometheus, Grafana, Filebeat configs",
     "ops/filebeat": "Filebeat → Elasticsearch (local logging stack)",
     "ops/grafana": "Dashboards and provisioning",

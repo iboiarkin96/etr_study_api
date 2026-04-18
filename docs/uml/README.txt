@@ -8,7 +8,9 @@ Layout
   sequences/*.puml        Sequence diagrams (e.g. conspectus, review, error log)
   include/style.puml      Shared skin — injected after @startuml by scripts/regenerate_docs.py
                           (Kroki needs one file; !include is not expanded server-side.)
-  rendered/*.png          Generated — do not edit by hand
+                          Contains ``scale 960 width`` so every diagram exports to ~1000 px wide PNGs
+                          (margins/skin); change only when intentionally resizing all diagrams.
+  rendered/*.svg          Generated — do not edit by hand
   input-hashes.json       Fingerprint cache (merged source + PNG SHA-256); commit it. Renders
                           skip Kroki when unchanged; use --bootstrap-manifest to fill offline.
 
@@ -22,4 +24,4 @@ Verify committed PNGs match sources (no writes)
   # or:
   .venv/bin/python scripts/regenerate_docs.py --check
 
-HTML pages (e.g. docs/internal/system-design.html) reference ../uml/rendered/<name>.png from that folder.
+HTML pages (e.g. docs/internal/system-design.html) reference ../uml/rendered/<name>.svg from that folder.

@@ -126,7 +126,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - API reference generation: `scripts/normalize_pdoc_output.py` strips unstable `at 0x…` fragments from pdoc HTML so `make docs-check` stays reproducible; `make api-docs` runs with `PYTHONHASHSEED=0`.
 
-- PlantUML under `docs/uml/`: architecture and sequence `.puml` sources include the shared style; rendered PNGs in `docs/uml/rendered/` updated to match ([ADR 0020](adr/0020-c4-plantuml-diagram-style-and-conventions.html)).
+- PlantUML under `docs/uml/`: architecture and sequence `.puml` sources include the shared style; rendered SVGs in `docs/uml/rendered/` updated to match ([ADR 0020](adr/0020-c4-plantuml-diagram-style-and-conventions.html)).
 
 - Docs pipeline and contributor entrypoints: `scripts/regenerate_docs.py`, `scripts/sync_docs.py`, `Makefile`, `CONTRIBUTING.md`, and `.github/ISSUE_TEMPLATE/adr_discussion.md` aligned with ADR lifecycle, UML rendering, and synced HTML companions (`docs/internal/developers.html`, `docs/internal/system-design.html`, `docs/backlog/README.html`, `docs/runbooks/README.html`, `docs/developer/0008-docs-pipeline.html`).
 
