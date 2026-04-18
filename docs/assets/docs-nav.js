@@ -117,6 +117,75 @@ const DOCS_SEARCH_SUCCESS_WINDOW_MS = 60_000;
 const DOCS_FEEDBACK_REPOSITORY = "iboiarkin96/study_bot";
 const DOCS_FEEDBACK_TEMPLATE = "docs_feedback.yml";
 const DOCS_FEEDBACK_LABELS = ["docs-feedback"];
+const DOCS_THEME_STORAGE_KEY = "docs-theme-preference";
+
+function getStoredDocsTheme() {
+  try {
+    return window.localStorage.getItem(DOCS_THEME_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredDocsTheme(mode) {
+  try {
+    if (mode === "system" || mode === null) {
+      window.localStorage.removeItem(DOCS_THEME_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(DOCS_THEME_STORAGE_KEY, mode);
+    }
+  } catch {
+    // Ignore storage failures; theme toggle still updates the live document.
+  }
+}
+
+function applyDocsThemeFromMode(mode) {
+  const root = document.documentElement;
+  if (mode === "dark") {
+    root.setAttribute("data-theme", "dark");
+  } else if (mode === "light") {
+    root.setAttribute("data-theme", "light");
+  } else {
+    root.removeAttribute("data-theme");
+  }
+}
+
+function getEffectiveDocsThemeMode() {
+  const s = getStoredDocsTheme();
+  if (s === "dark" || s === "light") {
+    return s;
+  }
+  return "system";
+}
+
+function cycleDocsTheme() {
+  const order = ["system", "light", "dark"];
+  const cur = getEffectiveDocsThemeMode();
+  const i = order.indexOf(cur);
+  const next = order[(i + 1) % order.length];
+  setStoredDocsTheme(next === "system" ? null : next);
+  applyDocsThemeFromMode(next);
+  syncDocsThemeToggleLabel();
+}
+
+function syncDocsThemeToggleLabel() {
+  const btn = document.querySelector("[data-docs-theme-toggle]");
+  if (!btn) {
+    return;
+  }
+  const mode = getEffectiveDocsThemeMode();
+  const labels = {
+    system: "Theme: Auto",
+    light: "Theme: Light",
+    dark: "Theme: Dark",
+  };
+  btn.textContent = labels[mode];
+  btn.setAttribute(
+    "title",
+    "Cycle documentation color theme: follow system → light → dark → follow system",
+  );
+  btn.setAttribute("aria-label", `${labels[mode]}. Activate to cycle documentation color theme.`);
+}
 let docsSearchIndexPromise = null;
 let docsSearchSessionId = null;
 let docsSearchQuerySeq = 0;
@@ -679,7 +748,7 @@ function renderTopNav() {
     { label: "Home", target: "index.html" },
     { label: "Internal docs", target: "internal/README.html" },
     { label: "API assessment reports", target: "audit/README.html" },
-    { label: "⭐Backlog", target: "backlog/README.html", className: "top-nav__link--backlog" },
+    { label: "⭐Backlog", target: "backlog/README.html" },
   ];
   const publicItems = [
     { label: "OpenAPI explorer", target: "openapi/openapi-explorer.html" },
@@ -753,6 +822,20 @@ function renderTopNav() {
   groups.appendChild(internalSection);
   groups.appendChild(split);
   groups.appendChild(publicSection);
+
+  const themeBtn = document.createElement("button");
+  themeBtn.type = "button";
+  themeBtn.className = "top-nav__theme-btn";
+  themeBtn.setAttribute("data-docs-theme-toggle", "1");
+  themeBtn.textContent = "Theme: Auto";
+  themeBtn.addEventListener("click", () => {
+    cycleDocsTheme();
+  });
+  const themeBar = document.createElement("div");
+  themeBar.className = "top-nav__theme-bar";
+  themeBar.appendChild(themeBtn);
+
+  nav.appendChild(themeBar);
   nav.appendChild(groups);
   mountDocsSearch(nav, fromDir);
 
@@ -1315,6 +1398,8 @@ function initInPageTocScrollSpy() {
 
 document.addEventListener("DOMContentLoaded", () => {
   renderTopNav();
+  applyDocsThemeFromMode(getEffectiveDocsThemeMode());
+  syncDocsThemeToggleLabel();
   const main = document.querySelector("main.container");
   if (main) {
     renderAdr(main);

@@ -4,6 +4,20 @@ All notable changes to the **documentation tree** under `docs/` (and related doc
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-04-18
+
+### Added
+
+- **Dark theme** for hand-written documentation: [`docs/assets/docs-theme.css`](assets/docs-theme.css) (palette + overrides), loaded after [`docs/assets/docs.css`](assets/docs.css) on all pages that already linked `docs.css`.
+- **Theme control** in [`docs/assets/docs-nav.js`](assets/docs-nav.js): cycles **Auto** (follows `prefers-color-scheme`) → **Light** → **Dark** → Auto; preference stored in `localStorage` (`docs-theme-preference`). A short synchronous script in each page `<head>` applies the stored choice before first paint to limit flash of the wrong theme.
+- [`scripts/inject_docs_theme_assets.py`](../scripts/inject_docs_theme_assets.py): inserts the `docs-theme.css` `<link>` (after `docs.css`) and the early theme script into `docs/**/*.html` when adding or normalizing pages.
+
+### Changed
+
+- Shared styling refactored around **CSS custom properties** in [`docs/assets/docs.css`](assets/docs.css), [`docs/assets/docs-site-nav.css`](assets/docs-site-nav.css), [`docs/assets/internal-layout.css`](assets/internal-layout.css), and [`docs/backlog/backlog.css`](backlog/backlog.css) so light and dark themes stay consistent (navigation, search, tables, ADR steppers, backlog pills, internal sidebar, diagrams).
+- **Top navigation:** removed the rotating conic **outline** treatment from the **⭐Backlog** pill so it matches other internal links; theme switcher sits in a dedicated top row (`.top-nav__theme-bar`) above the Internal / Code cards.
+- **Motion:** slowed the animated **sidebar “SHOW MENU”** control border in [`docs/assets/internal-layout.css`](assets/internal-layout.css) and the **ADR “Current status”** pill rim in [`docs/assets/docs.css`](assets/docs.css) for calmer motion.
+
 ## 2026-04-17
 
 ### Added
