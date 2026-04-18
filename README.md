@@ -10,7 +10,7 @@ FastAPI service for the Study App domain. Longer reads: [System design](docs/int
 | [Environment and configuration](#environment-and-configuration) | `APP_ENV`, `.env`, profile files |
 | [Documentation and workflows](#documentation-and-workflows) | Changelog, guides, ADRs, Make commands |
 | [Observability (local)](#observability-local) | Prometheus, Grafana, metrics, optional Elasticsearch/Kibana |
-| [Container image and Kubernetes (optional)](#container-image-and-local-kubernetes-optional) | Docker image, local cluster |
+| [Container image (optional)](#container-image-optional) | Docker image, `docker run` |
 | [Repository layout](#repository-layout) | Top-level tree |
 | [HTTP endpoints](#http-endpoints) | OpenAPI reference (`docs/api`) |
 | [License](#license) | MIT |
@@ -100,16 +100,15 @@ Examples: `http_requests_total`, `http_request_duration_seconds_bucket`, `db_ope
 
 ---
 
-## Container image and local Kubernetes (optional)
+## Container image (optional)
 
-You do **not** need Docker or Kubernetes for day-to-day coding: use **`make run`**, tests, and **`make verify`**.
+You do **not** need Docker for day-to-day coding: use **`make run`**, tests, and **`make verify`**.
 
-**Why Docker still matters:** in many deployments the service runs as a **container image**. Building it (`make docker-build`) is the normal packaging step for a release or a remote environment. **Local Kubernetes** (`k8s/`, `make k8s-apply`) is optional — for learning and for checking manifests; not every feature needs it.
+**Why Docker still matters:** in many deployments the service runs as a **container image**. Building it (`make docker-build`) is the normal packaging step for a release or a registry pull.
 
-- **Prerequisites:** Docker, `kubectl`, and a local cluster (Docker Desktop Kubernetes, minikube, or kind). Install options: [Docker & Kubernetes guide — Prerequisites](docs/developer/0009-docker-and-kubernetes-local.html#prerequisites).
-- **Docker:** `make docker-build` builds image `study-app-api:local` (see `Dockerfile`). The container runs `scripts/container_entrypoint.sh` (Alembic, then Uvicorn) — same as `make container-start` on the host (no `--reload`). Dependencies match pinned `requirements.txt` from `make install`.
-- **Kubernetes:** non-secret pod env lives in **`k8s/app.env`**; run **`make k8s-render-configmap`** (or **`make docs-fix`**) to refresh `k8s/configmap.yaml`. Default is **`APP_ENV=dev`** — no API key Secret required. Then `make k8s-apply` and `kubectl -n study-app port-forward svc/study-app-api 8000:8000`.
-- **Guide:** [Docker & local Kubernetes](docs/developer/0009-docker-and-kubernetes-local.html). **ADRs:** [0015](docs/adr/0015-container-image-and-local-kubernetes.html) (image), [0021](docs/adr/0021-continuous-delivery-github-actions-and-ghcr.html) (CI → GHCR). **Optional Secret for `qa`:** [k8s/secret.example.yaml](k8s/secret.example.yaml).
+- **Prerequisites:** [Docker](https://docs.docker.com/get-docker/) if you build or run the image locally.
+- **Build and run:** `make docker-build` builds image `study-app-api:local` (see `Dockerfile`). The container runs `scripts/container_entrypoint.sh` (Alembic, then Uvicorn) — same as `make container-start` on the host (no `--reload`). Dependencies match pinned `requirements.txt` from `make install`. Pass configuration with `-e` or your platform’s env mechanism (see `env/example`).
+- **Guide:** [Docker image and container](docs/developer/0009-docker-image-and-container.html). **ADRs:** [0015](docs/adr/0015-container-image.html) (image), [0021](docs/adr/0021-continuous-delivery-github-actions-and-ghcr.html) (CI → GHCR).
 
 ---
 
@@ -159,7 +158,6 @@ study_app/
 │       ├── make/
 │       ├── rendered/  # Rendered PNGs
 │       └── sequences/  # Sequence diagram sources
-├── k8s/  # Kubernetes manifests; k8s/app.env sources the generated ConfigMap
 ├── ops/  # Prometheus, Grafana, Filebeat configs
 │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
 │   ├── grafana/  # Dashboards and provisioning

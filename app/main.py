@@ -324,7 +324,7 @@ readiness_probe = _readiness_probe
     response_model=LiveResponse,
 )
 def live() -> LiveResponse:
-    """Kubernetes-style liveness: process is up (no dependency checks).
+    """Liveness: process is up (no dependency checks).
 
     Returns:
         Payload with ``status="alive"`` and current ``app_env``.
