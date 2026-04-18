@@ -114,9 +114,180 @@ const DOCS_SEARCH_MAX_RESULTS = 10;
 const DOCS_SEARCH_DEBOUNCE_MS = 120;
 const DOCS_SEARCH_MAX_PREFIX_EXPANSIONS = 24;
 const DOCS_SEARCH_SUCCESS_WINDOW_MS = 60_000;
-const DOCS_FEEDBACK_REPOSITORY = "iboiarkin96/study_bot";
+const DOCS_FEEDBACK_REPOSITORY = "iboiarkin96/etr-study-api";
 const DOCS_FEEDBACK_TEMPLATE = "docs_feedback.yml";
 const DOCS_FEEDBACK_LABELS = ["docs-feedback"];
+const DOCS_THEME_STORAGE_KEY = "docs-theme-preference";
+
+/** Bump when the shared ADR/RFC lifecycle help copy in `injectDocsLifecycleHelp` changes. */
+const DOCS_LIFECYCLE_HELP_SNIPPET_VERSION = "1";
+
+function docsPageDir() {
+  const rel = currentDocsRelPath();
+  const i = rel.lastIndexOf("/");
+  return i >= 0 ? rel.slice(0, i) : "";
+}
+
+function docsLifecycleHelpHref(targetRelPath) {
+  return relHref(docsPageDir(), targetRelPath);
+}
+
+/**
+ * Fills `<details class="adr-weight-help|rfc-weight-help" data-docs-lifecycle="…">` from a single source
+ * so policy wording and links stay consistent across ADR/RFC pages (see DOCS_LIFECYCLE_HELP_SNIPPET_VERSION).
+ */
+function injectDocsLifecycleHelp() {
+  const v = DOCS_LIFECYCLE_HELP_SNIPPET_VERSION;
+  for (const el of document.querySelectorAll("details[data-docs-lifecycle]")) {
+    const kind = el.getAttribute("data-docs-lifecycle");
+    el.setAttribute("data-docs-lifecycle-version", v);
+    if (kind === "adr-short") {
+      const h18 = docsLifecycleHelpHref("adr/0018-adr-lifecycle-ratification-and-badges.html");
+      const h0 = docsLifecycleHelpHref("adr/0000-template.html");
+      el.innerHTML = `<summary>ADR status on this page</summary>
+      <p class="small">
+        The lifecycle bar uses <code>data-adr-weight</code> on <code>&lt;main&gt;</code> (values −1…7). See
+        <a href="${h18}">ADR 0018</a> for what each step means, or the
+        <a href="${h0}">ADR template</a> for the full milestone table.
+      </p>`;
+    } else if (kind === "rfc-short") {
+      const h18 = docsLifecycleHelpHref("adr/0018-adr-lifecycle-ratification-and-badges.html");
+      el.innerHTML = `<summary>RFC status on this page</summary>
+      <p class="small">
+        The lifecycle bar uses <code>data-rfc-weight</code> on <code>&lt;main&gt;</code> (values −1…7), the same milestone
+        scale as ADRs (<a href="${h18}">ADR 0018</a>). Update the attribute
+        when this document\u2019s milestone changes.
+      </p>`;
+    } else if (kind === "adr-template") {
+      const h18 = docsLifecycleHelpHref("adr/0018-adr-lifecycle-ratification-and-badges.html");
+      el.innerHTML = `<summary>How to set status (author reference)</summary>
+      <p class="small">
+        On <code>&lt;main&gt;</code>, set one attribute <code>data-adr-weight</code> to the <strong>current</strong>
+        milestone (−1 … 7). The page derives <strong>Current status</strong> and the <strong>Status log</strong> from that
+        number. Full policy: <a href="${h18}">ADR 0018</a>.
+      </p>
+      <table>
+        <caption>Milestone scale (single order 0 → 7)</caption>
+        <thead>
+          <tr>
+            <th>Value</th>
+            <th>Meaning (current milestone)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>-1</code></td>
+            <td>Status not set (or unknown)</td>
+          </tr>
+          <tr>
+            <td><code>0</code></td>
+            <td><strong>Decision</strong> — Proposed</td>
+          </tr>
+          <tr>
+            <td><code>1</code></td>
+            <td><strong>Decision</strong> — Accepted</td>
+          </tr>
+          <tr>
+            <td><code>2</code></td>
+            <td><strong>Decision</strong> — Superseded</td>
+          </tr>
+          <tr>
+            <td><code>3</code></td>
+            <td><strong>Documentation</strong> — Draft</td>
+          </tr>
+          <tr>
+            <td><code>4</code></td>
+            <td><strong>Documentation</strong> — Ready</td>
+          </tr>
+          <tr>
+            <td><code>5</code></td>
+            <td><strong>Implementation</strong> — Not started</td>
+          </tr>
+          <tr>
+            <td><code>6</code></td>
+            <td><strong>Implementation</strong> — In progress</td>
+          </tr>
+          <tr>
+            <td><code>7</code></td>
+            <td><strong>Implementation</strong> — Done</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small">
+        Example: <code>data-adr-weight="4"</code> → <strong>Current status</strong> is Documentation · Ready. Invalid
+        values are clamped in <code>docs/assets/docs-nav.js</code>.
+      </p>`;
+    }
+  }
+}
+
+function getStoredDocsTheme() {
+  try {
+    return window.localStorage.getItem(DOCS_THEME_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredDocsTheme(mode) {
+  try {
+    if (mode === "system" || mode === null) {
+      window.localStorage.removeItem(DOCS_THEME_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(DOCS_THEME_STORAGE_KEY, mode);
+    }
+  } catch {
+    // Ignore storage failures; theme toggle still updates the live document.
+  }
+}
+
+function applyDocsThemeFromMode(mode) {
+  const root = document.documentElement;
+  if (mode === "dark") {
+    root.setAttribute("data-theme", "dark");
+  } else if (mode === "light") {
+    root.setAttribute("data-theme", "light");
+  } else {
+    root.removeAttribute("data-theme");
+  }
+}
+
+function getEffectiveDocsThemeMode() {
+  const s = getStoredDocsTheme();
+  if (s === "dark" || s === "light") {
+    return s;
+  }
+  return "system";
+}
+
+function cycleDocsTheme() {
+  const order = ["system", "light", "dark"];
+  const cur = getEffectiveDocsThemeMode();
+  const i = order.indexOf(cur);
+  const next = order[(i + 1) % order.length];
+  setStoredDocsTheme(next === "system" ? null : next);
+  applyDocsThemeFromMode(next);
+  syncDocsThemeToggleLabel();
+}
+
+function syncDocsThemeToggleLabel() {
+  const btn = document.querySelector("[data-docs-theme-toggle]");
+  if (!btn) {
+    return;
+  }
+  const mode = getEffectiveDocsThemeMode();
+  const labels = {
+    system: "Theme: Auto",
+    light: "Theme: Light",
+    dark: "Theme: Dark",
+  };
+  btn.textContent = labels[mode];
+  btn.setAttribute(
+    "title",
+    "Cycle documentation color theme: follow system → light → dark → follow system",
+  );
+  btn.setAttribute("aria-label", `${labels[mode]}. Activate to cycle documentation color theme.`);
+}
 let docsSearchIndexPromise = null;
 let docsSearchSessionId = null;
 let docsSearchQuerySeq = 0;
@@ -666,6 +837,139 @@ function appendTopNavLinks(container, items, fromDir, active) {
   }
 }
 
+/** Hub HTML file for a path prefix (directory trail), or null if there is no index page. */
+function docsHubHrefForPrefix(prefix) {
+  const hubs = {
+    adr: "adr/README.html",
+    api: "api/index.html",
+    audit: "audit/README.html",
+    backlog: "backlog/README.html",
+    developer: "developer/README.html",
+    howto: "howto/README.html",
+    internal: "internal/README.html",
+    "internal/api": "internal/api/README.html",
+    "internal/api/user": "internal/api/user/index.html",
+    openapi: "openapi/openapi-explorer.html",
+    rfc: "rfc/README.html",
+    runbooks: "runbooks/README.html",
+  };
+  return hubs[prefix] || null;
+}
+
+/** Human-readable label for a directory prefix (path segments joined by "/"). */
+function docsBreadcrumbLabelForPrefix(prefix) {
+  const labels = {
+    adr: "ADRs",
+    api: "API reference",
+    audit: "Assessments",
+    backlog: "Backlog",
+    developer: "Developer guides",
+    howto: "How-to guides",
+    internal: "Internal docs",
+    "internal/api": "Internal API",
+    "internal/api/user": "User",
+    "internal/api/user/operations": "Operations",
+    openapi: "OpenAPI",
+    rfc: "RFCs",
+    runbooks: "Runbooks",
+    assets: "Assets",
+  };
+  if (labels[prefix]) {
+    return labels[prefix];
+  }
+  const last = prefix.includes("/") ? prefix.slice(prefix.lastIndexOf("/") + 1) : prefix;
+  if (!last) {
+    return prefix;
+  }
+  return last.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function docsBreadcrumbCurrentLabel(fileName) {
+  const t = document.title.trim();
+  if (t) {
+    const first = t.split(/\s[—–-]\s/)[0].trim();
+    if (first) {
+      return first;
+    }
+  }
+  const stem = fileName.replace(/\.html?$/i, "");
+  return stem.replace(/-/g, " ");
+}
+
+/**
+ * @returns {{ label: string, href?: string, current?: boolean }[]}
+ */
+function buildDocsBreadcrumbItems(relPath) {
+  const normalized = relPath.replace(/\\/g, "/");
+  if (normalized === "index.html") {
+    return [{ label: "Documentation", current: true }];
+  }
+
+  const parts = normalized.split("/");
+  const fileName = parts.pop() || "";
+  const dirParts = parts;
+  const fullPath = normalized;
+
+  const crumbs = [{ label: "Documentation", href: "index.html" }];
+
+  let prefix = "";
+  for (let i = 0; i < dirParts.length; i++) {
+    prefix = i === 0 ? dirParts[0] : `${prefix}/${dirParts[i]}`;
+    const hub = docsHubHrefForPrefix(prefix);
+    const hubIsThisPage =
+      hub &&
+      hub === fullPath &&
+      (fileName === "README.html" || fileName === "index.html");
+    if (hubIsThisPage) {
+      crumbs.push({ label: docsBreadcrumbLabelForPrefix(prefix), current: true });
+      return crumbs;
+    }
+    crumbs.push({
+      label: docsBreadcrumbLabelForPrefix(prefix),
+      href: hub || undefined,
+    });
+  }
+
+  crumbs.push({
+    label: docsBreadcrumbCurrentLabel(fileName),
+    current: true,
+  });
+  return crumbs;
+}
+
+function renderDocsBreadcrumbNav(fromDir, relPath) {
+  const items = buildDocsBreadcrumbItems(relPath);
+  const el = document.createElement("nav");
+  el.className = "docs-breadcrumbs";
+  el.setAttribute("aria-label", "Breadcrumb");
+  const ol = document.createElement("ol");
+  ol.className = "docs-breadcrumbs__list";
+  for (const item of items) {
+    const li = document.createElement("li");
+    li.className = "docs-breadcrumbs__item";
+    if (item.current) {
+      const span = document.createElement("span");
+      span.className = "docs-breadcrumbs__current";
+      span.textContent = item.label;
+      span.setAttribute("aria-current", "page");
+      li.appendChild(span);
+    } else if (item.href) {
+      const a = document.createElement("a");
+      a.href = relHref(fromDir, item.href);
+      a.textContent = item.label;
+      li.appendChild(a);
+    } else {
+      const span = document.createElement("span");
+      span.className = "docs-breadcrumbs__text";
+      span.textContent = item.label;
+      li.appendChild(span);
+    }
+    ol.appendChild(li);
+  }
+  el.appendChild(ol);
+  return el;
+}
+
 function renderTopNav() {
   const host = document.getElementById("docs-top-nav");
   if (!host) {
@@ -679,7 +983,7 @@ function renderTopNav() {
     { label: "Home", target: "index.html" },
     { label: "Internal docs", target: "internal/README.html" },
     { label: "API assessment reports", target: "audit/README.html" },
-    { label: "⭐Backlog", target: "backlog/README.html", className: "top-nav__link--backlog" },
+    { label: "⭐Backlog", target: "backlog/README.html" },
   ];
   const publicItems = [
     { label: "OpenAPI explorer", target: "openapi/openapi-explorer.html" },
@@ -753,14 +1057,33 @@ function renderTopNav() {
   groups.appendChild(internalSection);
   groups.appendChild(split);
   groups.appendChild(publicSection);
+
+  const themeBtn = document.createElement("button");
+  themeBtn.type = "button";
+  themeBtn.className = "top-nav__theme-btn";
+  themeBtn.setAttribute("data-docs-theme-toggle", "1");
+  themeBtn.textContent = "Theme: Auto";
+  themeBtn.addEventListener("click", () => {
+    cycleDocsTheme();
+  });
+  const themeBar = document.createElement("div");
+  themeBar.className = "top-nav__theme-bar";
+  themeBar.appendChild(themeBtn);
+
+  nav.appendChild(themeBar);
   nav.appendChild(groups);
   mountDocsSearch(nav, fromDir);
 
+  const breadcrumbNav = renderDocsBreadcrumbNav(fromDir, relPath);
+
   /* Keep `#docs-top-nav` in the DOM — `initAutoInPageToc` and formatters anchor off this host. */
-  host.replaceChildren(nav);
+  host.replaceChildren(breadcrumbNav, nav);
 }
 
-/** ADR: single `data-adr-weight` on <main> (−1…7) → current status + linear status log. */
+/**
+ * ADR / RFC lifecycle: one weight on `<main>` (−1…7) → current status + linear status log.
+ * ADRs use `data-adr-weight`; RFCs use `data-rfc-weight` (same steps as ADR 0018).
+ */
 
 const ADR_STEPS = [
   { w: 0, axis: "Decision", label: "Proposed" },
@@ -785,10 +1108,6 @@ function parseAdrWeightValue(raw) {
     return 7;
   }
   return n;
-}
-
-function adrCurrentWeight(main) {
-  return parseAdrWeightValue(main.getAttribute("data-adr-weight"));
 }
 
 function stepKind(stepWeight, globalMax) {
@@ -885,21 +1204,21 @@ function renderAdrStatusLogAfter(anchor, globalMax) {
   anchor.insertAdjacentElement("afterend", wrap);
 }
 
-function mainHasAdrWeight(main) {
-  return main.hasAttribute("data-adr-weight");
-}
-
-function renderAdr(main) {
-  if (!mainHasAdrWeight(main)) {
-    return;
-  }
-
+function renderLifecycleStatusBlocks(main) {
   const nav = main.querySelector("nav.top-nav");
   if (!nav) {
     return;
   }
+  const attr = main.hasAttribute("data-adr-weight")
+    ? "data-adr-weight"
+    : main.hasAttribute("data-rfc-weight")
+      ? "data-rfc-weight"
+      : null;
+  if (!attr) {
+    return;
+  }
 
-  const globalMax = adrCurrentWeight(main);
+  const globalMax = parseAdrWeightValue(main.getAttribute(attr));
 
   const anchor = renderAdrCurrentStatus(nav, globalMax);
   renderAdrStatusLogAfter(anchor, globalMax);
@@ -1313,14 +1632,117 @@ function initInPageTocScrollSpy() {
   updateActive();
 }
 
+/** Scroll-to-top control: visible when the viewport is near the bottom of a scrollable page. */
+function initBackToTopButton() {
+  const root = document.documentElement;
+  const thresholdPx = 320;
+  const minScrollExtra = 100;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "docs-back-to-top";
+  btn.setAttribute("aria-label", "Back to top");
+  btn.setAttribute("title", "Back to top");
+  btn.setAttribute("aria-hidden", "true");
+  btn.tabIndex = -1;
+  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`;
+
+  function pageIsScrollable() {
+    return root.scrollHeight > window.innerHeight + minScrollExtra;
+  }
+
+  function isNearBottom() {
+    return window.scrollY + window.innerHeight >= root.scrollHeight - thresholdPx;
+  }
+
+  function updateVisibility() {
+    const show = pageIsScrollable() && isNearBottom();
+    btn.classList.toggle("docs-back-to-top--visible", show);
+    btn.setAttribute("aria-hidden", show ? "false" : "true");
+    btn.tabIndex = show ? 0 : -1;
+  }
+
+  btn.addEventListener("click", () => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+  });
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      updateVisibility();
+    },
+    { passive: true },
+  );
+  window.addEventListener("resize", updateVisibility, { passive: true });
+
+  document.body.appendChild(btn);
+  updateVisibility();
+}
+
+/** Site-wide footer on hand-written docs pages (presence of `#docs-top-nav`). */
+function initDocsSiteFooter() {
+  if (document.getElementById("docs-site-footer")) {
+    return;
+  }
+  if (!document.getElementById("docs-top-nav")) {
+    return;
+  }
+
+  const relPath = currentDocsRelPath();
+  const fromDir = relPath.includes("/") ? relPath.slice(0, relPath.lastIndexOf("/")) : "";
+
+  const footer = document.createElement("footer");
+  footer.id = "docs-site-footer";
+  footer.className = "docs-site-footer";
+  footer.setAttribute("role", "contentinfo");
+
+  const inner = document.createElement("div");
+  inner.className = "container docs-site-footer__inner";
+
+  const nav = document.createElement("nav");
+  nav.className = "docs-site-footer__links";
+  nav.setAttribute("aria-label", "Footer");
+
+  function addLink(href, text) {
+    const a = document.createElement("a");
+    a.href = relHref(fromDir, href);
+    a.textContent = text;
+    nav.appendChild(a);
+  }
+
+  addLink("index.html", "Documentation home");
+  const gh = document.createElement("a");
+  gh.href = `https://github.com/${DOCS_FEEDBACK_REPOSITORY}`;
+  gh.textContent = "GitHub";
+  gh.target = "_blank";
+  gh.rel = "noopener noreferrer";
+  nav.appendChild(gh);
+
+  const meta = document.createElement("p");
+  meta.className = "docs-site-footer__meta";
+  meta.textContent =
+    "Static HTML under docs/.\nProduct changes are recorded in the repository root CHANGELOG; documentation-only changes are listed in docs/CHANGELOG.md."
+
+  inner.appendChild(nav);
+  inner.appendChild(meta);
+  footer.appendChild(inner);
+  document.body.appendChild(footer);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  injectDocsLifecycleHelp();
   renderTopNav();
+  applyDocsThemeFromMode(getEffectiveDocsThemeMode());
+  syncDocsThemeToggleLabel();
   const main = document.querySelector("main.container");
   if (main) {
-    renderAdr(main);
+    renderLifecycleStatusBlocks(main);
   }
   injectAuditScoreLegends();
   injectDocsFeedbackCard();
   initAutoInPageToc();
   initInPageTocScrollSpy();
+  initBackToTopButton();
+  initDocsSiteFooter();
 });
