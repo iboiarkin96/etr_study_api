@@ -117,6 +117,7 @@ const DOCS_SEARCH_SUCCESS_WINDOW_MS = 60_000;
 const DOCS_FEEDBACK_REPOSITORY = "iboiarkin96/etr-study-api";
 const DOCS_FEEDBACK_TEMPLATE = "docs_feedback.yml";
 const DOCS_FEEDBACK_LABELS = ["docs-feedback"];
+const DOCS_FEEDBACK_CARD_ENABLED = false;
 const DOCS_THEME_STORAGE_KEY = "docs-theme-preference";
 
 /** Bump when the shared ADR/RFC lifecycle help copy in `injectDocsLifecycleHelp` changes. */
@@ -1474,6 +1475,9 @@ function docsFeedbackIssueUrl() {
 }
 
 function injectDocsFeedbackCard() {
+  if (!DOCS_FEEDBACK_CARD_ENABLED) {
+    return;
+  }
   const main = document.querySelector("main.container");
   if (!main) {
     return;
@@ -1999,6 +2003,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderLifecycleStatusBlocks(main);
   }
   injectAuditScoreLegends();
+  injectDocsFeedbackCard();
   injectDocsPageActions();
   initDocsQuickActions();
   initAutoInPageToc();
