@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Documentation:** internal employee portal (`docs/internal/portal/`), generated portal data in `docs/assets/docs-portal-data.js`, page history sections and validation on hand-written HTML, and related scripts (`collect_docs_portal_data.py`, `ensure_docs_page_history.py`, and helpers). Details: [`docs/CHANGELOG.md`](docs/CHANGELOG.md#2026-04-21).
+
 - Documentation HTML pages now use a shared favicon (`docs/assets/favicon.svg`), including `docs/openapi/openapi-explorer.html`, with generation/backfill scripts keeping favicon links consistent across regenerated docs output.
 
 ### Removed

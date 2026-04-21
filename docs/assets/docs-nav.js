@@ -848,6 +848,8 @@ function docsHubHrefForPrefix(prefix) {
     developer: "developer/README.html",
     howto: "howto/README.html",
     internal: "internal/README.html",
+    "internal/portal": "internal/portal/index.html",
+    "internal/portal/people": "internal/portal/index.html",
     "internal/api": "internal/api/README.html",
     "internal/api/user": "internal/api/user/index.html",
     "internal/api/conspectus": "internal/api/conspectus/index.html",
@@ -871,6 +873,8 @@ function docsBreadcrumbLabelForPrefix(prefix) {
     developer: "Developer guides",
     howto: "How-to guides",
     internal: "Internal docs",
+    "internal/portal": "Portal",
+    "internal/portal/people": "People",
     "internal/api": "Internal API",
     "internal/api/user": "User",
     "internal/api/conspectus": "Conspectus",
@@ -941,6 +945,19 @@ function buildDocsBreadcrumbItems(relPath) {
     label: docsBreadcrumbCurrentLabel(fileName),
     current: true,
   });
+
+  /* e.g. .../cursor/index.html — folder crumb "Cursor" + current "Cursor" from <title> */
+  if (crumbs.length >= 2) {
+    const cur = crumbs[crumbs.length - 1];
+    const prev = crumbs[crumbs.length - 2];
+    if (
+      cur.current &&
+      prev.href === undefined &&
+      prev.label.trim().toLowerCase() === cur.label.trim().toLowerCase()
+    ) {
+      crumbs.splice(crumbs.length - 2, 1);
+    }
+  }
   return crumbs;
 }
 

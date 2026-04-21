@@ -183,6 +183,7 @@
   const INTERNAL_SIDEBAR_NAV = [
     // { label: "Documentation home", path: "index.html" },
     { label: "Welcome to internal docs!", path: "internal/README.html" },
+    { label: "Employee portal", path: "internal/portal/index.html" },
     { label: "Methodology", path: "internal/methodology.html" },
     { label: "System design", path: "internal/system-design.html" },
     { label: "Developers Docs", path: "internal/developers.html" },

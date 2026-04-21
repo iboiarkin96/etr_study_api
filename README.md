@@ -148,7 +148,8 @@ study_app/
 │   ├── developer/  # Developer guides and onboarding
 │   ├── howto/
 │   ├── internal/
-│   │   └── api/
+│   │   ├── api/
+│   │   └── portal/
 │   ├── openapi/
 │   ├── rfc/
 │   ├── runbooks/  # Operational troubleshooting guides
