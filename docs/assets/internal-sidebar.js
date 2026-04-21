@@ -195,17 +195,6 @@
     // { label: "Backlog", path: "backlog/README.html" },
     // { label: "Architecture & quality assessments", path: "audit/README.html" },
     {
-      label: "Kafka (just example)",
-      children: [
-        { label: "Overview", path: "kafka/README.html" },
-        { label: "Topics", path: "kafka/topics.html" },
-        { label: "Producers", path: "kafka/producers.html" },
-        { label: "Consumers", path: "kafka/consumers.html" },
-        { label: "Connectors", path: "kafka/connectors.html" },
-        { label: "Tools", path: "kafka/tools.html" },
-      ],
-    },
-    {
       label: "API documentation",
       children: [
         { label: "Errors", path: "internal/api/errors.html" },
