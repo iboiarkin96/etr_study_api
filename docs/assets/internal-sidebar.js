@@ -81,12 +81,9 @@
       return;
     }
     const title = sidebar.querySelector(".internal-layout__sidebar-title");
-    if (!title) {
-      return;
+    if (title) {
+      title.hidden = true;
     }
-    const expandedTitleText = "Internal docs";
-    const collapsedTitleText = "DOCS";
-    title.textContent = expandedTitleText;
 
     let toggle = sidebar.querySelector("[data-internal-sidebar-toggle]");
     if (!toggle) {
@@ -94,7 +91,11 @@
       toggle.type = "button";
       toggle.className = "internal-layout__sidebar-toggle";
       toggle.setAttribute("data-internal-sidebar-toggle", "1");
-      title.insertAdjacentElement("afterend", toggle);
+      if (title) {
+        title.insertAdjacentElement("afterend", toggle);
+      } else {
+        sidebar.insertBefore(toggle, sidebarHost);
+      }
     }
 
     toggle.setAttribute("aria-controls", sidebarHost.id);
@@ -103,8 +104,7 @@
       shell.classList.toggle("is-sidebar-collapsed", isCollapsed);
       sidebarHost.hidden = isCollapsed;
       toggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
-      toggle.textContent = isCollapsed ? "SHOW\nMENU" : "Hide menu";
-      title.textContent = isCollapsed ? collapsedTitleText : expandedTitleText;
+      toggle.textContent = isCollapsed ? "SHOW\nMENU" : "HIDE\nMENU";
     }
 
     let isCollapsed = readSidebarCollapsedPreference();
@@ -504,7 +504,6 @@
     { label: "Methodology", path: "internal/methodology.html" },
     { label: "System design", path: "internal/system-design.html" },
     { label: "Developers Docs", path: "internal/developers.html" },
-    { label: "Documentation style guide", path: "internal/documentation-style-guide.html" },
     { label: "How-to guides", path: "howto/README.html" },
     { label: "ADR", path: "adr/README.html" },
     { label: "RFC", path: "rfc/README.html" },
@@ -557,12 +556,24 @@
     },
     {
       label: "Docs documentation",
-      children: [{
-        label: "#1 Docs frontend navigation and theme controls",
-        path: "internal/docs-documentation-frontend-tz-menu-and-theme.html"
-      },
-
-      ]
+      children: [
+        {
+          label: "Documentation style guide",
+          path: "internal/front/documentation-style-guide.html",
+        },
+        {
+          label: "#1 Docs frontend navigation and theme controls",
+          path: "internal/front/docs-frontend-menu-and-theme-controls.html",
+        },
+        {
+          label: "Docs frontend hotkeys",
+          path: "internal/front/docs-frontend-hotkeys.html",
+        },
+        {
+          label: "Docs frontend UI kit",
+          path: "internal/front/docs-frontend-ui-kit.html",
+        },
+      ],
     },
   ];
 
