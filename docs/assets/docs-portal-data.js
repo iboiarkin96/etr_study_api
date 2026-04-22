@@ -144,6 +144,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Documentation Experience (DX) Assessment — Study App — formed 18 Apr 2026 (test snapshot)"
       },
       {
+        "path": "audit/docs/2026-04-21-ui-ux-assessment.html",
+        "title": "UI/UX Assessment — Study App docs experience — formed 2026-04-21"
+      },
+      {
         "path": "audit/docs/README.html",
         "title": "Documentation experience assessments — index"
       },
