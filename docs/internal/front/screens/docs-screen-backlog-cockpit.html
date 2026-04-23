@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen spec: Backlog cockpit</title>
+  <link rel="icon" type="image/svg+xml" href="../../../assets/favicon.svg">
+  <link rel="stylesheet" href="../../../assets/docs.css" />
+  <link rel="stylesheet" href="../../../assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../assets/internal-layout.css">
+  <script defer src="../../../assets/internal-sidebar.js"></script>
+  <script defer src="../../../assets/docs-nav.js"></script>
+  <script defer src="../../../assets/docs-portal-data.js"></script>
+  <script defer src="../../../assets/docs-internal-meta.js"></script>
+</head>
+
+<body class="internal-layout" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <h1>Screen spec: Backlog cockpit</h1>
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <section class="card" id="overview">
+          <h2>Overview</h2>
+          <p>
+            This page is the implementation reference for the backlog cockpit screen:
+            <a href="../../../backlog/README.html"><code>docs/backlog/README.html</code></a>.
+            Use it as the canonical source when changing filters, priority logic, sorting, and view modes.
+          </p>
+        </section>
+
+        <section class="card" id="screen-layout">
+          <h2>Screen layout map</h2>
+          <ol>
+            <li><strong>Hero / control bar:</strong> headline, search, quick presets, detailed filters, view switch, and KPI cards.</li>
+            <li><strong>Orientation blocks:</strong> overview text and grouped task blocks.</li>
+            <li><strong>Main task stream:</strong> all backlog cards rendered from the source HTML sections.</li>
+            <li><strong>Operational helpers:</strong> new-task template and page history.</li>
+          </ol>
+        </section>
+
+        <section class="card" id="data-contract">
+          <h2>Data contract and anti-duplication rules</h2>
+          <ul>
+            <li><code>data-group</code> (domain): <code>frontend</code>, <code>backend</code>, <code>devops</code>, <code>docs</code>.</li>
+            <li><code>data-tags</code> (task type): <code>bug</code>, <code>feature</code>, <code>research</code>, <code>tech-debt</code>.</li>
+            <li><code>data-priority</code>: <code>P0</code>, <code>P1</code>, <code>P2</code>, <code>P3</code>.</li>
+            <li><code>data-status</code>: <code>todo</code>, <code>in-progress</code>, <code>done</code>, <code>blocked</code>, <code>rejected</code>.</li>
+            <li>Never duplicate domain meaning in tags (for example, do not use <code>backend</code> in <code>data-tags</code>).</li>
+          </ul>
+        </section>
+
+        <section class="card" id="filters-and-presets">
+          <h2>Filters and presets</h2>
+          <h3>Detailed filters</h3>
+          <ul>
+            <li><strong>Group</strong> is single-select.</li>
+            <li><strong>Priority</strong>, <strong>Task type</strong>, and <strong>Status</strong> are multi-select (<code>All</code> resets each dimension).</li>
+            <li>Filter expression is an AND across active dimensions.</li>
+          </ul>
+
+          <h3>Quick filters</h3>
+          <ul>
+            <li><code>All</code> — no quick preset restrictions.</li>
+            <li><code>My focus</code> — open statuses + <code>P0/P1</code>.</li>
+            <li><code>Open</code> — <code>todo</code>, <code>in-progress</code>, <code>blocked</code>.</li>
+            <li><code>Blocked</code> — <code>blocked</code> status only.</li>
+            <li><code>High risk</code> — <code>P0</code> + task type <code>bug</code> or <code>tech-debt</code> (preset, not status).</li>
+          </ul>
+
+          <h3>Sync behavior</h3>
+          <ul>
+            <li>Clicking quick presets updates detailed filters.</li>
+            <li>Changing detailed filters recalculates quick preset state; non-matching combinations become internal <code>custom</code> state.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="sorting-and-views">
+          <h2>Sorting and view behavior</h2>
+          <h3>Stable sorting policy</h3>
+          <ul>
+            <li>Open tasks first; closed tasks after.</li>
+            <li>Within open tasks: open <code>P0</code> first, then <code>bug</code>, then <code>P1</code>, <code>P2</code>, <code>P3</code>.</li>
+            <li>Final tie-break by numeric item id (<code>item-XX</code>) to keep order deterministic.</li>
+          </ul>
+
+          <h3>View switch</h3>
+          <ul>
+            <li><code>Board</code>, <code>List</code>, <code>Timeline</code> are visual modes controlled by <code>data-backlog-view</code>.</li>
+            <li><code>Timeline</code> currently changes presentation only (vertical line + markers), without schedule logic.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="validation">
+          <h2>Taxonomy validation</h2>
+          <ul>
+            <li>Runtime validates each card against allowed group/tag sets.</li>
+            <li>Invalid cards are highlighted with <code>backlog-item--invalid-taxonomy</code>.</li>
+            <li>Cockpit warning panel (<code>#backlog-validation-alert</code>) lists invalid items with direct anchors.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="change-map">
+          <h2>Where to change what</h2>
+          <ul>
+            <li><code>docs/backlog/README.html</code> — screen markup, filter controls, task cards, content labels.</li>
+            <li><code>docs/backlog/backlog.js</code> — filter state, quick preset logic, sorting, validation, grouping.</li>
+            <li><code>docs/backlog/backlog.css</code> — cockpit look and feel, responsive behavior, timeline/list/board visual states.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="related-pages">
+          <h2>Related internal docs</h2>
+          <ul>
+            <li><a href="../docs-frontend-architecture-map.html">Docs frontend architecture map and feature inventory</a></li>
+            <li><a href="../docs-frontend-navigation-search-and-discovery.html">Docs frontend navigation, search, and discovery</a></li>
+            <li><a href="../docs-frontend-ui-motion-and-adaptivity.html">Docs frontend UI, motion, and adaptivity</a></li>
+            <li><a href="../documentation-style-guide.html">Documentation style guide and audit standard</a></li>
+            <li><a href="../../../howto/how-to-change-docs-frontend-safely.html">How to change docs frontend safely</a></li>
+          </ul>
+        </section>
+
+        <section class="card" id="page-history">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-04-23">2026-04-23</time></td>
+                  <td>Created dedicated screen specification for backlog cockpit and moved implementation notes out of backlog content page.</td>
+                  <td><a href="../../portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="docs-inpage-toc-mount" data-inpage-toc="auto"></div>
+      </main>
+    </div>
+  </div>
+
+</body></html>
