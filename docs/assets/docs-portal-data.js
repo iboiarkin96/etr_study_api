@@ -340,6 +340,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "ETR Study App API — Swagger UI (test)"
       },
       {
+        "path": "openapi/openapi-explorer.html",
+        "title": "Moved — OpenAPI / Swagger UI"
+      },
+      {
         "path": "qa/0001-documentation-pages-visual-checklist.html",
         "title": "QA checklist 0001: Documentation pages visual verification"
       },

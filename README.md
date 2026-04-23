@@ -146,7 +146,6 @@ study_app/
 │   ├── developer/  # Developer guides and onboarding
 │   ├── howto/
 │   ├── internal/
-│   │   ├── analisys/
 │   │   ├── analysis/
 │   │   ├── api/
 │   │   ├── front/
