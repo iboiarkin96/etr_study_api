@@ -4,6 +4,12 @@ All notable changes to the **documentation tree** under `docs/` (and related doc
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-04-23
+
+### Changed
+
+- **Internal API operation pages:** all files under [`docs/internal/api/**/operations/`](internal/api/) now keep exactly one `<h1>` per page, with the endpoint heading (`METHOD /api/...`) placed at the top of `<main>` before shared top navigation mounts. This aligns operation docs with the documentation baseline checks and the QA page heading order.
+
 ## 2026-04-22
 
 ### Added
