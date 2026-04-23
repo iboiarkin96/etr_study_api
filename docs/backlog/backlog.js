@@ -28,6 +28,10 @@
   const llmAssistFactor = 0.78;
   const seniorFocusHoursPerDay = 5;
   const estimateScaleDivisor = 3;
+  const SLA_BLOCKED_THRESHOLD_DAYS = 5;
+  const FLOW_HEALTH_PERIOD_DAYS = 14;
+  const ETA_PRESSURE_MAX_DAYS = 3;
+  const DAY_MS = 24 * 60 * 60 * 1000;
 
   const state = {
     group: "all",
@@ -51,20 +55,42 @@
     done: 3,
     rejected: 4,
   };
+  const statusPresentation = {
+    todo: { label: "To do", className: "status-pill--todo" },
+    "in-progress": { label: "In progress", className: "status-pill--in-progress" },
+    done: { label: "Done", className: "status-pill--done" },
+    blocked: { label: "Blocked", className: "status-pill--blocked" },
+    rejected: { label: "Rejected", className: "status-pill--rejected" },
+  };
   const reorderTopSections = () => {
     const main = document.querySelector("main.container");
-    const overview = document.getElementById("overview-section");
+    const intelligence = document.getElementById("backlog-intelligence");
     const groups = document.getElementById("backlog-blocks");
     const allTasks = document.getElementById("all-tasks-section");
     const cockpit = document.getElementById("backlog-cockpit");
-    if (!main || !cockpit || !overview || !groups || !allTasks) {
+    if (!main || !cockpit || !intelligence || !groups || !allTasks) {
       return;
     }
-    main.insertBefore(cockpit, overview);
-    main.insertBefore(overview, groups);
+    main.insertBefore(cockpit, intelligence);
+    main.insertBefore(intelligence, groups);
     main.insertBefore(groups, allTasks);
   };
   const taskListMount = document.getElementById("backlog-task-list");
+  const setListLoadingState = (isLoading) => {
+    if (!taskListMount) {
+      return;
+    }
+    taskListMount.classList.toggle("is-loading", isLoading);
+    if (isLoading && !taskListMount.querySelector(".backlog-skeleton")) {
+      taskListMount.innerHTML = `
+        <div class="backlog-skeleton" aria-hidden="true">
+          <article class="backlog-skeleton-card"></article>
+          <article class="backlog-skeleton-card"></article>
+          <article class="backlog-skeleton-card"></article>
+        </div>
+      `;
+    }
+  };
   const ensureEmptyState = () => {
     if (!taskListMount) {
       return null;
@@ -74,7 +100,7 @@
       emptyState = document.createElement("p");
       emptyState.id = "backlog-task-list-empty";
       emptyState.className = "backlog-empty-state";
-      emptyState.textContent = "По указанным фильтрам задач не найдено.";
+      emptyState.textContent = "No tasks matching current filter.";
       emptyState.hidden = true;
       taskListMount.insertAdjacentElement("beforebegin", emptyState);
     }
@@ -99,9 +125,56 @@
     if (!taskListMount) {
       return;
     }
+    setListLoadingState(false);
+    taskListMount.innerHTML = "";
     items.forEach((item) => {
       taskListMount.appendChild(item);
     });
+  };
+  const renderIntelligencePanel = () => {
+    const attentionMount = document.getElementById("backlog-attention-list");
+    const bottlenecksMount = document.getElementById("backlog-bottlenecks-list");
+    const reprioMount = document.getElementById("backlog-reprioritization-list");
+    if (!attentionMount || !bottlenecksMount || !reprioMount) {
+      return;
+    }
+    const visible = items.filter((item) => !item.hidden);
+    const openP0 = visible.filter((item) => isOpenStatus(readStatus(item)) && (item.dataset.priority || "").trim() === "P0");
+    const blocked = visible.filter((item) => readStatus(item) === "blocked");
+    const inProgress = visible.filter((item) => readStatus(item) === "in-progress");
+    const done = visible.filter((item) => readStatus(item) === "done");
+    const byGroup = ["frontend", "backend", "devops", "docs"]
+      .map((group) => ({
+        group,
+        open: visible.filter((item) => normalize(item.dataset.group) === group && isOpenStatus(readStatus(item))).length,
+      }))
+      .sort((a, b) => b.open - a.open)
+      .slice(0, 3);
+
+    const attentionItems = [
+      `Open P0 now: ${openP0.length}`,
+      `Blocked right now: ${blocked.length}`,
+      `In progress load: ${inProgress.length}`,
+    ];
+    const bottleneckItems = byGroup.map((entry) => `${groupLabel[entry.group] || entry.group}: ${entry.open} open tasks`);
+    const reprioItems = [
+      blocked.length > 0
+        ? `Escalate ${Math.min(blocked.length, 3)} blocked tasks to unblock sprint flow`
+        : "No blockers detected; keep current sequencing",
+      openP0.length > 0
+        ? `Keep P0 focus lane strict (${openP0.length} active)`
+        : "Consider pulling one high-value P1 into active execution",
+      done.length < inProgress.length
+        ? "Too many parallel tasks; reduce WIP and finish oldest in-progress first"
+        : "Delivery flow is stable; maintain current WIP limits",
+    ];
+
+    const renderList = (mount, entries) => {
+      mount.innerHTML = entries.map((entry) => `<li>${entry}</li>`).join("");
+    };
+    renderList(attentionMount, attentionItems);
+    renderList(bottlenecksMount, bottleneckItems.length ? bottleneckItems : ["No strong bottlenecks in current scope"]);
+    renderList(reprioMount, reprioItems);
   };
 
   const numberCards = () => {
@@ -124,6 +197,20 @@
 
   const normalize = (value) => (value || "").trim().toLowerCase();
   const searchableTextFor = (item) => normalize(item.textContent || "");
+  const parseIsoDate = (value) => {
+    if (!value) {
+      return null;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+  const daysSince = (date) => {
+    if (!date) {
+      return null;
+    }
+    const diff = Date.now() - date.getTime();
+    return diff >= 0 ? Math.floor(diff / DAY_MS) : null;
+  };
 
   const readStatus = (item) => {
     const value = normalize(item.dataset.status);
@@ -140,6 +227,27 @@
     if (pill.classList.contains("status-pill--done")) return "done";
     if (pill.classList.contains("status-pill--rejected")) return "rejected";
     return "";
+  };
+
+  const syncStatusPills = () => {
+    items.forEach((item) => {
+      const heading = item.querySelector("h2");
+      if (!heading) {
+        return;
+      }
+      const status = normalize(item.dataset.status);
+      const presentation = statusPresentation[status] || { label: status || "To do", className: "status-pill--todo" };
+
+      let pill = heading.querySelector(".status-pill");
+      if (!pill) {
+        pill = document.createElement("span");
+        heading.appendChild(pill);
+      }
+      pill.className = "status-pill";
+      pill.classList.add(presentation.className);
+      pill.textContent = presentation.label;
+      pill.setAttribute("aria-label", `Status: ${presentation.label}`);
+    });
   };
 
   const itemNumber = (item) => {
@@ -440,34 +548,125 @@
       return;
     }
     const visible = items.filter((item) => !item.hidden);
+    const totalCount = visible.length || 1;
     const openCount = visible.filter((item) => isOpenStatus(readStatus(item))).length;
+    const inProgressCount = visible.filter((item) => readStatus(item) === "in-progress").length;
     const blockedCount = visible.filter((item) => readStatus(item) === "blocked").length;
-    const highRiskCount = visible.filter((item) => {
+    const doneCount = visible.filter((item) => readStatus(item) === "done").length;
+    const donePercent = Math.round((doneCount / totalCount) * 100);
+
+    const blockedDaysFor = (item) => {
+      const explicit = Number.parseInt(item.dataset.blockedDays || "", 10);
+      if (Number.isFinite(explicit)) {
+        return explicit;
+      }
+      const blockedAt = parseIsoDate(item.dataset.blockedAt || "");
+      return daysSince(blockedAt);
+    };
+
+    const doneDaysAgoFor = (item) => {
+      const explicit = Number.parseInt(item.dataset.doneDaysAgo || "", 10);
+      if (Number.isFinite(explicit)) {
+        return explicit;
+      }
+      const doneAt = parseIsoDate(item.dataset.doneAt || "");
+      return daysSince(doneAt);
+    };
+
+    const slaRiskItems = visible.filter((item) => {
       const status = readStatus(item);
       const priority = (item.dataset.priority || "").trim();
-      return status === "blocked" || (isOpenStatus(status) && priority === "P0");
+      const blockedDays = blockedDaysFor(item);
+      return status === "blocked" && (priority === "P0" || priority === "P1") &&
+        blockedDays !== null && blockedDays > SLA_BLOCKED_THRESHOLD_DAYS;
+    });
+    const blockedCriticalCount = visible.filter((item) => {
+      const status = readStatus(item);
+      const priority = (item.dataset.priority || "").trim();
+      return status === "blocked" && (priority === "P0" || priority === "P1");
     }).length;
-    const doneCount = visible.filter((item) => readStatus(item) === "done").length;
+
+    const etaPressureCount = visible.filter((item) => {
+      const status = readStatus(item);
+      if (!isOpenStatus(status)) {
+        return false;
+      }
+      const explicitEta = Number.parseFloat(item.dataset.etaMaxDays || "");
+      if (Number.isFinite(explicitEta)) {
+        return explicitEta <= ETA_PRESSURE_MAX_DAYS;
+      }
+      const { maxDays } = estimateForItem(item);
+      return maxDays <= ETA_PRESSURE_MAX_DAYS;
+    }).length;
+
+    const recentDoneExplicit = visible.filter((item) => {
+      const status = readStatus(item);
+      const doneDaysAgo = doneDaysAgoFor(item);
+      return status === "done" && doneDaysAgo !== null && doneDaysAgo <= FLOW_HEALTH_PERIOD_DAYS;
+    }).length;
+    const useFlowProxy = recentDoneExplicit === 0;
+    const recentDoneCount = useFlowProxy ? doneCount : recentDoneExplicit;
+    const flowRatePerWeek = Math.round((recentDoneCount / FLOW_HEALTH_PERIOD_DAYS) * 7 * 10) / 10;
+    const completedWithActual = visible.filter((item) => {
+      if (readStatus(item) !== "done") {
+        return false;
+      }
+      const actualHours = Number.parseFloat(item.dataset.actualHours || "");
+      return Number.isFinite(actualHours);
+    });
+    const avgActualHours = completedWithActual.length
+      ? Math.round(
+        (completedWithActual.reduce(
+          (sum, item) => sum + Number.parseFloat(item.dataset.actualHours || "0"),
+          0,
+        ) / completedWithActual.length) * 10,
+      ) / 10
+      : null;
+    const flowHealthState = flowRatePerWeek >= 2 ? "healthy" : flowRatePerWeek >= 1 ? "watch" : "risk";
+    const slaState = slaRiskItems.length === 0 ? "healthy" : slaRiskItems.length <= 2 ? "watch" : "risk";
+    const etaState = etaPressureCount === 0 ? "healthy" : etaPressureCount <= 3 ? "watch" : "risk";
+
+    const percent = (value) => Math.round((value / totalCount) * 100);
     mount.innerHTML = `
       <article class="backlog-kpi">
         <span class="backlog-kpi__label">Visible tasks</span>
         <strong class="backlog-kpi__value">${visible.length}</strong>
+        <span class="backlog-kpi__meta">Current filtered scope</span>
       </article>
       <article class="backlog-kpi">
         <span class="backlog-kpi__label">Open</span>
         <strong class="backlog-kpi__value">${openCount}</strong>
+        <span class="backlog-kpi__meta">${percent(openCount)}% of visible</span>
+      </article>
+      <article class="backlog-kpi">
+        <span class="backlog-kpi__label">In progress</span>
+        <strong class="backlog-kpi__value">${inProgressCount}</strong>
+        <span class="backlog-kpi__meta">${percent(inProgressCount)}% of visible</span>
       </article>
       <article class="backlog-kpi">
         <span class="backlog-kpi__label">Blocked</span>
         <strong class="backlog-kpi__value">${blockedCount}</strong>
+        <span class="backlog-kpi__meta">${percent(blockedCount)}% of visible</span>
       </article>
       <article class="backlog-kpi">
-        <span class="backlog-kpi__label">High risk</span>
-        <strong class="backlog-kpi__value">${highRiskCount}</strong>
+        <span class="backlog-kpi__label">Done %</span>
+        <strong class="backlog-kpi__value">${donePercent}%</strong>
+        <span class="backlog-kpi__meta">${doneCount} completed tasks</span>
       </article>
-      <article class="backlog-kpi">
-        <span class="backlog-kpi__label">Done</span>
-        <strong class="backlog-kpi__value">${doneCount}</strong>
+      <article class="backlog-kpi backlog-kpi--${slaState}">
+        <span class="backlog-kpi__label">SLA breach risk</span>
+        <strong class="backlog-kpi__value">${slaRiskItems.length}</strong>
+        <span class="backlog-kpi__meta">Blocked P0/P1 &gt; ${SLA_BLOCKED_THRESHOLD_DAYS}d (${blockedCriticalCount} critical blocked)</span>
+      </article>
+      <article class="backlog-kpi backlog-kpi--${etaState}">
+        <span class="backlog-kpi__label">ETA pressure</span>
+        <strong class="backlog-kpi__value">${etaPressureCount}</strong>
+        <span class="backlog-kpi__meta">Open tasks with max ETA &le; ${ETA_PRESSURE_MAX_DAYS}d</span>
+      </article>
+      <article class="backlog-kpi backlog-kpi--${flowHealthState}">
+        <span class="backlog-kpi__label">Flow health</span>
+        <strong class="backlog-kpi__value">${flowRatePerWeek}/wk</strong>
+        <span class="backlog-kpi__meta">${recentDoneCount} done / ${FLOW_HEALTH_PERIOD_DAYS}d${useFlowProxy ? " (snapshot proxy)" : ""}${avgActualHours !== null ? `; avg actual ${avgActualHours}h` : ""}</span>
       </article>
     `;
   };
@@ -539,6 +738,12 @@
   };
 
   const applyFilter = () => {
+    if (taskListMount) {
+      taskListMount.classList.add("backlog-task-list--transition");
+      window.setTimeout(() => {
+        taskListMount.classList.remove("backlog-task-list--transition");
+      }, 220);
+    }
     items.forEach((item) => {
       item.hidden = !matches(item);
     });
@@ -549,6 +754,7 @@
     }
     renderGroupSections();
     renderCockpitStats();
+    renderIntelligencePanel();
   };
 
   const activateFilterButtons = (selector, value) => {
@@ -652,6 +858,7 @@
     if (detailedFilters && window.matchMedia("(max-width: 780px)").matches) {
       detailedFilters.open = false;
     }
+
   };
 
   const renderGroupSections = () => {
@@ -683,21 +890,21 @@
       );
       counter.textContent = `${groupItems.length}`;
       groupItems.forEach((item, index) => {
-          const h2 = item.querySelector("h2");
-          if (!h2) {
-            return;
-          }
-          const li = document.createElement("li");
-          if (index >= GROUP_PREVIEW_LIMIT) {
-            li.hidden = true;
-            li.classList.add("is-extra-item");
-          }
-          const a = document.createElement("a");
-          a.href = `#${item.id}`;
-          a.textContent = h2.textContent.replace(/\s+/g, " ").trim();
-          li.appendChild(a);
-          list.appendChild(li);
-        });
+        const h2 = item.querySelector("h2");
+        if (!h2) {
+          return;
+        }
+        const li = document.createElement("li");
+        if (index >= GROUP_PREVIEW_LIMIT) {
+          li.hidden = true;
+          li.classList.add("is-extra-item");
+        }
+        const a = document.createElement("a");
+        a.href = `#${item.id}`;
+        a.textContent = h2.textContent.replace(/\s+/g, " ").trim();
+        li.appendChild(a);
+        list.appendChild(li);
+      });
 
       if (!list.childElementCount) {
         const li = document.createElement("li");
@@ -730,9 +937,13 @@
   };
 
   sortItemsInPlace();
-  mountTaskList();
+  setListLoadingState(true);
+  window.requestAnimationFrame(() => {
+    mountTaskList();
+  });
   reorderTopSections();
   numberCards();
+  syncStatusPills();
   decorateCards();
   recalibrateEstimateBlocks();
   wireButtons();

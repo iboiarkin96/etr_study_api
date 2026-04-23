@@ -71,7 +71,7 @@
 
             <details
               class="backlog-cockpit__control-group backlog-cockpit__control-group--wide backlog-cockpit__details"
-              id="backlog-detailed-filters" aria-label="Detailed filters" open>
+              id="backlog-detailed-filters" aria-label="Detailed filters">
               <summary><strong>Detailed filters</strong></summary>
               <div class="backlog-filter-row">
                 <span class="backlog-filter-row__label">Block</span>
@@ -128,7 +128,8 @@
               <li><code>Open</code> — only active states: to do, in progress, blocked.</li>
               <li><code>Blocked</code> — only tasks currently blocked by dependency/decision.</li>
               <li><code>High risk</code> — priority <code>P0</code> items tagged <code>bug</code> or
-                <code>tech-debt</code>.</li>
+                <code>tech-debt</code>.
+              </li>
             </ul>
 
             <h3>Delivery groups (<code>data-group</code>)</h3>
@@ -185,32 +186,46 @@
               <p><strong>How to edit backlog cards (<code>README.html</code>)</strong></p>
               <ol>
                 <li>For each item set <code>data-tags</code>, <code>data-priority</code>, <code>data-status</code>, and
-                  <code>data-group</code> on the card section.</li>
-                <li>Allowed group values: <code>frontend</code>, <code>backend</code>, <code>devops</code>,
-                  <code>docs</code>.</li>
-                <li>Allowed tag values: <code>bug</code>, <code>feature</code>, <code>research</code>,
-                  <code>tech-debt</code>.</li>
-                <li>Allowed priorities: <code>P0</code>, <code>P1</code>, <code>P2</code>, <code>P3</code>.</li>
-                <li>Allowed status classes: <code>status-pill--todo</code>, <code>status-pill--in-progress</code>,
-                  <code>status-pill--blocked</code>, <code>status-pill--done</code>, <code>status-pill--rejected</code>.
+                  <code>data-group</code> on the card section.
                 </li>
+                <li>Allowed group values: <code>frontend</code>, <code>backend</code>, <code>devops</code>,
+                  <code>docs</code>.
+                </li>
+                <li>Allowed tag values: <code>bug</code>, <code>feature</code>, <code>research</code>,
+                  <code>tech-debt</code>.
+                </li>
+                <li>Allowed priorities: <code>P0</code>, <code>P1</code>, <code>P2</code>, <code>P3</code>.</li>
+                <li>Allowed status values in <code>data-status</code>: <code>todo</code>, <code>in-progress</code>, <code>blocked</code>, <code>done</code>, <code>rejected</code>.</li>
+                <li>Status pill text and status modifier class are auto-synced from <code>data-status</code> in <code>backlog.js</code>; keep heading pill as <code>&lt;span class="status-pill"&gt;&lt;/span&gt;</code>.</li>
+                <li>Optional KPI fields for better cockpit analytics: <code>data-blocked-days="N"</code> or
+                  <code>data-blocked-at="YYYY-MM-DD"</code> (for SLA risk).
+                </li>
+                <li>Optional flow fields: <code>data-done-days-ago="N"</code> or <code>data-done-at="YYYY-MM-DD"</code>,
+                  plus <code>data-actual-hours="N"</code> for factual effort.</li>
+                <li>Optional ETA override: <code>data-eta-max-days="N"</code> if manual planning window is more accurate
+                  than auto-estimate.</li>
               </ol>
             </div>
           </details>
 
           <div class="backlog-cockpit__stats" id="backlog-cockpit-stats" aria-live="polite"></div>
         </section>
-        <section class="card" id="overview-section">
-          <h2>Overview</h2>
-          <p>
-            One ordered list of engineering work: most urgent first, nice-to-have last. Dates are <strong>rough
-              calendar-day ranges</strong> (weekends off), for <strong>3 / 2 / 1 hours of focused work per day</strong>.
-            They are
-            not deadlines—only a shared guess for planning. To change status, edit the pill class (see the legend). This
-            page
-            is <strong>not</strong> ADR lifecycle: ADRs use <code>data-adr-weight</code> and ratification
-            (<a href="../adr/0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>).
-          </p>
+        <section class="card" id="backlog-intelligence" aria-labelledby="backlog-intelligence-title">
+          <h2 id="backlog-intelligence-title">Intelligence panel</h2>
+          <div class="backlog-intelligence-grid">
+            <section class="backlog-intelligence-card">
+              <h3>What needs attention today</h3>
+              <ul id="backlog-attention-list"></ul>
+            </section>
+            <section class="backlog-intelligence-card">
+              <h3>Top 3 bottlenecks</h3>
+              <ul id="backlog-bottlenecks-list"></ul>
+            </section>
+            <section class="backlog-intelligence-card">
+              <h3>Reprioritization suggestions</h3>
+              <ul id="backlog-reprioritization-list"></ul>
+            </section>
+          </div>
         </section>
 
         <section class="card" id="backlog-blocks" aria-labelledby="blocks-title">
@@ -225,19 +240,21 @@
           <h2 id="all-tasks-title">All tasks</h2>
           <div id="backlog-task-list"></div>
         </section>
+
         <section class="card" id="new-task-template" aria-labelledby="new-task-template-title">
           <h2 id="new-task-template-title">New task template</h2>
           <p class="backlog-intro">Use this anchor to quickly create a new card in <code>README.html</code> and keep
             taxonomy consistent.</p>
           <p class="backlog-intro">
             Detailed screen documentation for this backlog cockpit lives in
-            <a href="../internal/front/screens/docs-screen-backlog-cockpit.html">internal frontend screen specs: backlog cockpit</a>.
+            <a href="../internal/front/screens/docs-screen-backlog-cockpit.html">internal frontend screen specs: backlog
+              cockpit</a>.
           </p>
-          <pre><code>&lt;section class="card backlog-item" id="item-XX" data-group="backend" data-tags="feature" data-priority="P2" data-status="todo"&gt;
+          <pre><code>&lt;section class="card backlog-item" id="item-XX" data-group="backend" data-tags="feature" data-priority="P2" data-status="todo" data-blocked-days="0" data-done-days-ago="999" data-eta-max-days="5" data-actual-hours="0"&gt;
   &lt;h2&gt;
     &lt;span class="priority-tag"&gt;P2&lt;/span&gt;
     Title
-    &lt;span class="status-pill status-pill--todo"&gt;To do&lt;/span&gt;
+    &lt;span class="status-pill"&gt;&lt;/span&gt;
   &lt;/h2&gt;
   &lt;dl&gt;
     &lt;dt&gt;1) Summary&lt;/dt&gt;
@@ -258,7 +275,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             Backlog page and <code>docs/backlog/</code> layout
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -297,7 +314,7 @@
           <h2>
             <span class="priority-tag">P0</span>
             CI pipeline: quality gates, coverage threshold, docs-check
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -343,7 +360,7 @@
           <h2>
             <span class="priority-tag">P0</span>
             SLOs / SLAs, error budget, and monitoring alerts
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -390,7 +407,7 @@
           <h2>
             <span class="priority-tag">P1</span>
             DB uniqueness, race safety, and documented concurrency behavior
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -433,7 +450,7 @@
           <h2>
             <span class="priority-tag">P1</span>
             Dependency security (<code>pip-audit</code>) and update policy
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -477,7 +494,7 @@
           <h2>
             <span class="priority-tag">P1</span>
             Integration tests against the database (CI)
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -513,7 +530,7 @@
           <h2>
             <span class="priority-tag">P2</span>
             Test pyramid: unit tests + property-based tests (Hypothesis)
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -548,7 +565,7 @@
           <h2>
             <span class="priority-tag">P2</span>
             E2E: HTTP scenarios against a running application
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -583,7 +600,7 @@
           <h2>
             <span class="priority-tag">P2</span>
             Mutation testing pilot for critical rules
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -620,7 +637,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             Distributed rate limiting with Redis (multi-instance)
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -659,7 +676,7 @@
           <h2>
             <span class="priority-tag">P2</span>
             Redis adoption: idempotency cache and short-lived platform data
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -702,7 +719,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             PostgreSQL as primary database and migration path from SQLite
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -739,7 +756,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             Load testing (k6 / Locust) and SLO validation
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -782,7 +799,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             Test data: seeds, fixtures, runbook
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -816,7 +833,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             Feature flags (safe rollout)
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -852,7 +869,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             Architecture fitness: enforced layer boundaries
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -888,7 +905,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             Changelog and release-time verification
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -930,7 +947,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             Repository cleanup and dead code removal
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -974,7 +991,7 @@
           <h2>
             <span class="priority-tag">P2</span>
             Distributed tracing (OpenTelemetry) and trace context
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1011,7 +1028,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             Structured logging (JSON) and request correlation IDs
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1055,7 +1072,7 @@
           <h2>
             <span class="priority-tag">P3</span>
             CI: container image SBOM and vulnerability scan (published GHCR image)
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1090,7 +1107,7 @@
           <h2>
             <span class="priority-tag">P1</span>
             OpenAPI governance: lint, semantic baseline, and strict contract test
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1133,7 +1150,7 @@
           <h2>
             <span class="priority-tag">P1</span>
             Continuous delivery: publish container image to GHCR from <code>main</code> / tags
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1174,7 +1191,7 @@
           <h2>
             <span class="priority-tag">P2</span>
             Single source of truth for application / OpenAPI version metadata
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1210,7 +1227,7 @@
           <h2>
             <span class="priority-tag">P2</span>
             CI: optional HTTP smoke or load-regression job (post-<code>main</code> or nightly)
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1246,7 +1263,7 @@
           <h2>
             <span class="priority-tag">P2</span>
             Document versioning: Document Version field and change policy
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1287,7 +1304,7 @@
           <h2>
             <span class="priority-tag">P0</span>
             QA foundation: dedicated tester space, test process, and full testing pyramid (frontend + backend)
-            <span class="status-pill status-pill--todo">To do</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1332,7 +1349,7 @@
           <h2>
             <span class="priority-tag">P1</span>
             Mobile docs UX: fix top navigation rendering on iPhone 17 Pro Max and adaptive layout by screen size
-            <span class="status-pill status-pill--done">Done</span>
+            <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1389,7 +1406,7 @@
           <h2>
             <span class="priority-tag">P1</span>
             Working Swagger for frontend validation only
-            <span class="status-pill status-pill--todo">To do</span>
+              <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1426,7 +1443,7 @@
           <h2>
             <span class="priority-tag">P2</span>
             PDoc: navigation and unified application theme
-            <span class="status-pill status-pill--todo">To do</span>
+              <span class="status-pill"></span>
           </h2>
           <dl>
             <dt>1) Summary</dt>
@@ -1471,7 +1488,8 @@
               <tbody>
                 <tr>
                   <td><time datetime="2026-04-23">2026-04-23</time></td>
-                  <td>Moved cockpit implementation details to internal frontend screen docs and left this page focused on backlog content and operations.</td>
+                  <td>Moved cockpit implementation details to internal frontend screen docs and left this page focused
+                    on backlog content and operations.</td>
                   <td><a href="../internal/portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
                 </tr>
                 <tr>

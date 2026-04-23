@@ -51,6 +51,13 @@
             <li><code>data-tags</code> (task type): <code>bug</code>, <code>feature</code>, <code>research</code>, <code>tech-debt</code>.</li>
             <li><code>data-priority</code>: <code>P0</code>, <code>P1</code>, <code>P2</code>, <code>P3</code>.</li>
             <li><code>data-status</code>: <code>todo</code>, <code>in-progress</code>, <code>done</code>, <code>blocked</code>, <code>rejected</code>.</li>
+            <li>Status visual pill is rendered from <code>data-status</code>; markup can stay as <code>&lt;span class="status-pill"&gt;&lt;/span&gt;</code> without manual text/class duplication.</li>
+            <li><code>data-blocked-days</code> (optional): integer for blocked aging, used by SLA breach risk KPI.</li>
+            <li><code>data-done-days-ago</code> (optional): integer for throughput window, used by Flow health KPI.</li>
+            <li><code>data-blocked-at</code> (optional): ISO date fallback for blocked aging if <code>data-blocked-days</code> is missing.</li>
+            <li><code>data-done-at</code> (optional): ISO date fallback for done recency if <code>data-done-days-ago</code> is missing.</li>
+            <li><code>data-actual-hours</code> (optional): factual effort for completed tasks, used in flow meta as average actual effort.</li>
+            <li><code>data-eta-max-days</code> (optional): manual ETA max override for ETA pressure KPI.</li>
             <li>Never duplicate domain meaning in tags (for example, do not use <code>backend</code> in <code>data-tags</code>).</li>
           </ul>
         </section>
@@ -78,6 +85,14 @@
             <li>Clicking quick presets updates detailed filters.</li>
             <li>Changing detailed filters recalculates quick preset state; non-matching combinations become internal <code>custom</code> state.</li>
           </ul>
+          <h3>Implementation map (filters)</h3>
+          <ul>
+            <li><strong>Main filter predicate:</strong> <code>matches(item)</code> in <code>docs/backlog/backlog.js</code>.</li>
+            <li><strong>Quick preset rule evaluation:</strong> <code>matchesQuickPreset(item, status, priority)</code>.</li>
+            <li><strong>Quick → detailed sync:</strong> <code>applyDetailedFromQuickPreset(preset)</code>.</li>
+            <li><strong>Detailed → quick sync:</strong> <code>syncQuickPresetFromDetailed()</code>.</li>
+            <li><strong>Detailed filter state attributes:</strong> <code>data-filter-group</code>, <code>data-filter-priority</code>, <code>data-filter-task-type</code>, <code>data-filter-status</code> in <code>docs/backlog/README.html</code>.</li>
+          </ul>
         </section>
 
         <section class="card" id="sorting-and-views">
@@ -88,11 +103,71 @@
             <li>Within open tasks: open <code>P0</code> first, then <code>bug</code>, then <code>P1</code>, <code>P2</code>, <code>P3</code>.</li>
             <li>Final tie-break by numeric item id (<code>item-XX</code>) to keep order deterministic.</li>
           </ul>
+          <h3>Implementation map (sorting)</h3>
+          <ul>
+            <li><strong>Sort orchestrator:</strong> <code>sortItemsInPlace()</code> in <code>docs/backlog/backlog.js</code>.</li>
+            <li><strong>Open vs closed ordering:</strong> comparator block using <code>isOpenStatus(status)</code> and <code>openRank</code>.</li>
+            <li><strong>Open P0 → bug → P1/P2/P3 ordering:</strong> <code>priorityBucketRank(item, status, priority)</code> with <code>prioritySortRank</code>.</li>
+            <li><strong>Status tie-breaker:</strong> <code>statusSortRank</code> map in comparator.</li>
+            <li><strong>Final deterministic tie-break:</strong> <code>itemNumber(item)</code> parsing <code>id="item-XX"</code>.</li>
+          </ul>
 
           <h3>View switch</h3>
           <ul>
             <li><code>Board</code>, <code>List</code>, <code>Timeline</code> are visual modes controlled by <code>data-backlog-view</code>.</li>
             <li><code>Timeline</code> currently changes presentation only (vertical line + markers), without schedule logic.</li>
+          </ul>
+          <h3>Implementation map (view modes)</h3>
+          <ul>
+            <li><strong>State setter:</strong> <code>applyViewMode()</code> sets <code>data-backlog-view</code> on <code>body</code>.</li>
+            <li><strong>View controls:</strong> buttons with <code>data-view-mode</code> in <code>docs/backlog/README.html</code> are wired in <code>wireButtons()</code>.</li>
+            <li><strong>Visual behavior:</strong> CSS selectors <code>body[data-backlog-view="board|list|timeline"] ...</code> in <code>docs/backlog/backlog.css</code>.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="kpi-strip">
+          <h2>KPI strip metrics</h2>
+          <p>
+            KPI tiles are computed from the currently visible set (after all filters/search are applied), so numbers always
+            reflect the exact manager view on screen.
+          </p>
+          <h3>Core metrics</h3>
+          <ul>
+            <li><strong>Open</strong>, <strong>In progress</strong>, <strong>Blocked</strong> — count plus percentage of visible scope.</li>
+            <li><strong>Done %</strong> — done ratio of the current visible scope.</li>
+          </ul>
+          <h3>Risk and flow metrics</h3>
+          <ul>
+            <li><strong>SLA breach risk</strong> — blocked <code>P0/P1</code> tasks with <code>data-blocked-days &gt; 5</code>.</li>
+            <li><strong>ETA pressure</strong> — open tasks with narrow estimate window (max ETA <code>&lt;= 3</code> days, from estimate model).</li>
+            <li><strong>Flow health</strong> — throughput in <code>/wk</code> based on done tasks over a 14-day window.</li>
+          </ul>
+          <h3>Calculation formulas (current implementation)</h3>
+          <ul>
+            <li><strong>Scope base:</strong> all KPI values are calculated from <em>visible tasks</em> after current filters/search.</li>
+            <li><strong>Open % / In progress % / Blocked %:</strong> <code>count(status) / visible_count * 100</code>.</li>
+            <li><strong>Done %:</strong> <code>done_count / visible_count * 100</code>.</li>
+            <li><strong>SLA breach risk count:</strong> <code>status=blocked AND priority in (P0,P1) AND blocked_days &gt; 5</code>.</li>
+            <li><strong>ETA pressure count:</strong> open tasks with <code>eta_max_days &lt;= 3</code> (explicit override first, estimate-model fallback second).</li>
+            <li><strong>Flow health:</strong> <code>(done_in_14_days / 14) * 7</code>, rendered as <code>X/wk</code>.</li>
+          </ul>
+          <h3>Implementation map (KPI strip)</h3>
+          <ul>
+            <li><strong>Main KPI renderer:</strong> <code>renderCockpitStats()</code> in <code>docs/backlog/backlog.js</code>.</li>
+            <li><strong>SLA configuration:</strong> <code>SLA_BLOCKED_THRESHOLD_DAYS</code> constant.</li>
+            <li><strong>Flow window:</strong> <code>FLOW_HEALTH_PERIOD_DAYS</code> constant.</li>
+            <li><strong>ETA pressure threshold:</strong> <code>ETA_PRESSURE_MAX_DAYS</code> constant.</li>
+            <li><strong>Card-level KPI attributes:</strong> <code>data-blocked-days</code>, <code>data-blocked-at</code>, <code>data-done-days-ago</code>, <code>data-done-at</code>, <code>data-actual-hours</code>, <code>data-eta-max-days</code>.</li>
+          </ul>
+          <h3>Fallback behavior</h3>
+          <ul>
+            <li><code>data-blocked-days</code> falls back to <code>data-blocked-at</code> (days since date) when provided.</li>
+            <li><code>data-done-days-ago</code> falls back to <code>data-done-at</code> (days since date) when provided.</li>
+            <li><code>ETA pressure</code> uses <code>data-eta-max-days</code> when set; otherwise it falls back to computed estimate model.</li>
+            <li>If no done recency attributes are present, flow KPI uses current done snapshot as proxy and marks it in tile meta.</li>
+            <li>If both explicit and fallback fields are missing for SLA or flow recency, that card is excluded from the corresponding strict age calculation.</li>
+            <li>If <code>visible_count = 0</code>, percentage tiles show safe zero-based output from guarded denominator logic (no divide-by-zero errors).</li>
+            <li>KPI severity visuals: <code>healthy</code>, <code>watch</code>, <code>risk</code> with dedicated tile styling.</li>
           </ul>
         </section>
 
@@ -102,6 +177,13 @@
             <li>Runtime validates each card against allowed group/tag sets.</li>
             <li>Invalid cards are highlighted with <code>backlog-item--invalid-taxonomy</code>.</li>
             <li>Cockpit warning panel (<code>#backlog-validation-alert</code>) lists invalid items with direct anchors.</li>
+          </ul>
+          <h3>Implementation map (validation)</h3>
+          <ul>
+            <li><strong>Validator entry point:</strong> <code>validateTaxonomy()</code> in <code>docs/backlog/backlog.js</code>.</li>
+            <li><strong>Allowed taxonomy sets:</strong> <code>allowedGroups</code> and <code>allowedTags</code> constants.</li>
+            <li><strong>Alert mount:</strong> <code>ensureValidationMount()</code> creates <code>#backlog-validation-alert</code>.</li>
+            <li><strong>Error highlighting class:</strong> <code>backlog-item--invalid-taxonomy</code> styled in <code>docs/backlog/backlog.css</code>.</li>
           </ul>
         </section>
 
@@ -137,6 +219,11 @@
                 </tr>
               </thead>
               <tbody>
+                <tr>
+                  <td><time datetime="2026-04-23">2026-04-23</time></td>
+                  <td>Added KPI strip specification: metric formulas, optional data attributes, and severity/fallback rules.</td>
+                  <td><a href="../../portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
                 <tr>
                   <td><time datetime="2026-04-23">2026-04-23</time></td>
                   <td>Created dedicated screen specification for backlog cockpit and moved implementation notes out of backlog content page.</td>
