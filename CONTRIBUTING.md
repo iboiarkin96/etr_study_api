@@ -43,6 +43,7 @@
     - Authenticate: `gh auth login`.
     - Install hooks: `pre-commit install --hook-type pre-commit --hook-type pre-push`.
   - If `gh` is missing, `pre-push` fails with `command not found: gh` / "GitHub CLI is not installed"; install and authenticate `gh`, then retry push.
+  - First push on a brand-new branch may happen before GitHub can resolve the PR head ref; in that case push once more and the hook will create/update PR body on the next push.
   - Temporary bypass for push sync only: `SKIP_PR_SYNC=1 git push`.
 
 ## Architecture decisions (ADRs)

@@ -38,6 +38,14 @@ if [[ -z "${default_base:-}" ]]; then
   default_base="main"
 fi
 
+if git rev-parse --verify "origin/$default_base" >/dev/null 2>&1; then
+  commits_ahead="$(git rev-list --count "origin/$default_base..HEAD" 2>/dev/null || echo 0)"
+  if [[ "${commits_ahead:-0}" -eq 0 ]]; then
+    echo "PR sync: no commits ahead of origin/$default_base; skipping PR sync."
+    exit 0
+  fi
+fi
+
 pr_number="$(gh pr view --head "$branch" --json number --jq '.number' 2>/dev/null || true)"
 if [[ -n "$pr_number" ]]; then
   gh pr edit "$pr_number" --body-file "$pr_body_file" >/dev/null
@@ -54,6 +62,15 @@ gh pr create \
   --base "$default_base" \
   --head "$branch" \
   --title "$title" \
-  --body-file "$pr_body_file" >/dev/null
+  --body-file "$pr_body_file" >/tmp/pr_sync_create.out 2>/tmp/pr_sync_create.err || {
+    err="$(cat /tmp/pr_sync_create.err 2>/dev/null || true)"
+    if echo "$err" | grep -Eq "Head sha can't be blank|Head ref must be a branch|No commits between"; then
+      echo "PR sync: branch is likely not available on remote yet (first push)."
+      echo "PR sync: push succeeded; run 'git push' once more to auto-create/update PR body."
+      exit 0
+    fi
+    echo "$err"
+    exit 1
+  }
 
 echo "PR sync: created PR for branch $branch with body from $pr_body_file."
