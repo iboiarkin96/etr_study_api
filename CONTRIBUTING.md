@@ -33,6 +33,17 @@
 ## Branches and repository workflow
 
 - Branch names (`feature/…`, `fix/…`, `docs/…`), `main`, tags `v*.*.*`, hotfixes: [ADR 0017](docs/adr/0017-branch-naming-and-repository-workflow.html).
+- PR body automation:
+  - Keep a local root file `PR_BODY.md` (gitignored). Template source is `.github/PULL_REQUEST_TEMPLATE.md`.
+  - On `pre-commit` (non-`main` / non-`master` branches), hook `scripts/check_pr_body.sh` requires `PR_BODY.md` to exist, be non-empty, and have exactly one selected change type (`delivery` / `docs-only` / `mixed`).
+  - The same hook also blocks common template placeholders (`What changed and why?`, ``...``) so a raw template is not committed by mistake.
+  - On `pre-push`, hook `scripts/sync_pr_body.sh` updates or creates the branch PR body from `PR_BODY.md` using GitHub CLI (`gh`).
+  - First-time setup:
+    - Install GitHub CLI (`gh`) and verify: `gh --version` (for macOS/Homebrew: `brew install gh`).
+    - Authenticate: `gh auth login`.
+    - Install hooks: `pre-commit install --hook-type pre-commit --hook-type pre-push`.
+  - If `gh` is missing, `pre-push` fails with `command not found: gh` / "GitHub CLI is not installed"; install and authenticate `gh`, then retry push.
+  - Temporary bypass for push sync only: `SKIP_PR_SYNC=1 git push`.
 
 ## Architecture decisions (ADRs)
 
