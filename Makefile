@@ -668,6 +668,14 @@ llm-ping:
 
 # Create/update pull request body from PR_BODY.md using GitHub CLI.
 pr-sync:
+	@if [ "$${PR_SYNC_ASSUME_YES:-0}" != "1" ]; then \
+		printf "$(COLOR_CYAN)? %s$(COLOR_RESET)\n" "Did you update PR_BODY.md? [y/N]"; \
+		read -r answer; \
+		case "$$answer" in \
+			y|Y|yes|YES) ;; \
+			*) printf "$(ICON_ERR) %s\n" "PR sync cancelled by user"; exit 1 ;; \
+		esac; \
+	fi
 	@printf "$(ICON_STEP) %s\n" "Syncing pull request body from PR_BODY.md…"
 	@bash scripts/sync_pr_body.sh
 	@printf "$(ICON_OK) %s\n" "PR sync command completed"

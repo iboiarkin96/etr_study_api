@@ -45,9 +45,10 @@
   - If `gh` is missing, `pre-push` prints guidance and skips sync; install and authenticate `gh`, then run `make pr-sync`.
   - First push on a brand-new branch may happen before GitHub can resolve the PR head ref; in that case push once more and the hook will create/update PR body on the next push.
   - Manual commands (recommended for deterministic workflow):
-    - `make pr-sync` — create/update PR description from `PR_BODY.md` without needing PR number.
+    - `make pr-sync` — create/update PR description from `PR_BODY.md` without needing PR number (asks: "Did you update PR_BODY.md? [y/N]").
     - `make pr-open` — open current branch PR in browser using explicit `--repo`; if PR does not exist, creates one for the same repo/base/head (uses `PR_BODY.md` when present).
   - Repo auto-detection for `pr-sync` / `pr-open`: branch upstream remote (`@{upstream}`) → `origin` → `fork`; optional override: `PR_REPO=<owner/repo>`.
+  - Non-interactive `pr-sync` (skip confirmation prompt): `PR_SYNC_ASSUME_YES=1 make pr-sync`.
   - Temporary bypass for auto-sync on push: `SKIP_PR_SYNC=1 git push`.
 
 ## Architecture decisions (ADRs)
