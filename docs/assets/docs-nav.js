@@ -134,6 +134,87 @@ const DOCS_READING_MODE_STORAGE_KEY = "docs-reading-mode-enabled";
 const DOCS_HOTKEY_HINT_DISMISSED_KEY = "docs-hotkey-hint-dismissed-v1";
 const DOCS_CONTINUE_READING_STORAGE_KEY = "docs-reading-progress-v1";
 const DOCS_CONTINUE_READING_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const DOCS_NAV_LINK_REGISTRY = {
+  home: {
+    target: "index.html",
+    icon: "⌂",
+    navLabel: "Home",
+    footerLabel: "Documentation home",
+    searchLabel: "Go to Documentation home",
+    activePrefixes: [],
+  },
+  openapi: {
+    target: "openapi/index.html",
+    icon: "◎",
+    navLabel: "API Explorer",
+    searchLabel: "Go to OpenAPI / Swagger UI",
+    activePrefixes: ["openapi"],
+  },
+  backlog: {
+    target: "backlog/README.html",
+    icon: "▣",
+    navLabel: "Backlog",
+    activePrefixes: ["backlog"],
+  },
+  pdoc: {
+    target: "pdoc/index.html",
+    icon: "◧",
+    navLabel: "Python Docs",
+    searchLabel: "Go to Python API (pdoc)",
+    activePrefixes: ["pdoc"],
+  },
+  internal: {
+    target: "internal/README.html",
+    icon: "◉",
+    navLabel: "Internal docs",
+    searchLabel: "Go to Internal README",
+    activePrefixes: ["internal"],
+  },
+  runbooks: {
+    target: "runbooks/README.html",
+    searchLabel: "Go to Runbooks",
+    activePrefixes: ["runbooks"],
+  },
+};
+const DOCS_TOP_NAV_KEYS = ["home", "internal", "openapi", "backlog", "pdoc"];
+const DOCS_SEARCH_EMPTY_QUICK_LINK_KEYS = ["internal", "pdoc", "openapi", "runbooks"];
+const DOCS_FOOTER_LINK_KEYS = ["home"];
+
+function docsNavEntry(key) {
+  return DOCS_NAV_LINK_REGISTRY[key] || null;
+}
+
+function docsTopNavItems() {
+  return DOCS_TOP_NAV_KEYS.map((key) => {
+    const entry = docsNavEntry(key);
+    return {
+      icon: entry.icon || "•",
+      label: entry.navLabel || entry.searchLabel || entry.footerLabel || key,
+      target: entry.target,
+      activePrefixes: Array.isArray(entry.activePrefixes) ? entry.activePrefixes : [],
+    };
+  });
+}
+
+function docsQuickLinks(fromDir) {
+  return DOCS_SEARCH_EMPTY_QUICK_LINK_KEYS.map((key) => {
+    const entry = docsNavEntry(key);
+    return {
+      label: entry.searchLabel || entry.navLabel || entry.footerLabel || key,
+      href: buildSearchResultHref(fromDir, entry.target),
+    };
+  });
+}
+
+function docsFooterLinks() {
+  return DOCS_FOOTER_LINK_KEYS.map((key) => {
+    const entry = docsNavEntry(key);
+    return {
+      href: entry.target,
+      label: entry.footerLabel || entry.navLabel || entry.searchLabel || key,
+    };
+  });
+}
 
 function docsPalettePrimaryHotkeyLabel() {
   const platform = String(navigator.platform || "").toLowerCase();
@@ -883,12 +964,7 @@ function renderDocsSearchResults(list, results, fromDir, selectedIndex, listId, 
     clearBtn.setAttribute("data-search-action", "clear");
     clearBtn.textContent = "Clear query";
 
-    const quickLinks = [
-      { label: "Go to Internal README", href: buildSearchResultHref(fromDir, "internal/README.html") },
-      { label: "Go to Python API (pdoc)", href: buildSearchResultHref(fromDir, "pdoc/index.html") },
-      { label: "Go to OpenAPI / Swagger UI", href: buildSearchResultHref(fromDir, "openapi/index.html") },
-      { label: "Go to Runbooks", href: buildSearchResultHref(fromDir, "runbooks/README.html") },
-    ];
+    const quickLinks = docsQuickLinks(fromDir);
     actions.appendChild(clearBtn);
     quickLinks.forEach((item) => {
       const link = document.createElement("a");
@@ -1234,100 +1310,42 @@ function mountDocsSearch(nav, fromDir) {
   });
 }
 
-function appendTopNavLinks(container, items, fromDir, active) {
+function isTopNavItemActive(item, relPath, activeTargetPath) {
+  if (item.target === activeTargetPath) {
+    return true;
+  }
+  if (item.activePrefixes && item.activePrefixes.length > 0) {
+    return item.activePrefixes.some((prefix) => relPath === prefix || relPath.startsWith(`${prefix}/`));
+  }
+  return false;
+}
+
+function appendTopNavLinks(container, items, fromDir, active, relPath) {
   for (const item of items) {
     const link = document.createElement("a");
-    link.textContent = item.label;
+    if (item.icon) {
+      const icon = document.createElement("span");
+      icon.className = "top-nav__link-icon";
+      icon.setAttribute("aria-hidden", "true");
+      icon.textContent = item.icon;
+      link.appendChild(icon);
+      const label = document.createElement("span");
+      label.className = "top-nav__link-label";
+      label.textContent = item.label;
+      link.appendChild(label);
+    } else {
+      link.textContent = item.label;
+    }
     link.href = relHref(fromDir, item.target);
     if (item.className) {
       link.className = item.className;
     }
-    if (item.target === active) {
+    if (isTopNavItemActive(item, relPath, active)) {
       link.classList.add("is-active");
       link.setAttribute("aria-current", "page");
     }
     container.appendChild(link);
   }
-}
-
-function initCompactTopNav(nav) {
-  if (!nav) {
-    return;
-  }
-  const media = window.matchMedia("(max-width: 760px)");
-  const groups = [...nav.querySelectorAll(".top-nav__group")];
-  const toggles = [];
-  let mobileStateSeeded = false;
-
-  function ensureToggle(group, body) {
-    let controls = group.querySelector(".top-nav__group-controls");
-    if (!controls) {
-      controls = document.createElement("div");
-      controls.className = "top-nav__group-controls";
-      const head = group.querySelector(".top-nav__group-head");
-      if (head) {
-        head.appendChild(controls);
-      }
-    }
-    let toggle = controls.querySelector(".top-nav__toggle");
-    if (!toggle) {
-      toggle = document.createElement("button");
-      toggle.type = "button";
-      toggle.className = "top-nav__toggle";
-      controls.appendChild(toggle);
-    }
-    const bodyId = body.id || `top-nav-group-body-${Math.random().toString(36).slice(2, 8)}`;
-    body.id = bodyId;
-    toggle.setAttribute("aria-controls", bodyId);
-    return toggle;
-  }
-
-  function setCollapsed(group, body, toggle, isCollapsed) {
-    group.classList.toggle("is-collapsed", isCollapsed);
-    body.hidden = isCollapsed;
-    toggle.textContent = isCollapsed ? "Show links" : "Hide links";
-    toggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
-  }
-
-  for (const group of groups) {
-    const body = group.querySelector(".top-nav__group-body");
-    if (!body) {
-      continue;
-    }
-    const toggle = ensureToggle(group, body);
-    toggles.push({ group, body, toggle });
-    toggle.addEventListener("click", () => {
-      setCollapsed(group, body, toggle, !group.classList.contains("is-collapsed"));
-    });
-  }
-
-  function applyByViewport() {
-    if (!media.matches) {
-      for (const item of toggles) {
-        item.toggle.hidden = true;
-        setCollapsed(item.group, item.body, item.toggle, false);
-      }
-      return;
-    }
-    for (const item of toggles) {
-      item.toggle.hidden = false;
-      if (!mobileStateSeeded) {
-        const hasActive = !!item.body.querySelector("a.is-active");
-        setCollapsed(item.group, item.body, item.toggle, !hasActive);
-      } else {
-        setCollapsed(
-          item.group,
-          item.body,
-          item.toggle,
-          item.group.classList.contains("is-collapsed"),
-        );
-      }
-    }
-    mobileStateSeeded = true;
-  }
-
-  applyByViewport();
-  media.addEventListener("change", applyByViewport);
 }
 
 /** Hub HTML file for a path prefix (directory trail), or null if there is no index page. */
@@ -1619,6 +1637,20 @@ function syncDocsThemeToggleWithHeading() {
   }
 }
 
+function injectDocsPopupsRuntime() {
+  if (window.DocsPopups) {
+    return;
+  }
+  if (document.querySelector('script[data-docs-popups-runtime="1"]')) {
+    return;
+  }
+  const script = document.createElement("script");
+  script.defer = true;
+  script.src = relHref(docsPageDir(), "assets/docs-popups.js");
+  script.setAttribute("data-docs-popups-runtime", "1");
+  document.head.appendChild(script);
+}
+
 function ensureInternalLayoutForInternalSections() {
   const relPath = currentDocsRelPath();
   const internalPrefixes = [
@@ -1684,17 +1716,7 @@ function renderTopNav() {
   const relPath = currentDocsRelPath();
   const fromDir = relPath.includes("/") ? relPath.slice(0, relPath.lastIndexOf("/")) : "";
   const active = activeTarget(relPath);
-  const internalItems = [
-    { label: "Home", target: "index.html" },
-    { label: "Internal docs", target: "internal/README.html" },
-    { label: "QA checklists", target: "qa/README.html" },
-    { label: "Assessments", target: "audit/README.html" },
-    { label: "⭐Backlog", target: "backlog/README.html" },
-  ];
-  const publicItems = [
-    { label: "OpenAPI / Swagger UI", target: "openapi/index.html" },
-    { label: "Python API (pdoc)", target: "pdoc/index.html" },
-  ];
+  const primaryItems = docsTopNavItems();
 
   const isInternalLayoutChrome =
     document.body.classList.contains("internal-layout") && document.getElementById("internal-sidebar-mount");
@@ -1706,76 +1728,28 @@ function renderTopNav() {
   }
   nav.setAttribute("aria-label", "Documentation navigation");
 
-  const groups = document.createElement("div");
-  groups.className = "top-nav__groups";
+  // ── Flat app bar: wordmark · links · actions ────────────────────────────
+  const bar = document.createElement("div");
+  bar.className = "top-nav__bar";
 
-  const internalSection = document.createElement("section");
-  internalSection.className = "top-nav__group top-nav__group--internal";
-  internalSection.setAttribute("aria-labelledby", "top-nav-internal-label");
+  // Wordmark (left anchor — always links to home)
+  const wordmark = document.createElement("a");
+  wordmark.className = "top-nav__wordmark";
+  wordmark.href = relHref(fromDir, "index.html");
+  wordmark.textContent = "ETR Study API";
+  bar.appendChild(wordmark);
 
-  const internalHead = document.createElement("div");
-  internalHead.className = "top-nav__group-head";
-  internalHead.id = "top-nav-internal-label";
+  // Nav links (center): flat top-level quick entry
+  const linksEl = document.createElement("div");
+  linksEl.className = "top-nav__links";
+  appendTopNavLinks(linksEl, primaryItems, fromDir, active, relPath);
+  bar.appendChild(linksEl);
 
-  const internalTitle = document.createElement("span");
-  internalTitle.className = "top-nav__group-title";
-  internalTitle.textContent = "Project";
+  // Actions (right): search widget + theme toggle
+  const actionsEl = document.createElement("div");
+  actionsEl.className = "top-nav__actions";
 
-  const internalHint = document.createElement("span");
-  internalHint.className = "top-nav__group-hint";
-  internalHint.textContent = "Main project artefacts";
-
-  internalHead.appendChild(internalTitle);
-  internalHead.appendChild(internalHint);
-
-  const internalLinks = document.createElement("div");
-  internalLinks.className = "top-nav__links";
-  internalLinks.id = "top-nav-internal-links";
-  appendTopNavLinks(internalLinks, internalItems, fromDir, active);
-  const internalBody = document.createElement("div");
-  internalBody.className = "top-nav__group-body";
-  internalBody.appendChild(internalLinks);
-
-  internalSection.appendChild(internalHead);
-  internalSection.appendChild(internalBody);
-
-  const split = document.createElement("div");
-  split.className = "top-nav__split";
-  split.setAttribute("aria-hidden", "true");
-
-  const publicSection = document.createElement("section");
-  publicSection.className = "top-nav__group top-nav__group--public";
-  publicSection.setAttribute("aria-labelledby", "top-nav-public-label");
-
-  const publicHead = document.createElement("div");
-  publicHead.className = "top-nav__group-head";
-  publicHead.id = "top-nav-public-label";
-
-  const publicTitle = document.createElement("span");
-  publicTitle.className = "top-nav__group-title";
-  publicTitle.textContent = "Code";
-
-  const publicHint = document.createElement("span");
-  publicHint.className = "top-nav__group-hint";
-  publicHint.textContent = "Development artefacts";
-
-  publicHead.appendChild(publicTitle);
-  publicHead.appendChild(publicHint);
-
-  const publicLinks = document.createElement("div");
-  publicLinks.className = "top-nav__links";
-  appendTopNavLinks(publicLinks, publicItems, fromDir, active);
-  const publicBody = document.createElement("div");
-  publicBody.className = "top-nav__group-body";
-  publicBody.appendChild(publicLinks);
-
-  publicSection.appendChild(publicHead);
-  publicSection.appendChild(publicBody);
-
-  groups.appendChild(internalSection);
-  groups.appendChild(split);
-  groups.appendChild(publicSection);
-
+  // Keep .top-nav__theme-bar wrapper — syncDocsThemeToggleWithHeading queries it
   const themeBtn = document.createElement("button");
   themeBtn.type = "button";
   themeBtn.className = "top-nav__theme-btn top-nav__theme-btn--flashlight";
@@ -1787,11 +1761,17 @@ function renderTopNav() {
   const themeBar = document.createElement("div");
   themeBar.className = "top-nav__theme-bar";
   themeBar.appendChild(themeBtn);
+  actionsEl.appendChild(themeBar);
 
-  nav.appendChild(themeBar);
-  nav.appendChild(groups);
+  bar.appendChild(actionsEl);
+  nav.appendChild(bar);
+
+  // Mount search (appends .docs-search to nav), then move it into actionsEl before the theme bar
   mountDocsSearch(nav, fromDir);
-  initCompactTopNav(nav);
+  const searchWidget = nav.querySelector(".docs-search");
+  if (searchWidget) {
+    actionsEl.insertBefore(searchWidget, themeBar);
+  }
 
   const breadcrumbNav = renderDocsBreadcrumbNav(fromDir, relPath);
 
@@ -2386,6 +2366,11 @@ function initAutoInPageToc() {
   if (!main) {
     return;
   }
+  const relPath = currentDocsRelPath();
+  const isDocsHomePage = relPath === "index.html";
+  /** Same treatment as docs home: no sticky-TOC promo toast; no default collapsed rail. */
+  const isInternalReadmeHub = relPath === "internal/README.html";
+  const isTocPromoExcludedHub = isDocsHomePage || isInternalReadmeHub;
 
   let mount = main.querySelector('.docs-inpage-toc-mount[data-inpage-toc="auto"]');
   if (!mount) {
@@ -2486,6 +2471,69 @@ function initAutoInPageToc() {
       toggle.setAttribute("aria-label", isCollapsed ? "Show On this page" : "Hide On this page");
       toggle.textContent = isCollapsed ? ">" : "<";
     }
+    function showStickyTocPromoToast() {
+      if (window.DocsPopups && typeof window.DocsPopups.showStickyTocPromoToast === "function") {
+        window.DocsPopups.showStickyTocPromoToast({
+          durationMs: 3000,
+          onEnable: () => {
+            applyCollapsedState(false);
+          },
+        });
+        return;
+      }
+      const DURATION_MS = 3000;
+      const existing = document.querySelector(".docs-inpage-toc-toast");
+      if (existing) {
+        existing.remove();
+      }
+      const toast = document.createElement("section");
+      toast.className = "docs-inpage-toc-toast";
+      toast.setAttribute("role", "status");
+      toast.setAttribute("aria-live", "polite");
+      toast.innerHTML = `
+        <div class="docs-inpage-toc-toast__title">Sticky TOC available</div>
+        <p class="docs-inpage-toc-toast__text">
+          We have a premium sticky "On this page" navigation for long docs.
+        </p>
+        <div class="docs-inpage-toc-toast__actions">
+          <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--ghost" data-toc-toast-dismiss>
+            Hide
+          </button>
+          <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--primary" data-toc-toast-enable>
+            Enable sticky TOC
+          </button>
+        </div>
+        <div class="docs-inpage-toc-toast__progress" aria-hidden="true"></div>
+      `;
+      document.body.appendChild(toast);
+      const dismissBtn = toast.querySelector("[data-toc-toast-dismiss]");
+      const enableBtn = toast.querySelector("[data-toc-toast-enable]");
+      let isClosed = false;
+      let timerId = null;
+      const closeToast = () => {
+        if (isClosed) {
+          return;
+        }
+        isClosed = true;
+        if (timerId !== null) {
+          window.clearTimeout(timerId);
+        }
+        toast.classList.add("docs-inpage-toc-toast--closing");
+        window.setTimeout(() => {
+          toast.remove();
+        }, 180);
+      };
+      dismissBtn?.addEventListener("click", () => {
+        closeToast();
+      });
+      enableBtn?.addEventListener("click", () => {
+        applyCollapsedState(false);
+        closeToast();
+      });
+      timerId = window.setTimeout(() => {
+        closeToast();
+      }, DURATION_MS);
+    }
     /**
      * Collapse/expand action for in-page TOC.
      * UX rule: the whole "On this page" header is clickable (not only chevron).
@@ -2510,6 +2558,14 @@ function initAutoInPageToc() {
     aside.appendChild(head);
     aside.appendChild(navEl);
     inner.appendChild(aside);
+    /* Hub pages (docs home, internal README hub) skip sticky TOC promo and default collapse. */
+    if (!isTocPromoExcludedHub) {
+      /* Default UX: keep TOC collapsed until user explicitly enables sticky menu. */
+      applyCollapsedState(true);
+    }
+    if (!isTocPromoExcludedHub && window.matchMedia("(min-width: 1025px)").matches) {
+      showStickyTocPromoToast();
+    }
   }
 
   mount.replaceWith(inner);
@@ -2816,7 +2872,9 @@ function initDocsSiteFooter() {
     nav.appendChild(a);
   }
 
-  addLink("index.html", "Documentation home");
+  docsFooterLinks().forEach((item) => {
+    addLink(item.href, item.label);
+  });
   const gh = document.createElement("a");
   gh.href = `https://github.com/${DOCS_FEEDBACK_REPOSITORY}`;
   gh.textContent = "GitHub";
@@ -3763,23 +3821,8 @@ function initDocsContinueReadingPrompt() {
     return;
   }
 
-  const prompt = document.createElement("aside");
-  prompt.className = "docs-continue-reading";
-  prompt.setAttribute("aria-label", "Continue reading");
-
   const label = String(saved.label || "").trim();
-  const title = document.createElement("p");
-  title.className = "docs-continue-reading__title";
-  title.textContent = label ? `Continue from § ${label}` : "Continue where you left off";
-
-  const actions = document.createElement("div");
-  actions.className = "docs-continue-reading__actions";
-
-  const continueBtn = document.createElement("button");
-  continueBtn.type = "button";
-  continueBtn.className = "docs-continue-reading__btn docs-continue-reading__btn--continue";
-  continueBtn.textContent = "Continue";
-  continueBtn.addEventListener("click", () => {
+  const continueAction = () => {
     if (saved.anchor) {
       window.location.hash = saved.anchor;
       if (savedY > 0) {
@@ -3790,31 +3833,80 @@ function initDocsContinueReadingPrompt() {
     } else if (savedY > 0) {
       window.scrollTo({ top: savedY, behavior: "smooth" });
     }
-    prompt.remove();
-  });
-
-  const topBtn = document.createElement("button");
-  topBtn.type = "button";
-  topBtn.className = "docs-continue-reading__btn";
-  topBtn.textContent = "Start from top";
-  topBtn.addEventListener("click", () => {
+  };
+  const startFromTopAction = () => {
     removeDocsContinueProgressForPath(relPath);
     window.scrollTo({ top: 0, behavior: "smooth" });
-    prompt.remove();
-  });
+  };
 
-  actions.appendChild(continueBtn);
-  actions.appendChild(topBtn);
-  prompt.appendChild(title);
-  prompt.appendChild(actions);
-  document.body.appendChild(prompt);
+  let closePrompt = null;
+  if (window.DocsPopups && typeof window.DocsPopups.showContinueReadingToast === "function") {
+    const instance = window.DocsPopups.showContinueReadingToast({
+      label,
+      durationMs: 3000,
+      onContinue: continueAction,
+      onStartFromTop: startFromTopAction,
+    });
+    closePrompt = () => {
+      if (instance && typeof instance.close === "function") {
+        instance.close();
+      }
+    };
+  } else {
+    const prompt = document.createElement("aside");
+    prompt.className = "docs-continue-reading--toast";
+    prompt.setAttribute("aria-label", "Continue reading");
+    const title = document.createElement("p");
+    title.className = "docs-inpage-toc-toast__title";
+    title.textContent = "Continue reading available";
+    const text = document.createElement("p");
+    text.className = "docs-inpage-toc-toast__text";
+    text.textContent = label ? `Continue from § ${label}` : "Continue where you left off";
+    const actions = document.createElement("div");
+    actions.className = "docs-inpage-toc-toast__actions";
+    const continueBtn = document.createElement("button");
+    continueBtn.type = "button";
+    continueBtn.className = "docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--primary";
+    continueBtn.textContent = "Continue";
+    const topBtn = document.createElement("button");
+    topBtn.type = "button";
+    topBtn.className = "docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--ghost";
+    topBtn.textContent = "Start from top";
+    const progress = document.createElement("div");
+    progress.className = "docs-inpage-toc-toast__progress";
+    progress.setAttribute("aria-hidden", "true");
+    actions.appendChild(continueBtn);
+    actions.appendChild(topBtn);
+    prompt.appendChild(title);
+    prompt.appendChild(text);
+    prompt.appendChild(actions);
+    prompt.appendChild(progress);
+    document.body.appendChild(prompt);
+    let autoDismissTimer = window.setTimeout(() => {
+      prompt.remove();
+    }, 3000);
+    closePrompt = () => {
+      if (autoDismissTimer) {
+        window.clearTimeout(autoDismissTimer);
+        autoDismissTimer = null;
+      }
+      prompt.remove();
+    };
+    continueBtn.addEventListener("click", () => {
+      continueAction();
+      closePrompt();
+    });
+    topBtn.addEventListener("click", () => {
+      startFromTopAction();
+      closePrompt();
+    });
+  }
 
   const dismissOnIntent = () => {
-    if (!document.body.contains(prompt)) {
-      return;
-    }
     if ((window.scrollY || 0) > 120) {
-      prompt.remove();
+      if (typeof closePrompt === "function") {
+        closePrompt();
+      }
       window.removeEventListener("scroll", dismissOnIntent);
     }
   };
@@ -3878,6 +3970,7 @@ function syncDocsPageActionsForViewport() {
 
 document.addEventListener("DOMContentLoaded", () => {
   document.body.classList.add("docs-density-ultra-compact");
+  injectDocsPopupsRuntime();
   ensureInternalLayoutForInternalSections();
   injectDocsSkipToContentLink();
   document.addEventListener(
