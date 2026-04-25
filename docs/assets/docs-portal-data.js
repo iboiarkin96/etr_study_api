@@ -160,10 +160,6 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Backlog — quality and scale roadmap"
       },
       {
-        "path": "backlog/week-calendar-2026-04-25.html",
-        "title": "Work calendar — week 2026-04-25 / 2026-05-02"
-      },
-      {
         "path": "developer/0001-requirements.html",
         "title": "Developer Requirements Guide"
       },
@@ -233,11 +229,11 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "index.html",
-        "title": "ETR Study API - Home page"
+        "title": "ETR Study API — Engineering Docs"
       },
       {
         "path": "internal/README.html",
-        "title": "Internal docs - Home page"
+        "title": "Internal Docs — Overview"
       },
       {
         "path": "internal/analysis/methodology.html",
@@ -348,6 +344,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Docs frontend navigation, search, and discovery"
       },
       {
+        "path": "internal/front/docs-frontend-popups-and-overlays.html",
+        "title": "Docs frontend: popup and overlay system"
+      },
+      {
         "path": "internal/front/docs-frontend-tooltips.html",
         "title": "Docs frontend: tooltips and inline hints"
       },
@@ -386,6 +386,10 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "internal/portal/people/ivan-boyarkin/index.html",
         "title": "Ivan Boyarkin — Employee portal — Study App"
+      },
+      {
+        "path": "internal/portal/people/ivan-boyarkin/week-calendar-2026-04-25.html",
+        "title": "Work calendar — week 2026-04-25 / 2026-05-02"
       },
       {
         "path": "internal/portal/people/kirill-neustroev/index.html",
