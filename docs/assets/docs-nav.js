@@ -2861,34 +2861,96 @@ function initDocsSiteFooter() {
   const inner = document.createElement("div");
   inner.className = "container docs-site-footer__inner";
 
-  const nav = document.createElement("nav");
-  nav.className = "docs-site-footer__links";
-  nav.setAttribute("aria-label", "Footer");
+  // ── Multi-column navigation ──────────────────────────────────────────────
+  const cols = document.createElement("nav");
+  cols.className = "docs-site-footer__cols";
+  cols.setAttribute("aria-label", "Footer navigation");
 
-  function addLink(href, text) {
-    const a = document.createElement("a");
-    a.href = relHref(fromDir, href);
-    a.textContent = text;
-    nav.appendChild(a);
-  }
+  const groups = [
+    {
+      label: "Docs",
+      links: [
+        { href: "index.html",                                    text: "Documentation home" },
+        { href: "internal/README.html",                          text: "Internal docs" },
+        { href: "internal/analysis/system-design.html",          text: "System design" },
+        { href: "internal/analysis/methodology.html",            text: "Methodology" },
+      ],
+    },
+    {
+      label: "API",
+      links: [
+        { href: "internal/api/README.html",   text: "Internal HTTP API" },
+        { href: "openapi/index.html",         text: "OpenAPI / Swagger UI" },
+        { href: "internal/api/errors.html",   text: "Error matrix" },
+        { href: "pdoc/index.html",            text: "Python API (pdoc)" },
+      ],
+    },
+    {
+      label: "Guides",
+      links: [
+        { href: "howto/onboarding-from-zero-to-endpoint-docs.html", text: "Onboarding" },
+        { href: "howto/README.html",      text: "How-to guides" },
+        { href: "runbooks/README.html",   text: "Runbooks" },
+        { href: "developer/README.html",  text: "Developer docs" },
+      ],
+    },
+    {
+      label: "Governance",
+      links: [
+        { href: "adr/README.html",     text: "ADRs" },
+        { href: "rfc/README.html",     text: "RFCs" },
+        { href: "backlog/README.html", text: "Backlog" },
+        { href: `https://github.com/${DOCS_FEEDBACK_REPOSITORY}`, text: "GitHub", external: true },
+      ],
+    },
+  ];
 
-  docsFooterLinks().forEach((item) => {
-    addLink(item.href, item.label);
+  groups.forEach((group) => {
+    const col = document.createElement("div");
+    col.className = "docs-site-footer__col";
+
+    const label = document.createElement("p");
+    label.className = "docs-site-footer__col-label";
+    label.textContent = group.label;
+    col.appendChild(label);
+
+    const ul = document.createElement("ul");
+    ul.className = "docs-site-footer__col-links";
+
+    group.links.forEach((link) => {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = link.external ? link.href : relHref(fromDir, link.href);
+      a.textContent = link.text;
+      if (link.external) {
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+      }
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+
+    col.appendChild(ul);
+    cols.appendChild(col);
   });
-  const gh = document.createElement("a");
-  gh.href = `https://github.com/${DOCS_FEEDBACK_REPOSITORY}`;
-  gh.textContent = "GitHub";
-  gh.target = "_blank";
-  gh.rel = "noopener noreferrer";
-  nav.appendChild(gh);
 
-  const meta = document.createElement("p");
-  meta.className = "docs-site-footer__meta";
-  meta.textContent =
-    "Static HTML under docs/.\nProduct changes are recorded in the repository root CHANGELOG; documentation-only changes are listed in docs/CHANGELOG.md."
+  // ── Bottom bar ───────────────────────────────────────────────────────────
+  const bottom = document.createElement("div");
+  bottom.className = "docs-site-footer__bottom";
 
-  inner.appendChild(nav);
-  inner.appendChild(meta);
+  const copy = document.createElement("span");
+  copy.className = "docs-site-footer__copy";
+  copy.textContent = `© ${new Date().getFullYear()} ETR Study API`;
+
+  const tech = document.createElement("span");
+  tech.className = "docs-site-footer__tech";
+  tech.textContent = "Static HTML · docs/ · No build step";
+
+  bottom.appendChild(copy);
+  bottom.appendChild(tech);
+
+  inner.appendChild(cols);
+  inner.appendChild(bottom);
   footer.appendChild(inner);
   document.body.appendChild(footer);
 }
@@ -3491,11 +3553,13 @@ function installDocsQuickActionsUi() {
     toast.setAttribute("role", "status");
     toast.setAttribute("aria-live", "polite");
     toast.innerHTML = `
-      <div class="docs-inpage-toc-toast__title">Command Palette</div>
-      <p class="docs-inpage-toc-toast__text">${docsPalettePrimaryHotkeyLabel()} • Enter execute • ↑/↓ navigate • Esc close</p>
+      <div class="docs-inpage-toc-toast__title">Command Palette available</div>
+      <p class="docs-inpage-toc-toast__text">
+        We have a premium Command Palette for quick navigation and actions.
+      </p>
       <div class="docs-inpage-toc-toast__actions">
         <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--ghost" data-palette-toast-dismiss>
-          Got it
+          Hide
         </button>
       </div>
       <div class="docs-inpage-toc-toast__progress" aria-hidden="true"></div>
