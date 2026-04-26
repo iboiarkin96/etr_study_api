@@ -58,16 +58,16 @@
               </td>
             </tr>
             <tr>
-              <td><code>make run-project</code></td>
+              <td><code>make run</code> + <code>docker compose -f docker-compose.observability.yml up -d</code></td>
               <td>
-                Runs <code>make observability-up</code> first (renders Prometheus config, starts
+                Runs observability via <code>docker compose -f docker-compose.observability.yml up -d</code> (after rendering config), then starts API
                 <code>docker-compose.observability.yml</code>: Blackbox, Prometheus, Grafana), then the same Uvicorn
                 command as
                 <code>make run</code>. Requires Docker. The API process stays in the foreground; stop it with Ctrl+C.
               </td>
             </tr>
             <tr>
-              <td><code>make observability-up</code> / <code>make observability-down</code></td>
+              <td><code>docker compose -f docker-compose.observability.yml up -d</code> / <code>docker compose -f docker-compose.observability.yml down</code></td>
               <td>
                 Start or stop the observability stack alone. Use when you already run <code>make run</code> in one
                 terminal
@@ -92,8 +92,8 @@
 
         <h2>After you stop the API</h2>
         <p>
-          Containers from <code>make run-project</code> or <code>make observability-up</code> keep running until you run
-          <code>make observability-down</code> (or <code>docker compose -f docker-compose.observability.yml down</code>).
+          Containers from Docker observability startup keep running until you run
+          <code>docker compose -f docker-compose.observability.yml down</code>.
         </p>
       </section>
       <section class="card">
@@ -107,7 +107,7 @@
         <p>
           Start the Elastic stack (Docker; reserve about <strong>2 GiB RAM</strong> for Elasticsearch and Kibana):
         </p>
-        <pre><code>make logging-up</code></pre>
+        <pre><code>docker compose -f docker-compose.logging.yml up -d</code></pre>
         <p>
           Filebeat reads the mounted <code>./logs</code> folder and sends lines to Elasticsearch.
         </p>
@@ -119,9 +119,9 @@
         </p>
         <p>
           Use <strong>Discover</strong> to filter (e.g. <code>request_id</code>) or paste a UUID in the search bar. Without
-          Kibana: <code>make logging-es-query</code> or <code>make logging-es-query QUERY=&lt;uuid&gt;</code> (same as
-          <code>python scripts/check_es_request_id.py &lt;uuid&gt;</code>). Smoke test: <code>make logging-smoke</code>. Stop:
-          <code>make logging-down</code>. Policy: <a href="../adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.
+          Kibana: <code>python scripts/check_es_request_id.py</code> or <code>python scripts/check_es_request_id.py &lt;uuid&gt;</code>.
+          Smoke test: <code>python scripts/check_logging_links.py</code>. Stop:
+          <code>docker compose -f docker-compose.logging.yml down</code>. Policy: <a href="../adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.
         </p>
 
         <h3>Data path (why Discover can be empty)</h3>
@@ -149,8 +149,8 @@
 
         <h3>Clean slate (reset logs + Elastic)</h3>
         <p>
-          <code>make logging-reset</code> stops the stack, removes the Docker volume (indices and Kibana saved objects),
-          and deletes <code>logs/*.log</code>. Then <code>make logging-up</code>, recreate the data view in Kibana
+          Reset logging manually: stop stack, remove Docker volume (indices and Kibana saved objects),
+          and delete <code>logs/*.log</code>. Then start logging stack again and recreate the data view in Kibana
           (<strong>Stack Management → Data views → Create data view</strong>) with pattern
           <strong><code>*study-app-logs*</code></strong> and timestamp <code>@timestamp</code>. Start the API
           (<code>make run</code>), call <code>/ready</code> a few times, wait ~10–20 s, refresh Discover.
@@ -205,8 +205,8 @@
           <ul>
             <li>API: <code>curl -s http://127.0.0.1:8000/live</code>, <code>/ready</code>, <code>/metrics</code> (responses
               include <code>X-Request-Id</code>)</li>
-              <li>Observability endpoints: <code>make observability-smoke</code></li>
-              <li>Logging stack (when running): <code>make logging-smoke</code></li>
+              <li>Observability endpoints: <code>python scripts/check_observability_links.py</code></li>
+              <li>Logging stack (when running): <code>python scripts/check_logging_links.py</code></li>
             </ul>
           </section>
           <section class="card">

@@ -2699,7 +2699,7 @@ function initAutoInPageToc() {
     toggle.setAttribute("aria-controls", navId);
     toggle.setAttribute("aria-expanded", "true");
     toggle.setAttribute("aria-label", "Hide On this page");
-    toggle.textContent = "<";
+    toggle.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M7.5 2L3.5 6L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     let isCollapsed = false;
     function applyCollapsedState(nextCollapsed) {
       isCollapsed = !!nextCollapsed;
@@ -2707,7 +2707,9 @@ function initAutoInPageToc() {
       inner.classList.toggle("docs-page-layout__inner--toc-collapsed", isCollapsed);
       toggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
       toggle.setAttribute("aria-label", isCollapsed ? "Show On this page" : "Hide On this page");
-      toggle.textContent = isCollapsed ? ">" : "<";
+      toggle.innerHTML = isCollapsed
+        ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M4.5 2L8.5 6L4.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M7.5 2L3.5 6L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     }
     function showStickyTocPromoToast() {
       enqueueDocsPromoToast({

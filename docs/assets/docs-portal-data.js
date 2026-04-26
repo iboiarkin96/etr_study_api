@@ -377,7 +377,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/portal/index.html",
-        "title": "Employee portal — Study App"
+        "title": "Employee portal moved — Study App"
       },
       {
         "path": "internal/portal/people/cursor/index.html",
