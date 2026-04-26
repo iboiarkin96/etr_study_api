@@ -723,6 +723,7 @@
     {
       label: "API endpoints documentation",
       children: [
+        { label: "Hub — internal HTTP API", path: "internal/api/README.html" },
         { label: "Errors", path: "internal/api/errors.html" },
         {
           label: "User",
@@ -862,6 +863,18 @@
     return ul;
   }
 
+  function scrollToActiveSidebarItem(host) {
+    if (!host) {
+      return;
+    }
+    const activeLink = host.querySelector("a.is-active");
+    if (!activeLink || typeof activeLink.scrollIntoView !== "function") {
+      return;
+    }
+    // Keep the current page link near center for quicker orientation in long trees.
+    activeLink.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+  }
+
   function mount() {
     const host = document.getElementById("internal-sidebar-mount");
     if (!host) {
@@ -875,6 +888,9 @@
     nav.setAttribute("aria-label", "Internal documentation");
     nav.appendChild(renderTree(INTERNAL_SIDEBAR_NAV, fromDir, relPath));
     host.replaceChildren(nav);
+    requestAnimationFrame(() => {
+      scrollToActiveSidebarItem(host);
+    });
     ensureSidebarToggle(sidebar, host, shell);
     ensureDrawerInteractions(sidebar, shell, fromDir, relPath);
   }

@@ -179,6 +179,80 @@ const DOCS_NAV_LINK_REGISTRY = {
 const DOCS_TOP_NAV_KEYS = ["home", "internal", "openapi", "backlog", "pdoc"];
 const DOCS_SEARCH_EMPTY_QUICK_LINK_KEYS = ["internal", "pdoc", "openapi", "runbooks"];
 const DOCS_FOOTER_LINK_KEYS = ["home"];
+const docsPromoToastQueue = [];
+let docsPromoToastActive = false;
+
+function runNextDocsPromoToast() {
+  if (docsPromoToastActive) {
+    return;
+  }
+  const next = docsPromoToastQueue.shift();
+  if (!next) {
+    return;
+  }
+  docsPromoToastActive = true;
+  next(() => {
+    docsPromoToastActive = false;
+    runNextDocsPromoToast();
+  });
+}
+
+function enqueueDocsPromoToast(options) {
+  const config = options || {};
+  docsPromoToastQueue.push((done) => {
+    const toast = document.createElement("section");
+    toast.className = `docs-inpage-toc-toast ${config.className || ""}`.trim();
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    toast.innerHTML = `
+      <div class="docs-inpage-toc-toast__title">${String(config.title || "")}</div>
+      <p class="docs-inpage-toc-toast__text">
+        ${String(config.text || "")}
+      </p>
+      <div class="docs-inpage-toc-toast__actions">
+        <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--ghost" data-docs-promo-dismiss>
+          ${String(config.dismissLabel || "Hide")}
+        </button>
+        <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--primary" data-docs-promo-primary>
+          ${String(config.primaryLabel || "Open")}
+        </button>
+      </div>
+      <div class="docs-inpage-toc-toast__progress" aria-hidden="true"></div>
+    `;
+    document.body.appendChild(toast);
+    const dismissBtn = toast.querySelector("[data-docs-promo-dismiss]");
+    const primaryBtn = toast.querySelector("[data-docs-promo-primary]");
+    let isClosed = false;
+    let timerId = null;
+    const closeToast = () => {
+      if (isClosed) {
+        return;
+      }
+      isClosed = true;
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+      }
+      toast.classList.add("docs-inpage-toc-toast--closing");
+      window.setTimeout(() => {
+        toast.remove();
+        done();
+      }, 180);
+    };
+    dismissBtn?.addEventListener("click", () => {
+      closeToast();
+    });
+    primaryBtn?.addEventListener("click", () => {
+      if (typeof config.onPrimary === "function") {
+        config.onPrimary();
+      }
+      closeToast();
+    });
+    timerId = window.setTimeout(() => {
+      closeToast();
+    }, Number(config.durationMs) > 0 ? Number(config.durationMs) : 3000);
+  });
+  runNextDocsPromoToast();
+}
 
 function docsNavEntry(key) {
   return DOCS_NAV_LINK_REGISTRY[key] || null;
@@ -2219,14 +2293,6 @@ function injectDocsFeedbackCard() {
     return;
   }
 
-  const mount =
-    main.querySelector("#docs-feedback-anchor") ||
-    main.querySelector('.docs-inpage-toc-mount[data-inpage-toc="auto"]');
-  if (!mount) {
-    return;
-  }
-  const modalMode = mount.matches('#docs-feedback-anchor[data-feedback-ui="modal"]');
-
   function feedbackHintLabelSpan(text, tooltip) {
     const span = document.createElement("span");
     span.tabIndex = 0;
@@ -2234,10 +2300,6 @@ function injectDocsFeedbackCard() {
     span.textContent = text;
     return span;
   }
-
-  const section = document.createElement("section");
-  section.className = "card docs-feedback-card";
-  section.setAttribute("aria-label", "Documentation feedback");
 
   const modal = document.createElement("section");
   modal.className = "docs-feedback-modal";
@@ -2253,14 +2315,15 @@ function injectDocsFeedbackCard() {
   const modalCloseBtn = document.createElement("button");
   modalCloseBtn.type = "button";
   modalCloseBtn.className = "docs-feedback-modal__close";
+  modalCloseBtn.setAttribute("data-feedback-close", "true");
   modalCloseBtn.setAttribute("aria-label", "Close feedback form");
   modalCloseBtn.textContent = "Close";
 
-  const contentHost = modalMode ? modalPanel : section;
+  const contentHost = modalPanel;
   let lastFocusTarget = null;
 
   const heading = document.createElement("h2");
-  heading.textContent = modalMode ? "Report issue" : "Page feedback";
+  heading.textContent = "Report issue";
 
   const text = document.createElement("p");
   text.textContent =
@@ -2327,7 +2390,7 @@ function injectDocsFeedbackCard() {
   submitBtn.innerHTML = '<span class="docs-feedback-card__btn-text">Report issue</span><span class="docs-feedback-card__btn-spinner" aria-hidden="true"></span>';
 
   function closeModal() {
-    if (!modalMode || modal.hidden) {
+    if (modal.hidden) {
       return;
     }
     modal.hidden = true;
@@ -2339,7 +2402,8 @@ function injectDocsFeedbackCard() {
   }
 
   function openModal(triggerEl) {
-    if (!modalMode) {
+    if (!modal.hidden) {
+      closeModal();
       return;
     }
     lastFocusTarget = triggerEl || document.activeElement;
@@ -2387,25 +2451,38 @@ function injectDocsFeedbackCard() {
       toast.classList.remove("docs-feedback-card__toast--visible");
       submitBtn.disabled = false;
       submitBtn.classList.remove("docs-feedback-card__btn--loading");
-      if (modalMode) {
-        closeModal();
-      }
+      closeModal();
     }, 900);
   });
 
-  if (modalMode) {
-    modalCloseBtn.addEventListener("click", () => closeModal());
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) {
-        closeModal();
-      }
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        closeModal();
-      }
-    });
-  }
+  modalCloseBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeModal();
+  });
+  modal.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    const closeTrigger = target.closest("[data-feedback-close]");
+    if (closeTrigger) {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (target === modal) {
+      closeModal();
+    }
+  });
+  modalPanel.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeModal();
+    }
+  });
 
   actions.appendChild(submitBtn);
   form.appendChild(typeLabel);
@@ -2420,18 +2497,100 @@ function injectDocsFeedbackCard() {
   contentHost.appendChild(toast);
   contentHost.appendChild(form);
 
-  if (modalMode) {
-    modalPanel.appendChild(modalCloseBtn);
-    modal.appendChild(modalPanel);
-    document.body.appendChild(modal);
-    const triggers = Array.from(document.querySelectorAll("[data-feedback-open]"));
-    triggers.forEach((trigger) => {
-      trigger.addEventListener("click", () => openModal(trigger));
-    });
-  } else {
-    mount.insertAdjacentElement("beforebegin", section);
+  modalPanel.appendChild(modalCloseBtn);
+  modal.appendChild(modalPanel);
+  document.body.appendChild(modal);
+
+  let floatingReportButtons = Array.from(document.querySelectorAll(".docs-report-bug-fab"));
+  if (floatingReportButtons.length === 0) {
+    const fab = document.createElement("button");
+    fab.type = "button";
+    fab.className = "docs-report-bug-fab";
+    fab.setAttribute("data-feedback-open", "true");
+    fab.textContent = "Found a bug? Report issue";
+    document.body.appendChild(fab);
+    floatingReportButtons = [fab];
   }
+
+  const triggers = Array.from(document.querySelectorAll("[data-feedback-open]"));
+  triggers.forEach((trigger) => {
+    trigger.addEventListener("click", (event) => {
+      event.preventDefault();
+      openModal(trigger);
+    });
+  });
+
+  floatingReportButtons.forEach((button) => {
+    window.setTimeout(() => {
+      if (document.body.contains(button)) {
+        button.classList.add("docs-report-bug-fab--visible");
+      }
+    }, 5000);
+  });
   main.dataset.docsFeedbackMounted = "1";
+}
+
+/**
+ * Normalize Page history across docs:
+ * 1) keep it as the final section of main content,
+ * 2) wrap content into a collapsible details block,
+ * 3) enforce consistent styling hooks.
+ */
+function normalizeDocsPageHistory() {
+  const main = document.querySelector("main.container");
+  if (!main) {
+    return;
+  }
+  const section =
+    main.querySelector("section#page-history") ||
+    main.querySelector("section#5-page-history");
+  if (!section) {
+    return;
+  }
+
+  section.classList.add("card", "docs-page-history-fold");
+  const existingDetails = section.querySelector(":scope > details");
+  if (existingDetails) {
+    existingDetails.classList.add("docs-collapse", "docs-page-history-fold__details");
+    let summary = existingDetails.querySelector(":scope > summary");
+    if (!summary) {
+      summary = document.createElement("summary");
+      summary.textContent = "Page history";
+      existingDetails.insertAdjacentElement("afterbegin", summary);
+    }
+    const heading = section.querySelector(":scope > h2");
+    if (heading) {
+      const label = heading.textContent ? heading.textContent.trim() : "";
+      if (label) {
+        summary.textContent = label;
+      }
+      heading.remove();
+    }
+  } else {
+    const heading = section.querySelector(":scope > h2");
+    const summaryLabel = heading && heading.textContent ? heading.textContent.trim() : "Page history";
+    const details = document.createElement("details");
+    details.className = "docs-collapse docs-page-history-fold__details";
+    const summary = document.createElement("summary");
+    summary.textContent = summaryLabel || "Page history";
+    const body = document.createElement("div");
+    body.className = "docs-collapse__body docs-page-history-fold__body";
+
+    const children = Array.from(section.childNodes);
+    children.forEach((node) => {
+      if (heading && node === heading) {
+        return;
+      }
+      body.appendChild(node);
+    });
+    details.appendChild(summary);
+    details.appendChild(body);
+    section.replaceChildren(details);
+  }
+
+  if (section.parentElement === main && section !== main.lastElementChild) {
+    main.appendChild(section);
+  }
 }
 
 /**
@@ -2551,67 +2710,16 @@ function initAutoInPageToc() {
       toggle.textContent = isCollapsed ? ">" : "<";
     }
     function showStickyTocPromoToast() {
-      if (window.DocsPopups && typeof window.DocsPopups.showStickyTocPromoToast === "function") {
-        window.DocsPopups.showStickyTocPromoToast({
-          durationMs: 3000,
-          onEnable: () => {
-            applyCollapsedState(false);
-          },
-        });
-        return;
-      }
-      const DURATION_MS = 3000;
-      const existing = document.querySelector(".docs-inpage-toc-toast");
-      if (existing) {
-        existing.remove();
-      }
-      const toast = document.createElement("section");
-      toast.className = "docs-inpage-toc-toast";
-      toast.setAttribute("role", "status");
-      toast.setAttribute("aria-live", "polite");
-      toast.innerHTML = `
-        <div class="docs-inpage-toc-toast__title">Sticky TOC available</div>
-        <p class="docs-inpage-toc-toast__text">
-          We have a premium sticky "On this page" navigation for long docs.
-        </p>
-        <div class="docs-inpage-toc-toast__actions">
-          <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--ghost" data-toc-toast-dismiss>
-            Hide
-          </button>
-          <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--primary" data-toc-toast-enable>
-            Enable sticky TOC
-          </button>
-        </div>
-        <div class="docs-inpage-toc-toast__progress" aria-hidden="true"></div>
-      `;
-      document.body.appendChild(toast);
-      const dismissBtn = toast.querySelector("[data-toc-toast-dismiss]");
-      const enableBtn = toast.querySelector("[data-toc-toast-enable]");
-      let isClosed = false;
-      let timerId = null;
-      const closeToast = () => {
-        if (isClosed) {
-          return;
-        }
-        isClosed = true;
-        if (timerId !== null) {
-          window.clearTimeout(timerId);
-        }
-        toast.classList.add("docs-inpage-toc-toast--closing");
-        window.setTimeout(() => {
-          toast.remove();
-        }, 180);
-      };
-      dismissBtn?.addEventListener("click", () => {
-        closeToast();
+      enqueueDocsPromoToast({
+        title: "Sticky TOC available",
+        text: 'We have a premium sticky "On this page" navigation for long docs.',
+        dismissLabel: "Hide",
+        primaryLabel: "Enable sticky TOC",
+        onPrimary: () => {
+          applyCollapsedState(false);
+        },
+        durationMs: 3000,
       });
-      enableBtn?.addEventListener("click", () => {
-        applyCollapsedState(false);
-        closeToast();
-      });
-      timerId = window.setTimeout(() => {
-        closeToast();
-      }, DURATION_MS);
     }
     /**
      * Collapse/expand action for in-page TOC.
@@ -3622,50 +3730,17 @@ function installDocsQuickActionsUi() {
   }
 
   function showPaletteHintToast() {
-    const DURATION_MS = 3200;
-    const existing = document.querySelector(".docs-palette-hint-toast");
-    if (existing) {
-      existing.remove();
-    }
-    const toast = document.createElement("section");
-    toast.className = "docs-inpage-toc-toast docs-palette-hint-toast";
-    toast.setAttribute("role", "status");
-    toast.setAttribute("aria-live", "polite");
-    toast.innerHTML = `
-      <div class="docs-inpage-toc-toast__title">Command Palette available</div>
-      <p class="docs-inpage-toc-toast__text">
-        We have a premium Command Palette for quick navigation and actions.
-      </p>
-      <div class="docs-inpage-toc-toast__actions">
-        <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--ghost" data-palette-toast-dismiss>
-          Hide
-        </button>
-      </div>
-      <div class="docs-inpage-toc-toast__progress" aria-hidden="true"></div>
-    `;
-    document.body.appendChild(toast);
-    const dismissBtn = toast.querySelector("[data-palette-toast-dismiss]");
-    let isClosed = false;
-    let timerId = null;
-    const closeToast = () => {
-      if (isClosed) {
-        return;
-      }
-      isClosed = true;
-      if (timerId !== null) {
-        window.clearTimeout(timerId);
-      }
-      toast.classList.add("docs-inpage-toc-toast--closing");
-      window.setTimeout(() => {
-        toast.remove();
-      }, 180);
-    };
-    dismissBtn?.addEventListener("click", () => {
-      closeToast();
+    enqueueDocsPromoToast({
+      title: "Command Palette available",
+      text: "Hey! We have a premium Command Palette for quick navigation and actions.",
+      dismissLabel: "Hide",
+      primaryLabel: "Open Command Palette",
+      onPrimary: () => {
+        openPanel();
+      },
+      durationMs: 3000,
+      className: "docs-palette-hint-toast",
     });
-    timerId = window.setTimeout(() => {
-      closeToast();
-    }, DURATION_MS);
   }
 
   function openPanel() {
@@ -3798,37 +3873,31 @@ function injectDocsHotkeyHint() {
   if (!desktopDocsPageActionsMq.matches) {
     return;
   }
-  if (document.querySelector(".docs-hotkey-tip")) {
+  if (document.querySelector(".docs-palette-hint-toast")) {
     return;
   }
   const hasTopNav = !!document.getElementById("docs-top-nav");
   if (!hasTopNav) {
     return;
   }
-  try {
-    if (window.localStorage.getItem(DOCS_HOTKEY_HINT_DISMISSED_KEY) === "1") {
-      return;
-    }
-  } catch {
-    // Ignore storage errors and still show one-time hint for this session.
-  }
-
-  const tip = document.createElement("div");
-  tip.className = "docs-hotkey-tip";
-  tip.setAttribute("role", "status");
-  tip.setAttribute("aria-live", "polite");
-  tip.innerHTML = `<p class="docs-hotkey-tip__text">Tip: press <kbd>${docsPalettePrimaryHotkeyLabel()}</kbd> to open Command Palette.</p>
-<button type="button" class="docs-hotkey-tip__close" aria-label="Dismiss hotkey tip">Got it</button>`;
-  const closeBtn = tip.querySelector(".docs-hotkey-tip__close");
-  closeBtn.addEventListener("click", () => {
-    tip.remove();
-    try {
-      window.localStorage.setItem(DOCS_HOTKEY_HINT_DISMISSED_KEY, "1");
-    } catch {
-      // Ignore storage failures.
-    }
+  enqueueDocsPromoToast({
+    title: "Command Palette available",
+    text: `Hey! We have a premium Command Palette. Press <kbd>${docsPalettePrimaryHotkeyLabel()}</kbd> or open it now.`,
+    dismissLabel: "Hide",
+    primaryLabel: "Open Command Palette",
+    onPrimary: () => {
+      if (docsQuickActionsRuntime && typeof docsQuickActionsRuntime.openPanel === "function") {
+        docsQuickActionsRuntime.openPanel();
+        return;
+      }
+      const launcherBtn = document.querySelector("[data-docs-quick-actions-open]");
+      if (launcherBtn && typeof launcherBtn.click === "function") {
+        launcherBtn.click();
+      }
+    },
+    durationMs: 3000,
+    className: "docs-palette-hint-toast",
   });
-  document.body.appendChild(tip);
 }
 
 function injectDocsSkipToContentLink() {
@@ -4457,6 +4526,11 @@ document.addEventListener("DOMContentLoaded", () => {
     injectDocsHotkeyHint();
   } catch {
     // Non-critical helper; ignore failures.
+  }
+  try {
+    normalizeDocsPageHistory();
+  } catch {
+    // Keep docs usable if page-history normalization fails.
   }
   // Level 3 — interactive premium patterns
   initLevel3CopyButtons();
