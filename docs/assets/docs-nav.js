@@ -2215,14 +2215,17 @@ function injectDocsFeedbackCard() {
   if (!main) {
     return;
   }
-  if (main.querySelector(".docs-feedback-card")) {
+  if (main.dataset.docsFeedbackMounted === "1") {
     return;
   }
 
-  const mount = main.querySelector('.docs-inpage-toc-mount[data-inpage-toc="auto"]');
+  const mount =
+    main.querySelector("#docs-feedback-anchor") ||
+    main.querySelector('.docs-inpage-toc-mount[data-inpage-toc="auto"]');
   if (!mount) {
     return;
   }
+  const modalMode = mount.matches('#docs-feedback-anchor[data-feedback-ui="modal"]');
 
   function feedbackHintLabelSpan(text, tooltip) {
     const span = document.createElement("span");
@@ -2236,8 +2239,28 @@ function injectDocsFeedbackCard() {
   section.className = "card docs-feedback-card";
   section.setAttribute("aria-label", "Documentation feedback");
 
+  const modal = document.createElement("section");
+  modal.className = "docs-feedback-modal";
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+
+  const modalPanel = document.createElement("div");
+  modalPanel.className = "docs-feedback-modal__panel";
+  modalPanel.setAttribute("role", "dialog");
+  modalPanel.setAttribute("aria-modal", "true");
+  modalPanel.setAttribute("aria-label", "Page feedback form");
+
+  const modalCloseBtn = document.createElement("button");
+  modalCloseBtn.type = "button";
+  modalCloseBtn.className = "docs-feedback-modal__close";
+  modalCloseBtn.setAttribute("aria-label", "Close feedback form");
+  modalCloseBtn.textContent = "Close";
+
+  const contentHost = modalMode ? modalPanel : section;
+  let lastFocusTarget = null;
+
   const heading = document.createElement("h2");
-  heading.textContent = "Page feedback";
+  heading.textContent = modalMode ? "Report issue" : "Page feedback";
 
   const text = document.createElement("p");
   text.textContent =
@@ -2301,7 +2324,34 @@ function injectDocsFeedbackCard() {
   const submitBtn = document.createElement("button");
   submitBtn.type = "submit";
   submitBtn.className = "docs-page-actions__button";
-  submitBtn.innerHTML = '<span class="docs-feedback-card__btn-text">Send feedback</span><span class="docs-feedback-card__btn-spinner" aria-hidden="true"></span>';
+  submitBtn.innerHTML = '<span class="docs-feedback-card__btn-text">Report issue</span><span class="docs-feedback-card__btn-spinner" aria-hidden="true"></span>';
+
+  function closeModal() {
+    if (!modalMode || modal.hidden) {
+      return;
+    }
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("docs-feedback-modal-open");
+    if (lastFocusTarget && typeof lastFocusTarget.focus === "function") {
+      lastFocusTarget.focus();
+    }
+  }
+
+  function openModal(triggerEl) {
+    if (!modalMode) {
+      return;
+    }
+    lastFocusTarget = triggerEl || document.activeElement;
+    modal.hidden = false;
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("docs-feedback-modal-open");
+    window.setTimeout(() => {
+      if (document.body.contains(textarea)) {
+        textarea.focus();
+      }
+    }, 0);
+  }
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2337,8 +2387,25 @@ function injectDocsFeedbackCard() {
       toast.classList.remove("docs-feedback-card__toast--visible");
       submitBtn.disabled = false;
       submitBtn.classList.remove("docs-feedback-card__btn--loading");
+      if (modalMode) {
+        closeModal();
+      }
     }, 900);
   });
+
+  if (modalMode) {
+    modalCloseBtn.addEventListener("click", () => closeModal());
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    });
+  }
 
   actions.appendChild(submitBtn);
   form.appendChild(typeLabel);
@@ -2348,11 +2415,23 @@ function injectDocsFeedbackCard() {
   form.appendChild(status);
   form.appendChild(actions);
 
-  section.appendChild(heading);
-  section.appendChild(text);
-  section.appendChild(toast);
-  section.appendChild(form);
-  mount.insertAdjacentElement("beforebegin", section);
+  contentHost.appendChild(heading);
+  contentHost.appendChild(text);
+  contentHost.appendChild(toast);
+  contentHost.appendChild(form);
+
+  if (modalMode) {
+    modalPanel.appendChild(modalCloseBtn);
+    modal.appendChild(modalPanel);
+    document.body.appendChild(modal);
+    const triggers = Array.from(document.querySelectorAll("[data-feedback-open]"));
+    triggers.forEach((trigger) => {
+      trigger.addEventListener("click", () => openModal(trigger));
+    });
+  } else {
+    mount.insertAdjacentElement("beforebegin", section);
+  }
+  main.dataset.docsFeedbackMounted = "1";
 }
 
 /**
