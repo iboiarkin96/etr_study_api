@@ -93,7 +93,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "adr/0022-embedded-swagger-ui-openapi-sandbox.html",
-        "title": "ADR 0022: Embedded Swagger — static validation (superseded)"
+        "title": "ADR 0022: Embedded Swagger UI — interactive API sandbox"
       },
       {
         "path": "adr/0023-structured-logging-and-local-elasticsearch.html",
@@ -121,7 +121,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "audit/AUDIT_TEMPLATE.html",
-        "title": "TOPIC — Assessment — formed YYYY-MM-DD"
+        "title": "Assessment template — AUDIT_TEMPLATE.html"
       },
       {
         "path": "audit/README.html",
@@ -205,35 +205,35 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "howto/0004-how-to-add-post-contract.html",
-        "title": "Guide For Beginners: Add `POST /api/v1/contract`"
+        "title": "Guide For Beginners: Add new endpoint and docs"
       },
       {
         "path": "howto/README.html",
         "title": "How-to guides — Study App"
       },
       {
-        "path": "howto/how-to-change-docs-frontend-safely.html",
+        "path": "howto/0005-how-to-change-docs-frontend-safely.html",
         "title": "How to change docs frontend safely (playbooks)"
       },
       {
-        "path": "howto/internal-service-docs-layout.html",
+        "path": "howto/0002-internal-service-docs-layout.html",
         "title": "Internal service docs — layout and how to add pages"
       },
       {
-        "path": "howto/make-commands-inventory.html",
+        "path": "howto/0003-make-commands-inventory.html",
         "title": "Make commands inventory — How-to guides — Study App"
       },
       {
-        "path": "howto/onboarding-from-zero-to-endpoint-docs.html",
+        "path": "howto/0001-onboarding-from-zero-to-endpoint-docs.html",
         "title": "Onboarding: from zero to endpoint and docs — Study App"
       },
       {
         "path": "index.html",
-        "title": "ETR Study API - Home page"
+        "title": "ETR Study API — Engineering Docs"
       },
       {
         "path": "internal/README.html",
-        "title": "Internal docs - Home page"
+        "title": "Internal Docs — Overview"
       },
       {
         "path": "internal/analysis/methodology.html",
@@ -344,6 +344,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Docs frontend navigation, search, and discovery"
       },
       {
+        "path": "internal/front/docs-frontend-popups-and-overlays.html",
+        "title": "Docs frontend: popup and overlay system"
+      },
+      {
         "path": "internal/front/docs-frontend-tooltips.html",
         "title": "Docs frontend: tooltips and inline hints"
       },
@@ -373,7 +377,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/portal/index.html",
-        "title": "Employee portal — Study App"
+        "title": "Employee portal moved — Study App"
       },
       {
         "path": "internal/portal/people/cursor/index.html",
@@ -384,12 +388,16 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Ivan Boyarkin — Employee portal — Study App"
       },
       {
+        "path": "internal/portal/people/ivan-boyarkin/week-calendar-2026-04-25.html",
+        "title": "Work calendar — week 2026-04-25 / 2026-05-02"
+      },
+      {
         "path": "internal/portal/people/kirill-neustroev/index.html",
         "title": "Kirill Neustroev — Employee portal — Study App"
       },
       {
         "path": "openapi/index.html",
-        "title": "ETR Study App API — Swagger UI (test)"
+        "title": "OpenAPI Reference — ETR Study App"
       },
       {
         "path": "openapi/openapi-explorer.html",
@@ -471,6 +479,14 @@ window.__DOCS_PORTAL_DATA__ = {
       }
     ],
     "16fc8b78537109162984a2fdbef6e143": [
+      {
+        "path": "internal/api/errors.html",
+        "title": "Error catalog and sync — Study App"
+      },
+      {
+        "path": "internal/api/errors.html",
+        "title": "Error catalog and sync — Study App"
+      },
       {
         "path": "internal/api/errors.html",
         "title": "Error catalog and sync — Study App"
