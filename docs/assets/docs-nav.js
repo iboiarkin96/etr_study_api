@@ -1474,7 +1474,7 @@ function docsBreadcrumbLabelForPrefix(prefix) {
     "internal/api/conspectus": "Conspectus",
     "internal/api/error-log": "Error log",
     "internal/api/user/operations": "Operations",
-    qa: "QA checklists",
+    qa: "QA portal",
     rfc: "RFCs",
     runbooks: "Runbooks",
     assets: "Assets",
@@ -3122,7 +3122,7 @@ function initDocsSiteFooter() {
     {
       label: "Guides",
       links: [
-        { href: "howto/onboarding-from-zero-to-endpoint-docs.html", text: "Onboarding" },
+        { href: "howto/0001-onboarding-from-zero-to-endpoint-docs.html", text: "Onboarding" },
         { href: "howto/README.html", text: "How-to guides" },
         { href: "runbooks/README.html", text: "Runbooks" },
         { href: "developer/README.html", text: "Developer docs" },

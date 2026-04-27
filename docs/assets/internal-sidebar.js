@@ -503,6 +503,11 @@
     { label: "🧭 Methodology", path: "internal/analysis/methodology.html" },
     { label: "🏗 System design", path: "internal/analysis/system-design.html" },
     { label: "🌐 OpenAPI / Swagger UI", path: "openapi/index.html" },
+
+    {
+      separator: true,
+    },
+
     {
       label: "ADR",
       children: [
@@ -593,40 +598,6 @@
       ],
     },
 
-    {
-      label: "Developers docs",
-      children: [
-        { label: "Python API (pdoc)", path: "pdoc/index.html" },
-        { label: "Hub — developer index", path: "developer/README.html" },
-        {
-          label: "Core architecture and contracts",
-          children: [
-            { label: "Requirements guide", path: "developer/0001-requirements.html" },
-            { label: "Schemas and contracts", path: "developer/0002-schemas-and-contracts.html" },
-            { label: "Business logic guide", path: "developer/0003-business-logic.html" },
-            { label: "Error matrix by status", path: "developer/0005-error-matrix-by-status.html" },
-          ],
-        },
-        {
-          label: "Delivery workflow and operations",
-          children: [
-            { label: "Make commands and workflows", path: "developer/0010-make-commands-and-workflows.html" },
-            { label: "Local development", path: "developer/0007-local-development.html" },
-            { label: "Docker image and container", path: "developer/0009-docker-image-and-container.html" },
-            { label: "API load testing", path: "developer/0006-api-load-testing.html" },
-            { label: "Documentation pipeline", path: "developer/0008-docs-pipeline.html" },
-          ],
-        },
-        {
-          label: "How-to and onboarding",
-          children: [
-            { label: "How to add POST contract", path: "developer/0004-how-to-add-post-contract.html" },
-            { label: "Onboarding from zero to endpoint and docs", path: "howto/onboarding-from-zero-to-endpoint-docs.html" },
-            { label: "Make commands inventory", path: "howto/make-commands-inventory.html" },
-          ],
-        },
-      ],
-    },
 
     {
       label: "How-to guides",
@@ -635,20 +606,20 @@
         {
           label: "Onboarding and implementation",
           children: [
-            { label: "Onboarding from zero to endpoint and docs", path: "howto/onboarding-from-zero-to-endpoint-docs.html" },
+            { label: "Onboarding from zero to endpoint and docs", path: "howto/0001-onboarding-from-zero-to-endpoint-docs.html" },
             { label: "How to add POST /api/v1/contract", path: "howto/0004-how-to-add-post-contract.html" },
           ],
         },
         {
           label: "Documentation operations",
           children: [
-            { label: "Internal service docs layout and how to add pages", path: "howto/internal-service-docs-layout.html" },
-            { label: "How to change docs frontend safely", path: "howto/how-to-change-docs-frontend-safely.html" },
+            { label: "Internal service docs layout and how to add pages", path: "howto/0002-internal-service-docs-layout.html" },
+            { label: "How to change docs frontend safely", path: "howto/0005-how-to-change-docs-frontend-safely.html" },
           ],
         },
         {
           label: "Workflow and commands",
-          children: [{ label: "Make commands inventory", path: "howto/make-commands-inventory.html" }],
+          children: [{ label: "Make commands inventory", path: "howto/0003-make-commands-inventory.html" }],
         },
       ],
     },
@@ -657,7 +628,7 @@
       label: "Runbooks",
       children: [
         { label: "Hub — runbooks index", path: "runbooks/README.html" },
-        { label: "Template", path: "runbooks/0000-template.html" },
+        { label: "Runbook template", path: "runbooks/0000-template.html" },
         {
           label: "CI and local quality failures",
           children: [
@@ -690,12 +661,86 @@
       ],
     },
 
+
+
     {
-      label: "QA checklists",
+      label: "Audit",
       children: [
-        { label: "Hub — QA checklist index", path: "qa/README.html" },
+        { label: "Hub — assessments index", path: "audit/README.html" },
+        { label: "Assessment template", path: "audit/AUDIT_TEMPLATE.html" },
         {
-          label: "Documentation portal QA",
+          label: "DX",
+          children: [
+            { label: "DX 2026-04-14", path: "audit/docs/2026-04-14-documentation-experience-assessment.html" },
+            { label: "DX 2026-04-18", path: "audit/docs/2026-04-18-documentation-experience-assessment.html" },
+            { label: "UI/UX DX 2026-04-23", path: "audit/docs/2026-04-23-ui-ux-assessment.html" },
+            { label: "UI/UX DX 2026-04-24", path: "audit/docs/2026-04-24-ui-ux-assessment.html" },
+          ],
+        },
+        {
+          label: "REST API",
+          children: [
+            { label: "REST API 2026-04-14", path: "audit/api/2026-04-14-rest-api-assessment.html" },
+          ],
+        },
+      ],
+    },
+
+    {
+      separator: true,
+    },
+
+    {
+      label: "Managers portal",
+
+      children: [
+        { label: "Hub — managers index", path: "internal/manager/README.html" },
+        { label: "⭐ Backlog", path: "backlog/README.html" },
+        { label: "SDLC RACI matrix", path: "internal/manager/sdlc-raci-matrix.html" },
+      ],
+    },
+
+    {
+      label: "Developers portal",
+      children: [
+        { label: "Python API (pdoc)", path: "pdoc/index.html" },
+        { label: "Hub — developer index", path: "developer/README.html" },
+        {
+          label: "Core architecture and contracts",
+          children: [
+            { label: "Requirements guide", path: "developer/0001-requirements.html" },
+            { label: "Schemas and contracts", path: "developer/0002-schemas-and-contracts.html" },
+            { label: "Business logic guide", path: "developer/0003-business-logic.html" },
+            { label: "Error matrix by status", path: "developer/0005-error-matrix-by-status.html" },
+          ],
+        },
+        {
+          label: "Delivery workflow and operations",
+          children: [
+            { label: "Make commands and workflows", path: "developer/0010-make-commands-and-workflows.html" },
+            { label: "Local development", path: "developer/0007-local-development.html" },
+            { label: "Docker image and container", path: "developer/0009-docker-image-and-container.html" },
+            { label: "API load testing", path: "developer/0006-api-load-testing.html" },
+            { label: "Documentation pipeline", path: "developer/0008-docs-pipeline.html" },
+          ],
+        },
+        {
+          label: "How-to and onboarding",
+          children: [
+            { label: "How to add POST contract", path: "developer/0004-how-to-add-post-contract.html" },
+            { label: "Onboarding from zero to endpoint and docs", path: "howto/0001-onboarding-from-zero-to-endpoint-docs.html" },
+            { label: "Make commands inventory", path: "howto/0003-make-commands-inventory.html" },
+          ],
+        },
+      ],
+    },
+
+    {
+      label: "QA portal",
+      children: [
+        { label: "Hub — QA portal index", path: "qa/README.html" },
+        {
+          label: "QA checklists",
           children: [
             {
               label: "Documentation pages visual checklist",
@@ -707,25 +752,7 @@
     },
 
     {
-      label: "Audit",
-      children: [
-        { label: "Hub — assessments index", path: "audit/README.html" },
-        {
-          label: "Assessment types",
-          children: [
-            { label: "Documentation Experience (DX)", path: "audit/docs/README.html" },
-            { label: "REST API", path: "audit/api/README.html" },
-          ],
-        },
-      ],
-    },
-
-    {
-      label: "For managers",
-      children: [
-        { label: "SDLC RACI matrix", path: "internal/manager/sdlc-raci-matrix.html" },
-        { label: "Backlog", path: "backlog/README.html" },
-      ],
+      separator: true,
     },
 
     {
@@ -837,7 +864,13 @@
     for (let i = 0; i < nodes.length; i += 1) {
       const node = nodes[i];
       const li = document.createElement("li");
-      if (node.children && node.children.length) {
+      if (node.separator) {
+        li.className = "internal-sidebar__separator";
+        li.setAttribute("role", "presentation");
+        const hr = document.createElement("hr");
+        hr.setAttribute("aria-hidden", "true");
+        li.appendChild(hr);
+      } else if (node.children && node.children.length) {
         const details = document.createElement("details");
         details.className = "internal-sidebar__group";
         if (shouldOpenGroup(node, currentPath)) {

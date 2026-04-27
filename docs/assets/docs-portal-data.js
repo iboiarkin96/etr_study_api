@@ -121,7 +121,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "audit/AUDIT_TEMPLATE.html",
-        "title": "TOPIC — Assessment — formed YYYY-MM-DD"
+        "title": "Assessment template — AUDIT_TEMPLATE.html"
       },
       {
         "path": "audit/README.html",
@@ -212,19 +212,19 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "How-to guides — Study App"
       },
       {
-        "path": "howto/how-to-change-docs-frontend-safely.html",
+        "path": "howto/0005-how-to-change-docs-frontend-safely.html",
         "title": "How to change docs frontend safely (playbooks)"
       },
       {
-        "path": "howto/internal-service-docs-layout.html",
+        "path": "howto/0002-internal-service-docs-layout.html",
         "title": "Internal service docs — layout and how to add pages"
       },
       {
-        "path": "howto/make-commands-inventory.html",
+        "path": "howto/0003-make-commands-inventory.html",
         "title": "Make commands inventory — How-to guides — Study App"
       },
       {
-        "path": "howto/onboarding-from-zero-to-endpoint-docs.html",
+        "path": "howto/0001-onboarding-from-zero-to-endpoint-docs.html",
         "title": "Onboarding: from zero to endpoint and docs — Study App"
       },
       {
