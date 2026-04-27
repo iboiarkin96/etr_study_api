@@ -818,10 +818,6 @@
           label: "Docs frontend popup and overlay system",
           path: "internal/front/docs-frontend-popups-and-overlays.html",
         },
-        {
-          label: "How to change docs frontend safely",
-          path: "howto/how-to-change-docs-frontend-safely.html",
-        },
       ],
     },
   ];

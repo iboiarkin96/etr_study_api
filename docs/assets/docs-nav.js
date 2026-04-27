@@ -2477,12 +2477,13 @@ function injectDocsFeedbackCard() {
       closeModal();
       return;
     }
-    if (target === modal) {
+    /*
+     * Close on backdrop: `target === modal` breaks when flex layout or subpixels
+     * map the hit target differently; rely on panel boundary instead.
+     */
+    if (!modalPanel.contains(target)) {
       closeModal();
     }
-  });
-  modalPanel.addEventListener("click", (event) => {
-    event.stopPropagation();
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
@@ -2603,7 +2604,7 @@ function normalizeDocsPageHistory() {
  * Wrap content after `#docs-top-nav` in a grid with a sticky “On this page” TOC built from `h2`/`h3` (not `p.lead`).
  * If mount is missing, create it as the last child of `<main>` automatically.
  * Very long outlines scroll inside the sidebar (see `.docs-inpage-toc nav` in docs.css).
- * The aside is hidden on viewports `max-width: 1024px` in docs.css (desktop-only chrome).
+ * The aside is hidden on viewports `max-width: 900px` in docs.css (desktop/tablet-only chrome).
  */
 function initAutoInPageToc() {
   const main = document.querySelector("main.container");
@@ -2739,15 +2740,27 @@ function initAutoInPageToc() {
     function toggleCollapsedState() {
       applyCollapsedState(!isCollapsed);
     }
-    toggle.addEventListener("click", () => {
+    toggle.addEventListener("click", (event) => {
+      event.stopPropagation();
       toggleCollapsedState();
     });
     head.addEventListener("click", (event) => {
-      const target = event.target;
-      if (target && target.closest && target.closest(".docs-inpage-toc__toggle")) {
+      event.stopPropagation();
+      toggleCollapsedState();
+    });
+    /*
+     * Fallback: when collapsed, any click on the rail re-opens TOC.
+     * This protects against tiny hit areas and overlay edge-cases.
+     */
+    aside.addEventListener("click", (event) => {
+      if (!isCollapsed) {
         return;
       }
-      toggleCollapsedState();
+      const target = event.target;
+      if (target && target.closest && target.closest("a[href]")) {
+        return;
+      }
+      applyCollapsedState(false);
     });
 
     navEl.appendChild(ul);
@@ -2758,8 +2771,11 @@ function initAutoInPageToc() {
     inner.appendChild(aside);
     /* Hub pages (docs home, internal README hub) skip sticky TOC promo and default collapse. */
     if (!isTocPromoExcludedHub) {
-      /* Default UX: keep TOC collapsed until user explicitly enables sticky menu. */
-      applyCollapsedState(true);
+      /*
+       * Keep default collapsed rail only on wide desktop where promo is shown.
+       * On compact desktop/tablet, keep TOC expanded so it is usable immediately.
+       */
+      applyCollapsedState(window.matchMedia("(min-width: 1025px)").matches);
     }
     if (!isTocPromoExcludedHub && window.matchMedia("(min-width: 1025px)").matches) {
       showStickyTocPromoToast();
@@ -3806,7 +3822,9 @@ function installDocsQuickActionsUi() {
 
   panel.addEventListener("click", (event) => {
     const target = event.target;
-    if (target && target.getAttribute && target.getAttribute("data-qa-close") === "1") {
+    const closeHit =
+      target instanceof Element && target.closest ? target.closest("[data-qa-close]") : null;
+    if (closeHit && closeHit.getAttribute("data-qa-close") === "1") {
       closePanel();
     }
   });
@@ -4386,6 +4404,31 @@ function initLevel3SectionHighlight() {
   }
 }
 
+/**
+ * Re-apply initial hash navigation after docs layout transforms.
+ * This keeps direct URL anchors (e.g. file:///.../page.html#overview) stable
+ * even when init code wraps/moves content for sticky TOC.
+ */
+function restoreInitialHashPosition() {
+  const rawHash = window.location.hash;
+  if (!rawHash || rawHash === "#") {
+    return;
+  }
+  let id = rawHash.slice(1);
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // Keep raw hash segment if decode fails.
+  }
+  const target = document.getElementById(id);
+  if (!target) {
+    return;
+  }
+  window.requestAnimationFrame(() => {
+    target.scrollIntoView({ block: "start", inline: "nearest" });
+  });
+}
+
 function initLevel3Breadcrumbs() {
   const main = document.querySelector("main.container");
   if (!main || main.querySelector(".docs-breadcrumbs")) return;
@@ -4551,6 +4594,7 @@ document.addEventListener("DOMContentLoaded", () => {
     desktopDocsPageActionsMq.addListener(syncDocsPageActionsForViewport);
   }
   initAutoInPageToc();
+  restoreInitialHashPosition();
   syncInternalThemeTogglePlacement();
   window.setTimeout(syncInternalThemeTogglePlacement, 0);
   initInPageTocScrollSpy();

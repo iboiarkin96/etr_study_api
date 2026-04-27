@@ -205,7 +205,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "howto/0004-how-to-add-post-contract.html",
-        "title": "Guide For Beginners: Add `POST /api/v1/contract`"
+        "title": "Guide For Beginners: Add new endpoint and docs"
       },
       {
         "path": "howto/README.html",
