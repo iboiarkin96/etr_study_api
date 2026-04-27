@@ -24,30 +24,32 @@
       <div id="internal-sidebar-mount"></div>
     </aside>
     <div class="internal-layout__main">
-      <main class="container container--swagger">
-        <h1 class="internal-h1--accent-tail">OpenAPI Reference</h1>
+      <main class="container container--swagger" data-inpage-toc="off">
+        <h1 class="internal-h1--accent-tail">ETR Study API — OpenAPI Reference</h1>
         <div id="docs-top-nav"></div>
         <div id="docs-page-meta-mount" hidden=""></div>
+        <div class="docs-inpage-toc-mount" data-inpage-toc="auto"></div>
 
         <section class="docs-page-hero" aria-labelledby="openapi-overview">
           <h2 id="openapi-overview">ETR Study App API</h2>
           <p>
             Interactive reference for all HTTP endpoints. Explore request shapes, response schemas,
-            and error contracts. Rendered from <code>openapi-baseline.json</code> — regenerate the spec
-            without touching this page.
+            and error contracts.
           </p>
           <div class="openapi-hero-meta">
             <span class="openapi-stat">OAS 3.1</span>
             <span class="openapi-stat openapi-stat--neutral" id="js-api-version">—</span>
             <span class="openapi-stat openapi-stat--muted" id="js-endpoint-count">— endpoints</span>
           </div>
-          <nav class="docs-page-hero__chips" aria-label="Endpoint groups" id="js-tag-chips"></nav>
+          <nav class="docs-page-hero__chips" aria-label="Quick actions" id="js-tag-chips">
+            <!-- Download link — our own chip, no dependency on Scalar's blob URL -->
+            <a class="docs-page-hero__chip" href="openapi-baseline.json" download="openapi.json">↓ Download JSON</a>
+          </nav>
         </section>
 
         <!-- Scalar mounts here. The script tag is the mount point — Scalar replaces it
              with its rendered UI when the CDN bundle loads at the bottom of body. -->
         <script id="api-reference" data-url="openapi-baseline.json"></script>
-        <div class="docs-inpage-toc-mount" data-inpage-toc="auto"></div>
       </main>
     </div>
   </div>
@@ -59,12 +61,17 @@
   <script>
     (function () {
       function readIsDark() {
-        try { return localStorage.getItem("docs-theme-preference") === "dark"; } catch (e) { return false; }
+        /* Theme init script in <head> already set data-theme before body parsed */
+        var attr = document.documentElement.getAttribute("data-theme");
+        if (attr === "dark") return true;
+        if (attr === "light") return false;
+        try { return window.matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) { return false; }
       }
 
-      /* Map our design-system tokens to Scalar's CSS custom properties.
-         Using var() references means dark/light theme switches automatically
-         when our root tokens update — no JS listener needed. */
+      /* Map our design-system tokens → Scalar CSS custom properties.
+         var() references update automatically when our root tokens change.
+         We cover both .dark-mode and .light-mode so Scalar's internal
+         mode class doesn't matter — our variables always win. */
       var scalarCss = [
         ".scalar-app,",
         ".scalar-app.dark-mode,",
@@ -86,33 +93,62 @@
         "  --scalar-sidebar-color-2: var(--muted);",
         "  --scalar-sidebar-border-color: var(--line);",
         "}",
+        /* Force text visibility on any element Scalar renders with hardcoded color */
+        ".scalar-app { color: var(--text); }",
+        ".scalar-app h1, .scalar-app h2, .scalar-app h3, .scalar-app h4 { color: var(--text) !important; }",
+        ".scalar-app p, .scalar-app li { color: var(--text); }",
+        /* Code blocks: smaller font */
+        ".scalar-app pre { font-size: 0.78rem !important; line-height: 1.65; }",
+        ".scalar-app :not(pre) > code { font-size: 0.82em; }",
       ].join("\n");
 
       var config = {
         layout: "classic",
         darkMode: readIsDark(),
         hideDarkModeToggle: true,
+        hideDownloadButton: true,   /* We provide our own download link in the hero */
         customCss: scalarCss,
       };
 
       var ref = document.getElementById("api-reference");
       if (ref) ref.dataset.configuration = JSON.stringify(config);
 
-      /* Hero badges — fetch spec asynchronously and fill in stats */
+      /* Hero badges — fetch spec asynchronously */
       fetch("openapi-baseline.json")
         .then(function (r) { return r.json(); })
         .then(function (spec) {
-          var info = spec.info || {};
+          function toScalarTagSlug(tagName) {
+            return String(tagName || "")
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, "");
+          }
 
+          function normalizeTagHashFromLocation(tags) {
+            var m = /^#tag\/(.+)$/.exec(window.location.hash || "");
+            if (!m) return;
+            var raw = decodeURIComponent(m[1] || "");
+            if (!raw) return;
+            var rawSlug = toScalarTagSlug(raw);
+            if (!rawSlug) return;
+            var exists = tags.some(function (t) {
+              return toScalarTagSlug((t && t.name) || "") === rawSlug;
+            });
+            if (exists && m[1] !== rawSlug) {
+              window.location.replace("#tag/" + rawSlug);
+            }
+          }
+
+          var info = spec.info || {};
           if (info.version) {
             var vEl = document.getElementById("js-api-version");
             if (vEl) vEl.textContent = "v" + info.version;
           }
-
           var methods = ["get", "post", "put", "patch", "delete", "head", "options", "trace"];
           var count = 0;
-          Object.values(spec.paths || {}).forEach(function (pathItem) {
-            methods.forEach(function (m) { if (pathItem[m]) count++; });
+          Object.values(spec.paths || {}).forEach(function (p) {
+            methods.forEach(function (m) { if (p[m]) count++; });
           });
           var cEl = document.getElementById("js-endpoint-count");
           if (cEl) cEl.textContent = count + " endpoint" + (count !== 1 ? "s" : "");
@@ -120,21 +156,63 @@
           var tags = spec.tags || [];
           var nav = document.getElementById("js-tag-chips");
           if (nav && tags.length) {
+            /* Insert tag chips before the download link */
+            var dl = nav.querySelector("a[download]");
             tags.forEach(function (tag) {
               var a = document.createElement("a");
               a.className = "docs-page-hero__chip";
               a.textContent = tag.name;
-              a.href = "#tag/" + encodeURIComponent(tag.name);
-              nav.appendChild(a);
+              a.href = "#tag/" + toScalarTagSlug(tag.name);
+              nav.insertBefore(a, dl);
             });
           }
+          normalizeTagHashFromLocation(tags);
         })
-        .catch(function () { /* spec unavailable — hero stays with placeholder dashes */ });
+        .catch(function () { });
     })();
   </script>
 
-  <!-- Scalar CDN — runs after our config script, reads #api-reference and data-configuration -->
+  <!-- Scalar CDN — runs after our config script -->
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+
+  <!-- Theme sync — keeps Scalar's dark/light class in step with our theme toggle.
+       Runs after Scalar CDN so .scalar-app exists (or waits until it does). -->
+  <script>
+    (function () {
+      function syncScalarTheme(app) {
+        var isDark = document.documentElement.getAttribute("data-theme") === "dark"
+          || (!document.documentElement.hasAttribute("data-theme")
+            && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        app.classList.toggle("dark-mode", isDark);
+        app.classList.toggle("light-mode", !isDark);
+      }
+
+      function onScalarReady(app) {
+        syncScalarTheme(app);
+        /* Re-sync every time the user clicks our theme toggle */
+        new MutationObserver(function () {
+          syncScalarTheme(app);
+        }).observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ["data-theme"],
+        });
+      }
+
+      /* Scalar renders asynchronously — wait for .scalar-app to appear */
+      var app = document.querySelector(".scalar-app");
+      if (app) {
+        onScalarReady(app);
+      } else {
+        var mo = new MutationObserver(function () {
+          var found = document.querySelector(".scalar-app");
+          if (!found) return;
+          mo.disconnect();
+          onScalarReady(found);
+        });
+        mo.observe(document.body, { childList: true, subtree: true });
+      }
+    })();
+  </script>
 
 </body>
 

@@ -239,9 +239,15 @@ function enqueueDocsPromoToast(options) {
       }, 180);
     };
     dismissBtn?.addEventListener("click", () => {
+      if (config.storageKey) {
+        try { localStorage.setItem(config.storageKey, "1"); } catch (e) { }
+      }
       closeToast();
     });
     primaryBtn?.addEventListener("click", () => {
+      if (config.storageKey) {
+        try { localStorage.setItem(config.storageKey, "1"); } catch (e) { }
+      }
       if (typeof config.onPrimary === "function") {
         config.onPrimary();
       }
@@ -2604,6 +2610,9 @@ function initAutoInPageToc() {
   if (!main) {
     return;
   }
+  if (main.getAttribute("data-inpage-toc") === "off") {
+    return;
+  }
   const relPath = currentDocsRelPath();
   const isDocsHomePage = relPath === "index.html";
   /** Same treatment as docs home: no sticky-TOC promo toast; no default collapsed rail. */
@@ -2853,7 +2862,7 @@ function initBackToTopButton() {
   btn.tabIndex = -1;
   btn.innerHTML = `
     <span class="docs-back-to-top__rocket-wrap" aria-hidden="true">
-      <svg class="docs-back-to-top__rocket" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="docs-back-to-top__rocket" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3c3.4 1.9 5.5 5.5 5.5 9.3v1.1L12 19l-5.5-5.6v-1.1C6.5 8.5 8.6 4.9 12 3z"/>
         <path d="M12 8.2a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2z"/>
         <path d="M9.3 16.6l-1.8 3.1M14.7 16.6l1.8 3.1"/>
@@ -2864,7 +2873,8 @@ function initBackToTopButton() {
       <span class="docs-back-to-top__smoke docs-back-to-top__smoke--left"></span>
       <span class="docs-back-to-top__smoke docs-back-to-top__smoke--mid"></span>
       <span class="docs-back-to-top__smoke docs-back-to-top__smoke--right"></span>
-    </span>`;
+    </span>
+    <span class="docs-back-to-top__label">Go to top!</span>`;
 
   function pageIsScrollable() {
     return root.scrollHeight > window.innerHeight + minScrollExtra;
@@ -3030,6 +3040,25 @@ function initDocsFooterAtmosphereScroll() {
   apply();
 }
 
+/** Keeps FAB and rocket above the footer by updating --docs-footer-visible-h on <body>. */
+function initFabFooterAwareness() {
+  const footer = document.getElementById("docs-site-footer");
+  if (!footer) {
+    return;
+  }
+
+  function update() {
+    const rect = footer.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const visible = Math.max(0, Math.min(footer.offsetHeight, vh - rect.top));
+    document.body.style.setProperty("--docs-footer-visible-h", visible > 0 ? visible + "px" : "0px");
+  }
+
+  window.addEventListener("scroll", update, { passive: true });
+  window.addEventListener("resize", update, { passive: true });
+  update();
+}
+
 /** Site-wide footer on hand-written docs pages (presence of `#docs-top-nav`). */
 function initDocsSiteFooter() {
   if (document.getElementById("docs-site-footer")) {
@@ -3059,35 +3088,35 @@ function initDocsSiteFooter() {
     {
       label: "Docs",
       links: [
-        { href: "index.html",                                    text: "Documentation home" },
-        { href: "internal/README.html",                          text: "Internal docs" },
-        { href: "internal/analysis/system-design.html",          text: "System design" },
-        { href: "internal/analysis/methodology.html",            text: "Methodology" },
+        { href: "index.html", text: "Documentation home" },
+        { href: "internal/README.html", text: "Internal docs" },
+        { href: "internal/analysis/system-design.html", text: "System design" },
+        { href: "internal/analysis/methodology.html", text: "Methodology" },
       ],
     },
     {
       label: "API",
       links: [
-        { href: "internal/api/README.html",   text: "Internal HTTP API" },
-        { href: "openapi/index.html",         text: "OpenAPI / Swagger UI" },
-        { href: "internal/api/errors.html",   text: "Error matrix" },
-        { href: "pdoc/index.html",            text: "Python API (pdoc)" },
+        { href: "internal/api/README.html", text: "Internal HTTP API" },
+        { href: "openapi/index.html", text: "OpenAPI / Swagger UI" },
+        { href: "internal/api/errors.html", text: "Error matrix" },
+        { href: "pdoc/index.html", text: "Python API (pdoc)" },
       ],
     },
     {
       label: "Guides",
       links: [
         { href: "howto/onboarding-from-zero-to-endpoint-docs.html", text: "Onboarding" },
-        { href: "howto/README.html",      text: "How-to guides" },
-        { href: "runbooks/README.html",   text: "Runbooks" },
-        { href: "developer/README.html",  text: "Developer docs" },
+        { href: "howto/README.html", text: "How-to guides" },
+        { href: "runbooks/README.html", text: "Runbooks" },
+        { href: "developer/README.html", text: "Developer docs" },
       ],
     },
     {
       label: "Governance",
       links: [
-        { href: "adr/README.html",     text: "ADRs" },
-        { href: "rfc/README.html",     text: "RFCs" },
+        { href: "adr/README.html", text: "ADRs" },
+        { href: "rfc/README.html", text: "RFCs" },
         { href: "backlog/README.html", text: "Backlog" },
         { href: `https://github.com/${DOCS_FEEDBACK_REPOSITORY}`, text: "GitHub", external: true },
       ],
@@ -3882,11 +3911,17 @@ function injectDocsHotkeyHint() {
   if (!hasTopNav) {
     return;
   }
+  try {
+    if (localStorage.getItem("docs-palette-hint-dismissed") === "1") {
+      return;
+    }
+  } catch (e) { }
   enqueueDocsPromoToast({
     title: "Command Palette available",
     text: `Hey! We have a premium Command Palette. Press <kbd>${docsPalettePrimaryHotkeyLabel()}</kbd> or open it now.`,
     dismissLabel: "Hide",
     primaryLabel: "Open Command Palette",
+    storageKey: "docs-palette-hint-dismissed",
     onPrimary: () => {
       if (docsQuickActionsRuntime && typeof docsQuickActionsRuntime.openPanel === "function") {
         docsQuickActionsRuntime.openPanel();
@@ -4303,7 +4338,7 @@ function initLevel3CopyButtons() {
             btn.classList.remove("is-copied");
           }, 2000);
         },
-        () => {},
+        () => { },
       );
     });
 
@@ -4325,7 +4360,7 @@ function initLevel3AnchorLinks() {
     anchor.addEventListener("click", (e) => {
       e.preventDefault();
       const url = window.location.href.split("#")[0] + "#" + h.id;
-      level3WriteToClipboard(url, () => {}, () => {});
+      level3WriteToClipboard(url, () => { }, () => { });
       if (history.pushState) {
         history.pushState(null, "", "#" + h.id);
       } else {
@@ -4523,6 +4558,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initDocsReadingProgressBar();
   initDocsFooterAtmosphereScroll();
   initDocsSiteFooter();
+  initFabFooterAwareness();
   initDocsContinueReadingPrompt();
   try {
     injectDocsHotkeyHint();
