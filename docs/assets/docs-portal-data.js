@@ -397,7 +397,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "openapi/index.html",
-        "title": "ETR Study App API — Swagger UI (test)"
+        "title": "OpenAPI Reference — ETR Study App"
       },
       {
         "path": "openapi/openapi-explorer.html",
@@ -479,6 +479,14 @@ window.__DOCS_PORTAL_DATA__ = {
       }
     ],
     "16fc8b78537109162984a2fdbef6e143": [
+      {
+        "path": "internal/api/errors.html",
+        "title": "Error catalog and sync — Study App"
+      },
+      {
+        "path": "internal/api/errors.html",
+        "title": "Error catalog and sync — Study App"
+      },
       {
         "path": "internal/api/errors.html",
         "title": "Error catalog and sync — Study App"
