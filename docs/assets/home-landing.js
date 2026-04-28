@@ -3,7 +3,8 @@
 (function () {
   const mediaReduced = window.matchMedia("(prefers-reduced-motion: reduce)");
   const canAnimate = !mediaReduced.matches;
-  const INTRO_DURATION_MS = 5400;
+  const INTRO_DURATION_MS = 2400;
+  const INTRO_REVEAL_MS = 880;
 
   function markFirstVisitClass() {
     if (canAnimate) {
@@ -11,66 +12,49 @@
     }
   }
 
-  function startTypewriter(el) {
-    const full = el.textContent.trim();
-    el.textContent = "";
-    el.style.opacity = "1";
-    el.style.transform = "none";
-    el.style.animation = "none";
+  /* ── Mask-reveal intro ─────────────────────────────────────────────────── */
 
-    const cursor = document.createElement("span");
-    cursor.className = "home-intro__cursor";
-    cursor.setAttribute("aria-hidden", "true");
-    el.appendChild(cursor);
+  function runMaskReveal(intro, onDone) {
+    const mask = intro.querySelector("[data-home-intro-mask]");
+    const status = intro.querySelector("[data-home-intro-status]");
+    if (!mask) {
+      window.setTimeout(onDone, 60);
+      return;
+    }
+    const start = performance.now();
+    const total = INTRO_REVEAL_MS;
+    const phrases = [
+      "booting study runtime",
+      "loading openapi · 3.1",
+      "ready",
+    ];
+    let phraseIdx = 0;
 
-    let idx = 0;
-    function typeNext() {
-      if (!el.isConnected) return;
-      if (idx < full.length) {
-        el.insertBefore(document.createTextNode(full[idx]), cursor);
-        idx++;
-        window.setTimeout(typeNext, 50 + Math.random() * 40);
+    function tick(now) {
+      const t = Math.min(1, (now - start) / total);
+      const eased = 1 - Math.pow(1 - t, 3);
+      mask.setAttribute("width", String(360 * eased));
+      const expectedPhrase = Math.min(
+        phrases.length - 1,
+        Math.floor(t * phrases.length),
+      );
+      if (status && expectedPhrase !== phraseIdx) {
+        phraseIdx = expectedPhrase;
+        status.textContent = phrases[phraseIdx];
+      }
+      if (t < 1) {
+        window.requestAnimationFrame(tick);
       } else {
-        // Typing done — remove inline cursor, then show dots + pulsing cursor
-        cursor.remove();
-        showIntroSuffix(el);
+        onDone();
       }
     }
-    window.setTimeout(typeNext, 200);
-  }
-
-  function showIntroSuffix(titleEl) {
-    if (!titleEl.isConnected) return;
-
-    // Space before dots, stays on the same line as the typed title
-    titleEl.appendChild(document.createTextNode("\u00a0"));
-
-    // Three dots inline inside the title, one every 500 ms
-    [".", ".", "."].forEach(function (ch, i) {
-      window.setTimeout(function () {
-        if (!titleEl.isConnected) return;
-        const span = document.createElement("span");
-        span.className = "home-intro__dot";
-        span.textContent = ch;
-        titleEl.appendChild(span);
-      }, i * 500);
-    });
-
-    // Pulsing cursor after all three dots
-    window.setTimeout(function () {
-      if (!titleEl.isConnected) return;
-      const cur = document.createElement("span");
-      cur.className = "home-intro__cursor";
-      cur.setAttribute("aria-hidden", "true");
-      titleEl.appendChild(cur);
-    }, 3 * 500 + 80);
+    window.requestAnimationFrame(tick);
   }
 
   function runShutterExit(intro) {
     const DURATION = 720;
     const bg = window.getComputedStyle(intro).backgroundColor;
 
-    // Single full-screen overlay — collapses via radial iris (diaphragm effect)
     const overlay = document.createElement("div");
     overlay.style.cssText =
       "position:fixed;inset:0;z-index:130;pointer-events:none;" +
@@ -78,28 +62,23 @@
       "clip-path:circle(150% at 50% 46%);";
 
     document.body.appendChild(overlay);
-    overlay.getBoundingClientRect(); // force reflow before transition
+    overlay.getBoundingClientRect();
 
-    // Hide intro instantly behind overlay
     intro.style.transition = "none";
     intro.classList.remove("is-active");
     intro.setAttribute("aria-hidden", "true");
     document.body.classList.remove("home-intro-lock");
 
-    // Iris collapses to centre point
     overlay.style.transition = "clip-path " + DURATION + "ms cubic-bezier(0.87, 0, 0.13, 1)";
     overlay.style.clipPath = "circle(0% at 50% 46%)";
+
+    // Fire decrypt at shutter start so the H1 is already mid-scramble
+    // by the time the iris fully clears.
+    window.dispatchEvent(new CustomEvent("home:intro-done"));
 
     window.setTimeout(() => {
       overlay.remove();
       intro.style.transition = "";
-      // Force hero title lines visible (guards against fill-mode edge cases)
-      document.querySelectorAll(".home-hero__title-line").forEach((el) => {
-        el.style.animation = "none";
-        el.style.opacity = "1";
-        el.style.transform = "none";
-        el.style.letterSpacing = "";
-      });
     }, DURATION + 40);
   }
 
@@ -107,6 +86,8 @@
     const intro = document.querySelector("[data-home-intro]");
     const skip = document.querySelector("[data-home-intro-skip]");
     if (!intro || !canAnimate) {
+      if (intro) intro.remove();
+      window.dispatchEvent(new CustomEvent("home:intro-done"));
       return;
     }
 
@@ -114,34 +95,404 @@
     intro.classList.add("is-active");
     intro.setAttribute("aria-hidden", "false");
 
-    const titleEl = intro.querySelector(".home-intro__title");
-    if (titleEl) startTypewriter(titleEl);
-
     let closed = false;
     function closeIntro() {
-      if (closed) {
-        return;
-      }
+      if (closed) return;
       closed = true;
       runShutterExit(intro);
     }
 
-    window.setTimeout(closeIntro, INTRO_DURATION_MS);
-    if (skip) {
-      skip.addEventListener("click", closeIntro);
-    }
+    runMaskReveal(intro, () => {
+      window.setTimeout(closeIntro, INTRO_DURATION_MS - INTRO_REVEAL_MS);
+    });
+
+    if (skip) skip.addEventListener("click", closeIntro);
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        closeIntro();
-      }
+      if (event.key === "Escape") closeIntro();
     });
   }
 
-  function bindRevealOnScroll() {
-    const revealNodes = Array.from(document.querySelectorAll("[data-home-reveal]"));
-    if (!revealNodes.length) {
+  /* ── H1 glyph-scramble decrypt ─────────────────────────────────────────── */
+
+  const SCRAMBLE_CHARS = "█▓▒░ABCDEFGHIJKLMNOPQRSTUVWXYZ#@%&*+=<>/_";
+
+  function decryptElement(el, finalText, opts) {
+    const total = (opts && opts.duration) || 700;
+    const stagger = (opts && opts.stagger) || 28;
+    el.textContent = "";
+    el.setAttribute("aria-label", finalText);
+    const chars = Array.from(finalText);
+    const spans = chars.map((ch) => {
+      const span = document.createElement("span");
+      span.className = "home-decrypt-char home-decrypt-char--scrambling";
+      span.textContent = ch === " " ? "\u00a0" : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+      el.appendChild(span);
+      return span;
+    });
+
+    const start = performance.now();
+    function frame(now) {
+      const t = now - start;
+      let allDone = true;
+      spans.forEach((span, i) => {
+        if (span.dataset.done === "1") return;
+        const localStart = i * stagger;
+        const localEnd = localStart + total;
+        if (t < localStart) {
+          allDone = false;
+          return;
+        }
+        if (t >= localEnd) {
+          span.textContent = chars[i] === " " ? "\u00a0" : chars[i];
+          span.classList.remove("home-decrypt-char--scrambling");
+          span.dataset.done = "1";
+          return;
+        }
+        span.textContent = SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+        allDone = false;
+      });
+      if (!allDone) window.requestAnimationFrame(frame);
+    }
+    window.requestAnimationFrame(frame);
+  }
+
+  function bindHeroDecrypt() {
+    const lines = Array.from(document.querySelectorAll("[data-home-decrypt]"));
+    if (!lines.length) return;
+    if (!canAnimate || !document.body.classList.contains("home-first-visit")) return;
+
+    function run() {
+      lines.forEach((el, idx) => {
+        const finalText = el.getAttribute("data-home-decrypt") || el.textContent;
+        window.setTimeout(() => decryptElement(el, finalText, { duration: 580, stagger: 32 }), idx * 140);
+      });
+    }
+    window.addEventListener("home:intro-done", run, { once: true });
+  }
+
+  /* ── Variable-font weight on scroll ────────────────────────────────────── */
+
+  function bindVariableWeight() {
+    const el = document.querySelector("[data-home-variable-weight]");
+    if (!el || !canAnimate) return;
+    let rafId = 0;
+    function update() {
+      rafId = 0;
+      const rect = el.getBoundingClientRect();
+      const viewport = window.innerHeight || 1;
+      const offset = Math.max(0, Math.min(1, 1 - rect.top / viewport));
+      const wght = Math.round(500 + offset * 260);
+      el.style.setProperty("--home-h1-wght", String(wght));
+    }
+    function schedule() {
+      if (!rafId) rafId = window.requestAnimationFrame(update);
+    }
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    update();
+  }
+
+  /* ── Live self-typing terminal ─────────────────────────────────────────── */
+
+  const TERMINAL_SCRIPT = [
+    { cls: "home-terminal__t-mute", text: "$ " },
+    { cls: "home-terminal__t-cmd",  text: "curl" },
+    { text: " " },
+    { cls: "home-terminal__t-url",  text: "https://api.etr.study/v1/conspectuses/due" },
+    { text: " \\\n     " },
+    { cls: "home-terminal__t-flag", text: "-H" },
+    { text: " " },
+    { cls: "home-terminal__t-str",  text: "\"Authorization: Bearer " },
+    { cls: "home-terminal__t-var",  text: "$ETR_TOKEN" },
+    { cls: "home-terminal__t-str",  text: "\"" },
+    { text: "\n" },
+    { cls: "home-terminal__t-mute", text: "→ " },
+    { cls: "home-terminal__t-ok",   text: "200 OK" },
+    { cls: "home-terminal__t-mute", text: " · " },
+    { cls: "home-terminal__t-num",  text: "14" },
+    { cls: "home-terminal__t-mute", text: " items · " },
+    { cls: "home-terminal__t-lat",  text: "38ms" },
+    { text: "\n" },
+    { cls: "home-terminal__t-mute", text: "  " },
+    { cls: "home-terminal__t-ok",   text: "schedule_summary" },
+    { cls: "home-terminal__t-mute", text: " · next review in " },
+    { cls: "home-terminal__t-num",  text: "12m" },
+  ];
+
+  function renderTerminalStatic(target) {
+    target.textContent = "";
+    TERMINAL_SCRIPT.forEach((seg) => {
+      const span = document.createElement("span");
+      if (seg.cls) span.className = seg.cls;
+      span.textContent = seg.text;
+      target.appendChild(span);
+    });
+  }
+
+  function bindLiveTerminal() {
+    const target = document.querySelector("[data-home-terminal-target]");
+    if (!target) return;
+    if (!canAnimate) {
+      renderTerminalStatic(target);
       return;
     }
+
+    const segments = TERMINAL_SCRIPT;
+    target.textContent = "";
+    const caret = document.createElement("span");
+    caret.className = "home-terminal__caret";
+    caret.setAttribute("aria-hidden", "true");
+    target.appendChild(caret);
+
+    let segIdx = 0;
+    let charIdx = 0;
+    let activeSpan = null;
+    let started = false;
+
+    function nextSegment() {
+      if (segIdx >= segments.length) return;
+      const seg = segments[segIdx];
+      activeSpan = document.createElement("span");
+      if (seg.cls) activeSpan.className = seg.cls;
+      target.insertBefore(activeSpan, caret);
+      charIdx = 0;
+      typeChar();
+    }
+
+    function typeChar() {
+      const seg = segments[segIdx];
+      if (!seg) return;
+      const ch = seg.text[charIdx];
+      if (ch === undefined) {
+        segIdx++;
+        if (segIdx < segments.length) {
+          const delay = seg.text.endsWith("\n") ? 90 : 22;
+          window.setTimeout(nextSegment, delay);
+        }
+        return;
+      }
+      activeSpan.appendChild(document.createTextNode(ch));
+      charIdx++;
+      const isWhitespace = /\s/.test(ch);
+      const base = isWhitespace ? 18 : 24;
+      const jitter = Math.random() * 28;
+      window.setTimeout(typeChar, base + jitter);
+    }
+
+    function start() {
+      if (started) return;
+      started = true;
+      window.setTimeout(nextSegment, 250);
+    }
+
+    if ("IntersectionObserver" in window) {
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            start();
+            obs.disconnect();
+          }
+        });
+      }, { threshold: 0.35 });
+      obs.observe(target);
+    } else {
+      start();
+    }
+  }
+
+  /* ── Cursor-reactive dot grid ──────────────────────────────────────────── */
+
+  function bindDotGrid() {
+    const canvas = document.querySelector("[data-home-dotgrid]");
+    if (!canvas || !canAnimate) {
+      if (canvas) canvas.remove();
+      return;
+    }
+    const host = canvas.parentElement && canvas.parentElement.parentElement;
+    if (!host) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const SPACING = 26;
+    const DOT_RADIUS = 1.1;
+    const REACT_RADIUS = 140;
+    const REACT_RADIUS_SQ = REACT_RADIUS * REACT_RADIUS;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let width = 0;
+    let height = 0;
+    let mouseX = -9999;
+    let mouseY = -9999;
+    let targetX = -9999;
+    let targetY = -9999;
+    let rafId = 0;
+    let dotColor = "rgba(120, 160, 220, 0.45)";
+    let dotColorHot = "rgba(34, 211, 238, 0.95)";
+
+    function readColors() {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark"
+        || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+            && document.documentElement.getAttribute("data-theme") !== "light");
+      dotColor = isDark ? "rgba(140, 180, 240, 0.32)" : "rgba(60, 90, 150, 0.32)";
+      dotColorHot = isDark ? "rgba(125, 211, 252, 1)" : "rgba(8, 145, 178, 1)";
+    }
+
+    function resize() {
+      const rect = host.getBoundingClientRect();
+      width = Math.ceil(rect.width);
+      height = Math.ceil(rect.height);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, width * dpr);
+      canvas.height = Math.max(1, height * dpr);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function draw() {
+      rafId = 0;
+      mouseX += (targetX - mouseX) * 0.18;
+      mouseY += (targetY - mouseY) * 0.18;
+      ctx.clearRect(0, 0, width, height);
+
+      const cols = Math.ceil(width / SPACING) + 1;
+      const rows = Math.ceil(height / SPACING) + 1;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = c * SPACING + (SPACING / 2);
+          const y = r * SPACING + (SPACING / 2);
+          const dx = x - mouseX;
+          const dy = y - mouseY;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < REACT_RADIUS_SQ) {
+            const t = 1 - distSq / REACT_RADIUS_SQ;
+            const radius = DOT_RADIUS + t * 2.6;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = dotColorHot;
+            ctx.globalAlpha = 0.4 + t * 0.6;
+            ctx.fill();
+          } else {
+            ctx.beginPath();
+            ctx.arc(x, y, DOT_RADIUS, 0, Math.PI * 2);
+            ctx.fillStyle = dotColor;
+            ctx.globalAlpha = 1;
+            ctx.fill();
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      const stillMoving = Math.abs(targetX - mouseX) > 0.4 || Math.abs(targetY - mouseY) > 0.4;
+      if (stillMoving) schedule();
+    }
+
+    function schedule() {
+      if (!rafId) rafId = window.requestAnimationFrame(draw);
+    }
+
+    function onMove(event) {
+      const rect = host.getBoundingClientRect();
+      targetX = event.clientX - rect.left;
+      targetY = event.clientY - rect.top;
+      schedule();
+    }
+
+    function onLeave() {
+      targetX = -9999;
+      targetY = -9999;
+      schedule();
+    }
+
+    readColors();
+    resize();
+    draw();
+    window.addEventListener("resize", () => { resize(); schedule(); });
+    host.addEventListener("pointermove", onMove);
+    host.addEventListener("pointerleave", onLeave);
+
+    // Re-read colors if theme toggles
+    const themeObserver = new MutationObserver(() => { readColors(); schedule(); });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  }
+
+  /* ── Number tickers (count-up on reveal) ───────────────────────────────── */
+
+  function bindTickers() {
+    const wrap = document.querySelector("[data-home-tickers]");
+    if (!wrap) return;
+    const nums = Array.from(wrap.querySelectorAll("[data-home-ticker-target]"));
+    if (!nums.length) return;
+
+    function runCountUp(el) {
+      const target = Number(el.getAttribute("data-home-ticker-target")) || 0;
+      const suffix = el.getAttribute("data-home-ticker-suffix") || "";
+      if (!canAnimate) {
+        el.textContent = String(target) + suffix;
+        return;
+      }
+      const duration = 900;
+      const start = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = String(Math.round(target * eased)) + (t === 1 ? suffix : "");
+        if (t < 1) window.requestAnimationFrame(frame);
+        else el.textContent = String(target) + suffix;
+      }
+      window.requestAnimationFrame(frame);
+    }
+
+    if ("IntersectionObserver" in window) {
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          nums.forEach((n, i) => window.setTimeout(() => runCountUp(n), i * 80));
+          obs.disconnect();
+        });
+      }, { threshold: 0.5 });
+      obs.observe(wrap);
+    } else {
+      nums.forEach(runCountUp);
+    }
+  }
+
+  /* ── Section tint shift ────────────────────────────────────────────────── */
+
+  function bindSectionTints() {
+    const sections = Array.from(document.querySelectorAll("[data-section-tint]"));
+    if (!sections.length || !("IntersectionObserver" in window)) return;
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add("is-tinted");
+      });
+    }, { rootMargin: "0px 0px -25% 0px", threshold: 0.1 });
+    sections.forEach((s) => obs.observe(s));
+  }
+
+  /* ── View Transitions API (cross-page nav) ────────────────────────────── */
+
+  function bindViewTransitions() {
+    if (!("startViewTransition" in document)) return;
+    const links = Array.from(document.querySelectorAll("a[data-home-vt]"));
+    links.forEach((link) => {
+      link.addEventListener("click", (event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        if (event.button !== 0) return;
+        const href = link.getAttribute("href");
+        if (!href || href.startsWith("#") || /^https?:/.test(href)) return;
+        event.preventDefault();
+        document.startViewTransition(() => {
+          window.location.href = href;
+        });
+      });
+    });
+  }
+
+  /* ── Existing modules (kept) ───────────────────────────────────────────── */
+
+  function bindRevealOnScroll() {
+    const revealNodes = Array.from(document.querySelectorAll("[data-home-reveal]"));
+    if (!revealNodes.length) return;
     if (!canAnimate || !("IntersectionObserver" in window)) {
       revealNodes.forEach((node) => {
         node.classList.add("is-visible");
@@ -152,13 +503,9 @@
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (!entry.isIntersecting) {
-            return;
-          }
-
+          if (!entry.isIntersecting) return;
           const cards = Array.from(entry.target.querySelectorAll(".home-card"));
           if (cards.length > 0) {
-            // Reveal section instantly — visual effect comes entirely from card stagger
             entry.target.style.transition = "none";
             entry.target.style.opacity = "1";
             entry.target.style.transform = "none";
@@ -168,8 +515,6 @@
               entry.target.style.opacity = "";
               entry.target.style.transform = "";
             });
-
-            // Stagger cards with double-rAF to ensure initial hidden state rendered
             cards.forEach((card, i) => {
               const delay = i * 65;
               card.style.transitionDelay = delay + "ms";
@@ -179,10 +524,8 @@
               window.setTimeout(() => { card.style.transitionDelay = ""; }, 480 + delay + 80);
             });
           } else {
-            // Section without cards — standard fade-in
             entry.target.classList.add("is-visible");
           }
-
           observer.unobserve(entry.target);
         });
       },
@@ -194,9 +537,7 @@
   function bindHeroParallax() {
     const host = document.querySelector("[data-home-parallax-host]");
     const layers = Array.from(document.querySelectorAll("[data-home-parallax-layer]"));
-    if (!host || !layers.length || !canAnimate) {
-      return;
-    }
+    if (!host || !layers.length || !canAnimate) return;
     let rafId = 0;
     let targetX = 0;
     let targetY = 0;
@@ -225,25 +566,19 @@
       const relY = (event.clientY - rect.top) / Math.max(rect.height, 1) - 0.5;
       targetX = relX * 32;
       targetY = relY * 24;
-      if (!rafId) {
-        rafId = window.requestAnimationFrame(tick);
-      }
+      if (!rafId) rafId = window.requestAnimationFrame(tick);
     });
 
     host.addEventListener("pointerleave", () => {
       targetX = 0;
       targetY = 0;
-      if (!rafId) {
-        rafId = window.requestAnimationFrame(tick);
-      }
+      if (!rafId) rafId = window.requestAnimationFrame(tick);
     });
   }
 
   function bindScrollProgress() {
     const bar = document.querySelector("[data-home-scroll-progress]");
-    if (!bar || !canAnimate) {
-      return;
-    }
+    if (!bar || !canAnimate) return;
     let rafId = 0;
     function draw() {
       rafId = 0;
@@ -253,9 +588,7 @@
       bar.style.transform = `scaleX(${p.toFixed(4)})`;
     }
     function schedule() {
-      if (!rafId) {
-        rafId = window.requestAnimationFrame(draw);
-      }
+      if (!rafId) rafId = window.requestAnimationFrame(draw);
     }
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
@@ -264,9 +597,7 @@
 
   function bindMagneticCta() {
     const elements = Array.from(document.querySelectorAll("[data-home-magnetic]"));
-    if (!elements.length || !canAnimate) {
-      return;
-    }
+    if (!elements.length || !canAnimate) return;
     elements.forEach((el) => {
       let rafId = 0;
       let tx = 0;
@@ -291,17 +622,13 @@
         const dy = event.clientY - (rect.top + rect.height / 2);
         tx = Math.max(Math.min(dx * 0.16, 9), -9);
         ty = Math.max(Math.min(dy * 0.16, 7), -7);
-        if (!rafId) {
-          rafId = window.requestAnimationFrame(paint);
-        }
+        if (!rafId) rafId = window.requestAnimationFrame(paint);
       });
 
       el.addEventListener("pointerleave", () => {
         tx = 0;
         ty = 0;
-        if (!rafId) {
-          rafId = window.requestAnimationFrame(paint);
-        }
+        if (!rafId) rafId = window.requestAnimationFrame(paint);
       });
     });
   }
@@ -309,6 +636,13 @@
   function init() {
     markFirstVisitClass();
     bindFirstVisitIntro();
+    bindHeroDecrypt();
+    bindVariableWeight();
+    bindLiveTerminal();
+    bindDotGrid();
+    bindTickers();
+    bindSectionTints();
+    bindViewTransitions();
     bindRevealOnScroll();
     bindHeroParallax();
     bindScrollProgress();

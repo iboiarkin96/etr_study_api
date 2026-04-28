@@ -333,11 +333,11 @@
                     </p>
                   </section>
 
-                  <section id="method-pages" class="card">
-                    <h2>Method pages (per endpoint)</h2>
+                  <section id="operations" class="card">
+                    <h2>Operations</h2>
                     <p>
-                      Navigation matches <strong>HTTP method + path</strong> (how clients are expected to call the API). Planned
-                      <code>operationId</code> names appear in the table; OpenAPI will be generated when routes exist.
+                      This is the canonical API surface for Conspectus and related endpoints. Use <strong>HTTP method + path</strong>
+                      for client flow navigation, and <code>operationId</code> for cross-reference.
                     </p>
                     <p>
                       Use the sidebar under <strong>API → Conspectus</strong>, or open a row below. Schedule summary (FR-5) is
@@ -351,6 +351,8 @@
                           <tr>
                             <th>Method &amp; path</th>
                             <th><code>operationId</code></th>
+                            <th>Idempotency</th>
+                            <th>Success</th>
                             <th>Internal doc</th>
                           </tr>
                         </thead>
@@ -358,11 +360,15 @@
                           <tr>
                             <td><span class="badge badge--method-post">POST</span> <code>/api/v1/conspectuses</code></td>
                             <td><code>createConspectus</code></td>
+                            <td>Required <code>Idempotency-Key</code></td>
+                            <td><code>201 Created</code></td>
                             <td><a href="./operations/post-api-v1-conspectuses.html">Method page</a></td>
                           </tr>
                           <tr>
                             <td><span class="badge badge--method-get">GET</span> <code>/api/v1/conspectuses/due</code></td>
                             <td><code>listDueConspectuses</code></td>
+                            <td>Not used</td>
+                            <td><code>200 OK</code></td>
                             <td><a href="./operations/get-api-v1-conspectuses-due.html">Method page</a></td>
                           </tr>
                           <tr>
@@ -371,6 +377,8 @@
                               <code>/api/v1/conspectuses/{conspectus_uuid}</code>
                             </td>
                             <td><code>patchConspectus</code></td>
+                            <td>Required <code>Idempotency-Key</code></td>
+                            <td><code>200 OK</code></td>
                             <td><a href="./operations/patch-api-v1-conspectuses-conspectus_uuid.html">Method page</a></td>
                           </tr>
                           <tr>
@@ -379,88 +387,20 @@
                               <code>/api/v1/conspectuses/{conspectus_uuid}/actions/review</code>
                             </td>
                             <td><code>reviewConspectus</code></td>
+                            <td>Required <code>Idempotency-Key</code></td>
+                            <td><code>200 OK</code></td>
                             <td><a href="./operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html">Method
                               page</a></td>
                             </tr>
                             <tr>
                               <td><span class="badge badge--method-get">GET</span> <code>/api/v1/schedule/summary</code></td>
                               <td><code>getScheduleSummary</code></td>
+                              <td>Not used</td>
+                              <td><code>200 OK</code></td>
                               <td><a href="./operations/get-api-v1-schedule-summary.html">Method page</a></td>
                             </tr>
                           </tbody>
                         </table>
-                      </div>
-                    </section>
-
-                    <section id="surface" class="card">
-                      <h2>API surface</h2>
-                      <p>
-                        Planned conspectus routes share prefix <code>/api/v1/conspectuses</code>. Writes that change scheduling are
-                        expected to use <code>POST …/actions/review</code> (command-style). When implemented, routes should require
-                        <code>X-API-Key</code> and rate limiting per <a href="../../../adr/0005-api-security-defaults.html">ADR 0005</a>.
-                      </p>
-                      <div class="api-endpoint-list">
-                        <article id="conspectus-op-createConspectus" class="api-endpoint">
-                          <h3 class="api-endpoint__title"><code>POST</code> <code>/api/v1/conspectuses</code></h3>
-                          <dl class="api-endpoint__grid">
-                            <dt>operationId</dt>
-                            <dd><code>createConspectus</code></dd>
-                            <dt>Idempotency</dt>
-                            <dd>Required <code>Idempotency-Key</code>; path key <code>/api/v1/conspectuses</code>.</dd>
-                            <dt>Success</dt>
-                            <dd><code>201 Created</code> — full conspectus including <code>conspectus_uuid</code>,
-                              <code>slot</code>, <code>next_review_at</code>.
-                            </dd>
-                          </dl>
-                        </article>
-                        <article id="conspectus-op-listDueConspectuses" class="api-endpoint">
-                          <h3 class="api-endpoint__title"><code>GET</code> <code>/api/v1/conspectuses/due</code></h3>
-                          <dl class="api-endpoint__grid">
-                            <dt>operationId</dt>
-                            <dd><code>listDueConspectuses</code></dd>
-                            <dt>Idempotency</dt>
-                            <dd>Not used (read).</dd>
-                            <dt>Success</dt>
-                            <dd><code>200 OK</code> — JSON array of <code>ConspectusResponse</code>.</dd>
-                          </dl>
-                        </article>
-                        <article id="conspectus-op-patchConspectus" class="api-endpoint">
-                          <h3 class="api-endpoint__title"><code>PATCH</code> <code>/api/v1/conspectuses/{conspectus_uuid}</code>
-                          </h3>
-                          <dl class="api-endpoint__grid">
-                            <dt>operationId</dt>
-                            <dd><code>patchConspectus</code></dd>
-                            <dt>Idempotency</dt>
-                            <dd>Required; scope <code>PATCH /api/v1/conspectuses/{uuid}</code> (per resource).</dd>
-                            <dt>Success</dt>
-                            <dd><code>200 OK</code> — updated <span class="docs-tooltip docs-tooltip--etr" tabindex="0">ETR</span> fields; scheduling unchanged.</dd>
-                          </dl>
-                        </article>
-                        <article id="conspectus-op-reviewConspectus" class="api-endpoint">
-                          <h3 class="api-endpoint__title"><code>POST</code>
-                            <code>/api/v1/conspectuses/{conspectus_uuid}/actions/review</code>
-                          </h3>
-                          <dl class="api-endpoint__grid">
-                            <dt>operationId</dt>
-                            <dd><code>reviewConspectus</code></dd>
-                            <dt>Idempotency</dt>
-                            <dd>Required; path includes concrete <code>conspectus_uuid</code> (…/actions/review).</dd>
-                            <dt>Success</dt>
-                            <dd><code>200 OK</code> — updated conspectus body.</dd>
-                          </dl>
-                        </article>
-                        <article id="conspectus-op-getScheduleSummary" class="api-endpoint">
-                          <h3 class="api-endpoint__title"><code>GET</code> <code>/api/v1/schedule/summary</code></h3>
-                          <dl class="api-endpoint__grid">
-                            <dt>operationId</dt>
-                            <dd><code>getScheduleSummary</code></dd>
-                            <dt>Idempotency</dt>
-                            <dd>Not used (read).</dd>
-                            <dt>Success</dt>
-                            <dd><code>200 OK</code> — slot histogram + <code>due_now_count</code> (aggregates conspectus rows).
-                            </dd>
-                          </dl>
-                        </article>
                       </div>
                     </section>
 
