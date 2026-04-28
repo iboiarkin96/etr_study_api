@@ -1,38 +1,112 @@
 "use strict";
 
 (function () {
-  const FIRST_VISIT_KEY = "docs.home.first-visit.v1";
   const mediaReduced = window.matchMedia("(prefers-reduced-motion: reduce)");
   const canAnimate = !mediaReduced.matches;
-  const INTRO_DURATION_MS = 2400;
-
-  function isFirstVisit() {
-    try {
-      return window.localStorage.getItem(FIRST_VISIT_KEY) !== "1";
-    } catch {
-      return false;
-    }
-  }
-
-  function persistFirstVisitSeen() {
-    try {
-      window.localStorage.setItem(FIRST_VISIT_KEY, "1");
-    } catch {
-      // Ignore storage failures.
-    }
-  }
+  const INTRO_DURATION_MS = 5400;
 
   function markFirstVisitClass() {
-    if (isFirstVisit() && canAnimate) {
+    if (canAnimate) {
       document.body.classList.add("home-first-visit");
     }
+  }
+
+  function startTypewriter(el) {
+    const full = el.textContent.trim();
+    el.textContent = "";
+    el.style.opacity = "1";
+    el.style.transform = "none";
+    el.style.animation = "none";
+
+    const cursor = document.createElement("span");
+    cursor.className = "home-intro__cursor";
+    cursor.setAttribute("aria-hidden", "true");
+    el.appendChild(cursor);
+
+    let idx = 0;
+    function typeNext() {
+      if (!el.isConnected) return;
+      if (idx < full.length) {
+        el.insertBefore(document.createTextNode(full[idx]), cursor);
+        idx++;
+        window.setTimeout(typeNext, 50 + Math.random() * 40);
+      } else {
+        // Typing done — remove inline cursor, then show dots + pulsing cursor
+        cursor.remove();
+        showIntroSuffix(el);
+      }
+    }
+    window.setTimeout(typeNext, 200);
+  }
+
+  function showIntroSuffix(titleEl) {
+    if (!titleEl.isConnected) return;
+
+    // Space before dots, stays on the same line as the typed title
+    titleEl.appendChild(document.createTextNode("\u00a0"));
+
+    // Three dots inline inside the title, one every 500 ms
+    [".", ".", "."].forEach(function (ch, i) {
+      window.setTimeout(function () {
+        if (!titleEl.isConnected) return;
+        const span = document.createElement("span");
+        span.className = "home-intro__dot";
+        span.textContent = ch;
+        titleEl.appendChild(span);
+      }, i * 500);
+    });
+
+    // Pulsing cursor after all three dots
+    window.setTimeout(function () {
+      if (!titleEl.isConnected) return;
+      const cur = document.createElement("span");
+      cur.className = "home-intro__cursor";
+      cur.setAttribute("aria-hidden", "true");
+      titleEl.appendChild(cur);
+    }, 3 * 500 + 80);
+  }
+
+  function runShutterExit(intro) {
+    const DURATION = 720;
+    const bg = window.getComputedStyle(intro).backgroundColor;
+
+    // Single full-screen overlay — collapses via radial iris (diaphragm effect)
+    const overlay = document.createElement("div");
+    overlay.style.cssText =
+      "position:fixed;inset:0;z-index:130;pointer-events:none;" +
+      "background:" + bg + ";" +
+      "clip-path:circle(150% at 50% 46%);";
+
+    document.body.appendChild(overlay);
+    overlay.getBoundingClientRect(); // force reflow before transition
+
+    // Hide intro instantly behind overlay
+    intro.style.transition = "none";
+    intro.classList.remove("is-active");
+    intro.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("home-intro-lock");
+
+    // Iris collapses to centre point
+    overlay.style.transition = "clip-path " + DURATION + "ms cubic-bezier(0.87, 0, 0.13, 1)";
+    overlay.style.clipPath = "circle(0% at 50% 46%)";
+
+    window.setTimeout(() => {
+      overlay.remove();
+      intro.style.transition = "";
+      // Force hero title lines visible (guards against fill-mode edge cases)
+      document.querySelectorAll(".home-hero__title-line").forEach((el) => {
+        el.style.animation = "none";
+        el.style.opacity = "1";
+        el.style.transform = "none";
+        el.style.letterSpacing = "";
+      });
+    }, DURATION + 40);
   }
 
   function bindFirstVisitIntro() {
     const intro = document.querySelector("[data-home-intro]");
     const skip = document.querySelector("[data-home-intro-skip]");
-    if (!intro || !canAnimate || !isFirstVisit()) {
-      persistFirstVisitSeen();
+    if (!intro || !canAnimate) {
       return;
     }
 
@@ -40,19 +114,16 @@
     intro.classList.add("is-active");
     intro.setAttribute("aria-hidden", "false");
 
+    const titleEl = intro.querySelector(".home-intro__title");
+    if (titleEl) startTypewriter(titleEl);
+
     let closed = false;
     function closeIntro() {
       if (closed) {
         return;
       }
       closed = true;
-      persistFirstVisitSeen();
-      intro.classList.add("is-exit");
-      window.setTimeout(() => {
-        intro.classList.remove("is-active", "is-exit");
-        intro.setAttribute("aria-hidden", "true");
-        document.body.classList.remove("home-intro-lock");
-      }, 420);
+      runShutterExit(intro);
     }
 
     window.setTimeout(closeIntro, INTRO_DURATION_MS);
@@ -72,7 +143,10 @@
       return;
     }
     if (!canAnimate || !("IntersectionObserver" in window)) {
-      revealNodes.forEach((node) => node.classList.add("is-visible"));
+      revealNodes.forEach((node) => {
+        node.classList.add("is-visible");
+        node.querySelectorAll(".home-card").forEach((card) => card.classList.add("is-visible"));
+      });
       return;
     }
     const observer = new IntersectionObserver(
@@ -81,7 +155,34 @@
           if (!entry.isIntersecting) {
             return;
           }
-          entry.target.classList.add("is-visible");
+
+          const cards = Array.from(entry.target.querySelectorAll(".home-card"));
+          if (cards.length > 0) {
+            // Reveal section instantly — visual effect comes entirely from card stagger
+            entry.target.style.transition = "none";
+            entry.target.style.opacity = "1";
+            entry.target.style.transform = "none";
+            entry.target.classList.add("is-visible");
+            window.requestAnimationFrame(() => {
+              entry.target.style.transition = "";
+              entry.target.style.opacity = "";
+              entry.target.style.transform = "";
+            });
+
+            // Stagger cards with double-rAF to ensure initial hidden state rendered
+            cards.forEach((card, i) => {
+              const delay = i * 65;
+              card.style.transitionDelay = delay + "ms";
+              window.requestAnimationFrame(() =>
+                window.requestAnimationFrame(() => card.classList.add("is-visible"))
+              );
+              window.setTimeout(() => { card.style.transitionDelay = ""; }, 480 + delay + 80);
+            });
+          } else {
+            // Section without cards — standard fade-in
+            entry.target.classList.add("is-visible");
+          }
+
           observer.unobserve(entry.target);
         });
       },

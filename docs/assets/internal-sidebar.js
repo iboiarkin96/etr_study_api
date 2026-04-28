@@ -509,7 +509,7 @@
     },
 
     {
-      label: "ADR",
+      label: "ADRs",
       children: [
         { label: "Hub — ADR index", path: "adr/README.html" },
         {
@@ -584,7 +584,7 @@
     },
 
     {
-      label: "RFC",
+      label: "RFCs",
       children: [
         { label: "Hub — RFC index", path: "rfc/README.html" },
         { label: "RFC template", path: "rfc/0000-template.html" },
@@ -759,7 +759,7 @@
       label: "API endpoints documentation",
       children: [
         { label: "Hub — internal HTTP API", path: "internal/api/README.html" },
-        { label: "Errors", path: "internal/api/errors.html" },
+        { label: "Error matrix", path: "internal/api/errors.html" },
         {
           label: "User",
           expand: "after-api-hub",
