@@ -2861,10 +2861,18 @@ function initInPageTocScrollSpy() {
   updateActive();
 }
 
-/** Scroll-to-top control: visible when the viewport is near the bottom of a scrollable page. */
+/** Scroll-to-top control with two-tier morph:
+    Compact (sleeping rocket) appears once the user has scrolled past the
+    first viewport — small icon-only pill, muted, click is a no-op (nudge
+    only). A fueling ring around the icon fills as the reader approaches
+    the footer. Within `armedThresholdPx` of the bottom, the pill morphs
+    open: label fades in, color brightens to accent, flame/smoke wake up,
+    and the click finally launches the rocket. The user has to literally
+    reach the end of the page to fire the rocket. */
 function initBackToTopButton() {
   const root = document.documentElement;
-  const thresholdPx = 320;
+  const armedThresholdPx = 320;       // distance-to-footer that arms the rocket
+  const compactAfterPx = 600;         // wake the compact pill once we scroll past this
   const minScrollExtra = 100;
   let isLaunching = false;
   let launchDirection = 1;
@@ -2872,11 +2880,12 @@ function initBackToTopButton() {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "docs-back-to-top";
-  btn.setAttribute("aria-label", "Back to top");
-  btn.setAttribute("title", "Back to top");
+  btn.setAttribute("aria-label", "Scroll to footer to launch the rocket");
+  btn.setAttribute("title", "Scroll to footer to launch the rocket");
   btn.setAttribute("aria-hidden", "true");
   btn.tabIndex = -1;
   btn.innerHTML = `
+    <span class="docs-back-to-top__progress-ring" aria-hidden="true"></span>
     <span class="docs-back-to-top__rocket-wrap" aria-hidden="true">
       <svg class="docs-back-to-top__rocket" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3c3.4 1.9 5.5 5.5 5.5 9.3v1.1L12 19l-5.5-5.6v-1.1C6.5 8.5 8.6 4.9 12 3z"/>
@@ -2884,6 +2893,11 @@ function initBackToTopButton() {
         <path d="M9.3 16.6l-1.8 3.1M14.7 16.6l1.8 3.1"/>
         <path d="M10.8 19.3h2.4"/>
       </svg>
+      <span class="docs-back-to-top__ember docs-back-to-top__ember--1"></span>
+      <span class="docs-back-to-top__ember docs-back-to-top__ember--2"></span>
+      <span class="docs-back-to-top__ember docs-back-to-top__ember--3"></span>
+      <span class="docs-back-to-top__ember docs-back-to-top__ember--4"></span>
+      <span class="docs-back-to-top__ember docs-back-to-top__ember--5"></span>
       <span class="docs-back-to-top__trail"></span>
       <span class="docs-back-to-top__flame"></span>
       <span class="docs-back-to-top__speed-line docs-back-to-top__speed-line--a"></span>
@@ -2899,56 +2913,128 @@ function initBackToTopButton() {
   }
 
   function isNearBottom() {
-    return window.scrollY + window.innerHeight >= root.scrollHeight - thresholdPx;
+    return window.scrollY + window.innerHeight >= root.scrollHeight - armedThresholdPx;
+  }
+
+  function isPastFirstScreen() {
+    return window.scrollY > compactAfterPx;
+  }
+
+  function updateProgress() {
+    // 0..100, linear from compact-wake threshold to armed threshold.
+    const armedAt = root.scrollHeight - window.innerHeight - armedThresholdPx;
+    const range = armedAt - compactAfterPx;
+    if (range <= 0) {
+      btn.style.setProperty("--rocket-progress", "100");
+      return;
+    }
+    const p = Math.max(0, Math.min(1, (window.scrollY - compactAfterPx) / range));
+    btn.style.setProperty("--rocket-progress", (p * 100).toFixed(1));
   }
 
   function updateVisibility() {
     if (isLaunching) {
+      // Rocket has flown — pill shows as collapsed/empty until cleanup.
       btn.classList.add("docs-back-to-top--visible");
+      btn.classList.remove("docs-back-to-top--armed");
       btn.setAttribute("aria-hidden", "false");
       btn.tabIndex = -1;
       return;
     }
-    const show = pageIsScrollable() && isNearBottom();
-    btn.classList.toggle("docs-back-to-top--visible", show);
-    btn.setAttribute("aria-hidden", show ? "false" : "true");
-    btn.tabIndex = show ? 0 : -1;
+    const scrollable = pageIsScrollable();
+    const visible = scrollable && (isPastFirstScreen() || isNearBottom());
+    const armed = scrollable && isNearBottom();
+    btn.classList.toggle("docs-back-to-top--visible", visible);
+    btn.classList.toggle("docs-back-to-top--armed", armed);
+    btn.setAttribute("aria-hidden", visible ? "false" : "true");
+    // Only focusable when armed — otherwise tabbing onto a no-op button is
+    // a footgun for keyboard users.
+    btn.tabIndex = armed ? 0 : -1;
+    if (armed) {
+      btn.setAttribute("aria-label", "Launch rocket and scroll to top");
+      btn.setAttribute("title", "Launch rocket — back to top");
+    } else {
+      btn.setAttribute("aria-label", "Scroll to footer to launch the rocket");
+      btn.setAttribute("title", "Scroll to footer to launch the rocket");
+    }
+    updateProgress();
   }
+
+  /* SVG flight path for the rocket — two visually-distinct variants that
+     alternate per click so successive launches don't look mechanical.
+     Coordinates are designed for a ~1440×900 viewport with the FAB at the
+     bottom-right; uniform `s` keeps the loop circular at any size. The
+     button is anchored to the right edge, so all X are ≤ 0. The browser
+     traces the path with true Bézier+arc interpolation and offset-rotate
+     auto handles tangent alignment — see docs.css `docs-rocket-fly`. */
+  function buildRocketPath(variant, vw, vh) {
+    const s = Math.max(0.45, Math.min(vh / 900, (vw - 60) / 480, 1.4));
+    const k = (n) => (n * s).toFixed(1);
+    // variant 1: tighter loop (R=110), exit drifts back toward button column
+    // variant 2: wider loop (R=130), exit climbs more vertically
+    const R = (variant === 1 ? 110 : 130) * s;
+    const Rs = R.toFixed(1);
+    const loopXend = (-260 * s - 2 * R).toFixed(1);
+    const exitDx = ((variant === 1 ? -160 : -100) * s).toFixed(1);
+    return [
+      "M 0 0",
+      `C -${k(40)} -${k(120)}, -${k(120)} -${k(260)}, -${k(180)} -${k(360)}`,
+      `C -${k(240)} -${k(460)}, -${k(260)} -${k(520)}, -${k(260)} -${k(560)}`,
+      `A ${Rs} ${Rs} 0 0 0 ${loopXend} -${k(560)}`,
+      `A ${Rs} ${Rs} 0 0 0 -${k(260)} -${k(560)}`,
+      `C -${k(260)} -${k(680)}, -${k(220)} -${k(780)}, ${exitDx} -${k(900)}`,
+    ].join(" ");
+  }
+
+  const wrap = btn.querySelector(".docs-back-to-top__rocket-wrap");
 
   btn.addEventListener("click", () => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (isLaunching) {
       return;
     }
+    // Gate: only the armed (full-pill) state launches. In compact mode we
+    // give a small shake — feedback that the button registered the click
+    // but the rocket isn't ready until the user reaches the footer.
+    if (!btn.classList.contains("docs-back-to-top--armed")) {
+      btn.classList.remove("docs-back-to-top--nudge");
+      // Force reflow so the animation re-triggers on rapid repeat clicks.
+      void btn.offsetWidth;
+      btn.classList.add("docs-back-to-top--nudge");
+      window.setTimeout(() => btn.classList.remove("docs-back-to-top--nudge"), 620);
+      return;
+    }
     if (!reduceMotion) {
       isLaunching = true;
-      btn.classList.remove("docs-back-to-top--launch-left", "docs-back-to-top--launch-right");
-      btn.classList.add(launchDirection > 0 ? "docs-back-to-top--launch-right" : "docs-back-to-top--launch-left");
+      const variant = launchDirection > 0 ? 1 : 2;
       launchDirection *= -1;
+      const pathStr = buildRocketPath(variant, window.innerWidth, window.innerHeight);
+      // Inline so each launch can use a fresh path computed from the
+      // current viewport (and so the alternating variant takes effect).
+      wrap.style.offsetPath = `path('${pathStr}')`;
       btn.classList.add("docs-back-to-top--launching");
+      // Safety net in case animationend doesn't fire (e.g. CSS overridden).
+      // 2.4s animation + 200ms slack.
       window.setTimeout(() => {
         if (!isLaunching) {
           return;
         }
         isLaunching = false;
         btn.classList.remove("docs-back-to-top--launching");
-        btn.classList.remove("docs-back-to-top--launch-left", "docs-back-to-top--launch-right");
+        wrap.style.offsetPath = "";
         updateVisibility();
-      }, 2140);
+      }, 2600);
     }
     window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
   });
 
   btn.addEventListener("animationend", (event) => {
-    if (
-      event.animationName !== "docs-rocket-launch-right" &&
-      event.animationName !== "docs-rocket-launch-left"
-    ) {
+    if (event.animationName !== "docs-rocket-fly") {
       return;
     }
     isLaunching = false;
     btn.classList.remove("docs-back-to-top--launching");
-    btn.classList.remove("docs-back-to-top--launch-left", "docs-back-to-top--launch-right");
+    wrap.style.offsetPath = "";
     updateVisibility();
   });
 

@@ -781,6 +781,7 @@
           label: "Shared (cross-cutting)",
           children: [
             { label: "Specification template", path: "internal/api/_shared/spec-template.html" },
+            { label: "Definition of Done", path: "internal/api/_shared/spec-definition-of-done.html" },
             { label: "Idempotency", path: "internal/api/_shared/idempotency.html" },
             { label: "Error envelope", path: "internal/api/_shared/error-envelope.html" },
             { label: "Error catalog", path: "internal/api/_shared/error-catalog.html" },
@@ -865,6 +866,7 @@
             { label: "Tooltips and inline hints", path: "internal/front/docs-frontend-tooltips.html" },
             { label: "Popup and overlay system", path: "internal/front/docs-frontend-popups-and-overlays.html" },
             { label: "Diagrams and lightbox", path: "internal/front/docs-frontend-diagrams-and-lightbox.html" },
+            { label: "Resume reading and back-to-top", path: "internal/front/docs-frontend-resume-and-back-to-top.html" },
             { label: "Hotkeys", path: "internal/front/docs-frontend-hotkeys.html" },
           ],
         },
@@ -873,6 +875,7 @@
           children: [
             { label: "JavaScript modules", path: "internal/front/docs-frontend-js-modules-reference.html" },
             { label: "CSS architecture", path: "internal/front/docs-frontend-css-architecture.html" },
+            { label: "Token gallery (auto-generated)", path: "internal/front/docs-frontend-token-gallery.html" },
           ],
         },
         {

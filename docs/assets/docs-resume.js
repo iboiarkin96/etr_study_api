@@ -169,7 +169,11 @@
 
   function init() {
     if (!document.body) return;
-    buildBackToTop();
+    // The standalone ↑ Top button has been retired in favour of the rocket
+    // FAB built by docs-nav.js (initBackToTopButton). buildBackToTop is kept
+    // in this file as dead code so the resume banner + scroll persistence
+    // logic below stays untouched; remove the function later if cleaning up.
+    void buildBackToTop;
     maybeOfferResume();
     startScrollPersistence();
   }

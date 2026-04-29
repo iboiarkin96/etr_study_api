@@ -76,8 +76,8 @@
 
       const headAlpha = Math.min(1, 0.92 + burst * 0.3);
       const trailAlpha = Math.min(1, 0.55 + burst * 0.45);
-      const headColor = `rgba(${Math.round(220 + burst * 35)}, 245, 255, ${headAlpha.toFixed(3)})`;
-      const trailColor = `rgba(125, 211, 252, ${trailAlpha.toFixed(3)})`;
+      const headColor = `rgba(${Math.round(232 + burst * 20)}, 236, 255, ${headAlpha.toFixed(3)})`;
+      const trailColor = `rgba(165, 180, 252, ${trailAlpha.toFixed(3)})`;
 
       for (let i = 0; i < columns.length; i++) {
         const col = columns[i];
@@ -515,15 +515,18 @@
     let targetX = -9999;
     let targetY = -9999;
     let rafId = 0;
-    let dotColor = "rgba(120, 160, 220, 0.45)";
-    let dotColorHot = "rgba(34, 211, 238, 0.95)";
+    let dotColor = "rgba(150, 165, 220, 0.45)";
+    let dotColorHot = "rgba(129, 140, 248, 0.95)";
 
     function readColors() {
       const isDark = document.documentElement.getAttribute("data-theme") === "dark"
         || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
             && document.documentElement.getAttribute("data-theme") !== "light");
-      dotColor = isDark ? "rgba(140, 180, 240, 0.32)" : "rgba(60, 90, 150, 0.32)";
-      dotColorHot = isDark ? "rgba(125, 211, 252, 1)" : "rgba(8, 145, 178, 1)";
+      // Restrained indigo family — same as the WebGL field + intro chrome.
+      // The hot-spot is indigo-400 (#818cf8), not a punchy accent — feels
+      // like a ripple of light, not a laser pointer.
+      dotColor = isDark ? "rgba(165, 180, 252, 0.28)" : "rgba(67, 56, 202, 0.28)";
+      dotColorHot = isDark ? "rgba(129, 140, 248, 1)" : "rgba(67, 56, 202, 1)";
     }
 
     function resize() {
@@ -823,6 +826,16 @@
     });
   }
 
+  function bindWebglHero() {
+    // The WebGL module ships its own feature detection (reduced-motion,
+    // viewport width, WebGL2 context, FPS guard). We just wait for the intro
+    // to finish so we don't compete with the boot canvas for the GPU.
+    if (!window.HomeWebgl || typeof window.HomeWebgl.init !== "function") return;
+    whenIntroDone(() => {
+      try { window.HomeWebgl.init(); } catch (_) { /* fallback layers stay */ }
+    });
+  }
+
   function init() {
     markFirstVisitClass();
     bindFirstVisitIntro();
@@ -830,6 +843,7 @@
     bindVariableWeight();
     bindLiveTerminal();
     bindDotGrid();
+    bindWebglHero();
     bindTickers();
     bindSectionTints();
     bindViewTransitions();

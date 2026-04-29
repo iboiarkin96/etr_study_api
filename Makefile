@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check
+.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check
 
 # ──────────────────────────────────────────────
 # Help
@@ -484,6 +484,18 @@ docs-feedback-check:
 	@$(PYTHON) scripts/validate_docs_feedback.py
 	@printf "$(COLOR_GREEN)== DOCS-FEEDBACK-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
+# Lint internal analyst-spec pages (structure + cross-doc consistency).
+# spec_lint.py    — per-page structure (required sections, metadata, examples, page history).
+# spec_consistency.py — operationId ↔ spec page; error code/key ↔ shared error catalog.
+docs-spec-check:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(COLOR_CYAN)== DOCS-SPEC-CHECK: START ==$(COLOR_RESET)\n"
+	@$(PYTHON) scripts/spec_lint.py
+	@$(PYTHON) scripts/spec_consistency.py
+	@printf "$(COLOR_GREEN)== DOCS-SPEC-CHECK: SUCCESS ==$(COLOR_RESET)\n"
+
 # Verify docs are already synchronized (no drift allowed).
 # Compare the full working tree diff vs HEAD before and after docs-fix. If identical,
 # docs-fix did not change any file—so committed generated artifacts match the pipeline.
@@ -495,6 +507,7 @@ docs-check:
 	@$(MAKE) docs-html-check
 	@$(MAKE) docs-design-check
 	@$(MAKE) docs-feedback-check
+	@$(MAKE) docs-spec-check
 	@tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
 	git diff HEAD > "$$tmp_before"; \
 	$(MAKE) docs-fix; \

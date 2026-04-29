@@ -30,12 +30,10 @@
 /* Subtle accent shift for standard internal page H1 titles. */
 .internal-h1--accent-tail {
   /* Keep most of the title neutral; shift color only near the end. */
-  background: linear-gradient(
-    90deg,
-    var(--text) 0%,
-    var(--text) 74%,
-    color-mix(in srgb, var(--accent) 88%, var(--text)) 100%
-  );
+  background: linear-gradient(90deg,
+      var(--text) 0%,
+      var(--text) 74%,
+      color-mix(in srgb, var(--accent) 88%, var(--text)) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -554,7 +552,7 @@
   opacity: 0.7;
 }
 
-.internal-sidebar__group[open] > .internal-sidebar__summary::before {
+.internal-sidebar__group[open]>.internal-sidebar__summary::before {
   transform: rotate(45deg);
   margin-top: -0.14em;
 }
@@ -690,8 +688,8 @@ h1.internal-doc-h1 {
 
 .internal-layout .badge--status-approved {
   background: #e0f2fe;
-  border-color: #7dd3fc;
-  color: #0c4a6e;
+  border-color: #3b82f6;
+  color: #1e3a8a;
 }
 
 .internal-layout .badge--status-implemented {
@@ -766,6 +764,263 @@ h1.internal-doc-h1 {
 }
 
 /*
+ * Spec lifecycle pill — premium status card driven entirely by the
+ * `data-spec-status` attribute on `<body>`; hydrated by docs-spec-status.js.
+ * Five tones share one shape; CSS variables (`--pill-from`, `--pill-to`,
+ * `--pill-border`, `--pill-fg`) are swapped per tone.
+ */
+.spec-status-pill {
+  --pill-from: #f1f5f9;
+  --pill-to: #e2e8f0;
+  --pill-border: #cbd5e1;
+  --pill-fg: #1e293b;
+  --pill-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 10px;
+  border: 1px solid var(--pill-border);
+  border-radius: 999px;
+  background-image: linear-gradient(135deg, var(--pill-from) 0%, var(--pill-to) 100%);
+  color: var(--pill-fg);
+  font-weight: 600;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  vertical-align: middle;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    var(--pill-shadow);
+}
+
+.spec-status-pill__emoji {
+  font-size: 0.95rem;
+  line-height: 1;
+  filter: saturate(1.1);
+}
+
+.spec-status-pill__label {
+  line-height: 1;
+}
+
+/* ── Tones — light theme ─────────────────────────────────────────── */
+
+.spec-status-pill--draft {
+  --pill-from: #f8fafc;
+  --pill-to: #e2e8f0;
+  --pill-border: #94a3b8;
+  --pill-fg: #1e293b;
+}
+
+.spec-status-pill--in-review {
+  --pill-from: #fffbeb;
+  --pill-to: #fde68a;
+  --pill-border: #d97706;
+  --pill-fg: #78350f;
+}
+
+.spec-status-pill--approved {
+  --pill-from: #eff6ff;
+  --pill-to: #bfdbfe;
+  --pill-border: #2563eb;
+  --pill-fg: #1e3a8a;
+}
+
+.spec-status-pill--implemented {
+  --pill-from: #ecfdf5;
+  --pill-to: #a7f3d0;
+  --pill-border: #16a34a;
+  --pill-fg: #064e3b;
+}
+
+.spec-status-pill--deprecated {
+  --pill-from: #fef2f2;
+  --pill-to: #fecaca;
+  --pill-border: #dc2626;
+  --pill-fg: #7f1d1d;
+}
+
+/* ── Tones — dark theme ──────────────────────────────────────────── */
+
+[data-theme="dark"] .spec-status-pill {
+  --pill-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    var(--pill-shadow);
+}
+
+[data-theme="dark"] .spec-status-pill--draft {
+  --pill-from: #1f2937;
+  --pill-to: #334155;
+  --pill-border: #64748b;
+  --pill-fg: #e2e8f0;
+}
+
+[data-theme="dark"] .spec-status-pill--in-review {
+  --pill-from: #422006;
+  --pill-to: #78350f;
+  --pill-border: #d97706;
+  --pill-fg: #fde68a;
+}
+
+[data-theme="dark"] .spec-status-pill--approved {
+  --pill-from: #172554;
+  --pill-to: #1e40af;
+  --pill-border: #3b82f6;
+  --pill-fg: #dbeafe;
+}
+
+[data-theme="dark"] .spec-status-pill--implemented {
+  --pill-from: #052e16;
+  --pill-to: #14532d;
+  --pill-border: #22c55e;
+  --pill-fg: #bbf7d0;
+}
+
+[data-theme="dark"] .spec-status-pill--deprecated {
+  --pill-from: #450a0a;
+  --pill-to: #7f1d1d;
+  --pill-border: #ef4444;
+  --pill-fg: #fee2e2;
+}
+
+/*
+ * Help disclosure rendered after the pill. Compact summary; lifecycle table
+ * appears as a popover panel that also closes on Escape / outside click.
+ */
+.spec-status-help {
+  position: relative;
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.spec-status-help > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 1px dashed var(--line, #cbd5e1);
+  border-radius: 999px;
+  background: var(--badge-default-bg, #ffffff);
+  color: var(--muted, #475569);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  user-select: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.spec-status-help > summary::-webkit-details-marker {
+  display: none;
+}
+
+.spec-status-help > summary::marker {
+  content: "";
+}
+
+.spec-status-help > summary:hover {
+  border-color: var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
+}
+
+.spec-status-help[open] > summary {
+  border-style: solid;
+  border-color: var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
+}
+
+.spec-status-help__summary-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.spec-status-help__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  width: min(560px, 90vw);
+  padding: 14px 16px 12px;
+  border: 1px solid var(--line, #dbe3ef);
+  border-radius: 12px;
+  background: var(--card, #ffffff);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+[data-theme="dark"] .spec-status-help__panel {
+  background: #0f172a;
+  border-color: #1e293b;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+
+.spec-status-help__intro,
+.spec-status-help__example {
+  margin: 0 0 10px;
+  color: var(--text, #0f172a);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.spec-status-help__example {
+  margin: 10px 0 0;
+  color: var(--muted, #475569);
+}
+
+.spec-status-help__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.82rem;
+  table-layout: fixed;
+}
+
+.spec-status-help__table th,
+.spec-status-help__table td {
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+}
+
+.spec-status-help__table th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #475569);
+  background: var(--badge-default-bg, #f8fafc);
+}
+
+[data-theme="dark"] .spec-status-help__table th {
+  background: #1e293b;
+}
+
+.spec-status-help__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.spec-status-help__row--current td {
+  background: color-mix(in srgb, var(--accent, #2563eb) 6%, transparent);
+}
+
+[data-theme="dark"] .spec-status-help__row--current td {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 14%, transparent);
+}
+
+/* Right-align the popover when it would overflow the viewport. */
+@media (max-width: 720px) {
+  .spec-status-help__panel {
+    left: auto;
+    right: 0;
+  }
+}
+
+/*
  * Code samples inside internal spec pages (request/response/envelope JSON).
  * Smaller than the global pre to match the surrounding doc text density.
  * The global pre defaults to 0.9rem; here we drop to 0.78rem matching the
@@ -792,7 +1047,7 @@ h1.internal-doc-h1 {
   padding: 0;
 }
 
-.internal-field-list > dt {
+.internal-field-list>dt {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -807,14 +1062,14 @@ h1.internal-doc-h1 {
   font-weight: 600;
 }
 
-.internal-field-list > dt > code {
+.internal-field-list>dt>code {
   background: transparent;
   padding: 0;
   font-weight: 600;
   font-size: 0.95rem;
 }
 
-.internal-field-list > dt .badge {
+.internal-field-list>dt .badge {
   font-size: 0.7rem;
   padding: 2px 8px;
   margin: 0;
@@ -824,18 +1079,18 @@ h1.internal-doc-h1 {
   letter-spacing: 0;
 }
 
-.internal-field-list > dd {
+.internal-field-list>dd {
   margin: 0 0 6px 14px;
   padding: 4px 0 8px;
   font-size: 0.9rem;
   line-height: 1.55;
 }
 
-.internal-field-list > dd p {
+.internal-field-list>dd p {
   margin: 4px 0;
 }
 
-.internal-field-list > dd .internal-field-list__attrs {
+.internal-field-list>dd .internal-field-list__attrs {
   margin: 6px 0 0;
   display: grid;
   grid-template-columns: max-content 1fr;
@@ -843,7 +1098,7 @@ h1.internal-doc-h1 {
   font-size: 0.82rem;
 }
 
-.internal-field-list > dd .internal-field-list__attrs dt {
+.internal-field-list>dd .internal-field-list__attrs dt {
   margin: 0;
   padding: 0;
   border: none;
@@ -857,7 +1112,7 @@ h1.internal-doc-h1 {
   align-self: center;
 }
 
-.internal-field-list > dd .internal-field-list__attrs dd {
+.internal-field-list>dd .internal-field-list__attrs dd {
   margin: 0;
   padding: 0;
   font-size: 0.82rem;
@@ -1047,14 +1302,14 @@ details.docs-uml-source {
   font-size: 0.85rem;
 }
 
-details.docs-uml-source > summary {
+details.docs-uml-source>summary {
   cursor: pointer;
   font-weight: 600;
   padding: 2px 0;
   color: var(--muted, #475569);
 }
 
-details.docs-uml-source[open] > summary {
+details.docs-uml-source[open]>summary {
   margin-bottom: 6px;
 }
 
@@ -1181,8 +1436,8 @@ details.docs-uml-source pre {
   background: var(--card, #fff);
   transition:
     border-color var(--motion-fast) var(--motion-ease-premium),
-    box-shadow   var(--motion-fast) var(--motion-ease-premium),
-    transform    var(--motion-fast) var(--motion-ease-premium);
+    box-shadow var(--motion-fast) var(--motion-ease-premium),
+    transform var(--motion-fast) var(--motion-ease-premium);
 }
 
 .portal-people__link {
@@ -1268,12 +1523,10 @@ details.docs-uml-source pre {
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  background: conic-gradient(
-    from 180deg,
-    color-mix(in srgb, var(--accent, #2563eb) 32%, transparent),
-    transparent 40%,
-    color-mix(in srgb, var(--accent, #2563eb) 22%, transparent)
-  );
+  background: conic-gradient(from 180deg,
+      color-mix(in srgb, var(--accent, #2563eb) 32%, transparent),
+      transparent 40%,
+      color-mix(in srgb, var(--accent, #2563eb) 22%, transparent));
   opacity: 0;
   transform: scale(0.96);
   transition: opacity 220ms cubic-bezier(0.22, 1, 0.36, 1), transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -1308,7 +1561,7 @@ details.docs-uml-source pre {
 }
 
 /* Site breadcrumbs + top nav sit above the profile card, not inside it */
-.internal-layout__main main.container > #docs-top-nav + .portal-profile {
+.internal-layout__main main.container>#docs-top-nav+.portal-profile {
   margin-top: 1rem;
 }
 
