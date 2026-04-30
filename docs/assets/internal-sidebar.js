@@ -13,9 +13,10 @@
  * Sidebar labels for operations are short (action + method), not full paths — full URI belongs on the method page hero.
  *
  * Optional on a node with `children`: `expand: "after-api-hub"` — the `<details>` is open only
- * when the URL is the API hub page or under `internal/api/user/`, so the User subtree stays
- * collapsed until the reader opens API hub (or jumps to a User page). Other groups use
- * “active descendant” to decide `open`.
+ * when the URL is the API hub page or under one of the entity subtrees
+ * (`internal/api/user/`, `internal/api/conspectus/`, `internal/api/error-log/`). Keeps these
+ * subtrees collapsed until the reader opens the API hub or jumps to one of the entity pages.
+ * Other groups use “active descendant” to decide `open`.
  */
 (function () {
   const INTERNAL_SIDEBAR_COLLAPSED_STORAGE_KEY = "docs.internal.sidebar.collapsed";
@@ -488,7 +489,8 @@
       return (
         currentPath === "internal/api/README.html" ||
         currentPath.startsWith("internal/api/user/") ||
-        currentPath.startsWith("internal/api/conspectus/")
+        currentPath.startsWith("internal/api/conspectus/") ||
+        currentPath.startsWith("internal/api/error-log/")
       );
     }
     return navHasActiveChild(node, currentPath);
@@ -601,6 +603,12 @@
           children: [
             { label: "RFC 0001 — docs search implementation", path: "rfc/0001-docs-search-implementation.html" },
             { label: "RFC 0002 — docs search KPI policy and SLO", path: "rfc/0002-docs-search-kpi-policy-and-slo.html" },
+          ],
+        },
+        {
+          label: "Authoring model",
+          children: [
+            { label: "RFC 0003 — documentation authoring model", path: "rfc/0003-documentation-authoring-model.html" },
           ],
         },
       ],
@@ -757,12 +765,49 @@
       children: [
         { label: "Hub — QA portal index", path: "qa/README.html" },
         {
-          label: "QA checklists",
+          label: "Foundations",
           children: [
-            {
-              label: "Documentation pages visual checklist",
-              path: "qa/0001-documentation-pages-visual-checklist.html",
-            },
+            { label: "Test strategy", path: "qa/test-strategy.html" },
+            { label: "Test pyramid & layer ownership", path: "qa/test-pyramid.html" },
+            { label: "QA process & SDLC integration", path: "qa/qa-process.html" },
+            { label: "Tester onboarding", path: "qa/tester-onboarding.html" },
+            { label: "QA glossary", path: "qa/glossary.html" },
+          ],
+        },
+        {
+          label: "Templates",
+          children: [
+            { label: "Test case template", path: "qa/templates/test-case-template.html" },
+            { label: "Bug report template", path: "qa/templates/bug-report-template.html" },
+            { label: "Test plan template", path: "qa/templates/test-plan-template.html" },
+          ],
+        },
+        {
+          label: "Playbooks",
+          children: [
+            { label: "API endpoint testing", path: "qa/playbooks/api-endpoint-testing.html" },
+            { label: "Documentation testing", path: "qa/playbooks/documentation-testing.html" },
+            { label: "Release smoke testing", path: "qa/playbooks/release-smoke.html" },
+            { label: "Exploratory testing", path: "qa/playbooks/exploratory-testing.html" },
+            { label: "Accessibility testing", path: "qa/playbooks/accessibility-testing.html" },
+          ],
+        },
+        {
+          label: "Checklists",
+          children: [
+            { label: "0001 — Documentation pages visual", path: "qa/0001-documentation-pages-visual-checklist.html" },
+            { label: "0002 — API endpoint acceptance", path: "qa/0002-api-endpoint-acceptance-checklist.html" },
+            { label: "0003 — Release smoke", path: "qa/0003-release-smoke-checklist.html" },
+            { label: "0004 — Regression", path: "qa/0004-regression-checklist.html" },
+            { label: "0005 — Accessibility (WCAG 2.1 AA)", path: "qa/0005-accessibility-checklist.html" },
+          ],
+        },
+        {
+          label: "Reference",
+          children: [
+            { label: "Severity & priority matrix", path: "qa/reference/bug-severity-and-priority.html" },
+            { label: "Defect lifecycle", path: "qa/reference/defect-lifecycle.html" },
+            { label: "Test environments", path: "qa/reference/test-environments.html" },
           ],
         },
       ],

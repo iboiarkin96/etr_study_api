@@ -1,10 +1,34 @@
-/* Docs popup runtime helpers (toasts/prompts) */
+/* Docs popup runtime helpers (toasts/prompts).
+ *
+ * Toasts are stacked inside a single `.docs-toast-stack` host so multiple
+ * toasts can be visible at once. Each toast manages its own dismiss timer
+ * and close animation; nothing here removes a sibling toast.
+ *
+ * Public surface: `window.DocsPopups` (see end of file).
+ * Visual + behaviour contract: docs/internal/front/docs-frontend-popups-and-overlays.html
+ */
 (function () {
-  function buildStickyTocPromoToast(onEnable, durationMs) {
-    const existing = document.querySelector(".docs-inpage-toc-toast");
-    if (existing) {
-      existing.remove();
+  const STACK_HOST_ID = "docs-toast-stack";
+
+  function getStackHost() {
+    let host = document.getElementById(STACK_HOST_ID);
+    if (!host) {
+      host = document.createElement("div");
+      host.id = STACK_HOST_ID;
+      host.className = "docs-toast-stack";
+      host.setAttribute("role", "region");
+      host.setAttribute("aria-label", "Notifications");
+      document.body.appendChild(host);
     }
+    return host;
+  }
+
+  function mountToast(toast) {
+    const host = getStackHost();
+    host.appendChild(toast);
+  }
+
+  function buildStickyTocPromoToast(onEnable, durationMs) {
     const toast = document.createElement("section");
     toast.className = "docs-inpage-toc-toast";
     toast.setAttribute("role", "status");
@@ -24,7 +48,7 @@
       </div>
       <div class="docs-inpage-toc-toast__progress" aria-hidden="true"></div>
     `;
-    document.body.appendChild(toast);
+    mountToast(toast);
 
     let isClosed = false;
     let timerId = null;
@@ -57,10 +81,6 @@
   }
 
   function buildContinueReadingToast(label, onContinue, onStartFromTop, durationMs) {
-    const existing = document.querySelector(".docs-continue-reading--toast");
-    if (existing) {
-      existing.remove();
-    }
     const prompt = document.createElement("aside");
     prompt.className = "docs-continue-reading--toast";
     prompt.setAttribute("aria-label", "Continue reading");
@@ -96,7 +116,7 @@
     prompt.appendChild(text);
     prompt.appendChild(actions);
     prompt.appendChild(progress);
-    document.body.appendChild(prompt);
+    mountToast(prompt);
 
     let timerId = null;
     let closed = false;
@@ -108,7 +128,10 @@
       if (timerId !== null) {
         window.clearTimeout(timerId);
       }
-      prompt.remove();
+      prompt.classList.add("docs-inpage-toc-toast--closing");
+      window.setTimeout(() => {
+        prompt.remove();
+      }, 180);
     };
 
     continueBtn.addEventListener("click", () => {
@@ -128,6 +151,7 @@
   }
 
   window.DocsPopups = {
+    getStackHost,
     showStickyTocPromoToast(options = {}) {
       const durationMs = Number(options.durationMs || 3000);
       return buildStickyTocPromoToast(options.onEnable, durationMs);

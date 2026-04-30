@@ -753,6 +753,7 @@ pre code {
   border-radius: 0;
   font-size: inherit;
   font-family: var(--font-mono);
+  white-space: pre;
 }
 
 .lead {
@@ -2372,14 +2373,73 @@ main.docs-page-layout [id] {
   background: color-mix(in srgb, var(--docs-premium-item-active-bg) 80%, transparent);
 }
 
-/* Sticky TOC promo toast (desktop). */
-.docs-inpage-toc-toast,
-.docs-continue-reading--toast {
+/* Glossary tables that pair each term with an inline-SVG example. */
+.glossary-visuals td svg {
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.glossary-visuals td:last-child {
+  vertical-align: middle;
+  padding: 8px;
+}
+
+/* Doc-page mockup figures used in the popups & tooltips reference pages. */
+.docs-popup-mock {
+  margin: 14px 0 18px;
+}
+
+.docs-popup-mock svg {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.docs-popup-mock figcaption {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.docs-popup-callouts {
+  margin: 6px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+/* Toast stack host — bottom-right column that stacks every docs toast. */
+.docs-toast-stack {
   position: fixed;
   right: 22px;
   bottom: 22px;
   z-index: 130;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  pointer-events: none;
   width: min(420px, calc(100vw - 28px));
+}
+
+.docs-toast-stack > * {
+  pointer-events: auto;
+}
+
+/* Sticky TOC promo toast (desktop) and continue-reading prompt — children of the stack. */
+.docs-inpage-toc-toast,
+.docs-continue-reading--toast {
+  position: relative;
+  width: 100%;
   border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line) 62%);
   border-radius: 16px;
   background:
@@ -4225,56 +4285,25 @@ body.docs-reading-mode main.container li {
   animation-duration: 1s;
 }
 
+/* JS rAF animation controls the rocket-wrap transform during launch.
+   CSS only manages idle/armed visual states; flight is fully handled in docs-nav.js. */
 .docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__rocket {
-  animation: docs-rocket-thrust 0.72s ease-in-out infinite;
-}
-
-/* Trajectory is an SVG path injected inline by docs-nav.js so it scales to
-   the viewport. `offset-rotate: auto 90deg` aligns the rocket's tip (icon
-   faces up natively) with the path tangent — the rocket leans into curves
-   and inverts at the apex of the loop without a single rotate keyframe.
-   `linear()` describes a real velocity profile (slow burn → fast climb →
-   apex hang → fast exit); browsers without it get a tasteful cubic ease. */
-.docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__rocket-wrap {
-  offset-rotate: auto 90deg;
-  offset-distance: 0%;
-  animation:
-    docs-rocket-fly 2.4s linear(0, 0.10 16%, 0.26 32%, 0.42 48%, 0.50 56%, 0.55 64%, 0.66 72%, 0.82 84%, 1) forwards,
-    docs-rocket-grow-near-top 2.4s ease-out forwards;
-}
-
-@supports not (animation-timing-function: linear(0, 1)) {
-  .docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__rocket-wrap {
-    animation:
-      docs-rocket-fly 2.4s cubic-bezier(0.32, 0.0, 0.18, 1.0) forwards,
-      docs-rocket-grow-near-top 2.4s ease-out forwards;
-  }
+  animation: none;
 }
 
 .docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__flame {
   opacity: 1;
-  animation:
-    docs-rocket-flame 0.4s ease-in-out infinite,
-    docs-rocket-flame-grow-near-top 2.4s ease-out forwards;
+  animation: docs-rocket-flame 0.4s ease-in-out infinite;
 }
 
 .docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__trail {
-  opacity: 0.82;
-  animation: docs-rocket-trail 0.9s ease-in-out infinite;
+  opacity: 0;
+  animation: none;
 }
 
-.docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__smoke--left,
-.docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__smoke--mid,
-.docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__smoke--right {
-  animation-duration: 0.7s;
-}
-
-.docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__speed-line--a {
-  animation: docs-rocket-speed-line-a 0.32s linear infinite;
-}
-
+.docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__speed-line--a,
 .docs-back-to-top.docs-back-to-top--launching .docs-back-to-top__speed-line--b {
-  animation: docs-rocket-speed-line-b 0.36s linear infinite 0.08s;
+  display: none;
 }
 
 @keyframes docs-rocket-hover {
@@ -4287,47 +4316,6 @@ body.docs-reading-mode main.container li {
   }
 }
 
-/* CSS Motion Path flight: the trajectory is an SVG path injected by JS, the
-   browser interpolates along true curves (no polygonal chord approximation),
-   and offset-rotate auto handles tangent alignment. Opacity holds at 1 for
-   88% of the way then fades as the rocket exits the viewport top. */
-@keyframes docs-rocket-fly {
-  0%   { offset-distance: 0%;   opacity: 1; }
-  88%  {                        opacity: 1; }
-  100% { offset-distance: 100%; opacity: 0; }
-}
-
-@keyframes docs-rocket-grow-near-top {
-  0% {
-    transform: scale(1);
-  }
-  12% {
-    transform: scale(1.02);
-  }
-  30% {
-    transform: scale(1.06);
-  }
-  55% {
-    transform: scale(1.12);
-  }
-  80% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1.28);
-  }
-}
-
-@keyframes docs-rocket-thrust {
-  0%,
-  100% {
-    transform: translateY(-0.18px) rotate(-0.24deg);
-  }
-  50% {
-    transform: translateY(0.18px) rotate(0.24deg);
-  }
-}
-
 @keyframes docs-rocket-flame {
   0%,
   100% {
@@ -4337,39 +4325,6 @@ body.docs-reading-mode main.container li {
   50% {
     transform: translateX(-50%) scale(0.98, 1.04);
     filter: blur(0.3px) drop-shadow(0 0 12px rgba(251, 146, 60, 0.62));
-  }
-}
-
-@keyframes docs-rocket-flame-grow-near-top {
-  0% {
-    transform: translateX(-50%) scale(0.95, 0.9);
-  }
-  12% {
-    transform: translateX(-50%) scale(1.02, 1.04);
-  }
-  30% {
-    transform: translateX(-50%) scale(1.12, 1.2);
-  }
-  55% {
-    transform: translateX(-50%) scale(1.22, 1.36);
-  }
-  80% {
-    transform: translateX(-50%) scale(1.32, 1.5);
-  }
-  100% {
-    transform: translateX(-50%) scale(1.4, 1.6);
-  }
-}
-
-@keyframes docs-rocket-trail {
-  0%,
-  100% {
-    transform: translateX(-50%) scale(0.82, 0.56);
-    opacity: 0.54;
-  }
-  50% {
-    transform: translateX(-50%) scale(0.95, 0.98);
-    opacity: 0.82;
   }
 }
 
@@ -4412,38 +4367,6 @@ body.docs-reading-mode main.container li {
   100% {
     opacity: 0;
     transform: translate(7px, 10px) scale(1.12);
-  }
-}
-
-/* Speed lines: short streaks behind the rocket that flicker repeatedly during launch
-   to amplify perceived velocity (cinematic motion-line trick). */
-@keyframes docs-rocket-speed-line-a {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -2px) scaleX(0.4);
-  }
-  35% {
-    opacity: 0.78;
-    transform: translate(-50%, 5px) scaleX(1.1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, 16px) scaleX(0.5);
-  }
-}
-
-@keyframes docs-rocket-speed-line-b {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -2px) scaleX(0.4);
-  }
-  40% {
-    opacity: 0.7;
-    transform: translate(-50%, 6px) scaleX(1.05);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, 18px) scaleX(0.5);
   }
 }
 

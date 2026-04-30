@@ -42,19 +42,138 @@
   function highlightAll() {
     const blocks = document.querySelectorAll("pre > code");
     for (const block of blocks) {
-      const lang = detectLanguage(block);
-      if (!lang) { continue; }
       try {
         const raw = block.textContent || "";
-        block.innerHTML = tokenize(escapeHTML(raw), lang);
-        const pre = block.closest("pre");
-        if (pre) {
-          pre.setAttribute("data-lang", lang);
+        const dedented = dedent(raw);
+        const reformatted = reformatJSONBody(dedented);
+        const lang = detectLanguage(block);
+        const changed = reformatted !== raw;
+        if (!lang && !changed) { continue; }
+        const escaped = escapeHTML(reformatted);
+        block.innerHTML = lang ? tokenize(escaped, lang) : escaped;
+        if (lang) {
+          const pre = block.closest("pre");
+          if (pre) { pre.setAttribute("data-lang", lang); }
         }
       } catch (_) {
         // Fail silently — never break the page for a cosmetic feature.
       }
     }
+  }
+
+  /* ── Dedent ─────────────────────────────────────────────────────────────────
+   * Strip the common leading whitespace shared by every non-blank line, and
+   * trim leading/trailing blank lines. Lets <pre><code> blocks stay readable
+   * even when the HTML source is deeply indented (e.g. nested in <section>s).
+   *
+   * Special case: when the opening <code> tag and the first content line are
+   * on the same source line (e.g. `<pre><code>PATCH …`), the first line has
+   * zero indent while the body lines carry the surrounding HTML indent. In
+   * that case we compute the body's common indent separately and leave the
+   * first line alone — otherwise the first line's zero indent would force
+   * the common min to zero and the dedent would no-op.
+   */
+  function dedent(text) {
+    if (!text) { return text; }
+    const lines = text.replace(/\r\n?/g, "\n").split("\n");
+    while (lines.length && !lines[0].trim()) { lines.shift(); }
+    while (lines.length && !lines[lines.length - 1].trim()) { lines.pop(); }
+    if (!lines.length) { return ""; }
+
+    const leadLen = (line) => {
+      const m = /^[ \t]*/.exec(line);
+      return m ? m[0].length : 0;
+    };
+
+    const firstIndent = leadLen(lines[0]);
+    let bodyMin = Infinity;
+    for (let i = 1; i < lines.length; i += 1) {
+      if (!lines[i].trim()) { continue; }
+      const len = leadLen(lines[i]);
+      if (len < bodyMin) { bodyMin = len; }
+    }
+
+    // Single non-blank line case: dedent by its own leading whitespace.
+    if (!isFinite(bodyMin)) {
+      if (firstIndent === 0) { return lines.join("\n"); }
+      return lines.map((l) => l.slice(Math.min(firstIndent, leadLen(l)))).join("\n");
+    }
+
+    // First line was inlined with <code> (zero indent) while the body
+    // carries the HTML source indent: dedent body only, keep first line.
+    if (firstIndent < bodyMin) {
+      const out = [lines[0]];
+      for (let i = 1; i < lines.length; i += 1) {
+        out.push(lines[i].slice(Math.min(bodyMin, leadLen(lines[i]))));
+      }
+      return out.join("\n");
+    }
+
+    // Normal case: every line shares a common indent.
+    const min = Math.min(firstIndent, bodyMin);
+    if (min === 0) { return lines.join("\n"); }
+    return lines.map((l) => l.slice(Math.min(min, leadLen(l)))).join("\n");
+  }
+
+  /* ── JSON body reindent ─────────────────────────────────────────────────────
+   * After dedent, code blocks may contain a JSON object/array body with no
+   * internal indentation (every key flush left inside the braces). Walk the
+   * body lines tracking unescaped {[]} depth and re-emit each line with
+   * 2-space indent matching its depth. Leaves head lines (HTTP request line,
+   * status line, headers) untouched.
+   *
+   * The body is anything from the first line whose trimmed form starts with
+   * `{` or `[` and is either at index 0 or preceded by a blank line. If no
+   * such body is found, the text is returned unchanged — which keeps Python,
+   * YAML, bash, etc. out of scope.
+   */
+  function reformatJSONBody(text) {
+    if (!text) { return text; }
+    const lines = text.split("\n");
+
+    let bodyStart = -1;
+    for (let i = 0; i < lines.length; i += 1) {
+      if (!/^\s*[\{\[]/.test(lines[i])) { continue; }
+      if (i === 0 || /^\s*$/.test(lines[i - 1])) {
+        bodyStart = i;
+        break;
+      }
+    }
+    if (bodyStart === -1) { return text; }
+
+    const out = lines.slice(0, bodyStart);
+    let depth = 0;
+    for (let i = bodyStart; i < lines.length; i += 1) {
+      const stripped = lines[i].replace(/^[ \t]+/, "");
+      if (!stripped) { out.push(""); continue; }
+
+      let leadCloses = 0;
+      while (
+        leadCloses < stripped.length &&
+        (stripped[leadCloses] === "}" || stripped[leadCloses] === "]")
+      ) {
+        leadCloses += 1;
+      }
+      const printDepth = Math.max(0, depth - leadCloses);
+      out.push("  ".repeat(printDepth) + stripped);
+
+      let inStr = false;
+      let escape = false;
+      let opens = 0;
+      let closes = 0;
+      for (let j = 0; j < stripped.length; j += 1) {
+        const ch = stripped[j];
+        if (escape) { escape = false; continue; }
+        if (ch === "\\") { escape = true; continue; }
+        if (ch === "\"") { inStr = !inStr; continue; }
+        if (inStr) { continue; }
+        if (ch === "{" || ch === "[") { opens += 1; }
+        else if (ch === "}" || ch === "]") { closes += 1; }
+      }
+      depth += opens - closes;
+      if (depth < 0) { depth = 0; }
+    }
+    return out.join("\n");
   }
 
   /* ── Language detection ─────────────────────────────────────────────────── */
@@ -79,6 +198,7 @@
     if (/^from \w+ import|^import \w+/.test(text)) { return "python"; }
     if (/^\s*\{[\s\S]*?\}[\s\n]*$/.test(text) && text.includes('"') && text.includes(":")) { return "json"; }
     if (/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\//.test(text)) { return "http"; }
+    if (/^HTTP\/\d/.test(text)) { return "http"; }
     if (/^\$\s/.test(text) || /\bmake\s+\w|^make\s+\w/m.test(text)) { return "bash"; }
     if (/^#!\/.*sh/.test(text)) { return "bash"; }
     return null;

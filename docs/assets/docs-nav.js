@@ -179,85 +179,80 @@ const DOCS_NAV_LINK_REGISTRY = {
 const DOCS_TOP_NAV_KEYS = ["home", "internal", "openapi", "backlog", "pdoc"];
 const DOCS_SEARCH_EMPTY_QUICK_LINK_KEYS = ["internal", "pdoc", "openapi", "runbooks"];
 const DOCS_FOOTER_LINK_KEYS = ["home"];
-const docsPromoToastQueue = [];
-let docsPromoToastActive = false;
-
-function runNextDocsPromoToast() {
-  if (docsPromoToastActive) {
-    return;
+function getDocsToastStackHost() {
+  if (window.DocsPopups && typeof window.DocsPopups.getStackHost === "function") {
+    return window.DocsPopups.getStackHost();
   }
-  const next = docsPromoToastQueue.shift();
-  if (!next) {
-    return;
+  let host = document.getElementById("docs-toast-stack");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "docs-toast-stack";
+    host.className = "docs-toast-stack";
+    host.setAttribute("role", "region");
+    host.setAttribute("aria-label", "Notifications");
+    document.body.appendChild(host);
   }
-  docsPromoToastActive = true;
-  next(() => {
-    docsPromoToastActive = false;
-    runNextDocsPromoToast();
-  });
+  return host;
 }
 
 function enqueueDocsPromoToast(options) {
   const config = options || {};
-  docsPromoToastQueue.push((done) => {
-    const toast = document.createElement("section");
-    toast.className = `docs-inpage-toc-toast ${config.className || ""}`.trim();
-    toast.setAttribute("role", "status");
-    toast.setAttribute("aria-live", "polite");
-    toast.innerHTML = `
-      <div class="docs-inpage-toc-toast__title">${String(config.title || "")}</div>
-      <p class="docs-inpage-toc-toast__text">
-        ${String(config.text || "")}
-      </p>
-      <div class="docs-inpage-toc-toast__actions">
-        <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--ghost" data-docs-promo-dismiss>
-          ${String(config.dismissLabel || "Hide")}
-        </button>
-        <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--primary" data-docs-promo-primary>
-          ${String(config.primaryLabel || "Open")}
-        </button>
-      </div>
-      <div class="docs-inpage-toc-toast__progress" aria-hidden="true"></div>
-    `;
-    document.body.appendChild(toast);
-    const dismissBtn = toast.querySelector("[data-docs-promo-dismiss]");
-    const primaryBtn = toast.querySelector("[data-docs-promo-primary]");
-    let isClosed = false;
-    let timerId = null;
-    const closeToast = () => {
-      if (isClosed) {
-        return;
-      }
-      isClosed = true;
-      if (timerId !== null) {
-        window.clearTimeout(timerId);
-      }
-      toast.classList.add("docs-inpage-toc-toast--closing");
-      window.setTimeout(() => {
-        toast.remove();
-        done();
-      }, 180);
-    };
-    dismissBtn?.addEventListener("click", () => {
-      if (config.storageKey) {
-        try { localStorage.setItem(config.storageKey, "1"); } catch (e) { }
-      }
-      closeToast();
-    });
-    primaryBtn?.addEventListener("click", () => {
-      if (config.storageKey) {
-        try { localStorage.setItem(config.storageKey, "1"); } catch (e) { }
-      }
-      if (typeof config.onPrimary === "function") {
-        config.onPrimary();
-      }
-      closeToast();
-    });
-    timerId = window.setTimeout(() => {
-      closeToast();
-    }, Number(config.durationMs) > 0 ? Number(config.durationMs) : 3000);
+  const toast = document.createElement("section");
+  toast.className = `docs-inpage-toc-toast ${config.className || ""}`.trim();
+  toast.setAttribute("role", "status");
+  toast.setAttribute("aria-live", "polite");
+  toast.innerHTML = `
+    <div class="docs-inpage-toc-toast__title">${String(config.title || "")}</div>
+    <p class="docs-inpage-toc-toast__text">
+      ${String(config.text || "")}
+    </p>
+    <div class="docs-inpage-toc-toast__actions">
+      <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--ghost" data-docs-promo-dismiss>
+        ${String(config.dismissLabel || "Hide")}
+      </button>
+      <button type="button" class="docs-inpage-toc-toast__btn docs-inpage-toc-toast__btn--primary" data-docs-promo-primary>
+        ${String(config.primaryLabel || "Open")}
+      </button>
+    </div>
+    <div class="docs-inpage-toc-toast__progress" aria-hidden="true"></div>
+  `;
+  getDocsToastStackHost().appendChild(toast);
+  const dismissBtn = toast.querySelector("[data-docs-promo-dismiss]");
+  const primaryBtn = toast.querySelector("[data-docs-promo-primary]");
+  let isClosed = false;
+  let timerId = null;
+  const closeToast = () => {
+    if (isClosed) {
+      return;
+    }
+    isClosed = true;
+    if (timerId !== null) {
+      window.clearTimeout(timerId);
+    }
+    toast.classList.add("docs-inpage-toc-toast--closing");
+    window.setTimeout(() => {
+      toast.remove();
+    }, 180);
+  };
+  dismissBtn?.addEventListener("click", () => {
+    if (config.storageKey) {
+      try { localStorage.setItem(config.storageKey, "1"); } catch (e) { }
+    }
+    closeToast();
   });
-  runNextDocsPromoToast();
+  primaryBtn?.addEventListener("click", () => {
+    if (config.storageKey) {
+      try { localStorage.setItem(config.storageKey, "1"); } catch (e) { }
+    }
+    if (typeof config.onPrimary === "function") {
+      config.onPrimary();
+    }
+    closeToast();
+  });
+  timerId = window.setTimeout(() => {
+    closeToast();
+  }, Number(config.durationMs) > 0 ? Number(config.durationMs) : 3000);
+  return { close: closeToast };
 }
 
 function docsNavEntry(key) {
@@ -2875,7 +2870,13 @@ function initBackToTopButton() {
   const compactAfterPx = 600;         // wake the compact pill once we scroll past this
   const minScrollExtra = 100;
   let isLaunching = false;
-  let launchDirection = 1;
+  // When the rocket finishes its flight, the smooth-scroll-to-top is often
+  // still mid-page — so a naive updateVisibility() would re-arm the compact
+  // pill (with its progress-ring "phantom circle") at the bottom-right
+  // before the page reaches top. Suppress visibility entirely until either
+  // the user actually scrolls or a small settle timeout elapses; the next
+  // user-initiated scroll then shows the FAB normally.
+  let suppressUntilUserScroll = false;
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -2941,6 +2942,16 @@ function initBackToTopButton() {
       btn.tabIndex = -1;
       return;
     }
+    if (suppressUntilUserScroll) {
+      // Hold the FAB hidden after a launch so the compact pill / progress-
+      // ring doesn't pop in while smooth-scroll-to-top is still mid-flight.
+      btn.classList.remove("docs-back-to-top--visible");
+      btn.classList.remove("docs-back-to-top--armed");
+      btn.setAttribute("aria-hidden", "true");
+      btn.tabIndex = -1;
+      updateProgress();
+      return;
+    }
     const scrollable = pageIsScrollable();
     const visible = scrollable && (isPastFirstScreen() || isNearBottom());
     const armed = scrollable && isNearBottom();
@@ -2960,30 +2971,670 @@ function initBackToTopButton() {
     updateProgress();
   }
 
-  /* SVG flight path for the rocket — two visually-distinct variants that
-     alternate per click so successive launches don't look mechanical.
-     Coordinates are designed for a ~1440×900 viewport with the FAB at the
-     bottom-right; uniform `s` keeps the loop circular at any size. The
-     button is anchored to the right edge, so all X are ≤ 0. The browser
-     traces the path with true Bézier+arc interpolation and offset-rotate
-     auto handles tangent alignment — see docs.css `docs-rocket-fly`. */
-  function buildRocketPath(variant, vw, vh) {
+  /* ── JS rAF rocket flight ──────────────────────────────────────────────
+     Replaces CSS offset-path animation. Full premium implementation:
+       • G2-continuous loop via 4 cubic Bézier circle segments (kappa)
+       • C2-smooth velocity profile: smootherstep + Gaussian apex + exit-bias
+       • Per-frame tangent rotation + curvature banking + speed stretch
+       • Canvas2D particle trail: hot core (lighter) + smoke (source-over)   */
+  /* ── Premium WebGL2 rocket launch (Canvas2D fallback) ────────────────
+     Architecture:
+       • CPU-side deterministic physics (fixed-seed RNG, fixed timestep)
+       • Shared particle pool used by either renderer
+       • WebGL2: instanced quads, procedural domain-warped FBM smoke
+         shader, premultiplied-alpha smoke pass + additive hot pass
+       • Canvas2D: radial-gradient fallback when WebGL2 unavailable     */
+  function launchRocketAnimation(wrap, onDone) {
+    // ── Tunables (TZ §6: parameterized) ─────────────────────────────────
+    const DURATION = 2600;            // ms total flight time
+    const PRE_MS = 800;              // фаза нагнетания перед стартом, мс (TZ §3)
+    const POST_SMOKE_MS = 0;          // дым убирается в момент старта → буфер не нужен
+    const FIXED_STEP = 1 / 60;        // deterministic sim step, seconds
+    const SMOKE_LAG_MS = 140;         // визуальное запаздывание дыма за соплом
+    const SMOKE_SETTLE_ACC = 50;      // px/s² — мягкое оседание дыма вниз
+    const SMOKE_DRAG = 0.93;          // коэффициент сохранения скорости за 1/60 сек
+    const SMOKE_SPREAD = 1.0;         // нормированный множитель радиальной дисперсии
+    const SMOKE_LIFETIME = 3.0;       // сек — базовое время жизни клубов
+    const EMIT_SMOKE_IN_FLIGHT = false; // эмиссия в полёте — выкл. (TZ §3)
+    // Deterministic particle RNG: fixed seed for identical visuals every launch.
+    let rngState = 0x51f15eed >>> 0;
+    function rand() {
+      rngState = (rngState + 0x6d2b79f5) | 0;
+      let t = Math.imul(rngState ^ (rngState >>> 15), 1 | rngState);
+      t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+
+    // ── Trajectory ──────────────────────────────────────────────────────
+    const vw = window.innerWidth, vh = window.innerHeight;
     const s = Math.max(0.45, Math.min(vh / 900, (vw - 60) / 480, 1.4));
-    const k = (n) => (n * s).toFixed(1);
-    // variant 1: tighter loop (R=110), exit drifts back toward button column
-    // variant 2: wider loop (R=130), exit climbs more vertically
-    const R = (variant === 1 ? 110 : 130) * s;
-    const Rs = R.toFixed(1);
-    const loopXend = (-260 * s - 2 * R).toFixed(1);
-    const exitDx = ((variant === 1 ? -160 : -100) * s).toFixed(1);
-    return [
-      "M 0 0",
-      `C -${k(40)} -${k(120)}, -${k(120)} -${k(260)}, -${k(180)} -${k(360)}`,
-      `C -${k(240)} -${k(460)}, -${k(260)} -${k(520)}, -${k(260)} -${k(560)}`,
-      `A ${Rs} ${Rs} 0 0 0 ${loopXend} -${k(560)}`,
-      `A ${Rs} ${Rs} 0 0 0 -${k(260)} -${k(560)}`,
-      `C -${k(260)} -${k(680)}, -${k(220)} -${k(780)}, ${exitDx} -${k(900)}`,
-    ].join(" ");
+    const R = 110 * s;
+    const kc = R * 0.5522847498; // Bézier kappa for circle approximation
+    // Loop entry/exit at (lx, ly); center at (lx+R, ly)
+    const lx = -260 * s, ly = -560 * s;
+    const cx = lx + R, cy = ly;
+
+    // Seven cubic Bézier segments [p0, cp1, cp2, p1] in local px offset from start
+    const segs = [
+      // Approach: gentle arc from launch pad up toward loop entry
+      [[0, 0], [-40 * s, -120 * s], [-120 * s, -260 * s], [-180 * s, -360 * s]],
+      [[-180 * s, -360 * s], [-240 * s, -460 * s], [lx, ly + kc], [lx, ly]],
+      // Loop (4 segments, G2-continuous circle): left→top→right→bottom→left
+      [[cx - R, cy], [cx - R, cy - kc], [cx - kc, cy - R], [cx, cy - R]],
+      [[cx, cy - R], [cx + kc, cy - R], [cx + R, cy - kc], [cx + R, cy]],
+      [[cx + R, cy], [cx + R, cy + kc], [cx + kc, cy + R], [cx, cy + R]],
+      [[cx, cy + R], [cx - kc, cy + R], [cx - R, cy + kc], [cx - R, cy]],
+      // Exit: upward off-screen
+      [[lx, ly], [lx, ly - kc], [-220 * s, -780 * s], [-160 * s, -900 * s]],
+    ];
+
+    // ── Arc-length table (uniform-speed reparameterization) ─────────────
+    function bpt(seg, t) {
+      const [p0, c1, c2, p1] = seg;
+      const mt = 1 - t, mt2 = mt * mt, mt3 = mt2 * mt, t2 = t * t, t3 = t2 * t;
+      return [
+        mt3 * p0[0] + 3 * mt2 * t * c1[0] + 3 * mt * t2 * c2[0] + t3 * p1[0],
+        mt3 * p0[1] + 3 * mt2 * t * c1[1] + 3 * mt * t2 * c2[1] + t3 * p1[1],
+      ];
+    }
+    function btan(seg, t) {
+      const [p0, c1, c2, p1] = seg;
+      const mt = 1 - t, mt2 = mt * mt, t2 = t * t;
+      return [
+        3 * (mt2 * (c1[0] - p0[0]) + 2 * mt * t * (c2[0] - c1[0]) + t2 * (p1[0] - c2[0])),
+        3 * (mt2 * (c1[1] - p0[1]) + 2 * mt * t * (c2[1] - c1[1]) + t2 * (p1[1] - c2[1])),
+      ];
+    }
+    function bcurv(seg, t) {
+      const tan = btan(seg, t);
+      const [p0, c1, c2, p1] = seg; const mt = 1 - t;
+      const d2x = 6 * (mt * (c2[0] - 2 * c1[0] + p0[0]) + t * (p1[0] - 2 * c2[0] + c1[0]));
+      const d2y = 6 * (mt * (c2[1] - 2 * c1[1] + p0[1]) + t * (p1[1] - 2 * c2[1] + c1[1]));
+      const cr = tan[0] * d2y - tan[1] * d2x;
+      const ln = Math.hypot(tan[0], tan[1]);
+      return ln < 1e-8 ? 0 : cr / (ln * ln * ln);
+    }
+
+    const NSAMP = 100; // samples per segment for arc table
+    const arcTbl = []; // {si, t, len}
+    let totalArc = 0;
+    for (let si = 0; si < segs.length; si++) {
+      let prev = bpt(segs[si], 0);
+      for (let i = 1; i <= NSAMP; i++) {
+        const t = i / NSAMP;
+        const cur = bpt(segs[si], t);
+        const dx = cur[0] - prev[0], dy = cur[1] - prev[1];
+        totalArc += Math.sqrt(dx * dx + dy * dy);
+        arcTbl.push({ si, t, len: totalArc });
+        prev = cur;
+      }
+    }
+    function arcLookup(u) {
+      const tgt = u * totalArc;
+      let lo = 0, hi = arcTbl.length - 1;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (arcTbl[m].len < tgt) lo = m + 1; else hi = m; }
+      if (lo === 0) return { si: arcTbl[0].si, t: arcTbl[0].t };
+      const a = arcTbl[lo - 1], b = arcTbl[lo];
+      const f = (b.len - a.len) > 1e-10 ? (tgt - a.len) / (b.len - a.len) : 0;
+      return { si: b.si, t: a.t + f * (b.t - a.t) };
+    }
+
+    // ── Velocity profile (C2-smooth) ────────────────────────────────────
+    // smootherstep base + Gaussian apex slow-down + exit bias
+    function smootherstep(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+    const APEX_T = 0.54, APEX_S = 0.072, APEX_A = 0.42, EXIT_B = 0.20;
+    function velProfile(t) {
+      let u = smootherstep(t);
+      const dt = t - APEX_T;
+      u *= 1 - APEX_A * Math.exp(-(dt * dt) / (2 * APEX_S * APEX_S));
+      if (t > 0.74) { const e = (t - 0.74) / 0.26; u += EXIT_B * e * e; }
+      return Math.max(0, Math.min(1, u));
+    }
+    // Numerical derivative for speed factor
+    function velSpeed(t) {
+      const h = 0.008;
+      return (velProfile(Math.min(1, t + h)) - velProfile(Math.max(0, t - h))) / (2 * h);
+    }
+
+    function rocketStateAt(flightT) {
+      const u = velProfile(flightT);
+      const { si, t: bt } = arcLookup(u);
+      const seg = segs[si];
+      const pos = bpt(seg, bt);
+      const tan = btan(seg, bt);
+      const tl = Math.hypot(tan[0], tan[1]);
+      const tx = tl > 1e-8 ? tan[0] / tl : 0;
+      const ty = tl > 1e-8 ? tan[1] / tl : -1;
+      const angle = Math.atan2(tx, -ty);
+      const curv = bcurv(seg, bt);
+      const bank = Math.max(-0.38, Math.min(0.38, curv * R * 0.22));
+      const spd = velSpeed(flightT);
+      const sy2 = 1 + Math.min(0.22, spd * 0.14);
+      const sx2 = 1 - Math.min(0.06, spd * 0.04);
+      const vib = 0.009 * Math.sin(flightT * Math.PI * 12);
+      const fAng = angle + bank + vib;
+      const rocketCX = startX + pos[0];
+      const rocketCY = startY + pos[1];
+      const noz = nozzlePos(rocketCX, rocketCY, fAng);
+      return { pos, tx, ty, spd, sx2, sy2, fAng, noz };
+    }
+
+    // ── Стартовая позиция ракеты в viewport ─────────────────────────────
+    const wr = wrap.getBoundingClientRect();
+    const startX = wr.left + wr.width * 0.5;
+    const startY = wr.top + wr.height * 0.5;
+
+    // Позиция сопла ракеты в viewport-координатах. SVG смотрит вверх,
+    // сопло — нижний конец. CSS rotate(ang) поворот по часовой при y-вниз:
+    // bottomEnd при rotate(ang) = (cx - sin(ang)*L, cy + cos(ang)*L).
+    const NOZZLE_LEN = 14;
+    function nozzlePos(cx2, cy2, ang) {
+      return {
+        x: cx2 - Math.sin(ang) * NOZZLE_LEN,
+        y: cy2 + Math.cos(ang) * NOZZLE_LEN,
+      };
+    }
+
+    // ── Canvas + WebGL2 detection ──────────────────────────────────────
+    // Cap DPR at 2: на 3x retina лишний пиксель не виден из-за блюра дыма,
+    // зато fragment shader экономит до 2.25x работы.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cvs = document.createElement("canvas");
+    cvs.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:9998;";
+    cvs.width = Math.max(1, Math.round(vw * dpr));
+    cvs.height = Math.max(1, Math.round(vh * dpr));
+    cvs.style.width = vw + "px";
+    cvs.style.height = vh + "px";
+    document.body.appendChild(cvs);
+
+    let gl = null;
+    try {
+      gl = cvs.getContext("webgl2", {
+        alpha: true,
+        premultipliedAlpha: true,
+        antialias: false,
+        depth: false,
+        preserveDrawingBuffer: false,
+      });
+    } catch (e) { /* unsupported → fallback */ }
+
+    const useGL = !!gl;
+    // WebGL → плотные клубы из ~2400 instanced-quad'ов с шейдерным fbm.
+    // Canvas2D fallback → меньше частиц, мягкие радиальные градиенты.
+    const NPARTS = useGL ? 2400 : 800;
+
+    // ── Particle pool (CPU, shared) ────────────────────────────────────
+    const P = new Array(NPARTS);
+    for (let i = 0; i < NPARTS; i++) {
+      P[i] = { x: 0, y: 0, vx: 0, vy: 0, life: 0, maxL: 1, size: 0, hot: 0, seed: (i + 1) * 0.61803398875 };
+    }
+    let ph = 0;
+
+    // ── Эмиссия частиц ────────────────────────────────────────────────
+    // dense=true → фаза нагнетания (широкий клубящийся столб).
+    // dense=false → эмиссия в полёте (только при EMIT_SMOKE_IN_FLIGHT).
+    function emit(noz, exhX, exhY, spd, dense) {
+      if (dense) {
+        // Плотный кипящий пар у пускового стола: широкие реалистичные клубы.
+        const baseCnt = (useGL ? 18 : 8) + ((rand() * (useGL ? 9 : 6)) | 0);
+        const cnt = Math.max(4, Math.round(baseCnt * (0.7 + spd * 0.2)));
+        const baseR = (useGL ? 70 : 50) * s * SMOKE_SPREAD;  // широкая «лужа»
+        for (let i = 0; i < cnt; i++) {
+          const p = P[ph++ % NPARTS];
+          // Сплющенный диск вокруг сопла: дым стелется, а не пыхает точкой.
+          const ang = rand() * Math.PI * 2;
+          const rr = Math.sqrt(rand());                       // равномерно по площади
+          p.x = noz.x + Math.cos(ang) * rr * baseR;
+          p.y = noz.y + Math.sin(ang) * rr * baseR * 0.36 + 4 * s;
+          // Более широкий веер направлений → меньше «луча», больше клубов.
+          const swayAng = ang + (rand() - 0.5) * 0.72;
+          const outSpd = (40 + rand() * 80) * (0.7 + spd * 0.3);
+          p.vx = Math.cos(swayAng) * outSpd * SMOKE_SPREAD + (rand() - 0.5) * 26 * SMOKE_SPREAD;
+          p.vy = (5 + rand() * 28) * (0.7 + spd * 0.3);       // строго ≥ 0 — дым никогда не вверх
+          p.maxL = SMOKE_LIFETIME * (0.85 + rand() * 0.55);
+          // Больше клубов разного калибра: малые «кудри» + крупные облака.
+          p.size = (useGL ? 36 : 14) * s + rand() * (useGL ? 50 : 28) * s;
+          p.life = 1;
+          p.hot = 0;
+        }
+        return;
+      }
+      if (!EMIT_SMOKE_IN_FLIGHT) return;
+      const perpX = -exhY, perpY = exhX;
+      const cnt = Math.max(6, Math.round(8 + spd * 7));
+      for (let i = 0; i < cnt; i++) {
+        const p = P[ph++ % NPARTS];
+        const hot = rand() < 0.28 ? 1 : 0;
+        if (hot) {
+          const spread = (rand() - 0.5) * 0.42;
+          const spd2 = (160 + rand() * 180) * spd;
+          p.x = noz.x + (rand() - 0.5) * 3;
+          p.y = noz.y + (rand() - 0.5) * 3;
+          p.vx = (exhX + perpX * spread) * spd2;
+          p.vy = (exhY + perpY * spread) * spd2;
+          p.maxL = 0.18 + rand() * 0.22;
+          p.size = (2 + rand() * 4) * s;
+        } else {
+          const spread = (rand() - 0.5) * SMOKE_SPREAD * 0.18;
+          const spd2 = (90 + rand() * 100) * spd;
+          const ang = rand() * Math.PI * 2;
+          const burstR = 1 + rand() * 3;
+          p.x = noz.x + Math.cos(ang) * burstR;
+          p.y = noz.y + Math.sin(ang) * burstR;
+          p.vx = (exhX + perpX * spread) * spd2;
+          p.vy = Math.max(0, (exhY + perpY * spread) * spd2);
+          p.maxL = SMOKE_LIFETIME * 0.7 + rand() * 0.5;
+          p.size = (6 + rand() * 10) * s;
+        }
+        p.life = 1;
+        p.hot = hot;
+      }
+    }
+
+    // ── Physics step ───────────────────────────────────────────────────
+    // lockSmokeY=true означает «ракета взлетела». По требованию пользователя
+    // дым в этот момент полностью убирается из кадра — никакого облака во
+    // время полёта (TZ §4 переопределён). Hot-particles продолжают жить,
+    // если когда-нибудь включат EMIT_SMOKE_IN_FLIGHT.
+    function physicsStep(dt, lockSmokeY) {
+      if (lockSmokeY) {
+        for (let i = 0; i < NPARTS; i++) {
+          const p = P[i];
+          if (!p.hot && p.life > 0) p.life = 0;
+        }
+      }
+      const dragStep = Math.pow(SMOKE_DRAG, dt * 60);
+      const ceilingY = startY - 2 * s;
+      for (let i = 0; i < NPARTS; i++) {
+        const p = P[i]; if (p.life <= 0) continue;
+        p.life -= dt / p.maxL;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (!p.hot) {
+          // В lockSmokeY дым уже мёртв — сюда попадаем только в PRE-фазе.
+          if (p.vy < 0) p.vy = 0;
+          p.vy += SMOKE_SETTLE_ACC * dt;
+          const t = 1 - p.life;
+          // Двухчастотная турбулентность: высокая (мелкие кудри) + низкая
+          // (крупные клубы) → визуально читаемые puff'ы вместо ровного облака.
+          const swirl = Math.sin(t * 7.3 + p.seed * 6.7)
+            + 0.62 * Math.sin(t * 3.1 + p.seed * 4.2)
+            + 0.34 * Math.sin(t * 1.5 + p.seed * 2.3);
+          p.vx += swirl * 26 * SMOKE_SPREAD * dt;
+          p.vx *= dragStep;
+          p.vy *= dragStep;
+          if (p.vy > 95) p.vy = 95;
+          if (p.y < ceilingY) { p.y = ceilingY; if (p.vy < 0) p.vy = 0; }
+        } else {
+          const hd = Math.pow(0.94, dt * 60);
+          p.vx *= hd; p.vy *= hd;
+        }
+      }
+    }
+
+    // ── Renderer (WebGL2 OR Canvas2D) ──────────────────────────────────
+    // Once a canvas has a webgl2 context, getContext("2d") on it returns
+    // null per spec — so we commit to a path based on probe result.
+    function noop() { }
+    let renderFrame = noop;
+    let disposeRenderer = noop;
+    if (useGL) {
+      const gx = setupWebGLRenderer();
+      if (gx) {
+        renderFrame = gx.render;
+        disposeRenderer = gx.dispose;
+      } else {
+        // Shader compile/link failed despite WebGL2 support — extremely
+        // rare. Continue with no-op renderer so rocket still completes.
+        // eslint-disable-next-line no-console
+        console.warn("[rocket] WebGL2 shader setup failed; smoke disabled");
+      }
+    } else {
+      const cx2 = setupCanvas2DRenderer();
+      renderFrame = cx2.render;
+      disposeRenderer = cx2.dispose;
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // WebGL2 renderer: ~1800 instanced quads, procedural domain-warped fbm
+    // smoke shader, two passes: smoke (premul. over) + hot (additive).
+    // ───────────────────────────────────────────────────────────────────
+    function setupWebGLRenderer() {
+      const VS = "#version 300 es\n"
+        + "layout(location=0) in vec2 aCorner;\n"
+        + "layout(location=1) in vec4 aPSA;\n"           // x, y, size, age
+        + "layout(location=2) in vec2 aSK;\n"            // seed, kind
+        + "uniform vec2 uRes;\n"
+        + "out vec2 vUv;\n"
+        + "out float vAge;\n"
+        + "out float vSeed;\n"
+        + "out float vKind;\n"
+        + "void main() {\n"
+        + "  vec2 worldPos = aPSA.xy + aCorner * aPSA.z;\n"
+        + "  vec2 ndc = (worldPos / uRes) * 2.0 - 1.0;\n"
+        + "  ndc.y = -ndc.y;\n"
+        + "  gl_Position = vec4(ndc, 0.0, 1.0);\n"
+        + "  vUv = aCorner;\n"
+        + "  vAge = aPSA.w;\n"
+        + "  vSeed = aSK.x;\n"
+        + "  vKind = aSK.y;\n"
+        + "}\n";
+
+      const FS = "#version 300 es\n"
+        + "precision highp float;\n"
+        + "in vec2 vUv;\n"
+        + "in float vAge;\n"
+        + "in float vSeed;\n"
+        + "in float vKind;\n"
+        + "uniform float uPass;\n"                       // 0=smoke, 1=hot
+        + "out vec4 fragColor;\n"
+        + "float hash21(vec2 p, float s) {\n"
+        + "  p = fract(p * vec2(123.34, 456.21) + s * 17.71);\n"
+        + "  p += dot(p, p + 45.32);\n"
+        + "  return fract(p.x * p.y);\n"
+        + "}\n"
+        + "float vnoise(vec2 p, float s) {\n"
+        + "  vec2 i = floor(p);\n"
+        + "  vec2 f = fract(p);\n"
+        + "  vec2 u = f * f * (3.0 - 2.0 * f);\n"
+        + "  return mix(\n"
+        + "    mix(hash21(i, s), hash21(i + vec2(1.0,0.0), s), u.x),\n"
+        + "    mix(hash21(i + vec2(0.0,1.0), s), hash21(i + vec2(1.0,1.0), s), u.x),\n"
+        + "    u.y);\n"
+        + "}\n"
+        + "float fbm(vec2 p, float s) {\n"
+        + "  float v = 0.0; float a = 0.5;\n"
+        + "  for (int i = 0; i < 4; i++) {\n"
+        + "    v += a * vnoise(p, s);\n"
+        + "    p *= 2.07; a *= 0.5;\n"
+        + "  }\n"
+        + "  return v;\n"
+        + "}\n"
+        // Domain warp = fbm of a position perturbed by another fbm —
+        // даёт «curl-like» закрутки, как у настоящего стартового дыма.
+        + "float warp(vec2 p, float s) {\n"
+        + "  vec2 q = vec2(fbm(p, s), fbm(p + vec2(5.2, 1.3), s + 0.31));\n"
+        + "  return fbm(p + 1.4 * q, s + 0.71);\n"
+        + "}\n"
+        + "void main() {\n"
+        + "  if (abs(vKind - uPass) > 0.5) discard;\n"
+        + "  float r = length(vUv);\n"
+        + "  if (r > 1.0) discard;\n"
+        + "  float life = 1.0 - vAge;\n"
+        // Внутренняя структура клуба: domain-warped fbm — крупные «cauliflower»
+        // bulbs с тёмными прожилками; чем больше масштаб, тем виднее clumps.
+        + "  vec2 nuv = vUv * 2.85 + vec2(vSeed * 12.34, vAge * 20.1);\n"
+        + "  float n = warp(nuv, vSeed * 0.7);\n"
+        + "  n = 0.55 + n * 0.62;\n"
+        // Soft falloff: плотный центр, туманные края.
+        + "  float core = smoothstep(0.0, 0.45, 1.0 - r);\n"
+        + "  float halo = smoothstep(0.0, 1.0, 1.0 - r);\n"
+        + "  float density = mix(halo * 0.6, core, 0.62) * n;\n"
+        + "  if (vKind > 0.5) {\n"
+        // Hot core — аддитивный огненный свет.
+        + "    vec3 col = mix(vec3(1.0, 0.55, 0.05), vec3(1.0, 0.92, 0.5), life * 0.7);\n"
+        + "    float a = density * (life * life) * 0.95;\n"
+        + "    fragColor = vec4(col * a, a);\n"
+        + "  } else {\n"
+        // Smoke — лавандово-серый палитрой docs-портала.
+        + "    vec3 cInner = vec3(0.965, 0.957, 0.985);\n"
+        + "    vec3 cMid   = vec3(0.835, 0.825, 0.875);\n"
+        + "    vec3 cOuter = vec3(0.745, 0.733, 0.795);\n"
+        + "    float t = clamp(density * 1.35, 0.0, 1.0);\n"
+        + "    vec3 col = mix(cOuter, mix(cMid, cInner, smoothstep(0.45, 1.0, t)), smoothstep(0.0, 0.7, t));\n"
+        + "    col *= mix(1.0, 0.9, vAge * 0.5);\n"
+        + "    float clump = 0.72 + 0.5 * sin(vSeed * 8.7 + vAge * 9.5);\n"
+        + "    float a = density * (life * life * 1.8 * clump);\n"
+        + "    fragColor = vec4(col * a, a);\n"
+        + "  }\n"
+        + "}\n";
+
+      function compile(type, src) {
+        const sh = gl.createShader(type);
+        gl.shaderSource(sh, src);
+        gl.compileShader(sh);
+        if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+          // eslint-disable-next-line no-console
+          console.warn("[rocket] shader compile failed:", gl.getShaderInfoLog(sh));
+          gl.deleteShader(sh);
+          return null;
+        }
+        return sh;
+      }
+      const vs = compile(gl.VERTEX_SHADER, VS);
+      const fs = compile(gl.FRAGMENT_SHADER, FS);
+      if (!vs || !fs) return null;
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        // eslint-disable-next-line no-console
+        console.warn("[rocket] program link failed:", gl.getProgramInfoLog(prog));
+        return null;
+      }
+      gl.deleteShader(vs); gl.deleteShader(fs);
+
+      const uRes = gl.getUniformLocation(prog, "uRes");
+      const uPass = gl.getUniformLocation(prog, "uPass");
+
+      // Quad corners ((-1,-1) .. (1,1)) reused for every instance.
+      const cornerBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+      // Per-instance attribute buffers: (x,y,size,age) and (seed,kind).
+      const psaArr = new Float32Array(NPARTS * 4);
+      const skArr = new Float32Array(NPARTS * 2);
+      const psaBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, psaBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, psaArr.byteLength, gl.DYNAMIC_DRAW);
+      const skBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, skBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, skArr.byteLength, gl.DYNAMIC_DRAW);
+
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuf);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribDivisor(0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, psaBuf);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribDivisor(1, 1);
+      gl.bindBuffer(gl.ARRAY_BUFFER, skBuf);
+      gl.enableVertexAttribArray(2);
+      gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribDivisor(2, 1);
+      gl.bindVertexArray(null);
+
+      function ensureCanvasSize() {
+        const w = Math.max(1, Math.round(window.innerWidth * dpr));
+        const h = Math.max(1, Math.round(window.innerHeight * dpr));
+        if (cvs.width !== w || cvs.height !== h) {
+          cvs.width = w; cvs.height = h;
+          cvs.style.width = window.innerWidth + "px";
+          cvs.style.height = window.innerHeight + "px";
+        }
+      }
+
+      function render() {
+        // Pack live particles into instance buffers (compact, no holes).
+        let live = 0;
+        for (let i = 0; i < NPARTS; i++) {
+          const p = P[i]; if (p.life <= 0) continue;
+          const age = 1 - p.life;
+          const r = p.size * (0.95 + age * 1.95);
+          const j = live * 4;
+          psaArr[j] = p.x * dpr;
+          psaArr[j + 1] = p.y * dpr;
+          psaArr[j + 2] = r * dpr;
+          psaArr[j + 3] = age;
+          const k = live * 2;
+          skArr[k] = p.seed;
+          skArr[k + 1] = p.hot;
+          live++;
+        }
+
+        ensureCanvasSize();
+        gl.viewport(0, 0, cvs.width, cvs.height);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.enable(gl.BLEND);
+        gl.useProgram(prog);
+        gl.uniform2f(uRes, cvs.width, cvs.height);
+        if (live === 0) return;
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, psaBuf);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, psaArr.subarray(0, live * 4));
+        gl.bindBuffer(gl.ARRAY_BUFFER, skBuf);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, skArr.subarray(0, live * 2));
+        gl.bindVertexArray(vao);
+
+        // Pass 1: smoke (premultiplied "over")
+        gl.uniform1f(uPass, 0.0);
+        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, live);
+
+        // Pass 2: hot core (additive bloom)
+        gl.uniform1f(uPass, 1.0);
+        gl.blendFunc(gl.ONE, gl.ONE);
+        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, live);
+
+        gl.bindVertexArray(null);
+      }
+
+      function dispose() {
+        try {
+          gl.deleteBuffer(cornerBuf);
+          gl.deleteBuffer(psaBuf);
+          gl.deleteBuffer(skBuf);
+          gl.deleteVertexArray(vao);
+          gl.deleteProgram(prog);
+        } catch (e) { /* best-effort */ }
+      }
+      return { render, dispose };
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // Canvas2D fallback: радиальные градиенты, без шейдеров.
+    // ───────────────────────────────────────────────────────────────────
+    function setupCanvas2DRenderer() {
+      // Fallback works in CSS pixels — отдаём resolution backing store 1:1.
+      cvs.width = window.innerWidth;
+      cvs.height = window.innerHeight;
+      cvs.style.width = window.innerWidth + "px";
+      cvs.style.height = window.innerHeight + "px";
+      const ctx = cvs.getContext("2d");
+
+      function ensureSize() {
+        if (cvs.width !== window.innerWidth || cvs.height !== window.innerHeight) {
+          cvs.width = window.innerWidth;
+          cvs.height = window.innerHeight;
+        }
+      }
+
+      function render() {
+        ensureSize();
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.globalCompositeOperation = "lighter";
+        for (let i = 0; i < NPARTS; i++) {
+          const p = P[i]; if (p.life <= 0 || !p.hot) continue;
+          const a = Math.max(0, p.life);
+          const r = p.size * (0.35 + a * 0.65);
+          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+          g.addColorStop(0, "rgba(255,225,110," + (a * 0.95).toFixed(3) + ")");
+          g.addColorStop(0.38, "rgba(255,130,20," + (a * 0.58).toFixed(3) + ")");
+          g.addColorStop(1, "rgba(160,30,0,0)");
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalCompositeOperation = "source-over";
+        for (let i = 0; i < NPARTS; i++) {
+          const p = P[i]; if (p.life <= 0 || p.hot) continue;
+          const age = 1 - p.life;
+          const clump = 0.85 + 0.45 * Math.sin(p.seed * 8.7 + age * 10.5);
+          const a = Math.max(0, p.life * p.life * 0.62 * clump);
+          const r = p.size * (0.95 + age * 2.4);
+          const g = ctx.createRadialGradient(p.x, p.y, r * 0.02, p.x, p.y, r);
+          g.addColorStop(0, "rgba(246,244,250," + (a * 1.0).toFixed(3) + ")");
+          g.addColorStop(0.28, "rgba(232,229,239," + (a * 0.84).toFixed(3) + ")");
+          g.addColorStop(0.6, "rgba(214,211,224," + (a * 0.42).toFixed(3) + ")");
+          g.addColorStop(1, "rgba(190,187,202,0)");
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      return { render, dispose: noop };
+    }
+
+    // ── Animation loop ─────────────────────────────────────────────────
+    let startTs = 0, simTs = 0, simAccumulator = 0, rafId = 0, disposed = false;
+
+    function frame(ts) {
+      if (disposed) return;
+      if (!startTs) startTs = ts;
+      const elapsed = ts - startTs;
+      simAccumulator += Math.max(0, elapsed - simTs);
+
+      // Детерминированный fixed-step: эмиссия и физика не зависят от FPS.
+      while (simAccumulator >= FIXED_STEP * 1000) {
+        simTs += FIXED_STEP * 1000;
+        simAccumulator -= FIXED_STEP * 1000;
+        if (simTs < PRE_MS) {
+          const preT = simTs / PRE_MS;
+          const noz = nozzlePos(startX, startY, 0);
+          emit(noz, 0, 1, 0.8 + preT * 2.5, true);
+        } else if (EMIT_SMOKE_IN_FLIGHT) {
+          const simFlightT = Math.min(1, (simTs - PRE_MS) / DURATION);
+          const lagFlightT = Math.max(0, simFlightT - (SMOKE_LAG_MS / DURATION));
+          const smokeState = rocketStateAt(lagFlightT);
+          emit(smokeState.noz, -smokeState.tx, -smokeState.ty, 0.55 + smokeState.spd * 1.6, false);
+        }
+        physicsStep(FIXED_STEP, simTs >= PRE_MS);
+      }
+
+      renderFrame();
+
+      // ── Фаза 1: до старта только дым ────────────────────────────────
+      if (elapsed < PRE_MS) {
+        rafId = window.requestAnimationFrame(frame);
+        return;
+      }
+
+      // ── Фаза 2: полёт ракеты по фиксированной траектории ────────────
+      const flightT = Math.min(1, (elapsed - PRE_MS) / DURATION);
+      const rocketState = rocketStateAt(flightT);
+      wrap.style.transform =
+        "translate(" + rocketState.pos[0].toFixed(2) + "px," + rocketState.pos[1].toFixed(2) + "px)" +
+        " rotate(" + rocketState.fAng.toFixed(4) + "rad)" +
+        " scaleX(" + rocketState.sx2.toFixed(4) + ") scaleY(" + rocketState.sy2.toFixed(4) + ")";
+
+      if (flightT > 0.84) {
+        const ft = (flightT - 0.84) / 0.16;
+        wrap.style.opacity = (1 - ft * ft).toFixed(4);
+      }
+
+      if (flightT < 1 || elapsed < PRE_MS + DURATION + POST_SMOKE_MS) {
+        rafId = window.requestAnimationFrame(frame);
+      } else {
+        cleanup(); onDone();
+      }
+    }
+
+    function cleanup() {
+      if (disposed) return;
+      disposed = true;
+      if (rafId) { window.cancelAnimationFrame(rafId); rafId = 0; }
+      try { disposeRenderer(); } catch (e) { /* best-effort */ }
+      cvs.remove();
+      wrap.style.transform = "";
+      wrap.style.opacity = "";
+    }
+
+    rafId = window.requestAnimationFrame(frame);
+    return cleanup;
   }
 
   const wrap = btn.querySelector(".docs-back-to-top__rocket-wrap");
@@ -3006,41 +3657,82 @@ function initBackToTopButton() {
     }
     if (!reduceMotion) {
       isLaunching = true;
-      const variant = launchDirection > 0 ? 1 : 2;
-      launchDirection *= -1;
-      const pathStr = buildRocketPath(variant, window.innerWidth, window.innerHeight);
-      // Inline so each launch can use a fresh path computed from the
-      // current viewport (and so the alternating variant takes effect).
-      wrap.style.offsetPath = `path('${pathStr}')`;
       btn.classList.add("docs-back-to-top--launching");
-      // Safety net in case animationend doesn't fire (e.g. CSS overridden).
-      // 2.4s animation + 200ms slack.
-      window.setTimeout(() => {
-        if (!isLaunching) {
-          return;
-        }
+      // After the rocket exits the viewport we need to drop the --launching
+      // class so the FAB returns to its scroll-based icon state. But the
+      // base CSS doesn't transition background-color/box-shadow, so the
+      // pill snaps from transparent back to solid instantly — and if the
+      // page just smooth-scrolled to top, the FAB is also fading opacity
+      // 1→0 at the same moment, so the user sees an empty solid pill (a
+      // "phantom circle" where the rocket was) briefly flash before the
+      // fade completes. Hold --launching through the fade-out window when
+      // the FAB is becoming hidden, and drop it immediately when the FAB
+      // stays visible (so the icon snaps back to its compact/armed look).
+      const finishLaunch = () => {
         isLaunching = false;
-        btn.classList.remove("docs-back-to-top--launching");
-        wrap.style.offsetPath = "";
+        // Block the compact pill / progress-ring from popping in while
+        // smooth-scroll-to-top is still mid-page. The flag is cleared on
+        // the next user-initiated scroll (see scroll listener below); a
+        // safety timeout also clears it in case scroll never resumes.
+        suppressUntilUserScroll = true;
+        postLaunchSettled = false;
         updateVisibility();
-      }, 2600);
+        // FAB is now hidden — keep --launching so the pill stays
+        // transparent through the opacity fade-out, then drop it once the
+        // FAB is invisible so the styles are clean for the next show.
+        window.setTimeout(
+          () => btn.classList.remove("docs-back-to-top--launching"),
+          320,
+        );
+        // Safety net: release suppression after a long settle window in
+        // case the user never scrolls (e.g. very short page). On a normal
+        // long page the user's first wheel/touch tick clears it sooner.
+        window.setTimeout(() => {
+          if (!suppressUntilUserScroll) return;
+          suppressUntilUserScroll = false;
+          updateVisibility();
+        }, 4000);
+      };
+      const cancelFlight = launchRocketAnimation(wrap, finishLaunch);
+      // Safety net: force-complete if rAF stalls (e.g. backgrounded tab).
+      // Timeout = PRE_MS(2000) + DURATION(2600) + POST_SMOKE_MS(0) + 400 slack = 5000
+      window.setTimeout(() => {
+        if (!isLaunching) return;
+        cancelFlight();
+        finishLaunch();
+      }, 5000);
+      // Скролл откладываем до конца нагнетания — ракета должна улететь, а не
+      // исчезнуть со страницей до взлёта. Кнопка fixed, поэтому ракета всегда
+      // видна независимо от позиции скролла, но задержка делает переход плавнее.
+      window.setTimeout(
+        () => window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }),
+        reduceMotion ? 0 : 2000,
+      );
     }
-    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    if (reduceMotion) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
   });
 
-  btn.addEventListener("animationend", (event) => {
-    if (event.animationName !== "docs-rocket-fly") {
-      return;
-    }
-    isLaunching = false;
-    btn.classList.remove("docs-back-to-top--launching");
-    wrap.style.offsetPath = "";
-    updateVisibility();
-  });
-
+  // While suppressUntilUserScroll is set, watch for two stages:
+  //   1) the smooth-scroll-to-top reaching window.scrollY === 0, and
+  //   2) a fresh scroll movement away from that resting point.
+  // Step 2 is what we treat as the user "starting to scroll", which is
+  // the moment the FAB is allowed to come back according to scroll
+  // dynamics. Plain scroll events without the settle stage are the
+  // smooth-scroll-to-top ticks themselves and must NOT clear the flag.
+  let postLaunchSettled = false;
   window.addEventListener(
     "scroll",
     () => {
+      if (suppressUntilUserScroll) {
+        if (!postLaunchSettled) {
+          if (window.scrollY <= 0) postLaunchSettled = true;
+        } else if (window.scrollY > 0) {
+          suppressUntilUserScroll = false;
+          postLaunchSettled = false;
+        }
+      }
       updateVisibility();
     },
     { passive: true },

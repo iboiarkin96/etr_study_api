@@ -236,8 +236,48 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "HTTP API — internal documentation hub — Study App"
       },
       {
+        "path": "internal/api/_shared/auth.html",
+        "title": "Authentication &amp; authorization — shared rules — Study App"
+      },
+      {
+        "path": "internal/api/_shared/error-catalog.html",
+        "title": "Error catalog — shared registry — Study App"
+      },
+      {
+        "path": "internal/api/_shared/error-envelope.html",
+        "title": "Error envelope — shared internal contract — Study App"
+      },
+      {
+        "path": "internal/api/_shared/field-conventions.html",
+        "title": "Field naming &amp; format conventions — Study App"
+      },
+      {
+        "path": "internal/api/_shared/idempotency.html",
+        "title": "Idempotency — shared internal rules — Study App"
+      },
+      {
+        "path": "internal/api/_shared/observability-conventions.html",
+        "title": "Observability conventions — shared rules — Study App"
+      },
+      {
+        "path": "internal/api/_shared/openapi-authoring-guide.html",
+        "title": "OpenAPI authoring guide — internal → external — Study App"
+      },
+      {
+        "path": "internal/api/_shared/pagination.html",
+        "title": "Pagination — shared rules — Study App"
+      },
+      {
+        "path": "internal/api/_shared/spec-definition-of-done.html",
+        "title": "Operation spec — Definition of Done — Study App"
+      },
+      {
         "path": "internal/api/_shared/spec-template.html",
         "title": "Specification template — Internal API — Study App"
+      },
+      {
+        "path": "internal/api/_shared/versioning.html",
+        "title": "API versioning — shared rules — Study App"
       },
       {
         "path": "internal/api/conspectus/index.html",
@@ -249,7 +289,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/api/conspectus/operations/get-api-v1-schedule-summary.html",
-        "title": "GET /api/v1/schedule/summary — Schedule (conspectuses) — Study App"
+        "title": "GET /api/v1/schedule/summary — Conspectus — Study App"
       },
       {
         "path": "internal/api/conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html",
@@ -273,7 +313,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/api/error-log/operations/post-api-v1-errors.html",
-        "title": "POST /api/v1/errors — Error log (conspectus link) — Study App"
+        "title": "POST /api/v1/errors — Error log — Study App"
       },
       {
         "path": "internal/api/errors.html",
@@ -282,6 +322,10 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "internal/api/user/index.html",
         "title": "User resource — internal specification — Study App"
+      },
+      {
+        "path": "internal/api/user/operations/get-api-v1-user-system_uuid-system_user_id copy.html",
+        "title": "GET /api/v1/user/{system_uuid}/{system_user_id} — User — Study App"
       },
       {
         "path": "internal/api/user/operations/get-api-v1-user-system_uuid-system_user_id.html",
@@ -342,6 +386,18 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "internal/front/docs-frontend-popups-and-overlays.html",
         "title": "Docs frontend: popup and overlay system"
+      },
+      {
+        "path": "internal/front/docs-frontend-resume-and-back-to-top.html",
+        "title": "Docs frontend resume reading and back-to-top"
+      },
+      {
+        "path": "internal/front/docs-frontend-rocket-launch-animation.html",
+        "title": "Docs frontend rocket launch animation"
+      },
+      {
+        "path": "internal/front/docs-frontend-token-gallery.html",
+        "title": "Docs frontend token gallery"
       },
       {
         "path": "internal/front/docs-frontend-tooltips.html",

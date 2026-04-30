@@ -124,25 +124,20 @@
     }
 
     function readColors(themeFlag) {
-      // "Sapphire" palette — restrained indigo family, decoupled from
-      // --accent so brand blue stays exclusive to CTAs. Tuned for premium
-      // restraint (Stripe / Linear ambient layer), not screensaver pop.
-      //   A = deep indigo  (#3730a3) — base field tone
-      //   B = mid  indigo  (#6366f1) — bands + soft mouse halo
-      //   C = pale indigo  (#c7d2fe) — luminous highlights in deep field
+      // "Sky" palette — brand blue family (#0ea5e9 / sky-500 anchor).
       if (themeFlag > 0.5) {
         return {
-          a: [0.216, 0.188, 0.639],   // #3730a3 indigo-800
-          b: [0.388, 0.400, 0.945],   // #6366f1 indigo-500
-          c: [0.780, 0.824, 0.996],   // #c7d2fe indigo-200
+          a: [0.012, 0.412, 0.631],   // #0369a1 sky-700 — base field tone
+          b: [0.055, 0.647, 0.914],   // #0ea5e9 sky-500 — bands + mouse halo
+          c: [0.490, 0.827, 0.988],   // #7dd3fc sky-300 — luminous highlights
         };
       }
       return {
-        // Light theme: deeper, slightly cooler indigos so the multiply
-        // blend reads as a quiet tinted shadow over the white surface.
-        a: [0.184, 0.169, 0.494],     // muted indigo-900
-        b: [0.263, 0.220, 0.639],     // indigo-700
-        c: [0.435, 0.408, 0.706],     // dusky periwinkle
+        // Light theme: saturated sky blues so multiply blend reads as a
+        // clearly visible tinted shadow over the light surface.
+        a: [0.008, 0.318, 0.490],     // #0851a0 sky-800 — deep base
+        b: [0.012, 0.412, 0.631],     // #0369a1 sky-700 — mid tone
+        c: [0.055, 0.647, 0.914],     // #0ea5e9 sky-500 — bright accent
       };
     }
 
@@ -451,11 +446,12 @@ void main() {
 
   // Lower alphas across the board — ambient mist, not a poster.
   float darkAlpha  = clamp(0.22 + 0.09 * bands, 0.0, 0.50) * mask;
-  float lightAlpha = clamp(0.11 + 0.05 * bands, 0.0, 0.32) * mask;
+  // Light theme needs higher alpha so multiply blend is visible on white.
+  float lightAlpha = clamp(0.28 + 0.14 * bands, 0.0, 0.62) * mask;
   float alpha = mix(lightAlpha, darkAlpha, uTheme) * uIntensity;
 
-  // Slight luminance compression for light theme so it stays readable
-  col = mix(col * 0.78 + vec3(0.04), col, uTheme);
+  // Light theme: keep colours saturated so multiply blend reads clearly.
+  col = mix(col * 0.72, col, uTheme);
 
   // Premultiplied alpha
   fragColor = vec4(col * alpha, alpha);
