@@ -2503,15 +2503,62 @@ function injectDocsFeedbackCard() {
   modal.appendChild(modalPanel);
   document.body.appendChild(modal);
 
+  const REPORT_BUG_FAB_HTML =
+    '<svg class="docs-report-bug-fab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+      '<path class="bug-antenna bug-antenna--l" d="M9 7 Q8 4 6 3"/>' +
+      '<path class="bug-antenna bug-antenna--r" d="M15 7 Q16 4 18 3"/>' +
+      '<g class="bug-body">' +
+        '<ellipse cx="12" cy="14" rx="4.6" ry="5.6"/>' +
+        '<line x1="12" y1="9" x2="12" y2="19.5"/>' +
+        '<path d="M7.5 12 L4.5 11"/>' +
+        '<path d="M7.5 14.5 L4 14.5"/>' +
+        '<path d="M7.5 17 L4.5 18.5"/>' +
+        '<path d="M16.5 12 L19.5 11"/>' +
+        '<path d="M16.5 14.5 L20 14.5"/>' +
+        '<path d="M16.5 17 L19.5 18.5"/>' +
+      '</g>' +
+    '</svg>' +
+    '<span class="docs-report-bug-fab__label">Found a bug? Report issue</span>';
+
+  function upgradeReportBugFab(fab) {
+    if (!fab || fab.dataset.fabUpgraded === "1") {
+      return;
+    }
+    fab.type = "button";
+    if (!fab.hasAttribute("aria-label")) {
+      fab.setAttribute("aria-label", "Found a bug? Report issue");
+    }
+    if (!fab.hasAttribute("data-tooltip")) {
+      fab.setAttribute("data-tooltip", "Report issue");
+    }
+    fab.innerHTML = REPORT_BUG_FAB_HTML;
+    fab.dataset.fabUpgraded = "1";
+  }
+
   let floatingReportButtons = Array.from(document.querySelectorAll(".docs-report-bug-fab"));
   if (floatingReportButtons.length === 0) {
     const fab = document.createElement("button");
-    fab.type = "button";
     fab.className = "docs-report-bug-fab";
     fab.setAttribute("data-feedback-open", "true");
-    fab.textContent = "Found a bug? Report issue";
+    upgradeReportBugFab(fab);
     document.body.appendChild(fab);
     floatingReportButtons = [fab];
+  } else {
+    /*
+     * Reparent every existing FAB to <body>: ancestors inside the main
+     * column may create containing blocks (transform/filter/contain) that
+     * trap `position: fixed`, anchoring the FAB to the column edge instead
+     * of the viewport. Drop duplicates: keep the first, remove the rest.
+     */
+    const primary = floatingReportButtons[0];
+    upgradeReportBugFab(primary);
+    if (primary.parentElement !== document.body) {
+      document.body.appendChild(primary);
+    }
+    for (let i = 1; i < floatingReportButtons.length; i += 1) {
+      floatingReportButtons[i].remove();
+    }
+    floatingReportButtons = [primary];
   }
 
   const triggers = Array.from(document.querySelectorAll("[data-feedback-open]"));
@@ -2523,11 +2570,7 @@ function injectDocsFeedbackCard() {
   });
 
   floatingReportButtons.forEach((button) => {
-    window.setTimeout(() => {
-      if (document.body.contains(button)) {
-        button.classList.add("docs-report-bug-fab--visible");
-      }
-    }, 5000);
+    button.classList.add("docs-report-bug-fab--visible");
   });
   main.dataset.docsFeedbackMounted = "1";
 }
@@ -2888,7 +2931,7 @@ function initBackToTopButton() {
   btn.innerHTML = `
     <span class="docs-back-to-top__progress-ring" aria-hidden="true"></span>
     <span class="docs-back-to-top__rocket-wrap" aria-hidden="true">
-      <svg class="docs-back-to-top__rocket" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="docs-back-to-top__rocket" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3c3.4 1.9 5.5 5.5 5.5 9.3v1.1L12 19l-5.5-5.6v-1.1C6.5 8.5 8.6 4.9 12 3z"/>
         <path d="M12 8.2a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2z"/>
         <path d="M9.3 16.6l-1.8 3.1M14.7 16.6l1.8 3.1"/>

@@ -23,27 +23,11 @@
   const INTERNAL_SIDEBAR_DRAWER_OPEN_STORAGE_KEY = "docs.internal.sidebar.drawer.open";
   const PHONE_MAX_WIDTH = 760;
   const DRAWER_MAX_WIDTH = 1024;
-  const DRAWER_TOP_NAV_SECTIONS = [
-    {
-      title: "Project",
-      kind: "internal",
-      links: [
-        { label: "Home", path: "index.html" },
-        { label: "Internal docs", path: "internal/README.html" },
-        { label: "QA checklists", path: "qa/README.html" },
-        { label: "Assessments", path: "audit/README.html" },
-        { label: "Backlog", path: "backlog/README.html" },
-      ],
-    },
-    {
-      title: "Code",
-      kind: "public",
-      links: [
-        { label: "OpenAPI / Swagger UI", path: "openapi/index.html" },
-        { label: "Python API (pdoc)", path: "pdoc/index.html" },
-      ],
-    },
-  ];
+  /* The drawer used to render two extra link sections (Project + Code) above
+     the sidebar tree. Removed on user request — the sidebar tree is the single
+     navigation surface inside the drawer. The wordmark in the top-nav still
+     links to Home; OpenAPI / Python docs are reachable from the home page and
+     from in-page references. */
 
   function readSidebarCollapsedPreference() {
     try {
@@ -118,36 +102,6 @@
       applyCollapsedState(isCollapsed);
       persistSidebarCollapsedPreference(isCollapsed);
     });
-  }
-
-  function buildDrawerTopSections(fromDir, currentPath) {
-    const wrap = document.createElement("div");
-    wrap.className = "internal-layout__drawer-sections";
-    for (const section of DRAWER_TOP_NAV_SECTIONS) {
-      const block = document.createElement("section");
-      block.className = `internal-layout__drawer-section internal-layout__drawer-section--${section.kind}`;
-
-      const title = document.createElement("p");
-      title.className = "internal-layout__drawer-section-title";
-      title.textContent = section.title;
-      block.appendChild(title);
-
-      const links = document.createElement("div");
-      links.className = "internal-layout__drawer-section-links";
-      for (const item of section.links) {
-        const a = document.createElement("a");
-        a.href = relHref(fromDir, item.path);
-        a.textContent = item.label;
-        if (pathMatchesSection(currentPath, item.path)) {
-          a.classList.add("is-active");
-          a.setAttribute("aria-current", "page");
-        }
-        links.appendChild(a);
-      }
-      block.appendChild(links);
-      wrap.appendChild(block);
-    }
-    return wrap;
   }
 
   function ensureDrawerInteractions(sidebar, shell, fromDir, currentPath) {
@@ -226,7 +180,7 @@
         return;
       }
       const navClone = sourceNav.cloneNode(true);
-      drawerBody.replaceChildren(buildDrawerTopSections(fromDir, currentPath), navClone);
+      drawerBody.replaceChildren(navClone);
     }
 
     function applyDrawerState(nextOpen, shouldPersist) {

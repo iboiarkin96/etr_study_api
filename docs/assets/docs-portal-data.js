@@ -388,6 +388,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Docs frontend: popup and overlay system"
       },
       {
+        "path": "internal/front/docs-frontend-report-bug-fab.html",
+        "title": "Docs frontend report-bug FAB"
+      },
+      {
         "path": "internal/front/docs-frontend-resume-and-back-to-top.html",
         "title": "Docs frontend resume reading and back-to-top"
       },
