@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OpenAPI 4xx validation-error descriptions:** new module [`app/openapi/validation_error_openapi.py`](app/openapi/validation_error_openapi.py) enriches `400` / `422` response descriptions on every operation in the generated OpenAPI schema. Wired into `custom_openapi()` in [`app/main.py`](app/main.py) alongside the existing request-id enricher; baseline regenerated under [`docs/openapi/openapi-baseline.json`](docs/openapi/openapi-baseline.json). Closes audit finding `sev-2-oas-descriptions` from the 2026-04-14 REST-API assessment. Details: [`docs/CHANGELOG.md`](docs/CHANGELOG.md#2026-05-08).
+- **`no-artifact-files` pre-commit hook:** [`scripts/check_no_artifact_files.sh`](scripts/check_no_artifact_files.sh) refuses to stage local CI / runtime artifacts (`.coverage`, `*.db`, `PR_BODY.md`, `changelog-llm-draft.md`); wired into [`.pre-commit-config.yaml`](.pre-commit-config.yaml) as `id: no-artifact-files` (`always_run: true`, `stages: [pre-commit]`). Closes the SEV-3 repository-hygiene finding from the 2026-05-07 portal bug audit.
 - **Employee portal:** profile for **Kirill Neustroev** (DevOps) under `docs/internal/portal/people/kirill-neustroev/`; his person id is included in `data-maintainer-ids` on the internal error catalog page (`docs/internal/api/errors.html`).
 
 

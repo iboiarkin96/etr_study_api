@@ -116,6 +116,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "ADR 0027: High-relevance client-side docs search (inverted index, IDF, and ranking boosts)"
       },
       {
+        "path": "adr/0028-monorepo-with-service-boundaries.html",
+        "title": "ADR 0028: Monorepo with service boundaries"
+      },
+      {
         "path": "adr/README.html",
         "title": "ADR Index — ETR Study API"
       },
@@ -478,6 +482,10 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "internal/front/screens/docs-screen-home-landing.html",
         "title": "Screen spec: Engineering hub home (docs/index.html)"
+      },
+      {
+        "path": "internal/front/screens/docs-screen-portal-hall-of-contributors.html",
+        "title": "Screen spec: Hall of Contributors (docs/internal/portal/people/index.html) — Study App"
       },
       {
         "path": "internal/front/screens/docs-screen-template.html",
