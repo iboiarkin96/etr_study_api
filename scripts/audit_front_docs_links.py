@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Audit `docs/internal/front/` for broken references and undocumented assets.
+"""Audit `services/portal/internal/front/` for broken references and undocumented assets.
 
 Three strict checks (any failure exits with status 1):
     1. Every `href`/`src` in every front page resolves to an existing file.
-    2. Every `path: "..."` entry in `docs/assets/internal-sidebar.js` exists on disk.
+    2. Every `path: "..."` entry in `services/frontend/portal/assets/internal-sidebar.js` exists on disk.
     3. Every filename mentioned in prose (outside `<code>`/`<pre>`/comments) exists somewhere reachable.
 
 Two informational reports (printed only with `--coverage`, never fail):
-    4. Asset coverage — how many front pages mention each `docs/assets/*.{js,css}` file.
+    4. Asset coverage — how many front pages mention each `services/frontend/portal/assets/*.{js,css}` file.
     5. Page size distribution — to spot overgrown vs thin pages.
 
 Pre-commit usage: invoke without arguments. Exit code 1 blocks the commit.
@@ -25,9 +25,9 @@ from urllib.parse import unquote
 # Resolve project root from the script's own location so this works in any checkout.
 SCRIPT = Path(__file__).resolve()
 ROOT = SCRIPT.parent.parent
-DOCS = ROOT / "docs"
+DOCS = ROOT / "services" / "portal"
 FRONT = DOCS / "internal" / "front"
-ASSETS = DOCS / "assets"
+ASSETS = ROOT / "services" / "frontend" / "portal" / "assets"
 
 HREF_RE = re.compile(r'(?:href|src)\s*=\s*"([^"]+)"', re.IGNORECASE)
 ASSET_FILE_RE = re.compile(r"[A-Za-z0-9_./-]+\.(?:js|css|html|svg|json|png|jpg|jpeg|gif|webp)")
@@ -185,7 +185,7 @@ def hr(label: str) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Audit docs/internal/front/ for broken references.",
+        description="Audit services/portal/internal/front/ for broken references.",
     )
     parser.add_argument(
         "--coverage",
@@ -266,7 +266,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.coverage:
         print()
-        hr("4. ASSET COVERAGE — docs/assets/*.{js,css} mentions in front docs")
+        hr("4. ASSET COVERAGE — services/frontend/portal/assets/*.{js,css} mentions in front docs")
         cov = asset_coverage()
         print(f"\n  {'asset':<38} {'size':>8} {'mentions':>9} {'pages':>6}")
         print(f"  {'-' * 38} {'-' * 8} {'-' * 9} {'-' * 6}")

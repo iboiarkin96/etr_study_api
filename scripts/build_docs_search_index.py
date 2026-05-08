@@ -1,6 +1,6 @@
 """Build an inverted client-side search index for docs HTML pages.
 
-The script scans ``docs/**/*.html`` and writes ``docs/assets/search-index.json``.
+The script scans ``services/portal/**/*.html`` and writes ``services/frontend/portal/assets/search-index.json``.
 The artifact contains:
     - docs metadata (title, url, section, preview)
     - an inverted index with per-field term frequencies
@@ -18,8 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS_DIR = ROOT / "docs"
-OUTPUT_PATH = DOCS_DIR / "assets" / "search-index.json"
+DOCS_DIR = ROOT / "services" / "portal"
+OUTPUT_PATH = ROOT / "services" / "frontend" / "portal" / "assets" / "search-index.json"
 MAX_CONTENT_CHARS = 3200
 PREVIEW_CHARS = 240
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
@@ -162,14 +162,14 @@ def _iter_docs_html() -> list[Path]:
     """
     try:
         output = subprocess.check_output(
-            ["git", "ls-files", "-z", "--", "docs"],
+            ["git", "ls-files", "-z", "--", "services/portal"],
             cwd=ROOT,
             stderr=subprocess.DEVNULL,
         )
         tracked = {ROOT / rel for rel in output.decode().split("\0") if rel.endswith(".html")}
     except (OSError, subprocess.CalledProcessError):
         tracked = None
-    # `docs/assets/` is intentionally excluded: it holds component fragments
+    # `services/frontend/portal/assets/` is intentionally excluded: it holds component fragments
     # (e.g. audit-score-legend-fragment.html) that are stitched into other pages,
     # not standalone documents — surfacing them in search would land users on a
     # decontextualized partial.
@@ -184,7 +184,7 @@ def _build_index_doc(path: Path) -> IndexedDoc:
     """Build one indexed document from an HTML page.
 
     Args:
-        path: Absolute file path under ``docs/``.
+        path: Absolute file path under ``services/portal/``.
 
     Returns:
         Indexed metadata with per-field term frequencies.
@@ -305,7 +305,7 @@ def main() -> None:
         "--output",
         type=Path,
         default=OUTPUT_PATH,
-        help="Output path for search-index.json (default: docs/assets/search-index.json).",
+        help="Output path for search-index.json (default: services/frontend/portal/assets/search-index.json).",
     )
     args = parser.parse_args()
     output = args.output if args.output.is_absolute() else (ROOT / args.output)

@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ROOT / "docs"
+DOCS = ROOT / "services" / "frontend" / "portal"
 
 PROFILE_PATH = "internal/portal/people/ivan-boyarkin/index.html"
 

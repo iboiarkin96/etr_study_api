@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Auto-generate the docs frontend token gallery page.
 
-Parses CSS custom properties (--vars) from `docs/assets/docs.css`
-(light) and `docs/assets/docs-theme.css` (dark) and renders an HTML
+Parses CSS custom properties (--vars) from `services/frontend/portal/assets/docs.css`
+(light) and `services/frontend/portal/assets/docs-theme.css` (dark) and renders an HTML
 reference page with side-by-side light/dark swatches grouped by family.
 
-Output: `docs/internal/front/docs-frontend-token-gallery.html`.
+Output: `services/portal/internal/front/docs-frontend-token-gallery.html`.
 
 Run from project root:
     python3 scripts/generate_token_gallery.py
@@ -19,8 +19,8 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).resolve()
 ROOT = SCRIPT.parent.parent
-DOCS_ASSETS = ROOT / "docs" / "assets"
-OUT_PATH = ROOT / "docs" / "internal" / "front" / "docs-frontend-token-gallery.html"
+DOCS_ASSETS = ROOT / "services" / "portal" / "assets"
+OUT_PATH = ROOT / "services" / "portal" / "internal" / "front" / "docs-frontend-token-gallery.html"
 
 LIGHT_CSS = DOCS_ASSETS / "docs.css"
 DARK_CSS = DOCS_ASSETS / "docs-theme.css"
@@ -189,7 +189,7 @@ def render() -> str:
         f"          <p>\n"
         f"            Visual lookup for every CSS custom property defined in the docs portal. {rows_count} tokens across\n"
         f"            {len(families)} families, with light and dark values side-by-side. Auto-generated from\n"
-        "            <code>docs/assets/docs.css</code> (light) and <code>docs/assets/docs-theme.css</code> (dark) by\n"
+        "            <code>services/frontend/portal/assets/docs.css</code> (light) and <code>services/frontend/portal/assets/docs-theme.css</code> (dark) by\n"
         "            <code>scripts/generate_token_gallery.py</code> — do not edit this page by hand. Re-run the script\n"
         "            when tokens are added or renamed.\n"
         "          </p>\n"

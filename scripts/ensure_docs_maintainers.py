@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS_ROOT = ROOT / "docs"
+DOCS_ROOT = ROOT / "services" / "portal"
 DEFAULT_MAINTAINER_ID = "16fc8b78537109162984a2fdbef6e142"
 FROZEN_DOCS_REL_PATHS = {
     Path("internal/portal/people/ivan-boyarkin/sa-growth.html"),
@@ -26,11 +26,11 @@ def iter_docs_pages(candidates: list[str] | None = None) -> list[Path]:
 
     Args:
         candidates: Optional file list (e.g. from pre-commit). If omitted,
-            scans all ``docs/**/*.html`` files.
+            scans all ``services/portal/**/*.html`` files.
 
     Returns:
-        Sorted list of files under ``docs/`` excluding ``docs/pdoc`` and
-        ``docs/assets``.
+        Sorted list of files under ``services/portal/`` excluding ``services/portal/internal/catalog/api/code-reference`` and
+        ``services/frontend/portal/assets``.
     """
     if candidates:
         raw_paths = sorted({Path(item).resolve() for item in candidates})
@@ -45,6 +45,13 @@ def iter_docs_pages(candidates: list[str] | None = None) -> list[Path]:
             continue
         rel = path.relative_to(DOCS_ROOT)
         if rel.parts and rel.parts[0] in {"pdoc", "assets"}:
+            continue
+        if len(rel.parts) >= 4 and rel.parts[0:4] == (
+            "internal",
+            "catalog",
+            "api",
+            "code-reference",
+        ):
             continue
         if rel in FROZEN_DOCS_REL_PATHS:
             continue

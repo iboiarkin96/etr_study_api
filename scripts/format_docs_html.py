@@ -7,7 +7,8 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS_ROOT = ROOT / "docs"
+DOCS_ROOT = ROOT / "services" / "portal"
+ASSETS_ROOT = ROOT / "services" / "frontend" / "portal"
 FROZEN_DOCS_REL_PATHS = {
     Path("internal/portal/people/ivan-boyarkin/sa-growth.html"),
     Path("internal/portal/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
@@ -60,13 +61,13 @@ def _normalize_stylesheet(text: str, current_file: Path) -> str:
 
     Args:
         text: Full HTML document text.
-        current_file: Path to the file (for relative href to :data:`DOCS_ROOT`).
+        current_file: Path to the file (for relative href to :data:`ASSETS_ROOT`).
 
     Returns:
         Updated HTML string.
     """
     normalized = STYLE_BLOCK_RE.sub("\n", text)
-    href = _rel_href(current_file, DOCS_ROOT / "assets" / "docs.css")
+    href = _rel_href(current_file, ASSETS_ROOT / "assets" / "docs.css")
     link_line = f'  <link rel="stylesheet" href="{href}" />'
     if STYLESHEET_TAG_RE.search(normalized):
         normalized = STYLESHEET_TAG_RE.sub(f"{link_line}\n", normalized, count=1)
@@ -97,7 +98,7 @@ def _normalize_nav_script(text: str, current_file: Path) -> str:
     Returns:
         Updated HTML.
     """
-    script_src = _rel_href(current_file, DOCS_ROOT / "assets" / "docs-nav.js")
+    script_src = _rel_href(current_file, ASSETS_ROOT / "assets" / "docs-nav.js")
     script_line = f'  <script defer src="{script_src}"></script>'
     if NAV_SCRIPT_TAG_RE.search(text):
         return NAV_SCRIPT_TAG_RE.sub(f"{script_line}\n", text, count=1)
@@ -246,7 +247,7 @@ def format_html_file(path: Path) -> bool:
 
 
 def main() -> None:
-    """Walk all ``docs/**/*.html`` (except ``docs/backlog/**`` and ``docs/pdoc/**``) and normalize in place.
+    """Walk all ``services/portal/**/*.html`` (except ``services/portal/internal/governance/backlog/**`` and ``services/portal/internal/catalog/api/code-reference/**``) and normalize in place.
 
     Prints the count of updated files.
     """
@@ -258,6 +259,13 @@ def main() -> None:
             continue
         # pdoc output for `make api-docs`; keep generator-owned HTML untouched.
         if rel.parts and rel.parts[0] == "pdoc":
+            continue
+        if len(rel.parts) >= 4 and rel.parts[0:4] == (
+            "internal",
+            "catalog",
+            "api",
+            "code-reference",
+        ):
             continue
         if rel in FROZEN_DOCS_REL_PATHS:
             continue

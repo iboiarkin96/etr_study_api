@@ -9,8 +9,9 @@ from pathlib import Path
 import html5lib
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS_ROOT = ROOT / "docs"
-DOCS_CSS = DOCS_ROOT / "assets" / "docs.css"
+DOCS_ROOT = ROOT / "services" / "portal"
+ASSETS_ROOT = ROOT / "services" / "frontend" / "portal"
+DOCS_CSS = ASSETS_ROOT / "assets" / "docs.css"
 FROZEN_DOCS_REL_PATHS = {
     Path("internal/portal/people/ivan-boyarkin/sa-growth.html"),
     Path("internal/portal/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
@@ -31,7 +32,7 @@ def _tracked_html_paths() -> set[Path] | None:
     """
     try:
         output = subprocess.check_output(
-            ["git", "ls-files", "-z", "--", "docs"],
+            ["git", "ls-files", "-z", "--", "services/portal"],
             cwd=ROOT,
             stderr=subprocess.DEVNULL,
         )

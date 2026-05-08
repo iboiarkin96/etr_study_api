@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Handle idempotency — ETR Study API</title>
+  <link rel="stylesheet" href="../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../frontend/portal/assets/public-layout.css">
+  <script defer src="../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../frontend/portal/assets/public-sidebar.js"></script>
+  <script defer src="../../../frontend/portal/assets/docs-syntax.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="public-layout" data-audience="public" data-doc-type="how-to" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="public-layout__shell">
+    <aside class="public-layout__sidebar" aria-label="Documentation navigation">
+      <div id="public-sidebar-mount"></div>
+    </aside>
+    <div class="public-layout__main">
+
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">Handle idempotency</h1>
+
+        <section class="card">
+          <h2>Why it matters</h2>
+          <p>Network failures and timeouts make it unsafe to retry a write blindly — you can end up creating two users for one request. The Study API uses an <code>Idempotency-Key</code> contract so a retried <code>POST</code> returns the original outcome instead of duplicating work.</p>
+        </section>
+
+        <section class="card">
+          <h2>The recipe</h2>
+          <ol>
+            <li>Generate a unique key per <em>logical</em> operation (UUID v4 is fine).</li>
+            <li>Send the same key on the original request and on every retry of the same request.</li>
+            <li>Send a fresh key when the operation is genuinely new.</li>
+            <li>Store the key locally with the request payload until you receive a definitive response.</li>
+          </ol>
+          <pre><code class="language-bash">KEY=$(uuidgen)
+            curl -X POST "$BASE_URL/api/v1/user" \
+            -H "X-API-Key: $API_KEY" \
+            -H "Idempotency-Key: $KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"system_user_id":"42","system_uuid":"b2c3…","full_name":"Ivan"}'</code></pre>
+            <p>If you retry the same call within the TTL window, the server replies with the original <code>201</code> and original response body — no duplicate row, no extra side effect.</p>
+          </section>
+
+          <section class="card">
+            <h2>The contract</h2>
+            <ul>
+              <li><strong>Header:</strong> <code>Idempotency-Key</code>. Required on every <code>POST</code> under <code>/api/v1</code>.</li>
+              <li><strong>Key composition:</strong> a string ≤ 64 characters; UUID v4 strongly recommended. Free-form is permitted but the namespace is per-route, so keep keys globally unique to be safe across endpoints.</li>
+              <li><strong>Replay:</strong> the <em>original</em> response (status + body) is returned. The server compares the SHA-256 of the canonicalised request body to detect mismatches.</li>
+              <li><strong>TTL:</strong> 24 hours. After that, the same key may be reused with different payloads.</li>
+              <li><strong>Conflict (<code>409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD</code>, <code>COMMON_409</code>):</strong> the server has seen this key before, but the body is different — you have either reused a key by mistake or sent a non-canonical body. Generate a fresh key.</li>
+              <li><strong>Missing key (<code>400 IDEMPOTENCY_KEY_REQUIRED</code>, <code>COMMON_400</code>):</strong> writes without the header are rejected up front; there is no implicit fallback.</li>
+            </ul>
+          </section>
+
+          <section class="card">
+            <h2>What "logical operation" means</h2>
+            <p>One key per intent, not one key per HTTP call. If your code retries on transient failure (timeout, 5xx, connection reset), reuse the key. If a human user clicks "Create" twice in a UI, that is two intents — two keys. If you need to recreate the same row after a soft-delete, that too is a new intent — a new key.</p>
+          </section>
+
+          <section id="page-history" class="card">
+            <h2>Page history</h2>
+            <div class="docs-table-scroll" role="region" aria-label="Page history">
+              <table class="docs-page-history">
+                <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+                <tbody><tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Filled with the recipe, contract (header / TTL / replay / conflict), and the "logical operation" guideline.</td><td>Ivan Boyarkin</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+
+      </div><!-- /.public-layout__main -->
+    </div><!-- /.public-layout__shell -->
+
+  </body></html>

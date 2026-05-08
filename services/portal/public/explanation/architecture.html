@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture — ETR Study API</title>
+  <link rel="stylesheet" href="../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../frontend/portal/assets/public-layout.css">
+  <script defer src="../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../frontend/portal/assets/public-sidebar.js"></script>
+  <script defer src="../../../frontend/portal/assets/docs-syntax.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="public-layout" data-audience="public" data-doc-type="explanation" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="public-layout__shell">
+    <aside class="public-layout__sidebar" aria-label="Documentation navigation">
+      <div id="public-sidebar-mount"></div>
+    </aside>
+    <div class="public-layout__main">
+
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">Architecture</h1>
+
+        <section class="card">
+          <h2>One-paragraph summary</h2>
+          <p>ETR Study API is a single FastAPI service that exposes one HTTP surface (<code>/api/v1</code>), persists state to a relational store, and emits structured logs and Prometheus metrics. The repository is a monorepo with three logical services — <code>api</code> (the runtime), <code>portal</code> (this documentation site), and <code>monitoring</code> (Prometheus / Grafana / optional Elasticsearch + Kibana). Each ships as an independent image with a service-rooted layout under <code>services/</code>.</p>
+        </section>
+
+        <section class="card">
+          <h2>Container view (C4 level 2)</h2>
+          <p>Diagrams follow the C4 model expressed in PlantUML. Three views are maintained: system context, container, and component.</p>
+          <ul>
+            <li><strong>API service</strong> — FastAPI on Uvicorn; all business logic, validation, idempotency, error formatting.</li>
+            <li><strong>Persistence</strong> — SQLite by default (file in repo for local dev; ephemeral in containers). The schema is portable to PostgreSQL with no business-logic change.</li>
+            <li><strong>Observability</strong> — structured JSON logs, Prometheus metrics, and <code>/live</code> / <code>/ready</code> health endpoints.</li>
+            <li><strong>Portal</strong> — static HTML/CSS/JS; this site, served by any static host. No runtime coupling to the API.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>Request lifecycle (one HTTP call)</h2>
+          <ol>
+            <li>Client sends <code>POST /api/v1/user</code> with <code>X-API-Key</code> + <code>Idempotency-Key</code>.</li>
+            <li>Middleware verifies the key, attaches a server-issued <code>request_id</code>, applies rate-limit budget.</li>
+            <li>FastAPI parses the body against the Pydantic schema; failures return <code>422</code> with stable codes.</li>
+            <li>The route handler calls a service-layer function that resolves the idempotency key, executes the write inside a transaction, and emits a structured log + metric on completion.</li>
+            <li>A response body matching the OpenAPI schema is serialised; a stable error envelope is used on every non-2xx (see <a href="../reference/errors/index.html">error catalogue</a>).</li>
+          </ol>
+        </section>
+
+        <section class="card">
+          <h2>What stays internal</h2>
+          <p>Some surfaces are not part of the public contract and may change without notice: internal database column names (vs. response field names), structured-log field shapes, Prometheus metric names, the on-disk file layout, and any container-internal port other than <code>API_PORT</code>. Integrators interact only with the OpenAPI surface.</p>
+        </section>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+              <tbody><tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Filled with one-paragraph summary, container-view bullets, request lifecycle, and "what stays internal" boundary.</td><td>Ivan Boyarkin</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+    </div><!-- /.public-layout__main -->
+  </div><!-- /.public-layout__shell -->
+
+</body></html>

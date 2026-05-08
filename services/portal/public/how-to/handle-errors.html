@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Handle errors — ETR Study API</title>
+  <link rel="stylesheet" href="../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../frontend/portal/assets/public-layout.css">
+  <script defer src="../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../frontend/portal/assets/public-sidebar.js"></script>
+  <script defer src="../../../frontend/portal/assets/docs-syntax.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="public-layout" data-audience="public" data-doc-type="how-to" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="public-layout__shell">
+    <aside class="public-layout__sidebar" aria-label="Documentation navigation">
+      <div id="public-sidebar-mount"></div>
+    </aside>
+    <div class="public-layout__main">
+
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">Handle errors</h1>
+
+        <section class="card">
+          <h2>The error envelope</h2>
+          <p>Every non-2xx response uses one shape, regardless of which endpoint failed. Switch on <code>code</code> — never on <code>detail</code> (the human message can change between releases).</p>
+          <pre><code class="language-json">{
+            "type": "about:blank",
+            "title": "Validation failed",
+            "status": 422,
+            "code": "USER_CREATE_FULL_NAME_REQUIRED",
+            "detail": "Field `full_name` is required.",
+            "request_id": "01HE…",
+            "errors": [
+            {"field": "full_name", "code": "USER_CREATE_FULL_NAME_REQUIRED", "message": "Field is required"}
+            ]
+            }</code></pre>
+            <p>Fields:</p>
+            <ul>
+              <li><code>status</code> — HTTP status; matches the response status line.</li>
+              <li><code>code</code> — stable string identifier (e.g. <code>USER_CREATE_FULL_NAME_REQUIRED</code>). Switch on this in client code.</li>
+              <li><code>detail</code> — human-readable, English-only, may change phrasing across releases.</li>
+              <li><code>request_id</code> — server-issued correlation id; always present, always include in support tickets.</li>
+              <li><code>errors[]</code> — only on <code>422</code> validation responses; one entry per failed field.</li>
+            </ul>
+          </section>
+
+          <section class="card">
+            <h2>What to do per status class</h2>
+            <div class="docs-table-scroll" role="region" aria-label="Status class actions">
+              <table>
+                <thead><tr><th>Status</th><th>Class</th><th>Retry?</th><th>What client does</th></tr></thead>
+                <tbody>
+                  <tr><td><code>400</code></td><td>Bad request — missing header / framing</td><td>No</td><td>Fix the request; common causes: missing <code>Idempotency-Key</code>.</td></tr>
+                  <tr><td><code>401</code></td><td>Auth required</td><td>No</td><td>Check the <code>X-API-Key</code> header; do not retry the same key.</td></tr>
+                  <tr><td><code>404</code></td><td>Resource not found</td><td>No</td><td>The composite key did not match; surface to user as "not found".</td></tr>
+                  <tr><td><code>409</code></td><td>Conflict (uniqueness, idempotency mismatch)</td><td>No</td><td>Treat as final; surface to user with the message from <code>code</code>.</td></tr>
+                  <tr><td><code>413</code></td><td>Payload too large</td><td>No</td><td>Trim the body or split the operation.</td></tr>
+                  <tr><td><code>422</code></td><td>Validation failed</td><td>No</td><td>Read <code>errors[]</code>; surface per-field messages.</td></tr>
+                  <tr><td><code>429</code></td><td>Rate limit exceeded</td><td>Yes, backoff</td><td>Honor <code>Retry-After</code> when present; exponential backoff otherwise.</td></tr>
+                  <tr><td><code>5xx</code></td><td>Server-side</td><td>Yes, with <code>Idempotency-Key</code></td><td>Retry the original request with the same idempotency key (max ~3 attempts, exponential backoff).</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>Retry pseudocode</h2>
+            <pre><code class="language-python">import uuid, time, random, requests
+              key = str(uuid.uuid4())
+              for attempt in range(3):
+              r = requests.post(
+              f"{base_url}/api/v1/user",
+              headers={"X-API-Key": api_key, "Idempotency-Key": key},
+              json=payload,
+              )
+              if r.status_code &lt; 500 and r.status_code != 429:
+              break
+              time.sleep((2 ** attempt) + random.random())
+              return r</code></pre>
+              <p>Always retry with the <em>same</em> <code>Idempotency-Key</code> so a partially-applied first attempt does not create a duplicate. See <a href="handle-idempotency.html">handle idempotency</a>.</p>
+            </section>
+
+            <section class="card">
+              <h2>Where to look up codes</h2>
+              <ul>
+                <li><a href="../reference/errors/index.html">Error catalogue</a> — every code, what it means, what to do.</li>
+                <li><a href="../reference/api/index.html">OpenAPI explorer</a> — per-endpoint examples for each error response.</li>
+              </ul>
+            </section>
+
+            <section id="page-history" class="card">
+              <h2>Page history</h2>
+              <div class="docs-table-scroll" role="region" aria-label="Page history">
+                <table class="docs-page-history">
+                  <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+                  <tbody><tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Filled with the envelope shape, status-class action table, and a retry pseudocode example.</td><td>Ivan Boyarkin</td></tr></tbody>
+                </table>
+              </div>
+            </section>
+          </main>
+
+        </div><!-- /.public-layout__main -->
+      </div><!-- /.public-layout__shell -->
+
+    </body></html>

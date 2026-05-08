@@ -1,8 +1,8 @@
 """Validate design-consistency baseline for docs HTML pages.
 
 This check enforces the shared page skeleton from
-``docs/internal/front/_shared/style-guide.html`` for non-generated docs pages.
-Generated Python API HTML under ``docs/pdoc/`` is skipped (same as legacy ``docs/api/`` output).
+``services/portal/internal/front/_shared/style-guide.html`` for non-generated docs pages.
+Generated Python API HTML under ``services/portal/internal/catalog/api/code-reference/`` is skipped (same as legacy ``services/portal/api/`` output).
 It is intentionally lightweight: fail only on clear structural regressions.
 """
 
@@ -14,7 +14,7 @@ from pathlib import Path
 import html5lib
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS_ROOT = ROOT / "docs"
+DOCS_ROOT = ROOT / "services" / "portal"
 FROZEN_DOCS_REL_PATHS = {
     Path("internal/portal/people/ivan-boyarkin/sa-growth.html"),
     # Standalone week backlog calendar (custom layout, not portal doc skeleton).
@@ -42,6 +42,14 @@ def _iter_docs_pages(candidates: list[str] | None = None) -> list[Path]:
             continue
         rel = path.relative_to(DOCS_ROOT)
         if rel.parts and rel.parts[0] in {"api", "assets", "pdoc"}:
+            continue
+        # Generated pdoc tree under internal/catalog/api/code-reference/ is opaque.
+        if len(rel.parts) >= 4 and rel.parts[0:4] == (
+            "internal",
+            "catalog",
+            "api",
+            "code-reference",
+        ):
             continue
         if rel in FROZEN_DOCS_REL_PATHS:
             continue
@@ -196,7 +204,7 @@ def main() -> None:
                 failures.append(
                     f"{rel}: missing Page history section "
                     f'(<section id="page-history"> or assessment <section> with id="5-page-history"); '
-                    f"see docs/internal/front/_shared/style-guide.html#page-history"
+                    f"see services/portal/internal/front/_shared/style-guide.html#page-history"
                 )
             if not _has_body_maintainers(doc):
                 failures.append(

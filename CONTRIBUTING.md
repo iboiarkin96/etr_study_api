@@ -9,30 +9,30 @@
 ## Dead code and unused imports
 
 - **Ruff** (via **`make lint-check`** / pre-commit): unused imports (**F401**) and bad **`noqa`** markers (**RUF100**). Fix with **`make lint-fix`**.
-- **Vulture** (optional): **`make dead-code-check`** scans for unused code using **`[tool.vulture]`** in `pyproject.toml`. It is **not** part of `verify` because it can report false positives for dynamic code. Review each finding; remove code only when tests or clear evidence support it. A **weekly** GitHub Actions job also runs this scan (see [ADR 0014](docs/adr/0014-dead-code-analysis-and-repository-hygiene.html)).
+- **Vulture** (optional): **`make dead-code-check`** scans for unused code using **`[tool.vulture]`** in `pyproject.toml`. It is **not** part of `verify` because it can report false positives for dynamic code. Review each finding; remove code only when tests or clear evidence support it. A **weekly** GitHub Actions job also runs this scan (see [ADR 0014](services/portal/internal/governance/adr/0014-dead-code-analysis-and-repository-hygiene.html)).
 
 ## Documentation
 
-- Documentation matters a lot in this project. Workflow overview: [docs-pipeline.html](docs/developer/0008-docs-pipeline.html). Why docs live in git: [ADR 0001](docs/adr/0001-docs-as-code.html).
-- **GitHub Pages** (branch → `/docs`): the `docs/` folder is the **site root**, so URLs look like `https://<user>.github.io/<repo>/<file>.html`.
-- After you change routes, Makefile help, env templates, PlantUML, or HTML under `docs/`, run **`make docs-fix`** and commit so CI stays green.
+- Documentation matters a lot in this project. Workflow overview: [docs-pipeline.html](services/portal/internal/handbook/developer/0008-docs-pipeline.html). Why docs live in git: [ADR 0001](services/portal/internal/governance/adr/0001-docs-as-code.html).
+- **GitHub Pages** (branch → `/docs`): the `services/portal/` folder is the **site root**, so URLs look like `https://<user>.github.io/<repo>/<file>.html`.
+- After you change routes, Makefile help, env templates, PlantUML, or HTML under `services/portal/`, run **`make docs-fix`** and commit so CI stays green.
 - Use **Python 3.11** for the project virtualenv (see **`.python-version`**, same as [`.github/workflows/ci.yml`](.github/workflows/ci.yml)) so `docs-fix` / `docs-check` match GitHub Actions; a venv built with another minor version can still fail the drift step on HTML/pdoc output.
-- **`docs-check`** fails if the docs pipeline would change any file compared to `HEAD` — your branch must already contain everything `docs-fix` would write for **non-pdoc** paths. After `docs-fix`, the check restores **`docs/pdoc/`** from `HEAD` (pdoc output varies by OS / run) and rebuilds **`docs/assets/search-index.json`** so the index matches that tree; commit the pdoc tree you want as the API reference snapshot.
-- Docs-only history: [docs/CHANGELOG.md](docs/CHANGELOG.md). ADR lifecycle and GitHub Issue flow: [ADR 0018](docs/adr/0018-adr-lifecycle-ratification-and-badges.html).
+- **`docs-check`** fails if the docs pipeline would change any file compared to `HEAD` — your branch must already contain everything `docs-fix` would write for **non-pdoc** paths. After `docs-fix`, the check restores **`services/portal/internal/catalog/api/code-reference/`** from `HEAD` (pdoc output varies by OS / run) and rebuilds **`services/frontend/portal/assets/search-index.json`** so the index matches that tree; commit the pdoc tree you want as the API reference snapshot.
+- Docs-only history: [services/portal/CHANGELOG.md](services/portal/CHANGELOG.md). ADR lifecycle and GitHub Issue flow: [ADR 0018](services/portal/internal/governance/adr/0018-adr-lifecycle-ratification-and-badges.html).
 
 ## Container image
 
-- **Optional for daily work** — features use **`make run`** and tests; Docker is for packaging and “like production” runs. See the root **README** (*Container image*) and [0009-docker-image-and-container.html](docs/developer/0009-docker-image-and-container.html) for `docker build` and `docker run` notes.
+- **Optional for daily work** — features use **`make run`** and tests; Docker is for packaging and “like production” runs. See the root **README** (*Container image*) and [0009-docker-image-and-container.html](services/portal/internal/handbook/developer/0009-docker-image-and-container.html) for `docker build` and `docker run` notes.
 - For **`qa`** / **`prod`**-style runs, supply API keys and stricter settings via environment variables or your deployment platform’s secret mechanism — see **`env/example`** and **`app/core/config.py`**.
 - **`scripts/container_entrypoint.sh`** is the container entrypoint logic (migrate + Uvicorn, no `--reload`). The image does not run **`make`**; there is no `.venv` inside the container.
 
 ## OpenAPI
 
-- When you change the API on purpose: update the baseline with **`make openapi-accept-changes`** after review, then commit `docs/openapi/openapi-baseline.json` (and code) so **`make openapi-check`** and **`make contract-test`** pass.
+- When you change the API on purpose: update the baseline with **`make openapi-accept-changes`** after review, then commit `services/portal/public/reference/api/openapi-baseline.json` (and code) so **`make openapi-check`** and **`make contract-test`** pass.
 
 ## Branches and repository workflow
 
-- Branch names (`feature/…`, `fix/…`, `docs/…`), `main`, tags `v*.*.*`, hotfixes: [ADR 0017](docs/adr/0017-branch-naming-and-repository-workflow.html).
+- Branch names (`feature/…`, `fix/…`, `services/portal/…`), `main`, tags `v*.*.*`, hotfixes: [ADR 0017](services/portal/internal/governance/adr/0017-branch-naming-and-repository-workflow.html).
 - PR body automation:
   - Keep a local root file `PR_BODY.md` (gitignored). Template source is `.github/PULL_REQUEST_TEMPLATE.md`.
   - On `pre-commit` (non-`main` / non-`master` branches), hook `scripts/check_pr_body.sh` requires `PR_BODY.md` to exist, be non-empty, and have exactly one selected change type (`delivery` / `docs-only` / `mixed`).
@@ -50,16 +50,16 @@
 
 ## Architecture decisions (ADRs)
 
-- **Starting work:** open an Issue from [`.github/ISSUE_TEMPLATE/adr_discussion.md`](.github/ISSUE_TEMPLATE/adr_discussion.md) with a title starting with **`[ADR]`** (see [ADR 0018](docs/adr/0018-adr-lifecycle-ratification-and-badges.html)). That Issue is the discussion record; labels are optional.
-- **Publishing:** copy [ADR 0000](docs/adr/0000-template.html), pick the next number, add a row to [docs/adr/README.html](docs/adr/README.html), set `data-adr-weight` on `<main>`, and fill **Ratification** (Issue + merge PR + date) when you merge.
-- Add a bullet under `[Unreleased]` in [docs/CHANGELOG.md](docs/CHANGELOG.md) when the change is visible to documentation readers.
+- **Starting work:** open an Issue from [`.github/ISSUE_TEMPLATE/adr_discussion.md`](.github/ISSUE_TEMPLATE/adr_discussion.md) with a title starting with **`[ADR]`** (see [ADR 0018](services/portal/internal/governance/adr/0018-adr-lifecycle-ratification-and-badges.html)). That Issue is the discussion record; labels are optional.
+- **Publishing:** copy [ADR 0000](services/portal/internal/governance/adr/0000-template.html), pick the next number, add a row to [services/portal/internal/governance/adr/index.html](services/portal/internal/governance/adr/index.html), set `data-adr-weight` on `<main>`, and fill **Ratification** (Issue + merge PR + date) when you merge.
+- Add a bullet under `[Unreleased]` in [services/portal/CHANGELOG.md](services/portal/CHANGELOG.md) when the change is visible to documentation readers.
 
 ## Changelog
 
-- If your change affects users (anything in `app/`, `docs/openapi/`, or the main `README.md`), add an entry under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md) in the same PR.
+- If your change affects users (anything in `app/`, `services/portal/public/reference/api/`, or the main `README.md`), add an entry under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md) in the same PR.
 - Add a new `[x.y.z]` section only when you ship a release.
 - Do not add several version sections for the same unreleased work, and do not update the changelog more than once per day.
-- For small or internal-only changes, you can skip the changelog by putting **`[skip changelog]`** or **`skip-changelog`** in the PR title or commit message. Details: [ADR 0013](docs/adr/0013-changelog-and-release-notes.html).
-- **LLM draft (optional):** run `python scripts/changelog_draft.py` to write `changelog-llm-draft.md` (gitignored), then copy bullets into `CHANGELOG.md` under `[Unreleased]`. Offline preview: `python scripts/changelog_draft.py --print-log`. More: [ADR 0013](docs/adr/0013-changelog-and-release-notes.html#llm-draft-workflow).
+- For small or internal-only changes, you can skip the changelog by putting **`[skip changelog]`** or **`skip-changelog`** in the PR title or commit message. Details: [ADR 0013](services/portal/internal/governance/adr/0013-changelog-and-release-notes.html).
+- **LLM draft (optional):** run `python scripts/changelog_draft.py` to write `changelog-llm-draft.md` (gitignored), then copy bullets into `CHANGELOG.md` under `[Unreleased]`. Offline preview: `python scripts/changelog_draft.py --print-log`. More: [ADR 0013](services/portal/internal/governance/adr/0013-changelog-and-release-notes.html#llm-draft-workflow).
 
 ## Further reading

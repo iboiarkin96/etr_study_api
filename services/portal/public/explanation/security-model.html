@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security model — ETR Study API</title>
+  <link rel="stylesheet" href="../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../frontend/portal/assets/public-layout.css">
+  <script defer src="../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../frontend/portal/assets/public-sidebar.js"></script>
+  <script defer src="../../../frontend/portal/assets/docs-syntax.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="public-layout" data-audience="public" data-doc-type="explanation" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="public-layout__shell">
+    <aside class="public-layout__sidebar" aria-label="Documentation navigation">
+      <div id="public-sidebar-mount"></div>
+    </aside>
+    <div class="public-layout__main">
+
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">Security model</h1>
+
+        <section class="card">
+          <h2>What you get out of the box</h2>
+          <p>The Study API ships with a defensive default for every category that has historically been the source of API security incidents. The defaults are normative — they are the contract, not a starting point that integrators are expected to relax.</p>
+          <ul>
+            <li><strong>Transport.</strong> HTTPS-only in any non-dev environment. The local-dev base URL is plain HTTP for convenience and is never reachable from the public internet.</li>
+            <li><strong>Authentication.</strong> Long-lived API key in the <code>X-API-Key</code> header (see <a href="../how-to/authenticate.html">how-to: authenticate</a>). Missing or wrong key returns <code>401 SECURITY_AUTH_REQUIRED</code> with no information leak.</li>
+            <li><strong>Rate limiting.</strong> Per-key budget; exceeding it returns <code>429 SECURITY_RATE_LIMIT_EXCEEDED</code> with a <code>Retry-After</code> hint when known. Rate-limit settings live under <a href="../reference/env-vars/index.html">env vars</a>.</li>
+            <li><strong>Body size cap.</strong> Hard upper bound; exceeding returns <code>413 SECURITY_REQUEST_BODY_TOO_LARGE</code>. Prevents accidental denial-of-service via oversize JSON.</li>
+            <li><strong>CORS.</strong> Disabled by default. Operators opt in to specific origins via <code>CORS_ALLOW_ORIGINS</code>; there is no <code>*</code> wildcard in production.</li>
+            <li><strong>Header redaction.</strong> Structured logs redact <code>X-API-Key</code> and similar secret headers automatically — your key never leaks via log shipping.</li>
+            <li><strong>Idempotency for writes.</strong> See <a href="../how-to/handle-idempotency.html">how-to: handle idempotency</a> — the contract that protects you from double-application during retries.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>What is your responsibility</h2>
+          <ul>
+            <li>Store the API key in a secret manager — never in source control, never in build artifacts.</li>
+            <li>Rotate proactively if you suspect leakage. There is no expiry; rotation is operator-driven.</li>
+            <li>Use distinct keys per integration / environment so logs and rate-limit metrics are attributable.</li>
+            <li>Don't log the request body or the response body for write endpoints unless you have stripped sensitive fields client-side.</li>
+            <li>Always include the server-issued <code>request_id</code> when filing a support ticket — it is the fastest way to find the matching server-side trace.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>Out of scope (today)</h2>
+          <p>Some features that mature security postures eventually need are deliberately not part of <code>v1</code>: per-call signing, IP allow-lists, mTLS, audit-log export, role-based scope tokens, request-replay detection at the network layer. Each will land — or be intentionally rejected — through its own ADR. None of this is needed to integrate today; it is listed here so a security-review checklist does not get the wrong impression about a missing feature.</p>
+        </section>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+              <tbody><tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Filled with the defaults checklist, integrator responsibilities, and an explicit "out of scope today" list.</td><td>Ivan Boyarkin</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+    </div><!-- /.public-layout__main -->
+  </div><!-- /.public-layout__shell -->
+
+</body></html>

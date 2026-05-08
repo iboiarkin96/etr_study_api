@@ -1,6 +1,6 @@
 """Insert a standard ``Page history`` section just before ``</main>`` when missing.
 
-Skips ``docs/pdoc/**``, ``docs/assets/**``, and redirect stubs. Skips pages that already have
+Skips ``services/portal/internal/catalog/api/code-reference/**``, ``services/frontend/portal/assets/**``, and redirect stubs. Skips pages that already have
 ``<section id="page-history">`` or legacy ``Document history`` / ``5-document-history`` (migrate those separately).
 
 Run: ``python scripts/ensure_docs_page_history.py``
@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ROOT / "docs"
+DOCS = ROOT / "services" / "frontend" / "portal"
 
 MAIN_CLOSE_RE = re.compile(r"^(\s*)</main>\s*$", re.MULTILINE)
 
@@ -144,7 +144,11 @@ def main() -> int:
     n = 0
     for path in sorted(DOCS.rglob("*.html")):
         rel = path.relative_to(DOCS).as_posix()
-        if rel.startswith("pdoc/") or rel.startswith("assets/"):
+        if (
+            rel.startswith("pdoc/")
+            or rel.startswith("assets/")
+            or rel.startswith("internal/catalog/api/code-reference/")
+        ):
             continue
         try:
             if process_file(path):

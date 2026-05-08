@@ -1,8 +1,8 @@
 """Structural lint for frontend documentation specs.
 
-Pages under ``docs/internal/front/`` that declare a typed ``data-spec-page`` attribute
+Pages under ``services/portal/internal/front/`` that declare a typed ``data-spec-page`` attribute
 (``component`` / ``foundation`` / ``contract``) follow the matching template under
-``docs/internal/front/_shared/``. The template marks every required section with
+``services/portal/internal/front/_shared/``. The template marks every required section with
 ``data-spec-section="<id>"`` and ``data-spec-required="true"``; this script verifies that
 each typed page carries the same section IDs, that none is empty (only ``TODO`` content),
 and that the body-level metadata is present.
@@ -30,10 +30,10 @@ from collections.abc import Iterable
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-FRONT_GLOB = "docs/internal/front/**/*.html"
+FRONT_GLOB = "services/portal/internal/front/**/*.html"
 
 # Required and optional sections per page type. Match the templates in
-# docs/internal/front/_shared/{component,foundation,contract}-spec-template.html.
+# services/portal/internal/front/_shared/{component,foundation,contract}-spec-template.html.
 SECTION_RULES: dict[str, dict[str, tuple[str, ...]]] = {
     "component": {
         "required": (
@@ -95,7 +95,7 @@ class LintError(Exception):
 
 
 def find_front_specs(repo_root: Path) -> list[Path]:
-    """Return every HTML file under ``docs/internal/front/`` recursively."""
+    """Return every HTML file under ``services/portal/internal/front/`` recursively."""
     return sorted(repo_root.glob(FRONT_GLOB))
 
 

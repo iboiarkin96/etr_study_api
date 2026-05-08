@@ -23,13 +23,13 @@ from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-UML_SRC_DIR = PROJECT_ROOT / "docs" / "uml"
-UML_OUT_DIR = PROJECT_ROOT / "docs" / "uml" / "rendered"
+UML_SRC_DIR = PROJECT_ROOT / "services" / "portal" / "internal" / "uml"
+UML_OUT_DIR = UML_SRC_DIR / "rendered"
 UML_STYLE_FILE = UML_SRC_DIR / "include" / "style.puml"
 # Committed fingerprint store: skip Kroki when merged PlantUML + output bytes match last run.
 UML_MANIFEST_PATH = UML_SRC_DIR / "input-hashes.json"
 MANIFEST_VERSION = 1
-# Vector output; layout/font size still come from skinparam in docs/uml/include/style.puml.
+# Vector output; layout/font size still come from skinparam in services/portal/internal/uml/include/style.puml.
 UML_OUTPUT_SUFFIX = ".svg"
 KROKI_URL = "https://kroki.io/plantuml/svg"
 NO_COLOR = os.getenv("NO_COLOR", "0") == "1"
@@ -61,7 +61,7 @@ def _step(message: str) -> None:
 def _merge_style(source_path: Path) -> str:
     """Return PlantUML text sent to Kroki: optional shared skin after ``@startuml``.
 
-    Kroki receives a single file; ``docs/uml/include/style.puml`` is injected so sources
+    Kroki receives a single file; ``services/portal/internal/uml/include/style.puml`` is injected so sources
     stay DRY. Use ``!NO_STYLE`` on the line after ``@startuml`` to skip injection.
 
     Args:
@@ -87,7 +87,7 @@ def _merge_style(source_path: Path) -> str:
 
 
 def _source_files() -> list[Path]:
-    """Collect every diagram ``*.puml`` under ``docs/uml``.
+    """Collect every diagram ``*.puml`` under ``services/portal/uml``.
 
     Skips ``rendered/`` outputs and ``include/`` fragments (e.g. shared ``style.puml``).
 
@@ -107,7 +107,7 @@ def _source_files() -> list[Path]:
 
 
 def _output_for(source_path: Path) -> Path:
-    """Map a ``.puml`` path to the SVG path under ``docs/uml/rendered``.
+    """Map a ``.puml`` path to the SVG path under ``services/portal/internal/uml/rendered``.
 
     Args:
         source_path: Absolute path to a PlantUML file.
@@ -116,7 +116,7 @@ def _output_for(source_path: Path) -> Path:
         Destination SVG path (sequence diagrams keep stem-only names).
     """
     rel = source_path.relative_to(UML_SRC_DIR)
-    # Keep legacy names for sequence diagrams to avoid breaking docs/internal/analysis/system-design.html.
+    # Keep legacy names for sequence diagrams to avoid breaking services/portal/internal/analysis/system-design.html.
     if rel.parts and rel.parts[0] == "sequences":
         safe_name = source_path.stem + UML_OUTPUT_SUFFIX
     else:
@@ -126,7 +126,7 @@ def _output_for(source_path: Path) -> Path:
 
 
 def _rel_key(source_path: Path) -> str:
-    """Stable posix path of ``source_path`` relative to ``docs/uml``."""
+    """Stable posix path of ``source_path`` relative to ``services/portal/uml``."""
     return source_path.relative_to(UML_SRC_DIR).as_posix()
 
 
@@ -397,7 +397,7 @@ def watch(interval_sec: float = 1.0) -> None:
     Note:
         Runs until the process is interrupted; performs an initial full render first.
     """
-    _step("Watch mode enabled: monitoring docs/uml/**/*.puml")
+    _step("Watch mode enabled: monitoring services/portal/internal/uml/**/*.puml")
     mtimes: dict[Path, float] = {}
     for src in _source_files():
         mtimes[src] = src.stat().st_mtime

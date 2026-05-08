@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0012: Testing Strategy — Automated, Contract, and Load</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <main class="container" data-adr-weight="7">
+    <h1 class="internal-h1--accent-tail">ADR 0012: Testing Strategy — Automated, Contract, and Load</h1>
+    <div id="docs-top-nav"></div>
+    <div id="docs-page-meta-mount" hidden=""></div>
+    <section class="card">
+      <h2>Ratification</h2>
+      <p>
+        Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate
+        ratification process. Git history for this file on <code>main</code> is the record.
+      </p>
+      <ul>
+        <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
+        <li>Merge PR: <em>see git history for this file</em></li>
+        <li>Accepted: <em>as merged to <code>main</code></em></li>
+      </ul>
+
+    </section>
+    <section class="card">
+      <h2>Context</h2>
+      <p>
+        <strong>Why this matters:</strong> Different tests answer different questions. Fast API tests prove correctness
+        of behavior and errors. Contract tests prove the published OpenAPI snapshot did not change by accident. Load
+        tests prove behavior under concurrency and rate limits—something unit tests cannot do—and should not run on
+        every commit if they are slow or environment-specific.
+      </p>
+      <p>
+        <a href="0002-testing-policy.html">ADR 0002</a> mandates API tests; <a href="0007-openapi-governance-and-usability-standard.html">ADR 0007</a> adds OpenAPI checks. This ADR ties
+        those layers together
+        and places optional load testing beside observability
+        (<a href="0009-health-readiness-and-observability.html">ADR 0009</a>,
+        <a href="0011-slo-sla-error-budget.html">ADR 0011</a>).
+      </p>
+
+    </section>
+    <section class="card">
+      <h2>Decision</h2>
+      <h3>Layers</h3>
+      <ol>
+        <li>
+          <strong>Automated API / integration tests (required)</strong> — <code>pytest</code> against the FastAPI app
+          (in-process <code>TestClient</code> or equivalent). Covers happy paths, validation, auth, and business errors.
+          This is the default regression net before merge.
+        </li>
+        <li>
+          <strong>Contract / OpenAPI governance (required)</strong> — <code>make openapi-check</code> and
+          <code>make contract-test</code> guard schema drift and breaking changes relative to the checked-in baseline.
+        </li>
+        <li>
+          <strong>Manual exploratory testing</strong> — allowed for UX and edge cases not worth automating; findings
+          should become tests or ADRs when behavior must stay fixed.
+        </li>
+        <li>
+          <strong>Load and traffic-shape testing (optional, not a default CI gate)</strong> — used to validate
+          latency/error mix, rate limits, and dashboards under synthetic traffic. Implemented via the repository tool
+          <code>python -m tools.load_testing.runner</code> with Python scenarios under
+          <code>tools/load_testing/scenarios/</code>. Run against local or staging instances, not as
+          a substitute for unit/API tests.
+        </li>
+      </ol>
+
+      <h3>Load testing and safety</h3>
+      <ul>
+        <li>
+          Simulating HTTP <strong>5xx</strong> against the same process for metrics requires an explicit opt-in
+          endpoint enabled only when <code>LOADTEST_HTTP_500=true</code> (see application configuration). Never enable
+          in production.
+        </li>
+        <li>
+          Load scripts must not embed secrets; use the same <code>.env</code> / key conventions as local development.
+        </li>
+        <li>
+          Interpret results together with Prometheus/Grafana (SLO panels per ADR 0011), not raw request counts alone.
+        </li>
+      </ul>
+
+    </section>
+    <section class="card">
+      <h2>Implementation in this repository</h2>
+      <ul>
+        <li>Tests: <code>tests/</code>, entrypoints <code>make test</code> and the canonical gate
+          <code>make verify</code>.</li>
+          <li>Traffic runner: <code>tools/load_testing/runner.py</code>, scenarios
+            <code>tools/load_testing/scenarios/</code>, <code>tools/load_testing/README.html</code>.</li>
+            <li>
+              Developer-facing walkthrough:
+              <a href="../../../internal/handbook/developer/0006-api-load-testing.html">API load testing (step-by-step)</a>.
+            </li>
+          </ul>
+
+        </section>
+        <section class="card">
+          <h2>Consequences</h2>
+          <h3>Positive</h3>
+          <ul>
+            <li>Clear separation: CI proves correctness; load tools prove behavior under volume and error mix.</li>
+            <li>Repeatable traffic recipes checked into git (YAML).</li>
+          </ul>
+          <h3>Trade-offs</h3>
+          <ul>
+            <li>Load scenarios can go stale; owners must update YAML when routes or auth change.</li>
+            <li>High request rates may hit in-memory rate limits — throttle via <code>--delay-ms</code> or test profiles.
+            </li>
+          </ul>
+
+        </section>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-04-21">2026-04-21</time></td>
+                  <td>Added Page history section (repository baseline).</td>
+                  <td><a href="../../../internal/portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+
+    </body></html>

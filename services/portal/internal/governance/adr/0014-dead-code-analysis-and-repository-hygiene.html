@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function(){try{var k="docs-theme-preference",v=localStorage.getItem(k);if(v==="dark")document.documentElement.setAttribute("data-theme","dark");else if(v==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){/* localStorage may be unavailable; fall through to default theme */}})();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0014: Dead Code Analysis and Repository Hygiene</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <main class="container" data-adr-weight="7">
+    <h1 class="internal-h1--accent-tail">ADR 0014: Dead Code Analysis and Repository Hygiene</h1>
+    <div id="docs-top-nav"></div>
+    <div id="docs-page-meta-mount" hidden=""></div>
+    <section class="card">
+      <h2>Ratification</h2>
+      <p>
+        Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate ratification process. Git history for this file on <code>main</code> is the record.
+      </p>
+      <ul>
+        <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
+        <li>Merge PR: <em>see git history for this file</em></li>
+        <li>Accepted: <em>as merged to <code>main</code></em></li>
+      </ul>
+
+    </section>
+    <section class="card">
+      <h2>Context</h2>
+      <p>
+        <strong>Why this matters:</strong> Dead code is not harmless—it confuses readers, hides the real execution path,
+        and makes refactors riskier. Unused imports are easy wins: the linter catches them cheaply. Whole unused
+        functions are harder: static “dead code” detectors use heuristics and can false-positive on dynamic registration
+        or tests-only symbols.
+      </p>
+      <p>
+        We combine a <strong>strict</strong> gate (Ruff on every PR) with a <strong>softer</strong> periodic scan
+        (Vulture) so routine work stays fast while deeper cleanup still happens on a schedule.
+      </p>
+
+    </section>
+    <section class="card">
+      <h2>Decision</h2>
+      <p>Adopt a two-layer approach:</p>
+      <ol>
+        <li>
+          <strong>Ruff (required on every PR)</strong>: keep the existing <code>E</code>/<code>F</code> rules so
+          <strong>F401</strong> (unused imports) is enforced in <code>make lint-check</code> / CI. Extend with
+          <strong>RUF100</strong> to remove obsolete <code>noqa</code> directives that no longer match an enabled rule.
+        </li>
+        <li>
+          <strong>Vulture (advisory)</strong>: configure <code>[tool.vulture]</code> in <code>pyproject.toml</code> for
+          paths <code>app</code>, <code>tests</code>, and <code>scripts</code>. Run locally via
+          <code>make dead-code-check</code>. Do <strong>not</strong> add Vulture to the default PR quality gate; run it
+          on a <strong>weekly schedule</strong> (and manual dispatch) in GitHub Actions so maintainers triage findings
+          without blocking every change.
+        </li>
+      </ol>
+      <p>
+        Removals of allegedly dead code require human confirmation and tests (or equivalent evidence) before merge;
+        static analysis alone is not sufficient for deletion.
+      </p>
+
+    </section>
+    <section class="card">
+      <h2>Scope</h2>
+      <ul>
+        <li>In scope: configuration, Make target, scheduled workflow, contributor checklist.</li>
+        <li>Out of scope: automatic deletion, mandatory Vulture on every PR, full codebase purge in one change.</li>
+      </ul>
+
+    </section>
+    <section class="card">
+      <h2>Alternatives considered</h2>
+      <ol>
+        <li>
+          Vulture in CI for every PR.
+          <ul>
+            <li>Pros: fastest feedback.</li>
+            <li>Cons: false positives create churn; tuning whitelists becomes a constant tax.</li>
+          </ul>
+        </li>
+        <li>
+          Ruff-only (no Vulture).
+          <ul>
+            <li>Pros: zero extra dependency, very stable signal for imports.</li>
+            <li>Cons: misses unused functions/classes that imports still reference indirectly.</li>
+          </ul>
+        </li>
+      </ol>
+
+    </section>
+    <section class="card">
+      <h2>Consequences</h2>
+      <h3>Positive</h3>
+      <ul>
+        <li>Unused imports and stale <code>noqa</code> markers stay caught by the normal gate.</li>
+        <li>Optional deeper scans run on a predictable cadence without blocking routine work.</li>
+      </ul>
+      <h3>Trade-offs</h3>
+      <ul>
+        <li>Maintainers must occasionally review scheduled workflow failures.</li>
+        <li>Vulture configuration or <code>--ignore-names</code> may need updates when patterns change.</li>
+      </ul>
+
+    </section>
+    <section class="card">
+      <h2>Implementation notes</h2>
+      <ul>
+        <li>Make: <code>dead-code-check</code> runs <code>python -m vulture</code> (reads <code>pyproject.toml</code>).</li>
+        <li>Workflow: <code>.github/workflows/dead-code.yml</code> (weekly + <code>workflow_dispatch</code>).</li>
+        <li>Ruff: <code>tests/conftest.py</code> uses <code>[tool.ruff.lint.per-file-ignores]</code> for <strong>E402</strong>
+          (imports after environment setup); prefer that over per-line <code>noqa</code> so <strong>RUF100</strong> stays
+          meaningful.</li>
+          <li>Contributor expectations: see the “Dead code and unused imports” section in repository root
+            <code>CONTRIBUTING.md</code>.</li>
+          </ul>
+        </section>
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-04-21">2026-04-21</time></td>
+                  <td>Added Page history section (repository baseline).</td>
+                  <td><a href="../../../internal/portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+
+    </body></html>

@@ -6,8 +6,9 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS_ROOT = ROOT / "docs"
-FAVICON_PATH = DOCS_ROOT / "assets" / "favicon.svg"
+DOCS_ROOT = ROOT / "services" / "portal"
+ASSETS_ROOT = ROOT / "services" / "frontend" / "portal"
+FAVICON_PATH = ASSETS_ROOT / "assets" / "favicon.svg"
 
 
 def _inject_favicon(html: str, html_path: Path) -> str:
@@ -30,7 +31,7 @@ def _inject_favicon(html: str, html_path: Path) -> str:
 def main() -> int:
     """Inject favicon links in docs HTML files and print update count."""
     if not DOCS_ROOT.is_dir():
-        print("docs/ directory is missing; nothing to do")
+        print("services/portal/ directory is missing; nothing to do")
         return 0
 
     updated = 0

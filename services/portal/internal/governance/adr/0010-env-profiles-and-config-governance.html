@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function(){try{var k="docs-theme-preference",v=localStorage.getItem(k);if(v==="dark")document.documentElement.setAttribute("data-theme","dark");else if(v==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){/* localStorage may be unavailable; fall through to default theme */}})();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0010: Environment Profiles and Config Governance</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <main class="container" data-adr-weight="7">
+    <h1 class="internal-h1--accent-tail">ADR 0010: Environment Profiles and Config Governance</h1>
+    <div id="docs-top-nav"></div>
+    <div id="docs-page-meta-mount" hidden=""></div>
+    <section class="card">
+      <h2>Ratification</h2>
+      <p>
+        Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate ratification process. Git history for this file on <code>main</code> is the record.
+      </p>
+      <ul>
+        <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
+        <li>Merge PR: <em>see git history for this file</em></li>
+        <li>Accepted: <em>as merged to <code>main</code></em></li>
+      </ul>
+
+    </section>
+    <section class="card">
+      <h2>Context</h2>
+      <p>
+        <strong>Why this matters:</strong> Twelve-factor style apps read config from the environment so the same build
+        can run in dev, staging, and prod. If profiles are fuzzy, teams accidentally ship debug logging, mock auth, or
+        open CORS to production—often discovered by incident, not review.
+      </p>
+      <p>
+        We need explicit profiles (<code>dev</code>, <code>qa</code>, <code>prod</code>), one documented template, and
+        validation that rejects unsafe combinations in non-dev environments.
+      </p>
+
+    </section>
+    <section class="card">
+      <h2>Decision</h2>
+      <ul>
+        <li>Adopt explicit environment profiles: <code>dev</code>, <code>qa</code>, <code>prod</code> only.</li>
+        <li>Single committed template: <code>env/example</code> (copy to <code>.env</code> via <code>make env-init</code>).</li>
+        <li>Load configuration in layers: <code>.env</code> -&gt; <code>env/&lt;APP_ENV&gt;</code> -&gt; optional <code>ENV_FILE</code>.</li>
+        <li>Automated tests use <code>APP_ENV=qa</code> (not a separate profile). Legacy <code>APP_ENV=test</code> maps to <code>qa</code>.</li>
+        <li>Normalize legacy aliases (for example <code>local</code> -&gt; <code>dev</code>).</li>
+        <li>Expose effective profile in <code>GET /live</code> as <code>app_env</code>.</li>
+        <li>Enforce strict runtime validation for unsafe settings in <code>qa/prod</code>.</li>
+      </ul>
+
+    </section>
+    <section class="card">
+      <h2>Validation Rules</h2>
+      <ul>
+        <li><code>qa/prod</code>: <code>API_AUTH_STRATEGY=disabled</code> is forbidden.</li>
+        <li><code>qa/prod</code>: default <code>API_MOCK_API_KEY</code> is forbidden.</li>
+        <li><code>qa/prod</code>: <code>METRICS_ENABLED</code> must be true.</li>
+        <li><code>prod</code>: localhost origins in CORS are forbidden.</li>
+        <li><code>prod</code>: <code>LOG_LEVEL=DEBUG</code> is forbidden.</li>
+      </ul>
+
+    </section>
+    <section class="card">
+      <h2>Implementation</h2>
+      <ul>
+        <li>Profile-aware loader and validation are implemented in <code>app/core/config.py</code>.</li>
+        <li>Directory <code>env/</code> holds <code>example</code> plus small overrides <code>dev</code>, <code>qa</code>, <code>prod</code>.</li>
+        <li>Observability compose stack is env-driven for ports, scrape target, and Grafana credentials.</li>
+      </ul>
+
+    </section>
+    <section class="card">
+      <h2>Consequences</h2>
+      <h3>Positive</h3>
+      <ul>
+        <li>Clear branch logic for environment behavior with safer defaults.</li>
+        <li>Reduced risk of accidental insecure production configuration.</li>
+        <li>Better developer onboarding for environment-specific setup.</li>
+      </ul>
+      <h3>Trade-offs</h3>
+      <ul>
+        <li>More env variables and templates to maintain.</li>
+        <li>Startup can fail fast when policy validations detect invalid runtime config.</li>
+      </ul>
+    </section>
+    <section id="page-history" class="card">
+      <h2>Page history</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Page history">
+        <table class="docs-page-history">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Change</th>
+              <th scope="col">Author</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><time datetime="2026-04-21">2026-04-21</time></td>
+              <td>Added Page history section (repository baseline).</td>
+              <td><a href="../../../internal/portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+</body></html>

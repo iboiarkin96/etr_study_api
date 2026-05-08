@@ -7,7 +7,7 @@ from html import escape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TARGET_DIRS = ("docs/adr", "docs/developer", "docs/runbooks")
+TARGET_DIRS = ("services/portal/adr", "services/portal/developer", "services/portal/runbooks")
 
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 _CODE_RE = re.compile(r"`([^`]+)`")
@@ -206,7 +206,7 @@ def _render_page(md_path: Path) -> str:
 
 
 def main() -> None:
-    """Scan ``docs/adr``, ``docs/developer``, ``docs/runbooks`` for ``*.md`` and write ``*.html``.
+    """Scan ``services/portal/adr``, ``services/portal/developer``, ``services/portal/runbooks`` for ``*.md`` and write ``*.html``.
 
     Prints how many HTML files were updated when content changed.
     """

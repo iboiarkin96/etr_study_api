@@ -31,7 +31,7 @@ def test_ingest_docs_search_telemetry_accepts_valid_payload(client: TestClient) 
             "tokens_count": 1,
             "results_count": 4,
             "latency_ms": 8,
-            "top_results": [{"rank": 1, "url": "adr/README.html"}],
+            "top_results": [{"rank": 1, "url": "internal/governance/adr/README.html"}],
         },
     )
     assert response.status_code == 202
