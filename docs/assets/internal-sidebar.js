@@ -423,6 +423,8 @@
   const INTERNAL_SIDEBAR_NAV = [
     { label: "⌂ ETR Study API home", path: "index.html" },
     { label: "◉ Internal docs hub", path: "internal/README.html" },
+    { label: "👥 People & maintainers", path: "internal/portal/people/index.html" },
+    { label: "⭐ Backlog", path: "backlog/README.html" },
     { label: "🧭 Methodology", path: "internal/analysis/methodology.html" },
     { label: "🏗 System design", path: "internal/analysis/system-design.html" },
     { label: "🌐 OpenAPI / Swagger UI", path: "openapi/index.html" },
@@ -646,7 +648,6 @@
 
       children: [
         { label: "Hub — managers index", path: "internal/manager/README.html" },
-        { label: "⭐ Backlog", path: "backlog/README.html" },
         { label: "SDLC RACI matrix", path: "internal/manager/sdlc-raci-matrix.html" },
       ],
     },
@@ -838,6 +839,7 @@
             { label: "Screen spec template", path: "internal/front/screens/docs-screen-template.html" },
             { label: "Engineering hub home", path: "internal/front/screens/docs-screen-home-landing.html" },
             { label: "Backlog cockpit", path: "internal/front/screens/docs-screen-backlog-cockpit.html" },
+            { label: "Hall of Contributors", path: "internal/front/screens/docs-screen-portal-hall-of-contributors.html" },
           ],
         },
         {

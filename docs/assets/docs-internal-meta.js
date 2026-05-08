@@ -173,10 +173,12 @@
       const moreItem = mount.querySelector(".docs-page-meta__more");
       const list = mount.querySelector(".docs-page-meta__editors");
       if (moreBtn && list) {
+        // { once: true } — handler is single-use and the button is removed after click,
+        // so no listener references survive the teardown.
         moreBtn.addEventListener("click", () => {
           list.classList.add("docs-page-meta__editors--expanded");
           moreItem.remove();
-        });
+        }, { once: true });
       }
     }
 
@@ -364,7 +366,10 @@
       return;
     }
     mount.innerHTML = `<div class="portal-skeleton-grid" aria-hidden="true"><span></span><span></span><span></span></div>`;
-    const fromDir = "portal";
+    // Derive fromDir from the current page so the mount works on both
+    // `internal/README.html` and `internal/portal/people/index.html`.
+    const relPath = currentDocsRelPath();
+    const fromDir = relPath.includes("/") ? relPath.slice(0, relPath.lastIndexOf("/")) : "";
     const people = getPortalPeople();
 
     const presentKeys = collectGroupKeysPresent(people);
@@ -400,10 +405,316 @@
     }, SKELETON_MIN_VISIBLE_MS);
   }
 
+  /* ──────────────────────────────────────────────────────────────────────────
+   *  Portal "Hall of Contributors" — premium gallery for people/index.html
+   *  Mounts: #portal-spotlight-mount, #portal-people-gallery-mount,
+   *          #portal-coverage-mount, plus [data-portal-ticker-target] in hero.
+   *  Reads __DOCS_PORTAL_DATA__.{people, maintainerPages}; same data set
+   *  used by the lightweight #portal-people-mount on internal/README.html.
+   * ────────────────────────────────────────────────────────────────────────── */
+
+  const PORTAL_TONE_BY_GROUP = { pm: "rose", backend: "blue", devops: "teal" };
+  const PORTAL_TONE_HEX = {
+    blue: "#3b82f6",
+    teal: "#06b6d4",
+    rose: "#f43f5e",
+    amber: "#f59e0b",
+    green: "#10b981",
+    purple: "#0ea5e9",
+    mono: "#64748b",
+  };
+
+  const PORTAL_SECTION_LABELS = {
+    adr: "ADRs",
+    rfc: "RFCs",
+    runbooks: "Runbooks",
+    qa: "QA docs",
+    audit: "Audits",
+    developer: "Dev guides",
+    howto: "How-to guides",
+    internal: "Internal specs",
+    openapi: "OpenAPI",
+    backlog: "Backlog",
+  };
+
+  function portalToneForPerson(p) {
+    const g = Array.isArray(p.groups) && p.groups.length ? p.groups[0] : null;
+    return (g && PORTAL_TONE_BY_GROUP[g]) || "mono";
+  }
+
+  function portalSectionBucket(path) {
+    const i = path.indexOf("/");
+    return i >= 0 ? path.slice(0, i) : path;
+  }
+
+  function portalSectionLabel(key) {
+    return PORTAL_SECTION_LABELS[key] || key.charAt(0).toUpperCase() + key.slice(1);
+  }
+
+  function portalPagesFor(maintainerPages, personId) {
+    return (maintainerPages && maintainerPages[personId]) || [];
+  }
+
+  function portalCountSections(pages) {
+    const counts = {};
+    for (let i = 0; i < pages.length; i += 1) {
+      const b = portalSectionBucket(pages[i].path);
+      counts[b] = (counts[b] || 0) + 1;
+    }
+    return counts;
+  }
+
+  function portalTopSections(pages, limit) {
+    const counts = portalCountSections(pages);
+    return Object.keys(counts)
+      .map((k) => [k, counts[k]])
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit);
+  }
+
+  function portalGithubIcon() {
+    return '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.87-1.54-3.87-1.54-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.69.08-.69 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.69 1.24 3.34.95.1-.74.4-1.24.72-1.53-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.18-3.08-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.17.91-.25 1.89-.38 2.86-.38.97 0 1.95.13 2.86.38 2.18-1.48 3.14-1.17 3.14-1.17.63 1.59.23 2.76.12 3.05.74.8 1.18 1.82 1.18 3.08 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.79-.01 3.17 0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>';
+  }
+
+  function portalArrowIcon() {
+    return '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>';
+  }
+
+  function paintPortalTickers(totals) {
+    const nodes = document.querySelectorAll("[data-portal-ticker-target]");
+    nodes.forEach((node) => {
+      const key = node.getAttribute("data-portal-ticker-target");
+      const v = totals[key];
+      if (typeof v === "number") {
+        node.textContent = String(v);
+      }
+    });
+  }
+
+  function renderPortalSpotlight(top, totals, fromDir) {
+    const mount = document.getElementById("portal-spotlight-mount");
+    if (!mount || !top) {
+      return;
+    }
+    const pages = portalPagesFor(window.__DOCS_PORTAL_DATA__.maintainerPages, top.personId);
+    const profileHref = relHref(fromDir, `internal/portal/people/${top.slug}/index.html`);
+    const photoHref = `${docsRootPrefixFromPage()}${top.photo}`;
+    const tone = portalToneForPerson(top);
+    const hex = PORTAL_TONE_HEX[tone];
+
+    const top4 = portalTopSections(pages, 4);
+    const statItems = top4
+      .map(([key, count]) => {
+        return `<li class="portal-spotlight__stat">
+          <span class="portal-spotlight__stat-num">${count}</span>
+          <span class="portal-spotlight__stat-lab">${escapeHtml(portalSectionLabel(key))}</span>
+        </li>`;
+      })
+      .join("");
+
+    const groupsHtml = (top.groups || [])
+      .map((g) => `<li class="portal-spotlight__role">${escapeHtml(titleForGroupKey(g))}</li>`)
+      .join("");
+
+    const githubHtml = top.github && top.github !== "-"
+      ? `<a class="portal-spotlight__github" href="https://github.com/${encodeURIComponent(top.github)}" rel="noopener noreferrer">${portalGithubIcon()}<span>@${escapeHtml(top.github)}</span></a>`
+      : "";
+
+    mount.innerHTML = `<article class="portal-spotlight" data-portal-tone="${tone}" style="--portal-tone:${hex};" aria-labelledby="portal-spotlight-title">
+      <div class="portal-spotlight__decor" aria-hidden="true">
+        <span class="portal-spotlight__orb"></span>
+        <span class="portal-spotlight__grid"></span>
+      </div>
+      <a class="portal-spotlight__avatar-link" href="${profileHref}" tabindex="-1" aria-hidden="true">
+        <span class="portal-spotlight__halo" aria-hidden="true"></span>
+        <img class="portal-spotlight__avatar" src="${photoHref}" width="128" height="128" alt="" />
+      </a>
+      <div class="portal-spotlight__body">
+        <p class="portal-spotlight__eyebrow">Team lead</p>
+        <h2 id="portal-spotlight-title" class="portal-spotlight__name">${escapeHtml(top.displayName)}</h2>
+        <ul class="portal-spotlight__roles">${groupsHtml}</ul>
+        <p class="portal-spotlight__lead">Owns <strong>${pages.length}</strong> of <strong>${totals.pageCount}</strong> documentation pages — about <strong>${Math.round((pages.length / Math.max(1, totals.pageCount)) * 100)}%</strong> of the surface.</p>
+        <ul class="portal-spotlight__stats">${statItems}</ul>
+        <div class="portal-spotlight__actions">
+          <a class="portal-spotlight__cta" href="${profileHref}">View profile ${portalArrowIcon()}</a>
+          ${githubHtml}
+        </div>
+      </div>
+    </article>`;
+  }
+
+  function renderPortalPersonCard(p, maintainerPages, fromDir /* , totalPages */) {
+    const profileHref = relHref(fromDir, `internal/portal/people/${p.slug}/index.html`);
+    const photoHref = `${docsRootPrefixFromPage()}${p.photo}`;
+    const tone = portalToneForPerson(p);
+    const hex = PORTAL_TONE_HEX[tone];
+
+    const groups = Array.isArray(p.groups) ? p.groups : [];
+    const rolesInner = groups
+      .map((g, i) => {
+        const gTone = PORTAL_TONE_BY_GROUP[g] || "mono";
+        const gHex = PORTAL_TONE_HEX[gTone];
+        const sep = i > 0
+          ? `<span class="portal-person__role-sep" aria-hidden="true">×</span>`
+          : "";
+        return `${sep}<span class="portal-person__role" data-portal-tone="${gTone}" style="--role-tone:${gHex};">
+          <span class="portal-person__role-dot" aria-hidden="true"></span>${escapeHtml(titleForGroupKey(g))}
+        </span>`;
+      })
+      .join("");
+
+    const githubHtml = p.github && p.github !== "-"
+      ? `<a class="portal-person__github" href="https://github.com/${encodeURIComponent(p.github)}" rel="noopener noreferrer" onclick="event.stopPropagation();">${portalGithubIcon()}<span>${escapeHtml(p.github)}</span></a>`
+      : `<span class="portal-person__github portal-person__github--empty" aria-hidden="true">no github</span>`;
+
+    return `<li class="portal-person" data-portal-tone="${tone}" style="--portal-tone:${hex};">
+      <a class="portal-person__link" href="${profileHref}" aria-label="${escapeHtml(p.displayName)} — open profile">
+        <span class="portal-person__avatar-wrap" aria-hidden="true">
+          <img class="portal-person__avatar" src="${photoHref}" width="88" height="88" alt="" />
+        </span>
+        <div class="portal-person__body">
+          <h3 class="portal-person__name">${escapeHtml(p.displayName)}</h3>
+          <div class="portal-person__roles">${rolesInner}</div>
+        </div>
+      </a>
+      <div class="portal-person__foot">
+        ${githubHtml}
+        <a class="portal-person__open" href="${profileHref}" aria-label="Open ${escapeHtml(p.displayName)} profile">Open profile ${portalArrowIcon()}</a>
+      </div>
+    </li>`;
+  }
+
+  function renderPortalPeopleGallery() {
+    const mount = document.getElementById("portal-people-gallery-mount");
+    if (!mount) {
+      return;
+    }
+    const data = window.__DOCS_PORTAL_DATA__ || {};
+    const people = Array.isArray(data.people) ? data.people : [];
+    const maintainerPages = data.maintainerPages || {};
+    const relPath = currentDocsRelPath();
+    const fromDir = relPath.includes("/") ? relPath.slice(0, relPath.lastIndexOf("/")) : "";
+    const presentKeys = collectGroupKeysPresent(people);
+    const groupEntries = orderedPortalGroupEntries(presentKeys);
+    if (groupEntries.length === 0) {
+      mount.innerHTML = `<p class="portal-people-group__empty">No profiles with <code>data-groups</code> under <code>docs/internal/portal/people/</code> yet. Run <code>make docs-fix</code> after editing profiles.</p>`;
+      return;
+    }
+    let totalPages = 0;
+    for (let i = 0; i < people.length; i += 1) {
+      totalPages += portalPagesFor(maintainerPages, people[i].personId).length;
+    }
+    const blocks = groupEntries
+      .map((g) => {
+        const gid = portalGroupDomId(g.key);
+        const inGroup = people
+          .filter((p) => Array.isArray(p.groups) && p.groups.includes(g.key))
+          .slice()
+          .sort((a, b) => {
+            const ap = portalPagesFor(maintainerPages, a.personId).length;
+            const bp = portalPagesFor(maintainerPages, b.personId).length;
+            if (ap !== bp) return bp - ap;
+            return String(a.displayName || "").localeCompare(String(b.displayName || ""));
+          });
+        const tone = PORTAL_TONE_BY_GROUP[g.key] || "mono";
+        const hex = PORTAL_TONE_HEX[tone];
+        const cards = inGroup
+          .map((p) => renderPortalPersonCard(p, maintainerPages, fromDir, totalPages))
+          .join("");
+        return `<section class="portal-strip" data-portal-tone="${tone}" style="--portal-tone:${hex};" aria-labelledby="portal-strip-${gid}">
+          <header class="portal-strip__head">
+            <p class="portal-strip__eyebrow" id="portal-strip-${gid}">${escapeHtml(g.title)}</p>
+            <hr class="portal-strip__rule" />
+            <span class="portal-strip__count">${inGroup.length} ${inGroup.length === 1 ? "person" : "people"}</span>
+          </header>
+          <ul class="portal-strip__grid">${cards}</ul>
+        </section>`;
+      })
+      .join("");
+    mount.innerHTML = blocks;
+  }
+
+  function renderPortalCoverage() {
+    const mount = document.getElementById("portal-coverage-mount");
+    if (!mount) {
+      return;
+    }
+    const data = window.__DOCS_PORTAL_DATA__ || {};
+    const people = Array.isArray(data.people) ? data.people : [];
+    const maintainerPages = data.maintainerPages || {};
+    const entries = people
+      .map((p) => ({
+        person: p,
+        count: portalPagesFor(maintainerPages, p.personId).length,
+        tone: portalToneForPerson(p),
+      }))
+      .filter((e) => e.count > 0)
+      .sort((a, b) => b.count - a.count);
+    const total = entries.reduce((acc, e) => acc + e.count, 0);
+    if (entries.length === 0 || total === 0) {
+      mount.innerHTML = "";
+      return;
+    }
+    const segments = entries
+      .map((e) => {
+        const pct = (e.count / total) * 100;
+        const hex = PORTAL_TONE_HEX[e.tone];
+        return `<span class="portal-coverage__seg" style="width:${pct}%; background:${hex};" title="${escapeHtml(e.person.displayName)} — ${e.count} pages (${Math.round(pct)}%)"></span>`;
+      })
+      .join("");
+    const legend = entries
+      .map((e) => {
+        const pct = Math.round((e.count / total) * 100);
+        const hex = PORTAL_TONE_HEX[e.tone];
+        return `<li class="portal-coverage__legend-item">
+          <span class="portal-coverage__swatch" style="background:${hex};" aria-hidden="true"></span>
+          <span class="portal-coverage__legend-name">${escapeHtml(e.person.displayName)}</span>
+          <span class="portal-coverage__legend-num"><strong>${e.count}</strong> · ${pct}%</span>
+        </li>`;
+      })
+      .join("");
+    mount.innerHTML = `<div class="portal-coverage__bar" role="img" aria-label="Documentation ownership distribution">${segments}</div>
+      <ul class="portal-coverage__legend">${legend}</ul>`;
+  }
+
+  function renderPortalGallery() {
+    const heroPresent = document.getElementById("portal-people-gallery-mount");
+    if (!heroPresent) {
+      return;
+    }
+    const data = window.__DOCS_PORTAL_DATA__ || {};
+    const people = Array.isArray(data.people) ? data.people : [];
+    const maintainerPages = data.maintainerPages || {};
+    let totalPages = 0;
+    let topPerson = null;
+    let topCount = -1;
+    for (let i = 0; i < people.length; i += 1) {
+      const own = portalPagesFor(maintainerPages, people[i].personId);
+      totalPages += own.length;
+      if (own.length > topCount) {
+        topCount = own.length;
+        topPerson = people[i];
+      }
+    }
+    const totals = {
+      people: people.length,
+      pages: totalPages,
+      groups: collectGroupKeysPresent(people).size,
+    };
+    paintPortalTickers(totals);
+
+    const relPath = currentDocsRelPath();
+    const fromDir = relPath.includes("/") ? relPath.slice(0, relPath.lastIndexOf("/")) : "";
+    renderPortalSpotlight(topPerson, { pageCount: totalPages, peopleCount: people.length }, fromDir);
+    renderPortalPeopleGallery();
+    renderPortalCoverage();
+  }
+
   function initDocsInternalMeta() {
     renderProfileMaintainedMount();
     renderPageMeta();
     renderPortalPeople();
+    renderPortalGallery();
   }
 
   window.initDocsInternalMeta = initDocsInternalMeta;

@@ -503,6 +503,9 @@ def custom_openapi() -> dict[str, Any]:
     from fastapi.openapi.utils import get_openapi
 
     from app.openapi.request_id_openapi import enrich_openapi_with_request_id
+    from app.openapi.validation_error_openapi import (
+        enrich_openapi_with_validation_error_descriptions,
+    )
 
     openapi_schema = get_openapi(
         title=app.title,
@@ -514,6 +517,7 @@ def custom_openapi() -> dict[str, Any]:
         servers=app.servers,
     )
     enrich_openapi_with_request_id(openapi_schema)
+    enrich_openapi_with_validation_error_descriptions(openapi_schema)
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 

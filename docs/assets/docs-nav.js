@@ -1,5 +1,21 @@
 "use strict";
 
+// Persist a UI-state flag in localStorage. Failures (Safari ITP private mode,
+// quota exceeded) are expected and silenced after a single warning so the page
+// console stays readable on long-lived sessions.
+let _localStorageWarned = false;
+function safeSetLocalStorage(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    if (!_localStorageWarned) {
+      _localStorageWarned = true;
+      try { console.warn("[docs-nav] localStorage unavailable; UI dismissals won't persist:", err); }
+      catch (_) { /* console may be missing in tests */ }
+    }
+  }
+}
+
 function normalizeParts(parts) {
   const out = [];
   for (const part of parts) {
@@ -236,13 +252,13 @@ function enqueueDocsPromoToast(options) {
   };
   dismissBtn?.addEventListener("click", () => {
     if (config.storageKey) {
-      try { localStorage.setItem(config.storageKey, "1"); } catch (e) { }
+      safeSetLocalStorage(config.storageKey, "1");
     }
     closeToast();
   });
   primaryBtn?.addEventListener("click", () => {
     if (config.storageKey) {
-      try { localStorage.setItem(config.storageKey, "1"); } catch (e) { }
+      safeSetLocalStorage(config.storageKey, "1");
     }
     if (typeof config.onPrimary === "function") {
       config.onPrimary();
@@ -1350,8 +1366,7 @@ function docsHubHrefForPrefix(prefix) {
     developer: "developer/README.html",
     howto: "howto/README.html",
     internal: "internal/README.html",
-    "internal/portal": "internal/README.html#team-onboarding",
-    "internal/portal/people": "internal/README.html#team-onboarding",
+    "internal/portal/people": "internal/portal/people/index.html",
     "internal/api": "internal/api/README.html",
     "internal/api/user": "internal/api/user/index.html",
     "internal/api/conspectus": "internal/api/conspectus/index.html",
@@ -1482,6 +1497,7 @@ function renderDocsBreadcrumbNav(fromDir, relPath) {
       li.appendChild(span);
     } else if (item.href) {
       const a = document.createElement("a");
+      a.className = "docs-breadcrumbs__link";
       a.href = relHref(fromDir, item.href);
       a.textContent = item.label;
       li.appendChild(a);
@@ -4715,11 +4731,15 @@ function injectDocsHotkeyHint() {
   if (!hasTopNav) {
     return;
   }
+  // The dismissal is written via enqueueDocsPromoToast's `storageKey` plumbing
+  // (see safeSetLocalStorage above), not directly here. Read failures (Safari
+  // ITP, quota) are silent on purpose — when storage is unavailable we treat
+  // the hint as not-dismissed and show it once per session.
   try {
     if (localStorage.getItem("docs-palette-hint-dismissed") === "1") {
       return;
     }
-  } catch (e) { }
+  } catch (_) { /* localStorage may be unavailable; treat as not-dismissed */ }
   enqueueDocsPromoToast({
     title: "Command Palette available",
     text: `Hey! We have a premium Command Palette. Press <kbd>${docsPalettePrimaryHotkeyLabel()}</kbd> or open it now.`,
@@ -5391,6 +5411,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   initAutoInPageToc();
   restoreInitialHashPosition();
+  // Two-pass placement: first call positions before the next paint; the deferred
+  // call re-runs after layout finalizes (sticky sidebar height, custom-element
+  // upgrades) so the toggle settles in its final slot rather than its initial,
+  // pre-layout one. Removing the second call regressed placement on Safari.
   syncInternalThemeTogglePlacement();
   window.setTimeout(syncInternalThemeTogglePlacement, 0);
   initInPageTocScrollSpy();

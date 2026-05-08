@@ -237,7 +237,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/README.html",
-        "title": "Internal Docs — Overview"
+        "title": "Internal Docs Hub — Study App"
       },
       {
         "path": "internal/analysis/methodology.html",
@@ -498,6 +498,10 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "internal/portal/people/cursor/index.html",
         "title": "Cursor — Employee portal — Study App"
+      },
+      {
+        "path": "internal/portal/people/index.html",
+        "title": "Hall of Contributors — People maintaining documentation — Study App"
       },
       {
         "path": "internal/portal/people/ivan-boyarkin/index.html",

@@ -204,6 +204,122 @@ def capture_home(base_url: str):
         browser.close()
 
 
+def capture_portal_hall_of_contributors(base_url: str):
+    """Capture all variants required by the Hall of Contributors screen spec."""
+    from playwright.sync_api import sync_playwright
+
+    url = f"{base_url}/internal/portal/people/index.html"
+    print(f"Capturing Hall of Contributors from {url}")
+
+    def shoot(page, fname, full_page=False, clip=None):
+        kwargs = {"path": str(ASSETS_DIR / fname), "type": "png"}
+        if clip:
+            kwargs["clip"] = clip
+        if full_page:
+            kwargs["full_page"] = True
+        page.screenshot(**kwargs)
+        print(f"  → {fname}")
+
+    with sync_playwright() as p:
+        browser = p.webkit.launch()
+
+        # ── Desktop · light (hero + spotlight + strip) ──────────────
+        ctx = browser.new_context(
+            viewport={"width": 1440, "height": 900},
+            device_scale_factor=2,
+            color_scheme="light",
+            reduced_motion="no-preference",
+        )
+        page = ctx.new_page()
+        page.add_init_script(MOTION_OK_INIT.format(theme="light"))
+        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        page.wait_for_timeout(900)
+        shoot(
+            page,
+            "portal-hall-of-contributors-desktop-light.png",
+            full_page=True,
+        )
+        ctx.close()
+
+        # ── Desktop · dark (hero + spotlight + strip) ───────────────
+        ctx = browser.new_context(
+            viewport={"width": 1440, "height": 900},
+            device_scale_factor=2,
+            color_scheme="dark",
+            reduced_motion="no-preference",
+        )
+        page = ctx.new_page()
+        page.add_init_script(MOTION_OK_INIT.format(theme="dark"))
+        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        page.wait_for_timeout(900)
+        shoot(
+            page,
+            "portal-hall-of-contributors-desktop-dark.png",
+            full_page=True,
+        )
+        ctx.close()
+
+        # ── Tablet (1024 × 900) ─────────────────────────────────────
+        ctx = browser.new_context(
+            viewport={"width": 1024, "height": 900},
+            device_scale_factor=2,
+            color_scheme="light",
+            reduced_motion="no-preference",
+        )
+        page = ctx.new_page()
+        page.add_init_script(MOTION_OK_INIT.format(theme="light"))
+        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        page.wait_for_timeout(900)
+        shoot(
+            page,
+            "portal-hall-of-contributors-tablet.png",
+            full_page=True,
+        )
+        ctx.close()
+
+        # ── Mobile (390 × 844) ──────────────────────────────────────
+        ctx = browser.new_context(
+            viewport={"width": 390, "height": 844},
+            device_scale_factor=3,
+            color_scheme="light",
+            reduced_motion="no-preference",
+        )
+        page = ctx.new_page()
+        page.add_init_script(MOTION_OK_INIT.format(theme="light"))
+        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        page.wait_for_timeout(900)
+        shoot(
+            page,
+            "portal-hall-of-contributors-mobile.png",
+            full_page=True,
+        )
+        ctx.close()
+
+        # ── Skeleton (desktop · light, gallery + spotlight blocked) ─
+        # Block the renderer module so the .portal-skeleton-grid placeholder
+        # stays visible long enough to capture (real run swaps it after
+        # SKELETON_MIN_VISIBLE_MS = 300 ms).
+        ctx = browser.new_context(
+            viewport={"width": 1440, "height": 900},
+            device_scale_factor=2,
+            color_scheme="light",
+            reduced_motion="no-preference",
+        )
+        page = ctx.new_page()
+        page.add_init_script(MOTION_OK_INIT.format(theme="light"))
+        page.route("**/docs-internal-meta.js", lambda route: route.abort())
+        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        page.wait_for_timeout(800)
+        shoot(
+            page,
+            "portal-hall-of-contributors-skeleton.png",
+            clip={"x": 0, "y": 0, "width": 1440, "height": 900},
+        )
+        ctx.close()
+
+        browser.close()
+
+
 def main():
     targets = sys.argv[1:] or ["home"]
     port = find_free_port()
@@ -214,6 +330,8 @@ def main():
         for target in targets:
             if target == "home":
                 capture_home(base_url)
+            elif target == "portal-hall-of-contributors":
+                capture_portal_hall_of_contributors(base_url)
             else:
                 print(f"  skipping unknown target: {target}", file=sys.stderr)
     finally:

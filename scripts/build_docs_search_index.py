@@ -25,6 +25,7 @@ PREVIEW_CHARS = 240
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
 _RE_TITLE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_RE_H1 = re.compile(r"<h1\b[^>]*>(.*?)</h1>", re.IGNORECASE | re.DOTALL)
 _RE_MAIN = re.compile(r"<main\b[^>]*>(.*?)</main>", re.IGNORECASE | re.DOTALL)
 _RE_BODY = re.compile(r"<body\b[^>]*>(.*?)</body>", re.IGNORECASE | re.DOTALL)
 _RE_REMOVE_BLOCKS = re.compile(
@@ -33,6 +34,18 @@ _RE_REMOVE_BLOCKS = re.compile(
 )
 _RE_TAGS = re.compile(r"<[^>]+>")
 _RE_WHITESPACE = re.compile(r"\s+")
+
+
+def _decode_entities(text: str) -> str:
+    """Decode the small set of HTML entities used in our docs (no full HTML5 table)."""
+    return (
+        text.replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", '"')
+        .replace("&#39;", "'")
+    )
 
 
 @dataclass(slots=True)
@@ -53,18 +66,32 @@ class IndexedDoc:
 def _extract_title(html_text: str, fallback: str) -> str:
     """Extract and normalize the page title.
 
+    Prefer ``<h1>`` so search results match what the user actually sees on the page —
+    ``<title>`` in our docs is sometimes a shorter SEO label that drifts from the on-page
+    heading. Tags inside the H1 (``<code>``, ``<span>``) are stripped and HTML entities
+    decoded so the index never carries literal ``&lt;…&gt;``. Falls back to ``<title>``
+    when no H1 exists.
+
     Args:
         html_text: Full page source.
-        fallback: Default title when ``<title>`` is missing.
+        fallback: Default title when neither ``<h1>`` nor ``<title>`` is present.
 
     Returns:
         Cleaned title string.
     """
-    match = _RE_TITLE.search(html_text)
-    if not match:
+    h1_match = _RE_H1.search(html_text)
+    if h1_match:
+        h1_text = _RE_TAGS.sub(" ", h1_match.group(1))
+        h1_text = _decode_entities(h1_text)
+        h1_text = _RE_WHITESPACE.sub(" ", h1_text).strip()
+        if h1_text:
+            return h1_text
+    title_match = _RE_TITLE.search(html_text)
+    if not title_match:
         return fallback
-    title = _RE_WHITESPACE.sub(" ", match.group(1)).strip()
-    return title or fallback
+    title_text = _decode_entities(title_match.group(1))
+    title_text = _RE_WHITESPACE.sub(" ", title_text).strip()
+    return title_text or fallback
 
 
 def _extract_main_html(html_text: str) -> str:
@@ -96,14 +123,7 @@ def _html_to_text(html_text: str) -> str:
     """
     text = _RE_REMOVE_BLOCKS.sub(" ", html_text)
     text = _RE_TAGS.sub(" ", text)
-    text = (
-        text.replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", '"')
-        .replace("&#39;", "'")
-    )
+    text = _decode_entities(text)
     return _RE_WHITESPACE.sub(" ", text).strip()
 
 
@@ -149,6 +169,10 @@ def _iter_docs_html() -> list[Path]:
         tracked = {ROOT / rel for rel in output.decode().split("\0") if rel.endswith(".html")}
     except (OSError, subprocess.CalledProcessError):
         tracked = None
+    # `docs/assets/` is intentionally excluded: it holds component fragments
+    # (e.g. audit-score-legend-fragment.html) that are stitched into other pages,
+    # not standalone documents — surfacing them in search would land users on a
+    # decontextualized partial.
     return sorted(
         path
         for path in DOCS_DIR.rglob("*.html")
