@@ -149,21 +149,38 @@
     return details;
   }
 
+  // One delegated pair of listeners on the document, shared by every pill — avoids
+  // the unbounded listener growth flagged in the 2026-05-07 portal bug audit.
+  const openDetailsRegistry = new Set();
+  let documentListenersInstalled = false;
+
+  function ensureDocumentListenersInstalled() {
+    if (documentListenersInstalled) return;
+    documentListenersInstalled = true;
+    document.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      for (const entry of openDetailsRegistry) {
+        const { details } = entry;
+        if (!details.open) continue;
+        if (target instanceof Node && details.contains(target)) continue;
+        details.open = false;
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      for (const entry of openDetailsRegistry) {
+        const { details, summary } = entry;
+        if (!details.open) continue;
+        details.open = false;
+        summary.focus();
+      }
+    });
+  }
+
   /** Close the help on Escape and outside-click — same UX as the ADR status log. */
   function bindOutsideClose(details, summary) {
-    const closeOnOutside = (event) => {
-      if (!details.open) return;
-      const target = event.target;
-      if (target instanceof Node && details.contains(target)) return;
-      details.open = false;
-    };
-    const closeOnEscape = (event) => {
-      if (event.key !== "Escape" || !details.open) return;
-      details.open = false;
-      summary.focus();
-    };
-    document.addEventListener("pointerdown", closeOnOutside);
-    document.addEventListener("keydown", closeOnEscape);
+    ensureDocumentListenersInstalled();
+    openDetailsRegistry.add({ details, summary });
   }
 
   function hydrate() {

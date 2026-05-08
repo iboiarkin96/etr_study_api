@@ -265,11 +265,16 @@
     intro.classList.add("is-active");
     intro.setAttribute("aria-hidden", "false");
 
+    // AbortController scopes the intro's listeners to the intro lifecycle —
+    // closeIntro tears them down so document keydown / skip click stop holding
+    // closure references after the overlay is removed.
+    const introController = new AbortController();
     let closed = false;
     let stopRain = null;
     function closeIntro() {
       if (closed) return;
       closed = true;
+      introController.abort();
       if (typeof stopRain === "function") stopRain();
       runShutterExit(intro);
     }
@@ -284,10 +289,12 @@
     // Hard upper bound — close even if scramble doesn't lock for some reason
     window.setTimeout(closeIntro, INTRO_DURATION_MS + 600);
 
-    if (skip) skip.addEventListener("click", closeIntro);
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeIntro();
-    });
+    if (skip) skip.addEventListener("click", closeIntro, { signal: introController.signal });
+    document.addEventListener(
+      "keydown",
+      (event) => { if (event.key === "Escape") closeIntro(); },
+      { signal: introController.signal }
+    );
   }
 
   /* ── H1 glyph-scramble decrypt ─────────────────────────────────────────── */
@@ -599,13 +606,14 @@
     readColors();
     resize();
     draw();
-    window.addEventListener("resize", () => { resize(); schedule(); });
-    host.addEventListener("pointermove", onMove);
-    host.addEventListener("pointerleave", onLeave);
+    window.addEventListener("resize", () => { resize(); schedule(); }, { signal: pageSignal });
+    host.addEventListener("pointermove", onMove, { signal: pageSignal });
+    host.addEventListener("pointerleave", onLeave, { signal: pageSignal });
 
     // Re-read colors if theme toggles
     const themeObserver = new MutationObserver(() => { readColors(); schedule(); });
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    pageSignal.addEventListener("abort", () => themeObserver.disconnect(), { once: true });
   }
 
   /* ── Number tickers (count-up on reveal) ───────────────────────────────── */
@@ -760,13 +768,13 @@
       targetX = relX * 32;
       targetY = relY * 24;
       if (!rafId) rafId = window.requestAnimationFrame(tick);
-    });
+    }, { signal: pageSignal });
 
     host.addEventListener("pointerleave", () => {
       targetX = 0;
       targetY = 0;
       if (!rafId) rafId = window.requestAnimationFrame(tick);
-    });
+    }, { signal: pageSignal });
   }
 
   function bindScrollProgress() {
@@ -783,8 +791,8 @@
     function schedule() {
       if (!rafId) rafId = window.requestAnimationFrame(draw);
     }
-    window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, { passive: true, signal: pageSignal });
+    window.addEventListener("resize", schedule, { signal: pageSignal });
     schedule();
   }
 
@@ -835,6 +843,13 @@
       try { window.HomeWebgl.init(); } catch (_) { /* fallback layers stay */ }
     });
   }
+
+  // Page-scoped AbortController — every long-lived listener / observer attaches its
+  // teardown to `pageSignal`. Aborts on pagehide so SPA-style nav and bfcache eject
+  // don't leak document/window listeners into the next page.
+  const pageController = new AbortController();
+  const pageSignal = pageController.signal;
+  window.addEventListener("pagehide", () => pageController.abort(), { once: true });
 
   function init() {
     markFirstVisitClass();

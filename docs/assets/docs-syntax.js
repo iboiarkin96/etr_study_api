@@ -32,6 +32,9 @@
     // In case the script loads deferred after DOMContentLoaded
     if (typeof requestIdleCallback === "function") {
       requestIdleCallback(highlightAll, { timeout: 800 });
+    } else if (typeof requestAnimationFrame === "function") {
+      // Wait for the next frame so initial paint isn't blocked on long pages.
+      requestAnimationFrame(highlightAll);
     } else {
       setTimeout(highlightAll, 0);
     }
@@ -222,20 +225,20 @@
   /* ── Dispatch ───────────────────────────────────────────────────────────── */
 
   const TOKENIZERS = {
-    python:     tokenizePython,
-    py:         tokenizePython,
-    bash:       tokenizeBash,
-    sh:         tokenizeBash,
-    shell:      tokenizeBash,
-    zsh:        tokenizeBash,
-    json:       tokenizeJSON,
-    yaml:       tokenizeYAML,
-    yml:        tokenizeYAML,
-    http:       tokenizeHTTP,
+    python: tokenizePython,
+    py: tokenizePython,
+    bash: tokenizeBash,
+    sh: tokenizeBash,
+    shell: tokenizeBash,
+    zsh: tokenizeBash,
+    json: tokenizeJSON,
+    yaml: tokenizeYAML,
+    yml: tokenizeYAML,
+    http: tokenizeHTTP,
     javascript: tokenizeJS,
-    js:         tokenizeJS,
+    js: tokenizeJS,
     typescript: tokenizeJS,
-    ts:         tokenizeJS,
+    ts: tokenizeJS,
   };
 
   function tokenize(escaped, lang) {
@@ -318,7 +321,10 @@
     const COMMENTS = /(#[^\n]*)/g;
     const VARS = /(\$\{?[A-Za-z_][A-Za-z_0-9]*\}?)/g;
     const COMMANDS = /\b(make|pip|pip3|python|python3|git|echo|export|source|cd|ls|cat|grep|curl|wget|docker|npm|yarn|chmod|mkdir|rm|cp|mv|touch|find|sort|head|tail|awk|sed|env|set|unset)\b/g;
-    const FLAGS = /(?<=\s)(-{1,2}[\w-]+)/g;
+    // Note: FLAGS regex used to live here with lookbehind `(?<=\s)`, but the literal
+    // itself is a SyntaxError on Safari < 16.4 and the whole module fails to load.
+    // The actual flag tokenization happens inline in tokenizeBashCode() with a
+    // capture-group prefix (see below).
     const SHEBANG = /^(#![^\n]*)/;
 
     let out = "";
@@ -338,7 +344,7 @@
     let match;
     while ((match = PROTECTED.exec(code)) !== null) {
       if (match.index > cursor) {
-        out += tokenizeBashCode(code.slice(cursor, match.index), VARS, COMMANDS, FLAGS);
+        out += tokenizeBashCode(code.slice(cursor, match.index), VARS, COMMANDS);
       }
       if (match[0].startsWith("#")) {
         out += span("cmt", match[0]);
@@ -348,13 +354,14 @@
       cursor = match.index + match[0].length;
     }
     if (cursor < code.length) {
-      out += tokenizeBashCode(code.slice(cursor), VARS, COMMANDS, FLAGS);
+      out += tokenizeBashCode(code.slice(cursor), VARS, COMMANDS);
     }
     return out;
   }
 
-  function tokenizeBashCode(code, VARS, COMMANDS, FLAGS) {
-    // Lookbehind for FLAGS won't work in all browsers (Safari<16.4), use split approach
+  function tokenizeBashCode(code, VARS, COMMANDS) {
+    // Flags use a capture-group prefix instead of lookbehind so the regex literal
+    // parses on Safari < 16.4 (lookbehind crashes the whole module otherwise).
     return code
       .replace(VARS, (m) => span("var", m))
       .replace(COMMANDS, (m) => span("kw", m))
@@ -380,8 +387,9 @@
     const COMMENTS = /(#[^\n]*)/g;
     const STRINGS = /("(?:[^"\\]|\\.)*"|'[^']*')/g;
     const KEYS = /^(\s*[-\s]*)([\w][\w\s-]*)(\s*:(?:\s|$))/gm;
-    const NUMBERS = /(?<=:\s*)\b(\d+\.?\d*)\b/g;
-    const BOOLS = /(?<=:\s*)\b(true|false|null|yes|no|on|off)\b/g;
+    // Capture-group prefix instead of lookbehind: Safari < 16.4 cannot parse (?<=...).
+    const NUMBERS = /(:\s*)(\d+\.?\d*)\b/g;
+    const BOOLS = /(:\s*)\b(true|false|null|yes|no|on|off)\b/g;
     const ANCHORS = /(&\w+|\*\w+)/g;
 
     let out = "";
@@ -409,8 +417,8 @@
   function tokenizeYAMLCode(code, KEYS, NUMBERS, BOOLS, ANCHORS) {
     return code
       .replace(KEYS, (_, indent, key, colon) => indent + span("key", key) + colon)
-      .replace(NUMBERS, (m) => span("num", m))
-      .replace(BOOLS, (m) => span("kw", m))
+      .replace(NUMBERS, (_, prefix, num) => prefix + span("num", num))
+      .replace(BOOLS, (_, prefix, kw) => prefix + span("kw", kw))
       .replace(ANCHORS, (m) => span("dec", m));
   }
 
@@ -427,8 +435,8 @@
       )
       // Header names
       .replace(/^([A-Za-z][\w-]+)(\s*:)/gm, (_, h, c) => span("key", h) + c)
-      // Header values (after the colon)
-      .replace(/(?<=:\s)(.+)$/gm, (m) => span("str", m));
+      // Header values (after the colon). Capture-group prefix instead of lookbehind: Safari < 16.4 compat.
+      .replace(/(:\s)(.+)$/gm, (_, prefix, val) => prefix + span("str", val));
   }
 
   /**

@@ -116,6 +116,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "ADR 0027: High-relevance client-side docs search (inverted index, IDF, and ranking boosts)"
       },
       {
+        "path": "adr/0028-monorepo-with-service-boundaries.html",
+        "title": "ADR 0028: Monorepo with service boundaries"
+      },
+      {
         "path": "adr/README.html",
         "title": "ADR Index — ETR Study API"
       },
@@ -237,7 +241,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/README.html",
-        "title": "Internal Docs — Overview"
+        "title": "Internal Docs Hub — Study App"
       },
       {
         "path": "internal/analysis/methodology.html",
@@ -480,6 +484,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Screen spec: Engineering hub home (docs/index.html)"
       },
       {
+        "path": "internal/front/screens/docs-screen-portal-hall-of-contributors.html",
+        "title": "Screen spec: Hall of Contributors (docs/internal/portal/people/index.html) — Study App"
+      },
+      {
         "path": "internal/front/screens/docs-screen-template.html",
         "title": "Screen spec template — international standard"
       },
@@ -498,6 +506,10 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "internal/portal/people/cursor/index.html",
         "title": "Cursor — Employee portal — Study App"
+      },
+      {
+        "path": "internal/portal/people/index.html",
+        "title": "Hall of Contributors — People maintaining documentation — Study App"
       },
       {
         "path": "internal/portal/people/ivan-boyarkin/index.html",

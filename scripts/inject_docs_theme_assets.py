@@ -11,7 +11,7 @@ DOCS = ROOT / "docs"
 THEME_MARKER = "docs-theme.css"
 SCRIPT_MARKER = "docs-theme-preference"
 
-EARLY_SCRIPT = """  <script>(function(){try{var k="docs-theme-preference",v=localStorage.getItem(k);if(v==="dark")document.documentElement.setAttribute("data-theme","dark");else if(v==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){}})();</script>
+EARLY_SCRIPT = """  <script>/* no-flash theme bootstrap */(function(){try{var k="docs-theme-preference",v=localStorage.getItem(k);if(v==="dark")document.documentElement.setAttribute("data-theme","dark");else if(v==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){/* localStorage may be unavailable; fall through to default theme */}})();</script>
 """
 
 

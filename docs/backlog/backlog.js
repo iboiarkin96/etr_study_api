@@ -66,6 +66,230 @@
     blocked: { label: "Blocked", className: "status-pill--blocked" },
     rejected: { label: "Rejected", className: "status-pill--rejected" },
   };
+  /* ──────────────────────────────────────────────────────────────────────
+   *  Task details modal — replaces the inline-expand "Open details" toggle
+   *  with a centered dialog so the full description has room to breathe.
+   *  Built once on first open, then re-populated per click. Closes via:
+   *    • ✕ button (in panel header)
+   *    • backdrop click
+   *    • Escape key
+   * ────────────────────────────────────────────────────────────────────── */
+  const escapeForHtml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  const ensureTaskModal = () => {
+    let modal = document.getElementById("backlog-task-modal");
+    if (modal) {
+      return modal;
+    }
+    modal = document.createElement("div");
+    modal.id = "backlog-task-modal";
+    modal.className = "backlog-task-modal";
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+    modal.innerHTML = `
+      <div class="backlog-task-modal__backdrop" data-modal-close="" aria-hidden="true"></div>
+      <div class="backlog-task-modal__panel" role="dialog" aria-modal="true" aria-labelledby="backlog-task-modal-title" tabindex="-1">
+        <header class="backlog-task-modal__head">
+          <div class="backlog-task-modal__head-left"></div>
+          <button type="button" class="backlog-task-modal__close" data-modal-close="" aria-label="Close task details">×</button>
+        </header>
+        <div class="backlog-task-modal__body"></div>
+        <footer class="backlog-task-modal__foot">
+          <button type="button" class="backlog-task-modal__action backlog-task-modal__action--ghost" data-modal-action="copy-link">
+            <span class="backlog-task-modal__action-label">Copy link</span>
+          </button>
+          <button type="button" class="backlog-task-modal__action backlog-task-modal__action--primary" data-modal-close="">
+            Close
+          </button>
+        </footer>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      if (target.matches("[data-modal-close]") || target.closest("[data-modal-close]")) {
+        closeTaskModal();
+        return;
+      }
+      const actionBtn = target.closest("[data-modal-action]");
+      if (actionBtn) {
+        const action = actionBtn.getAttribute("data-modal-action");
+        const card = modal.__currentCard;
+        if (action === "copy-link" && card) {
+          const hash = `${window.location.origin}${window.location.pathname}#${card.id}`;
+          const labelNode = actionBtn.querySelector(".backlog-task-modal__action-label") || actionBtn;
+          const original = labelNode.textContent;
+          (async () => {
+            try {
+              await navigator.clipboard.writeText(hash);
+              labelNode.textContent = "Link copied";
+            } catch {
+              window.location.hash = card.id;
+              labelNode.textContent = "Copied to URL";
+            }
+            window.setTimeout(() => { labelNode.textContent = original; }, 1400);
+          })();
+        }
+      }
+    });
+    return modal;
+  };
+
+  const closeTaskModal = () => {
+    const modal = document.getElementById("backlog-task-modal");
+    if (!modal || modal.hidden) {
+      return;
+    }
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("is-task-modal-open");
+    /* Return focus to the button that opened the modal, when possible. */
+    const opener = modal.__openerButton;
+    if (opener && typeof opener.focus === "function") {
+      opener.focus();
+    }
+  };
+
+  const openTaskModal = (card, opener) => {
+    const modal = ensureTaskModal();
+    modal.__openerButton = opener || document.activeElement;
+    modal.__currentCard = card;
+
+    const headLeft = modal.querySelector(".backlog-task-modal__head-left");
+    const body = modal.querySelector(".backlog-task-modal__body");
+
+    /* Build header: priority badge + title (with stable id #N) + status pill */
+    const priority = (card.dataset.priority || "P3").trim();
+    const status = readStatus(card) || "todo";
+    const presentation = statusPresentation[status] || statusPresentation.todo;
+    const order = card.querySelector(".backlog-order")?.textContent?.trim() || "";
+    /* Pull the title without the order marker so we can reformat it. */
+    const headingMain = card.querySelector(".backlog-heading-main");
+    const titleText = headingMain
+      ? Array.from(headingMain.childNodes)
+          .filter((n) => n.nodeType === Node.TEXT_NODE || (n.nodeType === Node.ELEMENT_NODE && !n.classList.contains("backlog-order")))
+          .map((n) => n.textContent || "")
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim()
+      : (card.querySelector("h2")?.textContent || "").trim();
+
+    headLeft.innerHTML = `
+      <span class="priority-tag priority-tag--${priority.toLowerCase()}" data-priority="${escapeForHtml(priority)}">${escapeForHtml(priority)}</span>
+      <h2 id="backlog-task-modal-title" class="backlog-task-modal__title">
+        ${order ? `<span class="backlog-task-modal__order">${escapeForHtml(order)}</span>` : ""}
+        <span class="backlog-task-modal__title-text">${escapeForHtml(titleText)}</span>
+      </h2>
+      <span class="status-pill ${presentation.className}">${escapeForHtml(presentation.label)}</span>
+    `;
+
+    /* Body: clone the rich pieces (summary, risk/confidence, meta, ETA, full
+     * expanded description). Cloning preserves structure + styling without
+     * detaching the originals from the card. */
+    body.innerHTML = "";
+    const sources = [
+      card.querySelector(".backlog-item-summary"),
+      card.querySelector(".backlog-item-risk-confidence"),
+      card.querySelector(".backlog-task-meta"),
+      card.querySelector(".backlog-task-eta"),
+      card.querySelector(".backlog-task-progress"),
+      card.querySelector(".backlog-task-expanded"),
+    ];
+    for (const node of sources) {
+      if (!node) continue;
+      const clone = node.cloneNode(true);
+      clone.removeAttribute("hidden");
+      clone.hidden = false;
+      body.appendChild(clone);
+    }
+
+    modal.hidden = false;
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("is-task-modal-open");
+    /* Focus the panel so Escape works immediately. */
+    const panel = modal.querySelector(".backlog-task-modal__panel");
+    if (panel) {
+      panel.focus();
+    }
+  };
+
+  /* Single global Escape handler for the modal. */
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const modal = document.getElementById("backlog-task-modal");
+    if (modal && !modal.hidden) {
+      closeTaskModal();
+    }
+  });
+
+  /** Resolve a portal-people record by display name (case-insensitive). */
+  const portalPersonByName = (name) => {
+    const data = window.__DOCS_PORTAL_DATA__;
+    if (!data || !Array.isArray(data.people)) {
+      return null;
+    }
+    const target = String(name || "").trim().toLowerCase();
+    if (!target) {
+      return null;
+    }
+    for (const p of data.people) {
+      if (String(p.displayName || "").trim().toLowerCase() === target) {
+        return p;
+      }
+    }
+    return null;
+  };
+
+  /** Owner avatar HTML — uses portal-people photo if available, else initials. */
+  const ownerAvatarHtml = (name) => {
+    const person = portalPersonByName(name);
+    if (person && person.photo) {
+      return `<img class="backlog-owner-avatar" src="../${person.photo}" alt="" width="22" height="22" loading="lazy">`;
+    }
+    const initials = String(name || "")
+      .split(/\s+/)
+      .map((s) => s[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?";
+    return `<span class="backlog-owner-avatar backlog-owner-avatar--initials" aria-hidden="true">${initials}</span>`;
+  };
+
+  /** Mini-bar geometry for ETA: % left/width on a 0..ETA_BAR_MAX_DAYS scale. */
+  const ETA_BAR_MAX_DAYS = 7;
+  const etaBarStyle = (minDays, maxDays) => {
+    const max = ETA_BAR_MAX_DAYS;
+    const lo = Math.max(0, Math.min(max, Number.isFinite(minDays) ? minDays : 0));
+    let hi = Math.max(lo, Math.min(max, Number.isFinite(maxDays) ? maxDays : lo));
+    // Single-day estimates render as a small chip so the fill never collapses.
+    if (hi - lo < 0.25) {
+      hi = Math.min(max, lo + 0.25);
+    }
+    const left = (lo / max) * 100;
+    const width = ((hi - lo) / max) * 100;
+    return `left:${left.toFixed(2)}%;width:${width.toFixed(2)}%;`;
+  };
+
+  const paintBacklogHeroTickers = () => {
+    const counts = { todo: 0, "in-progress": 0, blocked: 0, done: 0 };
+    for (const item of items) {
+      const status = (item.getAttribute("data-status") || "todo").toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(counts, status)) {
+        counts[status] += 1;
+      }
+    }
+    const nodes = document.querySelectorAll("[data-backlog-ticker]");
+    nodes.forEach((node) => {
+      const key = node.getAttribute("data-backlog-ticker");
+      if (Object.prototype.hasOwnProperty.call(counts, key)) {
+        node.textContent = String(counts[key]);
+      }
+    });
+  };
   const reorderTopSections = () => {
     const main = document.querySelector("main.container");
     const intelligence = document.getElementById("backlog-intelligence");
@@ -137,6 +361,16 @@
     items.forEach((item) => {
       taskListMount.appendChild(item);
     });
+    /* innerHTML wipe also removed any previously-built scaffolding
+     * (board columns / timeline segments). Re-build for the active view so
+     * everything stays intact across re-mounts and view toggles. */
+    if (state.viewMode === "board") {
+      buildBoardColumns();
+      refreshBoardColumnCounts();
+    } else if (state.viewMode === "timeline") {
+      buildTimelineSegments();
+      refreshTimelineSegmentCounts();
+    }
   };
   const renderIntelligencePanel = () => {
     const attentionMount = document.getElementById("backlog-attention-list");
@@ -471,7 +705,7 @@
       riskChip.setAttribute("tabindex", "0");
       riskConfidenceRow.appendChild(riskChip);
       const confidenceChip = document.createElement("span");
-      confidenceChip.className = "backlog-chip backlog-chip--confidence";
+      confidenceChip.className = `backlog-chip backlog-chip--confidence backlog-chip--confidence-${confidence}`;
       confidenceChip.textContent = `Confidence: ${confidence}`;
       confidenceChip.setAttribute("data-tooltip", "Estimate confidence: how reliable scope and ETA assumptions are.");
       confidenceChip.setAttribute("aria-label", `Confidence level: ${confidence}`);
@@ -515,12 +749,26 @@
       const etaDaysRaw = (item.dataset.etaDays || "").trim();
       const eta3hMin = roundToHalf(minHours / 3);
       const eta3hMax = roundToHalf(maxHours / 3);
+      const etaResolvedMin = Number.isFinite(etaMin) ? etaMin : eta3hMin;
+      const etaResolvedMax = Number.isFinite(etaMax) ? etaMax : eta3hMax;
+      let etaBarMin = etaResolvedMin;
+      let etaBarMax = etaResolvedMax;
+      if (etaDaysRaw) {
+        const parts = etaDaysRaw.split("-").map((p) => Number.parseFloat(p.trim()));
+        if (parts.length === 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1])) {
+          etaBarMin = parts[0];
+          etaBarMax = parts[1];
+        } else {
+          const single = Number.parseFloat(etaDaysRaw);
+          if (Number.isFinite(single)) {
+            etaBarMin = single;
+            etaBarMax = single;
+          }
+        }
+      }
       const etaLine = etaDaysRaw
         ? formatEtaRangeString(etaDaysRaw)
-        : formatDayRange(
-          Number.isFinite(etaMin) ? etaMin : eta3hMin,
-          Number.isFinite(etaMax) ? etaMax : eta3hMax,
-        );
+        : formatDayRange(etaResolvedMin, etaResolvedMax);
       const etaUpdatedAt = item.dataset.estimateUpdatedAt || new Date().toISOString().slice(0, 10);
       const checkDone = Number.parseInt(item.dataset.checkDone || "", 10);
       const checkTotal = Number.parseInt(item.dataset.checkTotal || "", 10);
@@ -545,39 +793,54 @@
 
       const meta = document.createElement("div");
       meta.className = "backlog-task-meta";
+      /* `Priority: ${priority}` chip removed — the colored priority badge in
+       * the card's top-left corner already conveys this. Owner and Age stay
+       * because they aren't visible elsewhere on the card. */
       meta.innerHTML = `
-        <span class="backlog-task-meta__item"><strong>Priority:</strong> ${priority}</span>
-        <span class="backlog-task-meta__item"><strong>Owner:</strong> ${owner}</span>
+        <span class="backlog-task-meta__item backlog-task-meta__item--owner">${ownerAvatarHtml(owner)}<span class="backlog-task-meta__owner-name">${owner}</span></span>
         <span class="backlog-task-meta__item"><strong>Age:</strong> ${resolvedAge}d</span>
       `;
       const metaItems = meta.querySelectorAll(".backlog-task-meta__item");
       if (metaItems[0]) {
-        metaItems[0].setAttribute("data-tooltip", "Business urgency: priority of this task relative to others.");
-        metaItems[0].setAttribute("aria-label", `Priority: ${priority}`);
+        metaItems[0].setAttribute("data-tooltip", "Responsible person accountable for delivery and updates.");
+        metaItems[0].setAttribute("aria-label", `Owner: ${owner}`);
         metaItems[0].setAttribute("tabindex", "0");
       }
       if (metaItems[1]) {
-        metaItems[1].setAttribute("data-tooltip", "Responsible person accountable for delivery and updates.");
-        metaItems[1].setAttribute("aria-label", `Owner: ${owner}`);
+        metaItems[1].setAttribute("data-tooltip", "Task age: days since the task was created.");
+        metaItems[1].setAttribute("aria-label", `Age: ${resolvedAge} days since creation`);
         metaItems[1].setAttribute("tabindex", "0");
-      }
-      if (metaItems[2]) {
-        metaItems[2].setAttribute("data-tooltip", "Task age: days since the task was created.");
-        metaItems[2].setAttribute("aria-label", `Age: ${resolvedAge} days since creation`);
-        metaItems[2].setAttribute("tabindex", "0");
       }
       heading.insertAdjacentElement("afterend", meta);
 
       const eta = document.createElement("div");
       eta.className = "backlog-task-eta";
+      const ariaEtaRange = `ETA ${etaLine} on a ${ETA_BAR_MAX_DAYS}-day scale`;
+      /* Compact range: "1-2.5 days" → "1–2.5d", "1 day" → "1d". Saves ~5 chars
+       * which keeps the single-row ETA layout from overflowing on narrow
+       * board cards while staying readable. */
+      const compactRange = etaLine
+        .replace(/^~/, "")
+        .replace(/-/g, "–")
+        .replace(/\s*days?$/i, "d");
       eta.innerHTML = `
-        <span><strong>ETA:</strong> ${etaLine}</span>
+        <div class="backlog-task-eta__row">
+          <span class="backlog-task-eta__label">ETA</span>
+          <span class="backlog-task-eta__bar" role="img" aria-label="${ariaEtaRange}">
+            <span class="backlog-task-eta__bar-track" aria-hidden="true">
+              <span class="backlog-task-eta__bar-tick" style="left: 14.28%"></span>
+              <span class="backlog-task-eta__bar-tick" style="left: 42.85%"></span>
+              <span class="backlog-task-eta__bar-tick" style="left: 71.42%"></span>
+            </span>
+            <span class="backlog-task-eta__bar-fill" style="${etaBarStyle(etaBarMin, etaBarMax)}"></span>
+          </span>
+          <span class="backlog-task-eta__range">${compactRange}</span>
+        </div>
         <span class="backlog-task-eta__meta">Recalculated: ${etaUpdatedAt}</span>
       `;
-      const etaPrimary = eta.querySelector("span");
+      const etaPrimary = eta.querySelector(".backlog-task-eta__bar");
       if (etaPrimary) {
-        etaPrimary.setAttribute("data-tooltip", "Estimated time window to complete the task (in days).");
-        etaPrimary.setAttribute("aria-label", `ETA: ${etaLine}`);
+        etaPrimary.setAttribute("data-tooltip", `Estimated window: ${etaLine} (scale 0–${ETA_BAR_MAX_DAYS}d).`);
         etaPrimary.setAttribute("tabindex", "0");
       }
       const summaryRow = item.querySelector(".backlog-item-summary");
@@ -600,13 +863,9 @@
         eta.insertAdjacentElement("afterend", progress);
       }
 
-      const actions = document.createElement("div");
-      actions.className = "backlog-task-actions";
-      actions.innerHTML = `
-        <button type="button" class="backlog-task-action-btn" data-task-action="toggle-details">Open details</button>
-        <button type="button" class="backlog-task-action-btn" data-task-action="copy-link">Copy link</button>
-      `;
-      details.insertAdjacentElement("beforebegin", actions);
+      /* Open details / Copy link buttons removed from the card — the title
+       * itself is now clickable (opens the details modal), and Copy link
+       * lives inside the modal's footer. Keeps the card body clean. */
 
       const expanded = document.createElement("div");
       expanded.className = "backlog-task-expanded";
@@ -619,6 +878,29 @@
       `;
       details.insertAdjacentElement("beforebegin", expanded);
       details.hidden = true;
+
+      /* Make the title clickable so it opens the details modal. We attach
+       * the listener to .backlog-heading-main (the inner span built by
+       * normalizeHeadingLayout) so the priority badge and status pill in
+       * the same h2 row stay non-clickable. */
+      const titleHost = item.querySelector(".backlog-heading-main");
+      if (titleHost && !titleHost.dataset.taskTitleClickable) {
+        titleHost.dataset.taskTitleClickable = "1";
+        titleHost.setAttribute("role", "button");
+        titleHost.setAttribute("tabindex", "0");
+        titleHost.setAttribute("aria-label", `Open details for: ${titleHost.textContent.trim()}`);
+        titleHost.classList.add("backlog-heading-main--clickable");
+        const open = (event) => {
+          event.preventDefault();
+          openTaskModal(item, titleHost);
+        };
+        titleHost.addEventListener("click", open);
+        titleHost.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            open(event);
+          }
+        });
+      }
     });
   };
 
@@ -1132,8 +1414,234 @@
     `;
   };
 
+  /** Notion-style kanban headers — one per status column, lives inside the
+   *  task list grid. Counts reflect currently-visible (filtered) items. */
+  const BOARD_COLUMNS = [
+    { key: "todo",        label: "To do" },
+    { key: "in-progress", label: "In progress" },
+    { key: "blocked",     label: "Blocked" },
+    { key: "done",        label: "Done" },
+    { key: "rejected",    label: "Rejected" },
+  ];
+
+  /* ──────────────────────────────────────────────────────────────────────
+   *  Timeline view — ETA buckets along a vertical axis.
+   *  Items are grouped into 6 segments (Now / Soon / Mid / Later / Blocked /
+   *  Shipped). Status (blocked, done) overrides ETA bucketing so finished or
+   *  stuck work is always visible in its dedicated lane.
+   * ────────────────────────────────────────────────────────────────────── */
+  const TIMELINE_SEGMENTS = [
+    { key: "now",     label: "Now",     hint: "≤ 1 day" },
+    { key: "soon",    label: "Soon",    hint: "1–3 days" },
+    { key: "mid",     label: "Mid",     hint: "3–5 days" },
+    { key: "later",   label: "Later",   hint: "more than 5 days" },
+    { key: "blocked", label: "Blocked", hint: "needs unblocking" },
+    { key: "shipped", label: "Shipped", hint: "done" },
+  ];
+
+  const itemEtaMidDays = (item) => {
+    const raw = (item.dataset.etaDays || "").trim();
+    if (raw) {
+      const parts = raw.split("-").map((p) => Number.parseFloat(p.trim()));
+      if (parts.length === 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1])) {
+        return (parts[0] + parts[1]) / 2;
+      }
+      const single = Number.parseFloat(raw);
+      if (Number.isFinite(single)) {
+        return single;
+      }
+    }
+    const min = Number.parseFloat(item.dataset.etaMinDays || "");
+    const max = Number.parseFloat(item.dataset.etaMaxDays || "");
+    if (Number.isFinite(min) && Number.isFinite(max)) {
+      return (min + max) / 2;
+    }
+    const est = estimateForItem(item);
+    return (est.minDays + est.maxDays) / 2;
+  };
+
+  const timelineSegmentKeyForItem = (item) => {
+    const status = (item.dataset.status || "todo").toLowerCase();
+    if (status === "blocked") return "blocked";
+    if (status === "done") return "shipped";
+    if (status === "rejected") return "shipped";
+    const eta = itemEtaMidDays(item);
+    if (eta <= 1) return "now";
+    if (eta <= 3) return "soon";
+    if (eta <= 5) return "mid";
+    return "later";
+  };
+
+  const buildTimelineSegments = () => {
+    if (!taskListMount) {
+      return;
+    }
+    if (taskListMount.querySelector(".backlog-timeline-segment")) {
+      refreshTimelineSegmentCounts();
+      return;
+    }
+    const wrappers = {};
+    for (const seg of TIMELINE_SEGMENTS) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "backlog-timeline-segment";
+      wrapper.setAttribute("data-timeline-segment", seg.key);
+      wrapper.innerHTML = `
+        <aside class="backlog-timeline-segment__marker">
+          <span class="backlog-timeline-segment__dot" aria-hidden="true"></span>
+          <p class="backlog-timeline-segment__label">${seg.label}</p>
+          <p class="backlog-timeline-segment__hint">${seg.hint}</p>
+          <p class="backlog-timeline-segment__count" data-timeline-segment-count="${seg.key}">0</p>
+        </aside>
+        <div class="backlog-timeline-segment__items"></div>
+        <p class="backlog-timeline-segment__empty" data-timeline-segment-empty="${seg.key}" hidden>
+          <span>Nothing in this band.</span>
+        </p>
+      `;
+      wrappers[seg.key] = wrapper;
+      taskListMount.appendChild(wrapper);
+    }
+    /* Distribute items into the right segment's items column. */
+    for (const item of items) {
+      const key = timelineSegmentKeyForItem(item);
+      const wrapper = wrappers[key] || wrappers.later;
+      wrapper.querySelector(".backlog-timeline-segment__items").appendChild(item);
+    }
+  };
+
+  const teardownTimelineSegments = () => {
+    if (!taskListMount) {
+      return;
+    }
+    if (!taskListMount.querySelector(".backlog-timeline-segment")) {
+      return;
+    }
+    items.forEach((item) => taskListMount.appendChild(item));
+    taskListMount.querySelectorAll(".backlog-timeline-segment").forEach((node) => node.remove());
+  };
+
+  const refreshTimelineSegmentCounts = () => {
+    if (!taskListMount) {
+      return;
+    }
+    const counts = Object.fromEntries(TIMELINE_SEGMENTS.map((s) => [s.key, 0]));
+    for (const item of items) {
+      if (item.hidden) {
+        continue;
+      }
+      const key = timelineSegmentKeyForItem(item);
+      if (Object.prototype.hasOwnProperty.call(counts, key)) {
+        counts[key] += 1;
+      }
+    }
+    for (const seg of TIMELINE_SEGMENTS) {
+      const node = taskListMount.querySelector(`[data-timeline-segment-count="${seg.key}"]`);
+      if (node) {
+        node.textContent = String(counts[seg.key]);
+      }
+      const empty = taskListMount.querySelector(`[data-timeline-segment-empty="${seg.key}"]`);
+      if (empty) {
+        empty.hidden = counts[seg.key] !== 0;
+      }
+    }
+  };
+
+  /** Build 5 board-column wrappers inside #backlog-task-list and move every
+   *  .backlog-item into its column based on data-status. Each column is its
+   *  own flex stack — that's the only clean way to get independent per-column
+   *  heights (CSS Grid rows are global, which causes "empty space above"
+   *  artifacts when columns have very different item counts). */
+  const buildBoardColumns = () => {
+    if (!taskListMount) {
+      return;
+    }
+    /* Idempotent: if already built, just refresh counts/empties. */
+    if (taskListMount.querySelector(".backlog-board-column")) {
+      refreshBoardColumnCounts();
+      return;
+    }
+    /* Build column wrappers — one per status. Each wrapper holds its header,
+     * its items, and an empty-state placeholder used when no visible items. */
+    const wrappers = {};
+    for (const col of BOARD_COLUMNS) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "backlog-board-column";
+      wrapper.setAttribute("data-board-column", col.key);
+      wrapper.innerHTML = `
+        <header class="backlog-board-column-header" data-board-column="${col.key}">
+          <span class="backlog-board-column-header__dot" aria-hidden="true"></span>
+          <h3 class="backlog-board-column-header__title">${col.label}</h3>
+          <span class="backlog-board-column-header__count" data-board-column-count="${col.key}">0</span>
+        </header>
+        <div class="backlog-board-column-empty" data-board-column-empty="${col.key}" hidden>
+          <span class="backlog-board-column-empty__hint">No tasks here.</span>
+        </div>
+      `;
+      wrappers[col.key] = wrapper;
+      taskListMount.appendChild(wrapper);
+    }
+    /* Distribute items into their column wrapper. Unknown statuses fall back
+     * to "todo" so nothing disappears. */
+    for (const item of items) {
+      const status = (item.dataset.status || "todo").toLowerCase();
+      const wrapper = wrappers[status] || wrappers.todo;
+      wrapper.appendChild(item);
+    }
+  };
+
+  /** Tear board columns down: lift every item back as a direct child of
+   *  #backlog-task-list, then remove the wrappers. Used when leaving board
+   *  view (list / timeline both expect flat children). */
+  const teardownBoardColumns = () => {
+    if (!taskListMount) {
+      return;
+    }
+    if (!taskListMount.querySelector(".backlog-board-column")) {
+      return;
+    }
+    items.forEach((item) => taskListMount.appendChild(item));
+    taskListMount.querySelectorAll(".backlog-board-column").forEach((node) => node.remove());
+  };
+
+  const refreshBoardColumnCounts = () => {
+    if (!taskListMount) {
+      return;
+    }
+    const counts = Object.fromEntries(BOARD_COLUMNS.map((c) => [c.key, 0]));
+    for (const item of items) {
+      if (item.hidden) {
+        continue;
+      }
+      const status = (item.dataset.status || "todo").toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(counts, status)) {
+        counts[status] += 1;
+      }
+    }
+    for (const col of BOARD_COLUMNS) {
+      const node = taskListMount.querySelector(`[data-board-column-count="${col.key}"]`);
+      if (node) {
+        node.textContent = String(counts[col.key]);
+      }
+      const empty = taskListMount.querySelector(`[data-board-column-empty="${col.key}"]`);
+      if (empty) {
+        empty.hidden = counts[col.key] !== 0;
+      }
+    }
+  };
+
   const applyViewMode = () => {
     document.body.setAttribute("data-backlog-view", state.viewMode);
+    if (state.viewMode === "board") {
+      teardownTimelineSegments();
+      buildBoardColumns();
+      refreshBoardColumnCounts();
+    } else if (state.viewMode === "timeline") {
+      teardownBoardColumns();
+      buildTimelineSegments();
+      refreshTimelineSegmentCounts();
+    } else {
+      teardownBoardColumns();
+      teardownTimelineSegments();
+    }
   };
 
   const validateTaxonomy = () => {
@@ -1372,6 +1880,8 @@
     renderGroupSections();
     renderCockpitStats();
     renderIntelligencePanel();
+    refreshBoardColumnCounts();
+    refreshTimelineSegmentCounts();
   };
 
   const activateFilterButtons = (selector, value) => {
@@ -1630,14 +2140,7 @@
           return;
         }
         if (action === "toggle-details") {
-          const expanded = card.querySelector(".backlog-task-expanded");
-          if (!expanded) {
-            return;
-          }
-          const isOpen = !expanded.hidden;
-          expanded.hidden = isOpen;
-          button.textContent = isOpen ? "Open details" : "Hide details";
-          card.classList.toggle("is-expanded", !isOpen);
+          openTaskModal(card);
           return;
         }
         if (action === "copy-link") {
@@ -1756,4 +2259,5 @@
   validateTaxonomy();
   applyViewMode();
   applyFilter();
+  paintBacklogHeroTickers();
 })();
