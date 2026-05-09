@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ROOT / "services" / "frontend" / "portal"
+DOCS = ROOT / "services" / "portal"
 
 MAIN_CLOSE_RE = re.compile(r"^(\s*)</main>\s*$", re.MULTILINE)
 

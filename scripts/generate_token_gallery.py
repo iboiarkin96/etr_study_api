@@ -19,7 +19,7 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).resolve()
 ROOT = SCRIPT.parent.parent
-DOCS_ASSETS = ROOT / "services" / "portal" / "assets"
+DOCS_ASSETS = ROOT / "services" / "frontend" / "portal" / "assets"
 OUT_PATH = ROOT / "services" / "portal" / "internal" / "front" / "docs-frontend-token-gallery.html"
 
 LIGHT_CSS = DOCS_ASSETS / "docs.css"

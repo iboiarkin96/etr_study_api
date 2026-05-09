@@ -459,7 +459,7 @@ def _should_include_handbook_doc(path: Path) -> bool:
     if stem.endswith("-draft") or stem.endswith("_draft"):
         return False
     try:
-        rel_key = path.relative_to(ROOT / "services" / "frontend" / "portal").as_posix()
+        rel_key = path.relative_to(ROOT / "services" / "portal").as_posix()
     except ValueError:
         return True
     if rel_key in _HANDBOOK_EXCLUDE_EXACT:
@@ -482,7 +482,7 @@ _HANDBOOK_DESCRIPTION_OVERRIDES: dict[str, str] = {
     "internal/handbook/howto/index.html": (
         "How-to index: internal HTML documentation layout and endpoint walkthroughs (moved from STRUCTURE.md and developer/0004)."
     ),
-    "internal/handbook/howto/internal-service-docs-layout.html": (
+    "internal/handbook/howto/0002-internal-service-docs-layout.html": (
         "Directory layout for services/portal/internal/, shared chrome, and how to add or edit resource and operation pages."
     ),
     "internal/handbook/howto/0004-how-to-add-post-contract.html": (
@@ -497,7 +497,7 @@ _HANDBOOK_DESCRIPTION_OVERRIDES: dict[str, str] = {
     "internal/governance/adr/0006-idempotency-write-operations.html": (
         "Idempotency contract for write operations using Idempotency-Key and dedup behavior."
     ),
-    "runbooks/0006-api-security-failing.html": (
+    "internal/sre/runbooks/0006-api-security-failing.html": (
         "Incident recovery for auth failures, rate-limit spikes, CORS issues, and "
         "security headers/body limits."
     ),
@@ -510,7 +510,7 @@ def _handbook_doc_entries() -> list[tuple[str, str, str, str]]:
     Returns:
         List of tuples for :func:`_render_handbook_rows_html`.
     """
-    docs = ROOT / "services" / "frontend" / "portal"
+    docs = ROOT / "services" / "portal"
     entries: list[tuple[str, str, str, str]] = []
 
     fixed_root = [
@@ -530,7 +530,7 @@ def _handbook_doc_entries() -> list[tuple[str, str, str, str]]:
     grouped_dirs = [
         (
             "Developer Docs",
-            docs / "developer",
+            docs / "internal" / "handbook" / "developer",
             "developer guide",
             "Open guide",
             "Developer Docs Template",
@@ -538,7 +538,7 @@ def _handbook_doc_entries() -> list[tuple[str, str, str, str]]:
         ),
         (
             "How-to guides",
-            docs / "howto",
+            docs / "internal" / "handbook" / "howto",
             "how-to guide",
             "Open guide",
             "How-to Template",
@@ -546,7 +546,7 @@ def _handbook_doc_entries() -> list[tuple[str, str, str, str]]:
         ),
         (
             "ADR",
-            docs / "adr",
+            docs / "internal" / "governance" / "adr",
             "architecture decision record",
             "Open ADR",
             "ADR Template",
@@ -554,7 +554,7 @@ def _handbook_doc_entries() -> list[tuple[str, str, str, str]]:
         ),
         (
             "Runbooks",
-            docs / "runbooks",
+            docs / "internal" / "sre" / "runbooks",
             "operational runbook",
             "Open runbook",
             "Runbook Template",
@@ -817,8 +817,16 @@ def sync(check: bool = False) -> int:
         else:
             _info("services/portal/internal/analysis/system-design.html already up to date")
 
-    # --- services/portal/internal/handbook/howto/make-commands-inventory.html (Makefile inventory sync) ---
-    make_commands_path = ROOT / "services" / "portal" / "howto" / "make-commands-inventory.html"
+    # --- services/portal/internal/handbook/howto/0003-make-commands-inventory.html (Makefile inventory sync) ---
+    make_commands_path = (
+        ROOT
+        / "services"
+        / "portal"
+        / "internal"
+        / "handbook"
+        / "howto"
+        / "0003-make-commands-inventory.html"
+    )
     if make_commands_path.exists():
         make_commands_sections: dict[str, str] = {}
         if makefile_entries:
@@ -830,14 +838,16 @@ def sync(check: bool = False) -> int:
             stale_files += 1
             if check:
                 print(
-                    "✗ services/portal/internal/handbook/howto/make-commands-inventory.html is out of sync (run make docs-fix)"
+                    "✗ services/portal/internal/handbook/howto/0003-make-commands-inventory.html is out of sync (run make docs-fix)"
                 )
             else:
                 make_commands_path.write_text(updated)
-                _ok("services/portal/internal/handbook/howto/make-commands-inventory.html updated")
+                _ok(
+                    "services/portal/internal/handbook/howto/0003-make-commands-inventory.html updated"
+                )
         else:
             _info(
-                "services/portal/internal/handbook/howto/make-commands-inventory.html already up to date"
+                "services/portal/internal/handbook/howto/0003-make-commands-inventory.html already up to date"
             )
 
     # --- services/portal/internal/api/errors.html (error catalog sync) ---
