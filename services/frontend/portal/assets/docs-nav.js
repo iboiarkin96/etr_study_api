@@ -902,29 +902,8 @@ function mountInternalDrawerMenuButton() {
   if (!main) {
     return null;
   }
-  let row = main.querySelector("[data-internal-drawer-menu-row]");
-  if (!row) {
-    /*
-     * Anchor to the first main heading in this page context.
-     * We keep this resilient because some pages are transformed after initial render.
-     */
-    const h1 = main.querySelector("h1");
-    if (!h1) {
-      return null;
-    }
-    row = document.createElement("div");
-    row.className = "internal-layout__page-title-row";
-    row.setAttribute("data-internal-drawer-menu-row", "1");
-    const parent = h1.parentElement;
-    if (parent) {
-      parent.insertBefore(row, h1);
-    } else {
-      h1.insertAdjacentElement("beforebegin", row);
-    }
-    row.appendChild(h1);
-  }
 
-  let menuBtn = row.querySelector("[data-internal-drawer-menu]");
+  let menuBtn = main.querySelector("[data-internal-drawer-menu]");
   if (!menuBtn) {
     menuBtn = document.createElement("button");
     menuBtn.type = "button";
@@ -942,10 +921,21 @@ function mountInternalDrawerMenuButton() {
         }),
       );
     });
-    row.insertBefore(menuBtn, row.firstChild);
   }
 
-  return row;
+  /* Always mount as a direct child of main, immediately after `#docs-top-nav`
+   * (mirrors public-sidebar.js `injectMenuButton`). This stays correct on pages
+   * where h1 is nested inside a hero/section instead of being a direct child of main. */
+  const topNav = main.querySelector("#docs-top-nav");
+  if (topNav && topNav.parentElement === main) {
+    if (menuBtn.previousSibling !== topNav || menuBtn.parentElement !== main) {
+      topNav.insertAdjacentElement("afterend", menuBtn);
+    }
+  } else if (menuBtn.parentElement !== main || menuBtn !== main.firstElementChild) {
+    main.prepend(menuBtn);
+  }
+
+  return menuBtn;
 }
 
 function syncInternalThemeTogglePlacement() {
@@ -954,14 +944,33 @@ function syncInternalThemeTogglePlacement() {
   if (!hasChrome) {
     return;
   }
+  const main = document.querySelector("main.container");
+  if (!main) {
+    return;
+  }
   const btn = document.querySelector("[data-docs-theme-toggle]");
   if (!btn) {
     return;
   }
-  const row = mountInternalDrawerMenuButton();
-  if (!row) {
-    return;
+
+  let h1 = null;
+  for (const child of main.children) {
+    if (child.tagName === "H1") {
+      h1 = child;
+      break;
+    }
   }
+  let row = main.querySelector(".internal-layout__page-title-row");
+  if (!row) {
+    if (!h1) {
+      return;
+    }
+    row = document.createElement("div");
+    row.className = "internal-layout__page-title-row";
+    h1.insertAdjacentElement("beforebegin", row);
+    row.appendChild(h1);
+  }
+
   if (btn.parentElement !== row) {
     row.appendChild(btn);
   }

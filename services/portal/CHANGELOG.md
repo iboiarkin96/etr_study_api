@@ -4,6 +4,12 @@ All notable changes to the **documentation tree** under `services/portal/` (and 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-05-09
+
+### Fixed
+
+- **Internal layout — drawer Menu button no longer pinned to the H1:** [`services/frontend/portal/assets/docs-nav.js`](assets/docs-nav.js) — `mountInternalDrawerMenuButton()` no longer wraps the page H1 in a flex row alongside the `Menu` pill (the previous markup made the button visually attach to the heading and, on hero-driven pages such as [`internal/governance/backlog/index.html`](internal/governance/backlog/index.html) where the H1 lives deep inside `.backlog-hero`, anchored the button inside the hero copy). The button is now mounted as a standalone block immediately after `#docs-top-nav` (mirroring `injectMenuButton()` in [`services/frontend/portal/assets/public-sidebar.js`](assets/public-sidebar.js)) and stays a direct child of `main.container` regardless of where the H1 lives. `syncInternalThemeTogglePlacement()` was decoupled from the menu-button mount: it now creates `.internal-layout__page-title-row` independently when the H1 is a direct child of `main`, and otherwise leaves the theme toggle in the top-nav (avoiding the previous bug where it landed inside `.backlog-hero__copy` for hero pages). [`services/frontend/portal/assets/internal-layout.css`](assets/internal-layout.css) `.internal-layout__page-menu-btn` updated accordingly: `display: inline-flex; align-items: center; gap: 7px; margin-bottom: 20px` (previously `flex: 0 0 auto`, which only made sense inside the now-decommissioned title-row). Component documentation row in [`services/portal/internal/front/foundations/css-architecture.html`](internal/front/foundations/css-architecture.html) updated to describe the split: `.internal-layout__page-menu-btn` is the standalone drawer trigger; `.internal-layout__page-title-row` now holds H1 + theme toggle only.
+
 ## 2026-05-08
 
 ### Added

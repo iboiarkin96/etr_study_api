@@ -533,11 +533,11 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/governance/audit/ui-ux/2026-05-09-ui-ux-consistency-assessment.html",
-        "title": "UI/UX consistency &amp; design-system assessment &mdash; Study App &mdash; formed 2026-05-09"
+        "title": "UI/UX consistency &amp; design-system assessment — Study App — formed 2026-05-09"
       },
       {
         "path": "internal/governance/audit/ui-ux/index.html",
-        "title": "UI/UX consistency assessments &mdash; index"
+        "title": "UI/UX consistency assessments — index"
       },
       {
         "path": "internal/governance/backlog/index.html",
