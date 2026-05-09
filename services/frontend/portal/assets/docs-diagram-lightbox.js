@@ -11,7 +11,51 @@
   var WHEEL_FACTOR = 0.002;
   var BTN_FACTOR = 1.25;
 
-  function createLightbox() {
+  var ui = null;
+  var lastFocus = null;
+
+  var scale = 1;
+  var tx = 0;
+  var ty = 0;
+
+  var panning = false;
+  var panStartX = 0;
+  var panStartY = 0;
+  var panOrigTx = 0;
+  var panOrigTy = 0;
+
+  // AbortController for listeners that should only live while the lightbox is open.
+  var openSession = null;
+
+  function clampScale(s) {
+    if (s < MIN_SCALE) return MIN_SCALE;
+    if (s > MAX_SCALE) return MAX_SCALE;
+    return s;
+  }
+
+  function applyTransform() {
+    ui.stage.style.transform =
+      "translate(" + tx + "px, " + ty + "px) scale(" + scale + ")";
+  }
+
+  function resetView() {
+    scale = 1;
+    tx = 0;
+    ty = 0;
+    applyTransform();
+    ui.viewport.classList.remove("is-panning");
+  }
+
+  function zoomAtFactor(factor) {
+    scale = clampScale(scale * factor);
+    if (scale <= MIN_SCALE + 1e-6) {
+      tx = 0;
+      ty = 0;
+    }
+    applyTransform();
+  }
+
+  function buildLightbox() {
     var root = document.createElement("div");
     root.id = "docs-diagram-lightbox";
     root.className = "docs-diagram-lightbox";
@@ -97,49 +141,155 @@
     };
   }
 
-  var ui = createLightbox();
-  var lastFocus = null;
+  function ensureLightbox() {
+    if (ui) return ui;
+    ui = buildLightbox();
 
-  var scale = 1;
-  var tx = 0;
-  var ty = 0;
+    ui.zoomInBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      zoomAtFactor(BTN_FACTOR);
+    });
+    ui.zoomOutBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      zoomAtFactor(1 / BTN_FACTOR);
+    });
+    ui.resetBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      resetView();
+    });
 
-  var panning = false;
-  var panStartX = 0;
-  var panStartY = 0;
-  var panOrigTx = 0;
-  var panOrigTy = 0;
+    ui.panel.addEventListener(
+      "wheel",
+      function (ev) {
+        ev.preventDefault();
+        var delta = ev.deltaY;
+        var next = scale * (1 - delta * WHEEL_FACTOR);
+        scale = clampScale(next);
+        if (scale <= MIN_SCALE + 1e-6) {
+          tx = 0;
+          ty = 0;
+        }
+        applyTransform();
+      },
+      { passive: false }
+    );
 
-  function clampScale(s) {
-    if (s < MIN_SCALE) return MIN_SCALE;
-    if (s > MAX_SCALE) return MAX_SCALE;
-    return s;
+    ui.viewport.addEventListener("mousedown", function (ev) {
+      if (ev.button !== 0) return;
+      if (scale <= MIN_SCALE + 1e-6) return;
+      ev.preventDefault();
+      panning = true;
+      panStartX = ev.clientX;
+      panStartY = ev.clientY;
+      panOrigTx = tx;
+      panOrigTy = ty;
+      ui.viewport.classList.add("is-panning");
+    });
+
+    ui.viewport.addEventListener("touchstart", function (ev) {
+      if (ev.touches.length === 1 && scale > MIN_SCALE + 1e-6) {
+        var t = ev.touches[0];
+        panning = true;
+        panStartX = t.clientX;
+        panStartY = t.clientY;
+        panOrigTx = tx;
+        panOrigTy = ty;
+        ui.viewport.classList.add("is-panning");
+      }
+    }, { passive: true });
+
+    ui.viewport.addEventListener("touchmove", function (ev) {
+      if (!panning || ev.touches.length !== 1) return;
+      var t = ev.touches[0];
+      tx = panOrigTx + (t.clientX - panStartX);
+      ty = panOrigTy + (t.clientY - panStartY);
+      applyTransform();
+      ev.preventDefault();
+    }, { passive: false });
+
+    ui.viewport.addEventListener("touchend", function () {
+      panning = false;
+      ui.viewport.classList.remove("is-panning");
+    });
+
+    ui.viewport.addEventListener("touchcancel", function () {
+      panning = false;
+      ui.viewport.classList.remove("is-panning");
+    });
+
+    ui.backdrop.addEventListener("click", close);
+    ui.closeBtn.addEventListener("click", close);
+
+    return ui;
   }
 
-  function applyTransform() {
-    ui.stage.style.transform =
-      "translate(" + tx + "px, " + ty + "px) scale(" + scale + ")";
+  function bindOpenSessionListeners() {
+    openSession = new AbortController();
+    var signal = openSession.signal;
+
+    window.addEventListener("mousemove", function (ev) {
+      if (!panning) return;
+      tx = panOrigTx + (ev.clientX - panStartX);
+      ty = panOrigTy + (ev.clientY - panStartY);
+      applyTransform();
+    }, { signal: signal });
+
+    window.addEventListener("mouseup", function () {
+      if (panning) {
+        panning = false;
+        ui.viewport.classList.remove("is-panning");
+      }
+    }, { signal: signal });
+
+    document.addEventListener("keydown", function (ev) {
+      var t = ev.target;
+      if (t && typeof t.closest === "function" &&
+          t.closest('input, textarea, select, [contenteditable="true"]')) {
+        return;
+      }
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        close();
+        return;
+      }
+      if (ev.key === "+" || ev.key === "=") {
+        ev.preventDefault();
+        zoomAtFactor(BTN_FACTOR);
+      }
+      if (ev.key === "-" || ev.key === "_") {
+        ev.preventDefault();
+        zoomAtFactor(1 / BTN_FACTOR);
+      }
+      if (ev.key === "0" && (ev.ctrlKey || ev.metaKey)) {
+        ev.preventDefault();
+        resetView();
+      }
+    }, { signal: signal });
   }
 
-  function resetView() {
-    scale = 1;
-    tx = 0;
-    ty = 0;
-    applyTransform();
-    ui.viewport.classList.remove("is-panning");
+  function releaseOpenSessionListeners() {
+    if (openSession) {
+      openSession.abort();
+      openSession = null;
+    }
   }
 
   function open(src, alt) {
+    ensureLightbox();
     lastFocus = document.activeElement;
     ui.img.src = src;
     ui.img.alt = alt || "";
     resetView();
     ui.root.hidden = false;
     document.body.classList.add("docs-diagram-lightbox-open");
+    bindOpenSessionListeners();
     ui.closeBtn.focus();
   }
 
   function close() {
+    if (!ui) return;
+    releaseOpenSessionListeners();
+    panning = false;
     ui.root.hidden = true;
     ui.img.removeAttribute("src");
     ui.img.alt = "";
@@ -150,127 +300,10 @@
     }
   }
 
-  function zoomAtFactor(factor) {
-    scale = clampScale(scale * factor);
-    if (scale <= MIN_SCALE + 1e-6) {
-      tx = 0;
-      ty = 0;
-    }
-    applyTransform();
-  }
-
-  ui.zoomInBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
-    zoomAtFactor(BTN_FACTOR);
-  });
-  ui.zoomOutBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
-    zoomAtFactor(1 / BTN_FACTOR);
-  });
-  ui.resetBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
-    resetView();
-  });
-
-  ui.panel.addEventListener(
-    "wheel",
-    function (ev) {
-      ev.preventDefault();
-      var delta = ev.deltaY;
-      var next = scale * (1 - delta * WHEEL_FACTOR);
-      scale = clampScale(next);
-      if (scale <= MIN_SCALE + 1e-6) {
-        tx = 0;
-        ty = 0;
-      }
-      applyTransform();
-    },
-    { passive: false }
-  );
-
-  ui.viewport.addEventListener("mousedown", function (ev) {
-    if (ev.button !== 0) return;
-    if (scale <= MIN_SCALE + 1e-6) return;
-    ev.preventDefault();
-    panning = true;
-    panStartX = ev.clientX;
-    panStartY = ev.clientY;
-    panOrigTx = tx;
-    panOrigTy = ty;
-    ui.viewport.classList.add("is-panning");
-  });
-
-  window.addEventListener("mousemove", function (ev) {
-    if (!panning) return;
-    tx = panOrigTx + (ev.clientX - panStartX);
-    ty = panOrigTy + (ev.clientY - panStartY);
-    applyTransform();
-  });
-
-  window.addEventListener("mouseup", function () {
-    if (panning) {
-      panning = false;
-      ui.viewport.classList.remove("is-panning");
-    }
-  });
-
-  ui.viewport.addEventListener("touchstart", function (ev) {
-    if (ev.touches.length === 1 && scale > MIN_SCALE + 1e-6) {
-      var t = ev.touches[0];
-      panning = true;
-      panStartX = t.clientX;
-      panStartY = t.clientY;
-      panOrigTx = tx;
-      panOrigTy = ty;
-      ui.viewport.classList.add("is-panning");
-    }
-  }, { passive: true });
-
-  ui.viewport.addEventListener("touchmove", function (ev) {
-    if (!panning || ev.touches.length !== 1) return;
-    var t = ev.touches[0];
-    tx = panOrigTx + (t.clientX - panStartX);
-    ty = panOrigTy + (t.clientY - panStartY);
-    applyTransform();
-    ev.preventDefault();
-  }, { passive: false });
-
-  ui.viewport.addEventListener("touchend", function () {
-    panning = false;
-    ui.viewport.classList.remove("is-panning");
-  });
-
-  ui.viewport.addEventListener("touchcancel", function () {
-    panning = false;
-    ui.viewport.classList.remove("is-panning");
-  });
-
-  document.addEventListener("keydown", function (ev) {
-    if (ui.root.hidden) return;
-    if (ev.key === "Escape") {
-      ev.preventDefault();
-      close();
-      return;
-    }
-    if (ev.key === "+" || ev.key === "=") {
-      ev.preventDefault();
-      zoomAtFactor(BTN_FACTOR);
-    }
-    if (ev.key === "-" || ev.key === "_") {
-      ev.preventDefault();
-      zoomAtFactor(1 / BTN_FACTOR);
-    }
-    if (ev.key === "0" && (ev.ctrlKey || ev.metaKey)) {
-      ev.preventDefault();
-      resetView();
-    }
-  });
-
-  ui.backdrop.addEventListener("click", close);
-  ui.closeBtn.addEventListener("click", close);
-
-  document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll("img.diagram--uml").forEach(function (diagramImg) {
+  function wireUpDiagrams() {
+    var diagrams = document.querySelectorAll("img.diagram--uml");
+    if (!diagrams.length) return;
+    diagrams.forEach(function (diagramImg) {
       if (diagramImg.closest(".diagram-uml-wrap")) {
         return;
       }
@@ -288,5 +321,11 @@
       });
       wrap.appendChild(btn);
     });
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireUpDiagrams);
+  } else {
+    wireUpDiagrams();
+  }
 })();
