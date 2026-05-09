@@ -1133,7 +1133,7 @@ function mountDocsSearch(nav, fromDir) {
   input.className = "docs-search__input";
   input.type = "search";
   input.placeholder = isPublicAudience
-    ? "Search "
+    ? "Search developer docs..."
     : "Type to search all docs...";
   input.setAttribute("autocomplete", "off");
   input.setAttribute("spellcheck", "false");
