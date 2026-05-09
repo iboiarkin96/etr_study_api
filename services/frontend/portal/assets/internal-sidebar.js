@@ -479,6 +479,7 @@
             { label: "ADR 0016 — Python docstrings and pdoc", path: "internal/governance/adr/0016-python-docstrings-google-style-and-pdoc.html" },
             { label: "ADR 0020 — C4, PlantUML, diagram conventions", path: "internal/governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html" },
             { label: "ADR 0029 — database table documentation", path: "internal/governance/adr/0029-database-table-documentation.html" },
+            { label: "ADR 0030 — portal shell token contract", path: "internal/governance/adr/0030-portal-shell-token-contract.html" },
           ],
         },
         {
