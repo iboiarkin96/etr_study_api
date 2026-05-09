@@ -204,10 +204,38 @@ const DOCS_NAV_LINK_REGISTRY = {
     searchLabel: "Go to Runbooks",
     activePrefixes: ["internal/sre/runbooks"],
   },
+  publicHome: {
+    target: "public/index.html",
+    searchLabel: "Go to Developer documentation",
+    activePrefixes: ["public"],
+  },
+  publicTutorials: {
+    target: "public/tutorials/index.html",
+    searchLabel: "Browse tutorials",
+    activePrefixes: ["public/tutorials"],
+  },
+  publicHowto: {
+    target: "public/how-to/index.html",
+    searchLabel: "Browse how-to guides",
+    activePrefixes: ["public/how-to"],
+  },
+  publicReference: {
+    target: "public/reference/index.html",
+    searchLabel: "Browse reference",
+    activePrefixes: ["public/reference"],
+  },
 };
 // RFC 0004 / 2026-05-08: top-nav links removed by request — wordmark + search + theme toggle remain.
 const DOCS_TOP_NAV_KEYS = [];
 const DOCS_SEARCH_EMPTY_QUICK_LINK_KEYS = ["internal", "pdoc", "openapi", "runbooks"];
+// Public portal isolation (RFC 0004): the empty-search panel must not advertise
+// internal targets when the visitor is on the developer portal.
+const DOCS_SEARCH_EMPTY_QUICK_LINK_KEYS_PUBLIC = [
+  "publicHome",
+  "publicTutorials",
+  "publicHowto",
+  "openapi",
+];
 const DOCS_FOOTER_LINK_KEYS = ["home"];
 function getDocsToastStackHost() {
   if (window.DocsPopups && typeof window.DocsPopups.getStackHost === "function") {
@@ -302,7 +330,10 @@ function docsTopNavItems() {
 }
 
 function docsQuickLinks(fromDir) {
-  return DOCS_SEARCH_EMPTY_QUICK_LINK_KEYS.map((key) => {
+  const keys = isDocsPublicAudience()
+    ? DOCS_SEARCH_EMPTY_QUICK_LINK_KEYS_PUBLIC
+    : DOCS_SEARCH_EMPTY_QUICK_LINK_KEYS;
+  return keys.map((key) => {
     const entry = docsNavEntry(key);
     return {
       label: entry.searchLabel || entry.navLabel || entry.footerLabel || key,
@@ -601,8 +632,20 @@ function emitDocsSearchTelemetry(eventName, payload) {
   }).catch(() => { });
 }
 
+function isDocsPublicAudience() {
+  return (
+    document.body.getAttribute("data-audience") === "public"
+    || document.body.classList.contains("public-layout")
+  );
+}
+
 function docsSearchIndexUrl(_fromDir) {
-  return DOCS_ASSET_DIR + "search-index.json";
+  // Public portal must never surface internal pages in search results, so it
+  // loads a corpus restricted to `public/**` produced by build_docs_search_index.py.
+  const fileName = isDocsPublicAudience()
+    ? "search-index-public.json"
+    : "search-index.json";
+  return DOCS_ASSET_DIR + fileName;
 }
 
 function normalizeSearchText(value) {
@@ -921,7 +964,11 @@ function suggestDocsSearchQuery(rawQuery, indexData) {
 
 function docsSearchRelatedQueries(queryText) {
   const q = normalizeSearchText(queryText);
-  const base = ["openapi", "runbook", "adr", "howto", "internal", "qa checklist"];
+  // Public visitors must not see prompts that pull them toward internal-only
+  // pages (runbooks, ADRs, internal handbook, QA checklists).
+  const base = isDocsPublicAudience()
+    ? ["openapi", "tutorial", "how-to", "errors", "auth", "idempotency"]
+    : ["openapi", "runbook", "adr", "howto", "internal", "qa checklist"];
   if (!q) {
     return base.slice(0, 4);
   }
@@ -968,7 +1015,10 @@ function renderDocsSearchResults(list, results, fromDir, selectedIndex, listId, 
 
     const tips = document.createElement("ul");
     tips.className = "docs-search__empty-tips";
-    ["Check spelling", "Try shorter query", "Use related terms (openapi, runbook, qa)"].forEach((tipText) => {
+    const tipsCopy = isDocsPublicAudience()
+      ? ["Check spelling", "Try shorter query", "Use related terms (openapi, tutorial, errors)"]
+      : ["Check spelling", "Try shorter query", "Use related terms (openapi, runbook, qa)"];
+    tipsCopy.forEach((tipText) => {
       const tip = document.createElement("li");
       tip.textContent = tipText;
       tips.appendChild(tip);
@@ -1065,22 +1115,26 @@ function renderDocsSearchResults(list, results, fromDir, selectedIndex, listId, 
 }
 
 function mountDocsSearch(nav, fromDir) {
+  const isPublicAudience = document.body.getAttribute("data-audience") === "public"
+    || document.body.classList.contains("public-layout");
   const searchUid = `docs-search-${Math.random().toString(36).slice(2, 9)}`;
   const inputId = `${searchUid}-input`;
   const resultsId = `${searchUid}-results`;
   const wrap = document.createElement("div");
-  wrap.className = "docs-search";
+  wrap.className = isPublicAudience ? "docs-search docs-search--public" : "docs-search";
 
   const label = document.createElement("label");
   label.className = "docs-search__label";
   label.setAttribute("for", inputId);
-  label.textContent = "Search docs";
+  label.textContent = isPublicAudience ? "Search developer docs" : "Search docs";
 
   const input = document.createElement("input");
   input.id = inputId;
   input.className = "docs-search__input";
   input.type = "search";
-  input.placeholder = "Type to search all docs...";
+  input.placeholder = isPublicAudience
+    ? "Search "
+    : "Type to search all docs...";
   input.setAttribute("autocomplete", "off");
   input.setAttribute("spellcheck", "false");
   input.setAttribute("role", "combobox");
@@ -1135,7 +1189,22 @@ function mountDocsSearch(nav, fromDir) {
   }
 
   function applyKindFilter(items) {
-    return Array.isArray(items) ? items : [];
+    if (!Array.isArray(items)) {
+      return [];
+    }
+    if (!isPublicAudience) {
+      return items;
+    }
+    /* Public-portal search must only surface public docs. The shared search
+     * index covers both portals, so we filter by the doc URL prefix. The
+     * router page (`index.html` at root) is treated as a public entry too. */
+    return items.filter((item) => {
+      const url = String((item && item.url) || "");
+      if (!url) return false;
+      if (url.startsWith("public/")) return true;
+      if (url === "index.html") return true;
+      return false;
+    });
   }
 
   async function searchNow(query) {
@@ -1672,8 +1741,15 @@ function injectDocsPopupsRuntime() {
 
 function ensureInternalLayoutForInternalSections() {
   const relPath = currentDocsRelPath();
+  // Public-portal pages have their own standalone layout (`public-layout`,
+  // mounted by public-sidebar.js) and MUST NOT receive the internal sidebar.
+  if (document.body.getAttribute("data-audience") === "public") {
+    return;
+  }
+  if (document.body.classList.contains("public-layout")) {
+    return;
+  }
   const internalPrefixes = [
-    "public/",
     "internal/governance/adr/",
     "internal/governance/rfc/",
     "runbooks/",
@@ -1740,11 +1816,16 @@ function renderTopNav() {
 
   const isInternalLayoutChrome =
     document.body.classList.contains("internal-layout") && document.getElementById("internal-sidebar-mount");
+  const isPublicLayoutChrome =
+    document.body.classList.contains("public-layout") || document.body.getAttribute("data-audience") === "public";
 
   const nav = document.createElement("nav");
   nav.className = "top-nav";
   if (isInternalLayoutChrome) {
     nav.classList.add("top-nav--internal-page");
+  }
+  if (isPublicLayoutChrome) {
+    nav.classList.add("top-nav--public-page");
   }
   nav.setAttribute("aria-label", "Documentation navigation");
 
@@ -1793,10 +1874,16 @@ function renderTopNav() {
     actionsEl.insertBefore(searchWidget, themeBar);
   }
 
-  const breadcrumbNav = renderDocsBreadcrumbNav(fromDir, relPath);
+  /* Public portal has its own sidebar wordmark + nav tree and intentionally
+   * runs without breadcrumbs (RFC 0004 — standalone public IA). */
+  const breadcrumbNav = isPublicLayoutChrome ? null : renderDocsBreadcrumbNav(fromDir, relPath);
 
   /* Keep `#docs-top-nav` in the DOM — `initAutoInPageToc` and formatters anchor off this host. */
-  host.replaceChildren(breadcrumbNav, nav);
+  if (breadcrumbNav) {
+    host.replaceChildren(breadcrumbNav, nav);
+  } else {
+    host.replaceChildren(nav);
+  }
 
   if (isInternalLayoutChrome) {
     mountInternalDrawerMenuButton();
@@ -2691,28 +2778,71 @@ function initAutoInPageToc() {
     toggle.setAttribute("aria-expanded", "true");
     toggle.setAttribute("aria-label", "Hide On this page");
     toggle.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M7.5 2L3.5 6L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const countBadge = document.createElement("span");
+    countBadge.className = "docs-inpage-toc__count";
+    countBadge.setAttribute("aria-hidden", "true");
+    countBadge.textContent = String(entries.length);
+
+    const dimBtn = document.createElement("button");
+    dimBtn.type = "button";
+    dimBtn.className = "docs-inpage-toc__dim-btn";
+    dimBtn.setAttribute("aria-label", "Make panel semi-transparent");
+    dimBtn.setAttribute("data-tooltip", "Dim — hides behind text");
+    dimBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1.5C3.515 1.5 1.5 3.515 1.5 6S3.515 10.5 6 10.5V1.5Z" fill="currentColor"/><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.25"/></svg>';
+    let isDimmed = false;
+    function applyDimState(nextDim) {
+      isDimmed = !!nextDim;
+      aside.classList.toggle("docs-inpage-toc--dim", isDimmed);
+      dimBtn.setAttribute("aria-label", isDimmed ? "Restore full opacity" : "Make panel semi-transparent");
+    }
+    dimBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      applyDimState(!isDimmed);
+    });
+
     let isCollapsed = false;
     function applyCollapsedState(nextCollapsed) {
       isCollapsed = !!nextCollapsed;
       aside.classList.toggle("docs-inpage-toc--collapsed", isCollapsed);
-      inner.classList.toggle("docs-page-layout__inner--toc-collapsed", isCollapsed);
       toggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
       toggle.setAttribute("aria-label", isCollapsed ? "Show On this page" : "Hide On this page");
       toggle.innerHTML = isCollapsed
-        ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M4.5 2L8.5 6L4.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        ? '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 4h10M2 7h7M2 10h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
         : '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M7.5 2L3.5 6L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      if (isCollapsed) {
+        aside.setAttribute("data-tooltip", "On this page");
+      } else {
+        aside.removeAttribute("data-tooltip");
+      }
+      if (isCollapsed && isDimmed) {
+        applyDimState(false);
+      }
     }
     function showStickyTocPromoToast() {
-      enqueueDocsPromoToast({
-        title: "Sticky TOC available",
-        text: 'We have a premium sticky "On this page" navigation for long docs.',
-        dismissLabel: "Hide",
-        primaryLabel: "Enable sticky TOC",
-        onPrimary: () => {
-          applyCollapsedState(false);
-        },
-        durationMs: 3000,
+      // Skip entirely if the visitor has already dismissed (or accepted) the
+      // hint — `storageKey` below persists that decision across sessions.
+      try {
+        if (localStorage.getItem("docs-sticky-toc-promo-dismissed") === "1") {
+          return;
+        }
+      } catch (_) { /* localStorage may be unavailable; treat as not-dismissed */ }
+
+      const enqueue = () => enqueueDocsPromoToast({
+        title: "On this page",
+        text: "Quick section navigation — click the floating button on the left to open.",
+        dismissLabel: "Later",
+        primaryLabel: "Open",
+        storageKey: "docs-sticky-toc-promo-dismissed",
+        onPrimary: () => { applyCollapsedState(false); },
+        durationMs: 4000,
       });
+
+      // Defer off the critical paint path: build the toast after the browser
+      // is idle (or fall back to a small timeout) so it never delays first
+      // render or interaction.
+      const idle = window.requestIdleCallback
+        || ((cb) => window.setTimeout(cb, 800));
+      idle(enqueue, { timeout: 1500 });
     }
     /**
      * Collapse/expand action for in-page TOC.
@@ -2746,18 +2876,13 @@ function initAutoInPageToc() {
 
     navEl.appendChild(ul);
     head.appendChild(title);
+    head.appendChild(dimBtn);
     head.appendChild(toggle);
+    head.appendChild(countBadge);
     aside.appendChild(head);
     aside.appendChild(navEl);
     inner.appendChild(aside);
-    /* Hub pages (docs home, internal README hub) skip sticky TOC promo and default collapse. */
-    if (!isTocPromoExcludedHub) {
-      /*
-       * Keep default collapsed rail only on wide desktop where promo is shown.
-       * On compact desktop/tablet, keep TOC expanded so it is usable immediately.
-       */
-      applyCollapsedState(window.matchMedia("(min-width: 1025px)").matches);
-    }
+    applyCollapsedState(true);
     if (!isTocPromoExcludedHub && window.matchMedia("(min-width: 1025px)").matches) {
       showStickyTocPromoToast();
     }
@@ -2912,7 +3037,7 @@ function initBackToTopButton() {
   btn.type = "button";
   btn.className = "docs-back-to-top";
   btn.setAttribute("aria-label", "Scroll to footer to launch the rocket");
-  btn.setAttribute("title", "Scroll to footer to launch the rocket");
+  btn.setAttribute("data-tooltip", "Scroll to footer — then launch 🚀");
   btn.setAttribute("aria-hidden", "true");
   btn.tabIndex = -1;
   btn.innerHTML = `
@@ -3915,7 +4040,39 @@ function initDocsSiteFooter() {
   cols.className = "docs-site-footer__cols";
   cols.setAttribute("aria-label", "Footer navigation");
 
-  const groups = [
+  const isPublicAudience = document.body.getAttribute("data-audience") === "public"
+    || document.body.classList.contains("public-layout");
+
+  const PUBLIC_GROUPS = [
+    {
+      label: "Documentation",
+      links: [
+        { href: "public/index.html", text: "Developer portal" },
+        { href: "public/tutorials/index.html", text: "Tutorials" },
+        { href: "public/how-to/index.html", text: "How-to guides" },
+      ],
+    },
+    {
+      label: "Reference",
+      links: [
+        { href: "public/reference/index.html", text: "Reference hub" },
+        { href: "public/reference/api/index.html", text: "API reference / Swagger UI" },
+        { href: "public/reference/errors/index.html", text: "Error catalogue" },
+        { href: "public/reference/env-vars/index.html", text: "Environment variables" },
+      ],
+    },
+    {
+      label: "Explanation",
+      links: [
+        { href: "public/explanation/index.html", text: "All explanations" },
+        { href: "public/explanation/architecture.html", text: "Architecture overview" },
+        { href: "public/explanation/api-versioning.html", text: "API versioning" },
+        { href: "public/explanation/security-model.html", text: "Security model" },
+      ],
+    },
+  ];
+
+  const INTERNAL_GROUPS = [
     {
       label: "Docs",
       links: [
@@ -3929,9 +4086,9 @@ function initDocsSiteFooter() {
       label: "API",
       links: [
         { href: "internal/api/index.html", text: "Internal HTTP API" },
-        { href: "public/reference/api/index.html", text: "OpenAPI / Swagger UI" },
         { href: "internal/api/errors.html", text: "Error matrix" },
         { href: "internal/catalog/api/code-reference/index.html", text: "Python API (pdoc)" },
+        { href: "internal/catalog/api/index.html", text: "API service catalog" },
       ],
     },
     {
@@ -3953,6 +4110,11 @@ function initDocsSiteFooter() {
       ],
     },
   ];
+
+  const groups = isPublicAudience ? PUBLIC_GROUPS : INTERNAL_GROUPS;
+  if (isPublicAudience) {
+    footer.classList.add("docs-site-footer--public");
+  }
 
   groups.forEach((group) => {
     const col = document.createElement("div");
@@ -4005,16 +4167,10 @@ function initDocsSiteFooter() {
 }
 
 function buildDocsPageActions(fromDir, relPath) {
-  const homeHref = relHref(fromDir, "index.html");
-  const internalHref = relHref(fromDir, "internal/index.html");
-  const qaHref = relHref(fromDir, "internal/handbook/qa/index.html");
-  const auditHref = relHref(fromDir, "internal/governance/audit/index.html");
-  const backlogHref = relHref(fromDir, "internal/governance/backlog/index.html");
-  const runbooksHref = relHref(fromDir, "internal/sre/runbooks/index.html");
-  const howtoHref = relHref(fromDir, "internal/handbook/howto/index.html");
-  const pdocHref = relHref(fromDir, "internal/catalog/api/code-reference/index.html");
-  const openApiHref = relHref(fromDir, "public/reference/api/index.html");
-  return [
+  const isPublicAudience = document.body.getAttribute("data-audience") === "public"
+    || document.body.classList.contains("public-layout");
+
+  const universalActions = [
     {
       label: "Edit page",
       hint: "Open GitHub editor for this file",
@@ -4061,6 +4217,67 @@ function buildDocsPageActions(fromDir, relPath) {
         toggleDocsReadingMode("palette");
       },
     },
+  ];
+
+  if (isPublicAudience) {
+    return [
+      ...universalActions,
+      {
+        label: "Go to developer portal",
+        hint: "Public documentation home",
+        href: relHref(fromDir, "public/index.html"),
+        group: "Go to page",
+        keywords: ["home", "public", "developer"],
+      },
+      {
+        label: "Go to tutorials",
+        hint: "Learning-oriented walk-throughs",
+        href: relHref(fromDir, "public/tutorials/index.html"),
+        group: "Go to page",
+        keywords: ["tutorial", "learn"],
+      },
+      {
+        label: "Go to how-to guides",
+        hint: "Task-oriented recipes",
+        href: relHref(fromDir, "public/how-to/index.html"),
+        group: "Go to page",
+        keywords: ["howto", "guide", "recipe"],
+      },
+      {
+        label: "Go to API reference",
+        hint: "Static Swagger UI against the published OpenAPI baseline",
+        href: relHref(fromDir, "public/reference/api/index.html"),
+        group: "Go to page",
+        keywords: ["api", "openapi", "swagger", "reference"],
+      },
+      {
+        label: "Go to error catalogue",
+        hint: "Public-facing error codes and remediation",
+        href: relHref(fromDir, "public/reference/errors/index.html"),
+        group: "Go to page",
+        keywords: ["error", "catalogue", "code"],
+      },
+      {
+        label: "Go to explanations",
+        hint: "Conceptual background for the API",
+        href: relHref(fromDir, "public/explanation/index.html"),
+        group: "Go to page",
+        keywords: ["explanation", "concept", "background"],
+      },
+    ];
+  }
+
+  const homeHref = relHref(fromDir, "index.html");
+  const internalHref = relHref(fromDir, "internal/index.html");
+  const qaHref = relHref(fromDir, "internal/handbook/qa/index.html");
+  const auditHref = relHref(fromDir, "internal/governance/audit/index.html");
+  const backlogHref = relHref(fromDir, "internal/governance/backlog/index.html");
+  const runbooksHref = relHref(fromDir, "internal/sre/runbooks/index.html");
+  const howtoHref = relHref(fromDir, "internal/handbook/howto/index.html");
+  const pdocHref = relHref(fromDir, "internal/catalog/api/code-reference/index.html");
+  const internalApiHref = relHref(fromDir, "internal/api/index.html");
+  return [
+    ...universalActions,
     {
       label: "Go to documentation home",
       hint: "Main docs landing page",
@@ -4118,11 +4335,11 @@ function buildDocsPageActions(fromDir, relPath) {
       keywords: ["api", "reference", "pdoc"],
     },
     {
-      label: "Go to OpenAPI / Swagger UI",
-      hint: "Static Swagger UI against openapi-baseline.json in services/frontend/portal/openapi/",
-      href: openApiHref,
+      label: "Go to internal HTTP API",
+      hint: "Internal HTTP contract index",
+      href: internalApiHref,
       group: "Go to page",
-      keywords: ["openapi", "swagger", "contract"],
+      keywords: ["api", "internal", "http"],
     },
   ];
 }
@@ -5249,6 +5466,13 @@ function restoreInitialHashPosition() {
 }
 
 function initLevel3Breadcrumbs() {
+  // Public portal runs without breadcrumbs (RFC 0004 — standalone public IA).
+  if (
+    document.body.classList.contains("public-layout")
+    || document.body.getAttribute("data-audience") === "public"
+  ) {
+    return;
+  }
   const main = document.querySelector("main.container");
   if (!main || main.querySelector(".docs-breadcrumbs")) return;
 

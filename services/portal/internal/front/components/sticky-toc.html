@@ -29,7 +29,7 @@
 
         <div class="internal-spec-meta" aria-label="Spec metadata">
           <span class="internal-spec-meta__item"><span class="internal-spec-meta__label">Summary</span>
-          <span>Right-rail "On this page" navigation auto-built from the article's <code>h2</code>/<code>h3</code> headings, with active-section highlight that follows the page scroll and an inner auto-scroll that keeps the active link in view when there are more entries than fit.</span></span>
+          <span>Fixed-position FAB "On this page" navigation auto-built from the article's <code>h2</code>/<code>h3</code> headings. Starts collapsed as a 52 × 52 px circle; expands to a 232 px card. Position tracks the sidebar state via an inherited CSS custom property. Includes scroll-spy, dot-indicator active link, dim mode, and a promo toast.</span></span>
           <span class="internal-spec-meta__item"><span class="internal-spec-meta__label">Status</span>
           <span data-spec-status-mount=""></span></span>
           <span class="internal-spec-meta__item"><span class="internal-spec-meta__label">Availability</span>
@@ -37,11 +37,11 @@
           <span class="internal-spec-meta__item"><span class="internal-spec-meta__label">Owner</span>
           <a href="../../portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
           <span class="internal-spec-meta__item"><span class="internal-spec-meta__label">Component type</span>
-          <span>Sticky aside · scroll-spy · in-nav auto-scroll</span></span>
+          <span>Fixed FAB · collapse/expand morph · scroll-spy · dot-indicator · in-nav auto-scroll</span></span>
           <span class="internal-spec-meta__item"><span class="internal-spec-meta__label">Implementation</span>
           <span><code>initAutoInPageToc()</code>, <code>initInPageTocScrollSpy()</code> in <code>services/frontend/portal/assets/docs-nav.js</code></span></span>
           <span class="internal-spec-meta__item"><span class="internal-spec-meta__label">Last reviewed</span>
-          <time datetime="2026-05-03">2026-05-03</time></span>
+          <time datetime="2026-05-08">2026-05-08</time></span>
           <span class="internal-spec-meta__item"><span class="internal-spec-meta__label">Spec template</span>
           <code>v1</code></span>
         </div>
@@ -49,27 +49,34 @@
         <section id="overview" class="card">
           <h2>Overview</h2>
           <p>
-            The <strong>sticky TOC</strong> is the right-side "On this page" rail that appears next to the article on
-            tablet-wide and desktop viewports. It is built at runtime from the article's <code>h2</code>/<code>h3</code>
-            headings — authors don't write it by hand. As the reader scrolls, the entry matching the section currently
-            at the top of the viewport is highlighted (<strong>scroll-spy</strong>). When the article has more headings
-            than fit inside the rail's max-height, the rail's inner <code>&lt;nav&gt;</code> becomes its own scroll
-            container and the active link is kept in view without ever moving the page.
+            The <strong>On this page FAB</strong> is a fixed-position floating button that gives readers quick access
+            to in-page section navigation. It is built at runtime from the article's <code>h2</code>/<code>h3</code>
+            headings — authors don't write it by hand. The FAB is <strong>always collapsed</strong> on first render
+            (a 52 × 52 px circle), floating at the left edge of the content area. Clicking it expands to a 232 px
+            card showing the full heading list. As the reader scrolls, the entry matching the current section is
+            highlighted (<strong>scroll-spy</strong>) with a dot-indicator <code>::before</code> pseudo-element and
+            accent colouring.
           </p>
           <p>
-            This page is the <em>UI</em> spec for the rail and its scroll-spy. The collapse-toggle (the
-            <code>&lt;</code> / <code>&gt;</code> chevron in the rail header) and the one-time "Sticky TOC available"
-            promo toast are still documented in
-            <a href="../contracts/navigation-search-and-discovery.html#on-this-page-collapse-control">Navigation, search, discovery §On this page collapse control</a>
-            and <a href="popups-and-overlays.html">Popups and overlays</a> respectively.
+            The FAB position is controlled by the CSS custom property <code>--docs-toc-fab-left</code> set on
+            <code>.internal-layout__shell</code> and inherited by the <code>position: fixed</code> aside. The value
+            shifts automatically when the sidebar collapses — no JavaScript required for the slide animation.
+            On viewports <code>≤ 1024 px</code> the FAB is hidden entirely via CSS; the spy still mounts but
+            does no visible work.
+          </p>
+          <p>
+            An expanded card also exposes a <strong>dim button</strong> that sets the card to 22 % opacity so it
+            stops obscuring the article text. A one-time <strong>promo toast</strong> ("On this page") fires on
+            the reader's first visit and offers an "Open" action that expands the FAB directly.
           </p>
           <p class="small">
             Source-of-truth for the contract is this page; source-of-truth for the code is
             <code>services/frontend/portal/assets/docs-nav.js</code> (functions <code>initAutoInPageToc()</code>,
             <code>initInPageTocScrollSpy()</code>, <code>ensureTocAnchorIds()</code>,
             <code>collectTocEntries()</code>) and
-            <code>services/frontend/portal/assets/docs.css</code> (selectors prefixed <code>.docs-inpage-toc*</code> and
-            <code>.docs-page-layout__inner*</code>).
+            <code>services/frontend/portal/assets/docs.css</code> (selectors prefixed <code>.docs-inpage-toc*</code>).
+            Grid layout helpers (<code>.docs-page-layout__inner</code>) are documented in
+            <a href="../contracts/navigation-search-and-discovery.html#on-this-page-collapse-control">Navigation, search, discovery §On this page</a>.
           </p>
         </section>
 
@@ -98,8 +105,8 @@
                   <td>Re-build the TOC on every layout change. Targets are captured once; the spy is defensive but the list is stable.</td>
                 </tr>
                 <tr>
-                  <td>Hide entirely on phone widths so the article gets the full reading column.</td>
-                  <td>Replace the sticky rail with a drawer/sheet on phone — that role belongs to the in-page hero chips.</td>
+                  <td>Hide entirely on viewports <code>≤ 1024 px</code> so the article gets the full reading column.</td>
+                  <td>Replace the FAB with a drawer/sheet on tablet/phone — that role belongs to the in-page hero chips.</td>
                 </tr>
               </tbody>
             </table>
@@ -110,40 +117,66 @@
           <h2>Anatomy</h2>
           <ol>
             <li>
-              <strong>Aside container</strong> — <code>aside.docs-inpage-toc</code> in column 1 of
-              <code>.docs-page-layout__inner</code> (article is column 2 with <code>order: 2</code>, so DOM order is
-              article → aside but visual order is aside → article).
-              Sticky via <code>position: sticky; top: 1rem;</code>.
+              <strong>FAB circle (collapsed state)</strong> — <code>aside.docs-inpage-toc.docs-inpage-toc--collapsed</code>
+              rendered as a 52 × 52 px circle via <code>border-radius: 999px</code>. Position:
+              <code>position: fixed !important; left: var(--docs-toc-fab-left, 12px); top: 68px;</code>.
+              The <code>!important</code> overrides the <code>[data-tooltip]</code> attribute selector
+              (specificity 0,1,0) which appears later in <code>docs.css</code> and would otherwise silently reset
+              <code>position</code> to <code>relative</code>. When collapsed, the aside carries
+              <code>data-tooltip="On this page"</code> so the label appears on hover.
             </li>
             <li>
-              <strong>Header row</strong> — <code>.docs-inpage-toc__head</code> with the title
-              <span class="small">("On this page")</span> and a chevron <code>.docs-inpage-toc__toggle</code>. The
-              entire header is clickable (collapse/expand); the chevron is a decorative SVG inside the button.
+              <strong>Position CSS variable system</strong> — <code>--docs-toc-fab-left</code> is set on
+              <code>.internal-layout__shell</code> (the nearest non-fixed ancestor):
+              <ul>
+                <li>Sidebar open: <code>calc(var(--shell-left) + 262px)</code></li>
+                <li>Sidebar collapsed (<code>.is-sidebar-collapsed</code>): <code>calc(var(--shell-left) + 10px)</code></li>
+                <li><code>--shell-left: max(0px, calc((100vw - 1280px) / 2))</code> — handles viewports wider than 1280 px</li>
+              </ul>
+              Because <code>position: fixed</code> children still inherit CSS custom properties from their DOM
+              ancestors, this lets a non-fixed parent drive the FAB's horizontal position. The transition
+              <code>left 320ms ease</code> produces a smooth slide when the sidebar toggles.
+            </li>
+            <li>
+              <strong>Head row (expanded)</strong> — <code>.docs-inpage-toc__head</code>: flex row containing
+              the title span (<code>.docs-inpage-toc__title</code>, "On this page"), the dim button
+              (<code>.docs-inpage-toc__dim-btn</code>), and the collapse toggle
+              (<code>.docs-inpage-toc__toggle</code> with a chevron-down SVG). In collapsed state the head
+              shrinks to exactly 52 × 52 px and centers the list-lines icon. The toggle button carries
+              <code>aria-expanded</code>, <code>aria-controls</code>, and an accessible label.
+            </li>
+            <li>
+              <strong>Dim button</strong> — <code>.docs-inpage-toc__dim-btn</code>: visible only when expanded.
+              Clicking toggles <code>.docs-inpage-toc--dim</code> on the aside, which sets
+              <code>opacity: 0.22</code>; hovering over a dimmed card recovers it to <code>opacity: 0.9</code>.
+              Carries <code>data-tooltip="Dim — hides behind text"</code>. Dim state resets whenever the card
+              is collapsed.
             </li>
             <li>
               <strong>Inner scroll container</strong> — <code>.docs-inpage-toc nav</code> with
-              <code>max-height: min(75vh, 36rem); overflow-y: auto; overscroll-behavior: contain;</code>. This is the
-              container the auto-scroll moves; the page never moves because of the spy.
+              <code>max-height: min(60vh, 28rem); overflow-y: auto; overscroll-behavior: contain;</code>. This is the
+              container the auto-scroll moves; the page never moves because of the spy. Animated via
+              <code>max-height: 0 → min(60vh, 28rem)</code> and <code>opacity: 0 → 1</code>.
             </li>
             <li>
-              <strong>Entry list</strong> — flat <code>&lt;ul&gt;</code> of <code>li &gt; a</code>. <code>h3</code>
-              entries get <code>.docs-inpage-toc__item--nested</code> for the indent.
-            </li>
-            <li>
-              <strong>Active link</strong> — <code>.docs-inpage-toc__link--active</code> sets the accent left border,
-              accent text colour, and a subtle background. The same anchor also gets
-              <code>aria-current="location"</code>.
+              <strong>Entry list &amp; dot-indicator</strong> — flat <code>&lt;ul&gt;</code> of <code>li &gt; a</code>.
+              <code>h3</code> entries get <code>.docs-inpage-toc__item--nested</code> for the indent. The active link
+              class <code>.docs-inpage-toc__link--active</code> sets accent text colour, accent-tinted background,
+              <code>font-weight: 500</code>, and reveals a 4 × 4 px filled circle via the <code>::before</code>
+              pseudo-element (<code>transform: scale(0) → scale(1)</code>). The same anchor also gets
+              <code>aria-current="location"</code>. There is no left border stripe — the dot replaces it.
             </li>
             <li>
               <strong>Heading anchor ids</strong> — every <code>h2</code>/<code>h3</code> gets a stable id assigned by
               <code>ensureTocAnchorIds()</code> if the author didn't write one. Slugs are based on the heading text and
-              de-duplicated against ids already present on the page (this matters — see
-              <a href="#failure-modes">Failure modes</a>).
+              de-duplicated against ids already present on the page (see <a href="#failure-modes">Failure modes</a>).
             </li>
             <li>
-              <strong>Promo toast</strong> — one-shot "Sticky TOC available" toast on first visit to a wide-desktop
-              page where the TOC starts collapsed. Lives in <code>docs-popups.js</code>; see
-              <a href="popups-and-overlays.html">Popups and overlays</a>.
+              <strong>Promo toast</strong> — one-shot "On this page" toast on every first-visit to a docs page.
+              Title: "On this page". Body: "Quick section navigation — click the floating button on the left to open."
+              Dismiss label: "Later". Primary action label: "Open" — calls <code>applyCollapsedState(false)</code>
+              directly. Duration: 4 000 ms. Lives in <code>showStickyTocPromoToast()</code> in
+              <code>docs-nav.js</code>; rendering contract in <a href="popups-and-overlays.html">Popups and overlays</a>.
             </li>
           </ol>
         </section>
@@ -151,10 +184,12 @@
         <section id="visual-reference" class="card">
           <h2>Visual reference</h2>
           <p>
-            Three side-by-side states. Left: reader at the top of a long page — the first entry is active. Middle:
-            reader scrolled past several sections — the entry whose <code>h2</code> just crossed the activation line
-            (96 px from the viewport top) is active. Right: a TOC long enough to overflow the rail — the inner
-            <code>nav</code> auto-scrolled so the active link sits within the visible band.
+            Three side-by-side scroll-spy states shown with the FAB in its expanded card form. Left: reader at the
+            top of a long page — the first entry is active. Middle: reader scrolled past several sections — the entry
+            whose <code>h2</code> just crossed the activation line (96 px from the viewport top) is active. Right: a
+            TOC long enough to overflow the card — the inner <code>nav</code> auto-scrolled so the active link sits
+            within the visible band. In all three states the FAB circle is the collapsed resting shape; expansion
+            shown here for clarity.
           </p>
 
           <figure class="sys-diagram" aria-label="Sticky TOC scroll-spy states">
@@ -412,14 +447,14 @@
                   <td>Active entry from the contract above; other entries muted (<code>color: color-mix(...var(--text)...var(--muted))</code>).</td>
                 </tr>
                 <tr>
-                  <td>Hover</td>
-                  <td>Pointer over a non-active entry.</td>
-                  <td>Accent text + accent left border + soft <code>--docs-premium-item-hover-bg</code> background; <code>transform: translateX(1px)</code>.</td>
+                  <td>Hover (link)</td>
+                  <td>Pointer over a non-active nav entry.</td>
+                  <td>Accent text + soft <code>--docs-premium-item-hover-bg</code> background; <code>transform: translateX(1px)</code>. No left border — dot-indicator only on active.</td>
                 </tr>
                 <tr>
                   <td>Active</td>
                   <td>Section <code>h2/h3</code> top crossed the activation line and is the latest such crossing.</td>
-                  <td><code>.docs-inpage-toc__link--active</code>: accent colour, accent left border, accent-tinted background, <code>font-weight: 600</code>, <code>aria-current="location"</code>.</td>
+                  <td><code>.docs-inpage-toc__link--active</code>: accent colour, accent-tinted background, <code>font-weight: 500</code>, dot-indicator <code>::before</code> scales in, <code>aria-current="location"</code>.</td>
                 </tr>
                 <tr>
                   <td>Active &amp; off-screen inside rail</td>
@@ -427,14 +462,24 @@
                   <td><code>nav.scrollTop</code> nudged so the active link sits exactly <code>24 px</code> from the top (when above) or <code>24 px</code> from the bottom (when below).</td>
                 </tr>
                 <tr>
-                  <td>Collapsed rail</td>
-                  <td>Reader clicked <code>&lt;</code> in the rail header (or wide-desktop default on long pages).</td>
-                  <td><code>.docs-inpage-toc--collapsed</code> hides the nav; the chevron flips to <code>&gt;</code>; the spy keeps running but visual state is invisible until expanded.</td>
+                  <td>FAB collapsed (always-on default)</td>
+                  <td>Initial render on every page — unconditional. Also set when reader clicks the chevron toggle in the expanded head.</td>
+                  <td><code>.docs-inpage-toc--collapsed</code>: card morphs to 52 × 52 px circle, nav animates to <code>max-height: 0 / opacity: 0</code>, icon switches to list-lines, aside gains <code>data-tooltip="On this page"</code>. Spy keeps running invisibly.</td>
                 </tr>
                 <tr>
-                  <td>Phone</td>
-                  <td><code>max-width: 900 px</code>.</td>
-                  <td>Aside is <code>display: none</code>; the page-layout grid collapses to a single column; the spy still mounts but does no visible work.</td>
+                  <td>FAB expanded</td>
+                  <td>Reader clicks the FAB circle, or presses "Open" in the promo toast.</td>
+                  <td>Card morphs to 232 px wide, <code>border-radius: 14px</code>, nav animates to <code>max-height: min(60vh, 28rem)</code>, icon switches to chevron-down, <code>data-tooltip</code> removed from aside.</td>
+                </tr>
+                <tr>
+                  <td>Dim</td>
+                  <td>Reader clicks the dim button in the expanded head.</td>
+                  <td><code>.docs-inpage-toc--dim</code>: <code>opacity: 0.22</code>. Hover recovers to <code>opacity: 0.9</code>. Resets on next collapse.</td>
+                </tr>
+                <tr>
+                  <td>Tablet / phone</td>
+                  <td><code>max-width: 1024 px</code>.</td>
+                  <td>Aside is <code>display: none</code> via CSS; the page-layout grid is single column; the spy still mounts but does no visible work.</td>
                 </tr>
               </tbody>
             </table>
@@ -456,13 +501,19 @@
                 <tr><th scope="col">Surface</th><th scope="col">Where</th></tr>
               </thead>
               <tbody>
-                <tr><td>Build &amp; layout</td><td><code>initAutoInPageToc()</code>, <code>collectTocEntries()</code>, <code>ensureTocAnchorIds()</code>, <code>removeLegacyManualContents()</code></td></tr>
-                <tr><td>Spy &amp; auto-scroll</td><td><code>initInPageTocScrollSpy()</code> · inner helper <code>keepActiveLinkVisibleInNav()</code></td></tr>
+                <tr><td>Build, collapse, dim logic</td><td><code>initAutoInPageToc()</code>, <code>applyCollapsedState()</code>, <code>applyDimState()</code>, <code>collectTocEntries()</code>, <code>ensureTocAnchorIds()</code>, <code>removeLegacyManualContents()</code> — all in <code>docs-nav.js</code></td></tr>
+                <tr><td>Spy &amp; in-nav auto-scroll</td><td><code>initInPageTocScrollSpy()</code> · inner helper <code>keepActiveLinkVisibleInNav()</code></td></tr>
                 <tr><td>Page-history fold</td><td><code>normalizeDocsPageHistory()</code> (called <em>before</em> the build)</td></tr>
-                <tr><td>CSS — rail layout</td><td><code>.docs-page-layout</code>, <code>.docs-page-layout__inner</code>, <code>.docs-page-layout__article</code></td></tr>
-                <tr><td>CSS — rail chrome</td><td><code>.docs-inpage-toc</code>, <code>.docs-inpage-toc__head</code>, <code>.docs-inpage-toc__title</code>, <code>.docs-inpage-toc__toggle</code>, <code>.docs-inpage-toc nav</code></td></tr>
-                <tr><td>CSS — entries &amp; states</td><td><code>.docs-inpage-toc nav a</code>, <code>.docs-inpage-toc__link--active</code>, <code>.docs-inpage-toc__item--nested</code>, <code>.docs-inpage-toc--collapsed</code></td></tr>
-                <tr><td>Promo toast</td><td><code>showStickyTocPromoToast()</code> in <code>docs-nav.js</code> · <code>.docs-inpage-toc-toast*</code> in <code>docs.css</code> · runtime in <code>docs-popups.js</code></td></tr>
+                <tr><td>CSS — FAB base</td><td><code>.docs-inpage-toc</code>: <code>position: fixed !important; left: var(--docs-toc-fab-left, 12px); top: 68px; width: 52px; border-radius: 999px; overflow: visible; z-index: 42;</code></td></tr>
+                <tr><td>CSS — FAB expanded</td><td><code>.docs-inpage-toc:not(.docs-inpage-toc--collapsed)</code>: <code>width: 232px; border-radius: 14px;</code></td></tr>
+                <tr><td>CSS — position variables</td><td><code>--shell-left</code> and <code>--docs-toc-fab-left</code> on <code>.internal-layout__shell</code> / <code>.internal-layout__shell.is-sidebar-collapsed</code></td></tr>
+                <tr><td>CSS — head</td><td><code>.docs-inpage-toc__head</code>, <code>.docs-inpage-toc__title</code>, <code>.docs-inpage-toc__toggle</code>, <code>.docs-inpage-toc__dim-btn</code></td></tr>
+                <tr><td>CSS — nav &amp; entries</td><td><code>.docs-inpage-toc nav</code>, <code>.docs-inpage-toc nav a</code>, <code>.docs-inpage-toc nav a::before</code> (dot-indicator), <code>.docs-inpage-toc__link--active</code>, <code>.docs-inpage-toc__item--nested</code></td></tr>
+                <tr><td>CSS — dim state</td><td><code>.docs-inpage-toc--dim</code>: <code>opacity: 0.22</code>; <code>.docs-inpage-toc--dim:hover</code>: <code>opacity: 0.9</code></td></tr>
+                <tr><td>CSS — collapsed state</td><td><code>.docs-inpage-toc--collapsed</code> hides nav; collapsed head is 52 × 52 px</td></tr>
+                <tr><td>CSS — hidden breakpoint</td><td><code>@media (max-width: 1024px) { .docs-inpage-toc { display: none; } }</code></td></tr>
+                <tr><td>CSS — tooltip anchoring</td><td><code>.docs-inpage-toc[data-tooltip]::after</code>: left-anchored, <code>left: 0; transform: translateX(0) translateY(4px);</code></td></tr>
+                <tr><td>Promo toast</td><td><code>showStickyTocPromoToast()</code> in <code>docs-nav.js</code> · runtime in <code>docs-popups.js</code> · "Open" button calls <code>applyCollapsedState(false)</code></td></tr>
               </tbody>
             </table>
           </div>
@@ -473,10 +524,12 @@
           <ul>
             <li>Container is <code>&lt;aside&gt;</code> with <code>aria-labelledby="inpage-toc-heading"</code>; the heading paragraph has a unique id.</li>
             <li>The inner <code>&lt;nav&gt;</code> is also labelled by the same heading id.</li>
-            <li>Active link gets <code>aria-current="location"</code>; the class is purely visual.</li>
+            <li>Active link gets <code>aria-current="location"</code>; the dot-indicator is purely visual.</li>
             <li>Collapse toggle exposes <code>aria-expanded</code>, <code>aria-controls</code>, and a label that toggles between "Hide On this page" and "Show On this page".</li>
+            <li>When the aside is collapsed, it carries <code>data-tooltip="On this page"</code> for hover context; this attribute is removed when expanded so the tooltip doesn't appear on an already-visible card.</li>
+            <li>Dim button carries <code>data-tooltip="Dim — hides behind text"</code> for discover­ability; it is only rendered (and reachable via <kbd>Tab</kbd>) when the card is expanded.</li>
             <li>Auto-scroll only writes <code>scrollTop</code> on the <em>nav</em> — focus is never moved as a side effect.</li>
-            <li><code>prefers-reduced-motion: reduce</code> is honoured by upstream CSS (<code>html { scroll-behavior: smooth }</code> is overridden to <code>auto</code>); the spy itself does instant updates.</li>
+            <li><code>prefers-reduced-motion: reduce</code> is honoured by upstream CSS; the spy itself does instant updates.</li>
           </ul>
         </section>
 
@@ -523,24 +576,29 @@
         <section id="acceptance-checklist" class="card">
           <h2>Acceptance checklist</h2>
           <ul>
-            <li>Rail renders to the right of the article on viewports <code>&gt; 900 px</code>; hidden at <code>≤ 900 px</code>.</li>
+            <li>FAB renders as a 52 × 52 px circle on viewports <code>&gt; 1024 px</code>; hidden at <code>≤ 1024 px</code>.</li>
+            <li>FAB is collapsed on initial render — unconditionally, regardless of page type or TOC length.</li>
+            <li>Promo toast fires on first visit; "Open" in the toast expands the FAB; "Later" dismisses. Toast does not reappear after first dismissal.</li>
+            <li>Hovering over the collapsed FAB shows the <code>data-tooltip="On this page"</code> tooltip; tooltip disappears when the card is expanded.</li>
+            <li>Clicking the collapsed circle expands to 232 px card; clicking the chevron-down collapses back to a circle. Transition is smooth (width + border-radius).</li>
+            <li>FAB left position slides smoothly when the sidebar collapses or expands (transition: <code>left 320ms</code>). On wide viewports (<code>&gt; 1280 px</code>) the position still aligns with the sidebar toggle.</li>
+            <li>Dim button appears in the expanded head; clicking it makes the card semi-transparent. Hovering over a dimmed card recovers opacity. Collapsing resets dim.</li>
             <li>At <code>scrollY = 0</code> the first entry is active; "Page history" is not in the list.</li>
-            <li>Scrolling past each <code>h2</code> moves the active highlight to that entry within one frame.</li>
-            <li>Scrolling the very last <code>h2</code> past the activation line activates the last TOC entry; further scroll to the document end keeps the last entry active.</li>
-            <li>On a TOC longer than the rail's <code>max-height</code>, the active link is always inside the visible band — never clipped above or below — and the page itself does not move when the rail auto-scrolls.</li>
-            <li>Collapse chevron toggles the rail; the spy keeps tracking; expanding restores the active highlight without flicker.</li>
-            <li>No regressions on the related fall-back paths: pages with no <code>h2/h3</code> render as <code>.docs-page-layout__inner--single</code> (full-width article, no aside).</li>
+            <li>Scrolling past each <code>h2</code> moves the active dot-indicator to that entry within one frame.</li>
+            <li>On a TOC longer than the card's <code>max-height</code>, the active link is always inside the visible band and the page itself does not move when the card auto-scrolls.</li>
+            <li>No regressions on pages with no <code>h2/h3</code>: layout falls back to a single-column article with no FAB rendered.</li>
           </ul>
         </section>
 
         <section id="related" class="card">
           <h2>Related internal docs</h2>
           <ul>
-            <li><a href="../contracts/navigation-search-and-discovery.html#on-this-page-collapse-control">Navigation, search, discovery</a> — collapse-control contract and the desktop-only collapse default.</li>
-            <li><a href="popups-and-overlays.html">Popups and overlays</a> — the "Sticky TOC available" promo toast.</li>
+            <li><a href="../contracts/navigation-search-and-discovery.html#on-this-page-collapse-control">Navigation, search, discovery §On this page</a> — FAB design contract, CSS variable system, always-collapsed default.</li>
+            <li><a href="popups-and-overlays.html">Popups and overlays</a> — the "On this page" promo toast and its "Open" action.</li>
             <li><a href="../foundations/js-modules.html">JavaScript modules reference</a> — runtime contract for <code>docs-nav.js</code> (functions, init order, storage keys).</li>
-            <li><a href="../foundations/css-architecture.html">CSS architecture</a> — where layout and rail tokens live.</li>
+            <li><a href="../foundations/css-architecture.html">CSS architecture</a> — where layout and FAB tokens live.</li>
             <li><a href="../foundations/motion-and-adaptivity.html#mobile-contract">Mobile contract</a> — the breakpoint canon (<code>≥ 1025 / 761–1024 / ≤ 760</code>) and reduced-motion rules.</li>
+            <li><a href="report-bug-fab.html">Report-bug FAB</a> — sibling fixed button using the same 52 px circle pattern and <code>data-tooltip</code> system.</li>
           </ul>
         </section>
 
@@ -556,6 +614,25 @@
                 </tr>
               </thead>
               <tbody>
+                <tr>
+                  <td><time datetime="2026-05-08">2026-05-08</time></td>
+                  <td>
+                    Architecture rewrite — sticky rail replaced with fixed-position FAB. Key changes:
+                    <ul>
+                      <li><strong>FAB shape</strong>: collapsed = 52 × 52 px circle; expanded = 232 px card with <code>border-radius: 14px</code>. Transition on width + border-radius.</li>
+                      <li><strong><code>position: fixed !important</code></strong>: needed to defeat the <code>[data-tooltip]</code> attribute selector (specificity 0,1,0, later in <code>docs.css</code>) which silently reset <code>position</code> to <code>relative</code>.</li>
+                      <li><strong>CSS variable positioning</strong>: <code>--docs-toc-fab-left</code> on <code>.internal-layout__shell</code> drives FAB's horizontal position; shifts automatically when sidebar collapses. <code>--shell-left</code> handles wide-viewport centering.</li>
+                      <li><strong>Always collapsed</strong>: removed the <code>if (!isTocPromoExcludedHub)</code> guard; FAB starts collapsed unconditionally.</li>
+                      <li><strong>Dot-indicator active link</strong>: replaced left-border semi-oval with a 4 × 4 px <code>::before</code> circle (<code>transform: scale(0) → scale(1)</code>).</li>
+                      <li><strong>Dim button</strong>: new <code>.docs-inpage-toc__dim-btn</code> in the expanded head; sets <code>opacity: 0.22</code>, hover recovers to 0.9, resets on collapse.</li>
+                      <li><strong>Tooltip on FAB circle</strong>: <code>data-tooltip="On this page"</code> when collapsed, removed when expanded. Left-anchored tooltip override to prevent viewport-edge clipping.</li>
+                      <li><strong>Promo toast restored</strong>: "On this page" with "Open" action that calls <code>applyCollapsedState(false)</code>.</li>
+                      <li><strong>Hidden breakpoint</strong>: changed from <code>max-width: 900px</code> to <code>max-width: 1024px</code>.</li>
+                      <li><strong>Nav <code>max-height</code> animation</strong>: from <code>min(75vh, 36rem)</code> to <code>min(60vh, 28rem)</code>; animates via <code>max-height: 0 → value</code> + <code>opacity</code>.</li>
+                    </ul>
+                  </td>
+                  <td><a href="../../portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
                 <tr>
                   <td><time datetime="2026-05-03">2026-05-03</time></td>
                   <td>Page created — first authoritative spec for the sticky On this page TOC and its scroll-spy. Documents the activation-line rule (96 px), the <code>scrollY &gt; 0</code> gate on the near-bottom safety net, the <code>el.isConnected</code> filter for detached targets, the move of <code>normalizeDocsPageHistory()</code> ahead of <code>initAutoInPageToc()</code>, and the new in-rail auto-scroll (<code>keepActiveLinkVisibleInNav()</code>) that keeps the active link visible without ever moving the window scroll. Includes a three-state visual mock (top of page · mid-scroll · long-TOC overflow) and an acceptance checklist.</td>

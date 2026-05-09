@@ -1,7 +1,12 @@
 """Build an inverted client-side search index for docs HTML pages.
 
-The script scans ``services/portal/**/*.html`` and writes ``services/frontend/portal/assets/search-index.json``.
-The artifact contains:
+The script scans ``services/portal/**/*.html`` and writes two artifacts under
+``services/frontend/portal/assets/``:
+    - ``search-index.json`` — full corpus, served to the internal portal
+    - ``search-index-public.json`` — only ``public/**`` pages, served to the
+      external developer portal so its search never returns internal docs
+
+Both artifacts contain:
     - docs metadata (title, url, section, preview)
     - an inverted index with per-field term frequencies
     - document frequency map for IDF scoring in the browser
@@ -19,7 +24,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = ROOT / "services" / "portal"
-OUTPUT_PATH = ROOT / "services" / "frontend" / "portal" / "assets" / "search-index.json"
+ASSETS_DIR = ROOT / "services" / "frontend" / "portal" / "assets"
+OUTPUT_PATH = ASSETS_DIR / "search-index.json"
+PUBLIC_OUTPUT_PATH = ASSETS_DIR / "search-index-public.json"
+PUBLIC_SECTION = "public"
 MAX_CONTENT_CHARS = 3200
 PREVIEW_CHARS = 240
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
@@ -253,16 +261,21 @@ def _pack_postings(
     )
 
 
-def build_search_index(output: Path) -> int:
+def build_search_index(output: Path, *, sections: set[str] | None = None) -> int:
     """Generate and persist docs search index.
 
     Args:
         output: JSON destination path.
+        sections: When provided, only docs whose top-level section is in the set
+            are indexed. Used to produce the public-only artifact so the
+            external developer portal never surfaces internal pages in search.
 
     Returns:
         Number of indexed pages.
     """
     docs = [_build_index_doc(path) for path in _iter_docs_html()]
+    if sections is not None:
+        docs = [doc for doc in docs if doc.section in sections]
     postings, doc_freq, vocab_size = _pack_postings(docs)
     avg_content_len = sum(doc.content_len for doc in docs) / max(len(docs), 1)
 
@@ -307,10 +320,24 @@ def main() -> None:
         default=OUTPUT_PATH,
         help="Output path for search-index.json (default: services/frontend/portal/assets/search-index.json).",
     )
+    parser.add_argument(
+        "--public-output",
+        type=Path,
+        default=PUBLIC_OUTPUT_PATH,
+        help=(
+            "Output path for the public-only index "
+            "(default: services/frontend/portal/assets/search-index-public.json)."
+        ),
+    )
     args = parser.parse_args()
     output = args.output if args.output.is_absolute() else (ROOT / args.output)
-    count = build_search_index(output)
-    print(f"Indexed {count} docs pages -> {output.relative_to(ROOT)}")
+    public_output = (
+        args.public_output if args.public_output.is_absolute() else (ROOT / args.public_output)
+    )
+    full_count = build_search_index(output)
+    print(f"Indexed {full_count} docs pages -> {output.relative_to(ROOT)}")
+    public_count = build_search_index(public_output, sections={PUBLIC_SECTION})
+    print(f"Indexed {public_count} public docs pages -> {public_output.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

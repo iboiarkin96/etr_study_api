@@ -11,6 +11,7 @@
 (function () {
   const PHONE_MAX_WIDTH = 760;
   const DRAWER_MAX_WIDTH = 1024;
+  const PUBLIC_SIDEBAR_COLLAPSED_STORAGE_KEY = "docs.public.sidebar.collapsed";
 
   /* ── Navigation tree ──────────────────────────────────────────────────── */
 
@@ -174,6 +175,61 @@
     return a;
   }
 
+  /* ── Desktop collapse toggle ──────────────────────────────────────────── */
+
+  function readSidebarCollapsedPreference() {
+    try {
+      return window.localStorage.getItem(PUBLIC_SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function persistSidebarCollapsedPreference(isCollapsed) {
+    try {
+      window.localStorage.setItem(PUBLIC_SIDEBAR_COLLAPSED_STORAGE_KEY, isCollapsed ? "1" : "0");
+    } catch {
+      /* localStorage may be unavailable; toggle still works for the session */
+    }
+  }
+
+  function ensureSidebarCollapseToggle(shell, sidebarHost) {
+    if (!shell || !sidebarHost) return;
+    const sidebar = shell.querySelector(".public-layout__sidebar");
+    if (!sidebar) return;
+
+    let toggle = sidebar.querySelector("[data-public-sidebar-toggle]");
+    if (!toggle) {
+      toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "public-layout__sidebar-toggle";
+      toggle.setAttribute("data-public-sidebar-toggle", "1");
+      if (!sidebarHost.id) sidebarHost.id = "public-sidebar-mount";
+      toggle.setAttribute("aria-controls", sidebarHost.id);
+      sidebar.insertBefore(toggle, sidebar.firstChild);
+    }
+
+    const SVG_OPEN = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="2" width="18" height="16" rx="2"/><line x1="7" y1="2" x2="7" y2="18"/><polyline points="11,7 14.5,10 11,13"/></svg>';
+    const SVG_CLOSE = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="2" width="18" height="16" rx="2"/><line x1="7" y1="2" x2="7" y2="18"/><polyline points="12,7 8.5,10 12,13"/></svg>';
+
+    function applyCollapsedState(isCollapsed) {
+      shell.classList.toggle("is-sidebar-collapsed", isCollapsed);
+      toggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+      toggle.setAttribute("aria-label", isCollapsed ? "Show navigation" : "Hide navigation");
+      toggle.innerHTML = isCollapsed
+        ? SVG_OPEN
+        : SVG_CLOSE + '<span class="public-layout__sidebar-toggle__label">Hide</span>';
+    }
+
+    let isCollapsed = readSidebarCollapsedPreference();
+    applyCollapsedState(isCollapsed);
+    toggle.addEventListener("click", () => {
+      isCollapsed = !isCollapsed;
+      applyCollapsedState(isCollapsed);
+      persistSidebarCollapsedPreference(isCollapsed);
+    });
+  }
+
   /* ── Drawer (mobile) ─────────────────────────────────────────────────── */
 
   function ensureDrawer(shell, navTree) {
@@ -318,6 +374,9 @@
         active.scrollIntoView({ block: "nearest", behavior: "auto" });
       }
     });
+
+    /* Desktop collapse toggle (persisted in localStorage) */
+    ensureSidebarCollapseToggle(shell, host);
 
     /* Drawer + mobile menu button */
     const drawerMedia = window.matchMedia(`(max-width: ${DRAWER_MAX_WIDTH}px)`);

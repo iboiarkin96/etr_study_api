@@ -5,7 +5,7 @@ window.__DOCS_PORTAL_DATA__ = {
     "16fc8b78537109162984a2fdbef6e142": [
       {
         "path": "index.html",
-        "title": "ETR Study API — Engineering Docs"
+        "title": "ETR Study API — Documentation"
       },
       {
         "path": "internal/analysis/methodology.html",
@@ -717,7 +717,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/index.html",
-        "title": "Internal Docs Hub — Study App"
+        "title": "ETR Study API — Engineering Docs"
       },
       {
         "path": "internal/manager/index.html",
@@ -873,7 +873,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "public/index.html",
-        "title": "ETR Study API — Public Documentation"
+        "title": "ETR Study API — Developer Documentation"
       },
       {
         "path": "public/reference/api/index.html",

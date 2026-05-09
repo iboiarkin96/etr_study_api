@@ -68,11 +68,25 @@
 
     toggle.setAttribute("aria-controls", sidebarHost.id);
 
+    var SVG_PANEL_OPEN = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="2" width="18" height="16" rx="2"/><line x1="7" y1="2" x2="7" y2="18"/><polyline points="11,7 14.5,10 11,13"/></svg>';
+    var SVG_PANEL_CLOSE = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="2" width="18" height="16" rx="2"/><line x1="7" y1="2" x2="7" y2="18"/><polyline points="12,7 8.5,10 12,13"/></svg>';
+
     function applyCollapsedState(isCollapsed) {
       shell.classList.toggle("is-sidebar-collapsed", isCollapsed);
       sidebarHost.hidden = isCollapsed;
       toggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
-      toggle.textContent = isCollapsed ? "SHOW\nMENU" : "HIDE\nMENU";
+      toggle.setAttribute("aria-label", isCollapsed ? "Show navigation" : "Hide navigation");
+      toggle.title = "";
+      if (isCollapsed) {
+        toggle.setAttribute("data-tooltip", "Show navigation");
+      } else {
+        toggle.removeAttribute("data-tooltip");
+      }
+      if (isCollapsed) {
+        toggle.innerHTML = SVG_PANEL_OPEN;
+      } else {
+        toggle.innerHTML = SVG_PANEL_CLOSE + '<span class="internal-layout__sidebar-toggle__label">HIDE</span>';
+      }
     }
 
     let isCollapsed = readSidebarCollapsedPreference();

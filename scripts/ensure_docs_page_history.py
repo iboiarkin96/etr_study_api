@@ -148,6 +148,9 @@ def main() -> int:
             rel.startswith("pdoc/")
             or rel.startswith("assets/")
             or rel.startswith("internal/catalog/api/code-reference/")
+            # External developer portal is isolated from the internal docs
+            # skeleton — Page history is internal provenance only.
+            or rel.startswith("public/")
         ):
             continue
         try:

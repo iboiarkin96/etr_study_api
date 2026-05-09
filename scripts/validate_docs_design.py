@@ -192,15 +192,19 @@ def main() -> None:
 
         if not redirect_stub:
             swagger_layout = _is_swagger_layout(doc)
+            # The public developer portal is intentionally isolated from the
+            # internal docs skeleton — it does not carry the Page history block
+            # because external consumers don't need internal change provenance.
+            is_public_portal = path.relative_to(DOCS_ROOT).parts[:1] == ("public",)
             if not _find_main_container(doc):
                 failures.append(f'{rel}: missing <main class="container"> baseline')
             if _count_tag(doc, "h1") != 1:
                 failures.append(f"{rel}: expected exactly one <h1>")
             if not _has_top_nav_mount(doc):
                 failures.append(f'{rel}: missing <div id="docs-top-nav"></div>')
-            if not swagger_layout and not _has_section_card(doc):
+            if not swagger_layout and not is_public_portal and not _has_section_card(doc):
                 failures.append(f'{rel}: expected at least one <section class="card">')
-            if not swagger_layout and not _has_page_history_section(doc):
+            if not swagger_layout and not is_public_portal and not _has_page_history_section(doc):
                 failures.append(
                     f"{rel}: missing Page history section "
                     f'(<section id="page-history"> or assessment <section> with id="5-page-history"); '
