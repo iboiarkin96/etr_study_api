@@ -442,23 +442,12 @@
    * Paths are relative to the services/frontend/portal/ root (e.g. internal/index.html).
    */
   const INTERNAL_SIDEBAR_NAV = [
-    { label: "⌂ ETR Study API home", path: "index.html" },
+    { label: "⌂ ETR Study API home", path: "internal/index.html" },
     { label: "◉ Internal docs hub", path: "internal/index.html" },
     { label: "👥 People & maintainers", path: "internal/portal/people/index.html" },
     { label: "⭐ Backlog", path: "internal/governance/backlog/index.html" },
     { label: "🧭 Methodology", path: "internal/analysis/methodology.html" },
     { label: "🏗 System design", path: "internal/analysis/system-design.html" },
-    {
-      label: "📘 Public developer docs",
-      children: [
-        { label: "Hub", path: "public/index.html" },
-        { label: "Tutorials", path: "public/tutorials/index.html" },
-        { label: "How-to guides", path: "public/how-to/index.html" },
-        { label: "Explanation", path: "public/explanation/index.html" },
-        { label: "Reference", path: "public/reference/index.html" },
-        { label: "OpenAPI / Swagger UI", path: "public/reference/api/index.html" },
-      ],
-    },
 
     {
       separator: true,
@@ -652,8 +641,15 @@
           children: [
             { label: "DX 2026-04-14", path: "internal/governance/audit/docs/2026-04-14-documentation-experience-assessment.html" },
             { label: "DX 2026-04-18", path: "internal/governance/audit/docs/2026-04-18-documentation-experience-assessment.html" },
-            { label: "UI/UX DX 2026-04-23", path: "internal/governance/audit/docs/2026-04-23-ui-ux-assessment.html" },
-            { label: "UI/UX DX 2026-04-24", path: "internal/governance/audit/docs/2026-04-24-ui-ux-assessment.html" },
+            { label: "DX 2026-05-01", path: "internal/governance/audit/docs/2026-05-01-documentation-experience-assessment.html" },
+          ],
+        },
+        {
+          label: "UI/UX",
+          children: [
+            { label: "UI/UX 2026-04-23", path: "internal/governance/audit/ui-ux/2026-04-23-ui-ux-assessment.html" },
+            { label: "UI/UX 2026-04-24", path: "internal/governance/audit/ui-ux/2026-04-24-ui-ux-assessment.html" },
+            { label: "UI/UX 2026-05-09", path: "internal/governance/audit/ui-ux/2026-05-09-ui-ux-consistency-assessment.html" },
           ],
         },
         {

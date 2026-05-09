@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check
+.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check minify-css minify-css-check
 
 # ──────────────────────────────────────────────
 # Help
@@ -101,6 +101,10 @@ help:
 	@echo "  make docs-a11y-check      Baseline accessibility checks (headings, landmarks, contrast, keyboard)"
 	@echo "  make docs-feedback-check  Smoke-check page-level feedback wiring for key docs pages"
 	@echo "  make docs-check           Verify docs are already in sync (fails on drift)"
+	@echo ""
+	@echo "  # Frontend assets"
+	@echo "  make minify-css           Minify portal CSS in place (paren-aware, idempotent)"
+	@echo "  make minify-css-check     Verify portal CSS is already minified (fails on drift)"
 	@echo ""
 	@echo "  # Pre-commit Hooks"
 	@echo "  make pre-commit-install   Install git pre-commit hooks"
@@ -353,6 +357,24 @@ pre-commit-check:
 	@$(PYTHON) -m pre_commit run --all-files
 	@printf "$(ICON_OK) %s\n" "pre-commit checks passed"
 
+# Deep pre-commit validation: static refactor-straggler checks + full verify.
+# Use this BEFORE `git commit` on non-trivial changes. Pairs with the
+# `/pre-commit-validate` slash command which adds a manual diff review pass.
+pre-commit-validate:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(COLOR_CYAN)== PRE-COMMIT-VALIDATE: START ==$(COLOR_RESET)\n"
+	@printf "$(ICON_INFO) %s\n" "[1/4] check_css_vars"
+	@$(PYTHON) scripts/check_css_vars.py
+	@printf "$(ICON_INFO) %s\n" "[2/4] check_asset_refs"
+	@$(PYTHON) scripts/check_asset_refs.py
+	@printf "$(ICON_INFO) %s\n" "[3/4] check_path_literals"
+	@$(PYTHON) scripts/check_path_literals.py
+	@printf "$(ICON_INFO) %s\n" "[4/4] verify"
+	@$(MAKE) verify
+	@printf "$(COLOR_GREEN)== PRE-COMMIT-VALIDATE: SUCCESS ==$(COLOR_RESET)\n"
+
 # ──────────────────────────────────────────────
 # Tests
 # ──────────────────────────────────────────────
@@ -536,6 +558,28 @@ docs-check:
 		rm -f "$$tmp_before" "$$tmp_after"; \
 		exit 1; \
 	fi
+
+# ──────────────────────────────────────────────
+# Frontend assets
+# ──────────────────────────────────────────────
+# Minify all CSS under services/frontend/portal/assets/ in place.
+# Paren-aware (preserves calc/var arithmetic), idempotent — safe to re-run.
+minify-css:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Minifying portal CSS…"
+	@$(PYTHON) scripts/minify_portal_css.py
+	@printf "$(ICON_OK) %s\n" "Portal CSS minified"
+
+# Verify portal CSS is already minified — fails if any file would shrink.
+minify-css-check:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Checking portal CSS minification…"
+	@$(PYTHON) scripts/minify_portal_css.py --check
+	@printf "$(ICON_OK) %s\n" "Portal CSS minification check passed"
 
 # ──────────────────────────────────────────────
 # Health check
