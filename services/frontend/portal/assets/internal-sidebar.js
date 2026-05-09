@@ -443,7 +443,6 @@
    */
   const INTERNAL_SIDEBAR_NAV = [
     { label: "⌂ ETR Study API home", path: "internal/index.html" },
-    { label: "◉ Internal docs hub", path: "internal/index.html" },
     { label: "👥 People & maintainers", path: "internal/portal/people/index.html" },
     { label: "⭐ Backlog", path: "internal/governance/backlog/index.html" },
     { label: "🧭 Methodology", path: "internal/analysis/methodology.html" },

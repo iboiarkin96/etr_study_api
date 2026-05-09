@@ -308,6 +308,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Docs frontend navigation, search, and discovery"
       },
       {
+        "path": "internal/front/docs-frontend-token-gallery.html",
+        "title": "Docs frontend token gallery"
+      },
+      {
         "path": "internal/front/foundations/css-architecture.html",
         "title": "Docs frontend CSS architecture — reference"
       },
@@ -508,14 +512,6 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Documentation Experience (DX) Assessment — Study App — formed 18 Apr 2026 (test snapshot)"
       },
       {
-        "path": "internal/governance/audit/docs/2026-04-23-ui-ux-assessment.html",
-        "title": "UI/UX Assessment (repeat) — Study App docs experience — formed 2026-04-23"
-      },
-      {
-        "path": "internal/governance/audit/docs/2026-04-24-ui-ux-assessment.html",
-        "title": "UI/UX Assessment (premium benchmark) — Study App product and docs experience — formed 2026-04-23"
-      },
-      {
         "path": "internal/governance/audit/docs/2026-05-01-documentation-experience-assessment.html",
         "title": "Documentation Experience (DX) Assessment — Study App — formed 1 May 2026"
       },
@@ -526,6 +522,22 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "internal/governance/audit/index.html",
         "title": "Architecture &amp; quality assessments — index"
+      },
+      {
+        "path": "internal/governance/audit/ui-ux/2026-04-23-ui-ux-assessment.html",
+        "title": "UI/UX Assessment (repeat) — Study App docs experience — formed 2026-04-23"
+      },
+      {
+        "path": "internal/governance/audit/ui-ux/2026-04-24-ui-ux-assessment.html",
+        "title": "UI/UX Assessment (premium benchmark) — Study App product and docs experience — formed 2026-04-23"
+      },
+      {
+        "path": "internal/governance/audit/ui-ux/2026-05-09-ui-ux-consistency-assessment.html",
+        "title": "UI/UX consistency &amp; design-system assessment &mdash; Study App &mdash; formed 2026-05-09"
+      },
+      {
+        "path": "internal/governance/audit/ui-ux/index.html",
+        "title": "UI/UX consistency assessments &mdash; index"
       },
       {
         "path": "internal/governance/backlog/index.html",
