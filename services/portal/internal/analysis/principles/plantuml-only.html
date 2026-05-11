@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PlantUML only — Documentation principles</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="internal-layout" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <h1 class="internal-h1--accent-tail">PlantUML only</h1>
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <section class="docs-page-hero" aria-labelledby="overview">
+          <h2 id="overview">What</h2>
+          <p>
+            <strong>Every diagram in this repository is authored in
+            PlantUML.</strong> No Mermaid, no draw.io exports, no
+            screenshot of a whiteboard, no Figma-only diagram. PlantUML
+            <code>.puml</code> sources live next to the pages that
+            reference them; SVG artefacts rendered from those sources are
+            committed alongside, server-side-rendered, and served as
+            static assets.
+          </p>
+          <p>
+            The convention applies uniformly: C4 context / container /
+            component diagrams, sequence diagrams, state machines, ER
+            diagrams, deployment views — all of them are PlantUML, all of
+            them follow the same style and skin parameters.
+          </p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we use it</h2>
+          <p>
+            Mermaid renders client-side in JavaScript. That means: every
+            reader's browser executes the renderer, the diagram pops in
+            after the page paints (layout shift), screen readers don't see
+            it because it's a runtime canvas, and the diagram silently
+            breaks when the Mermaid runtime version changes. None of those
+            failure modes is acceptable for documentation that needs to
+            render the same way for the next five years.
+          </p>
+          <p>
+            PlantUML renders server-side at build time. The output is a
+            committed SVG with deterministic markup, an
+            <code>&lt;title&gt;</code> and <code>&lt;desc&gt;</code> from
+            the source, and stable file paths that link-checkers can
+            validate. Version-pinning is explicit: the PlantUML jar /
+            container that produced the SVG is named in the build script;
+            no surprise upgrades.
+          </p>
+          <p>
+            A second benefit is uniform style. One <code>skinparam</code>
+            block sets all diagrams' palette, font, and corner-radius;
+            authors don't pick their own theme per diagram, and the
+            project's diagrams visually belong to the same family.
+          </p>
+        </section>
+
+        <section id="where" class="card">
+          <h2>Where it applies in this project</h2>
+          <ul>
+            <li>
+              <strong>ADR 0020 — C4 / PlantUML diagram style and
+              conventions.</strong>
+              <a href="../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>
+              is the canonical decision: PlantUML is mandatory, Mermaid is
+              prohibited, and the C4 model is the default abstraction
+              framework for architectural diagrams.
+            </li>
+            <li>
+              <strong>System design diagrams.</strong> The SA portal's
+              system-design page
+              (<a href="../system-design.html">analysis/system-design.html</a>)
+              and the service-catalog Architecture pages
+              (<code>internal/catalog/api/architecture/</code>) consume
+              committed SVGs rendered from PlantUML sources.
+            </li>
+            <li>
+              <strong>Sequence diagrams in API operation pages.</strong>
+              Pages under <code>internal/api/</code> include sequence
+              diagrams for non-trivial flows (auth refresh, error
+              propagation, retries) rendered from co-located
+              <code>.puml</code> sources.
+            </li>
+            <li>
+              <strong>Diagrams &amp; lightbox component.</strong>
+              <a href="../../front/components/diagrams-and-lightbox.html">front/components/diagrams-and-lightbox.html</a>
+              documents how diagrams are embedded — committed SVG plus a
+              lightbox for zoom — and explicitly names PlantUML as the
+              only source format.
+            </li>
+            <li>
+              <strong>Periodic diagram audits.</strong> The diagram audit
+              prompt (<code>notes/diagram audit promt.txt</code>) verifies
+              that every diagram in the repo has a corresponding
+              <code>.puml</code> source, that the SVG matches the source,
+              and that no Mermaid <code>&lt;pre class="mermaid"&gt;</code>
+              or fenced <code>```mermaid</code> blocks have leaked in.
+            </li>
+          </ul>
+        </section>
+
+        <section id="anti-patterns" class="card">
+          <h2>Anti-patterns we have</h2>
+          <ol>
+            <li>
+              <strong>Mermaid leftovers as risk, not current state.</strong>
+              A repo-wide grep on 2026-05-11 finds the literal "Mermaid"
+              only inside prose that <em>prohibits</em> it (ADR 0020,
+              audit reports, this principle page) — no actual diagram
+              blocks. The anti-pattern to guard against is silent
+              re-introduction by contributors used to Mermaid in other
+              projects. Mitigation: add a pre-commit grep for
+              <code>```mermaid</code> and <code>class="mermaid"</code>.
+            </li>
+            <li>
+              <strong>No automated source-to-SVG drift check.</strong> A
+              diagram's <code>.puml</code> source can diverge from the
+              committed SVG if someone edits one without re-rendering the
+              other. There is no CI step today that re-renders every
+              <code>.puml</code> and diffs against the committed SVG.
+              Tracked as a candidate validator script.
+            </li>
+            <li>
+              <strong>Inconsistent <code>skinparam</code> application.</strong>
+              A handful of older diagrams predate the shared style block
+              and use their own fonts or palette. The diagram audit
+              flags these but back-fill is sporadic.
+            </li>
+          </ol>
+        </section>
+
+        <section id="references" class="card">
+          <h2>References</h2>
+          <ul>
+            <li><a href="../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020 — C4 / PlantUML diagram style and conventions</a></li>
+            <li><a href="../../front/components/diagrams-and-lightbox.html">Front component — diagrams and lightbox</a></li>
+            <li><a href="../system-design.html">SA portal — system design</a> (consumer of PlantUML SVGs)</li>
+            <li>External: <a href="https://plantuml.com/" rel="noopener">plantuml.com</a> — canonical PlantUML reference</li>
+            <li>External: <a href="https://c4model.com/" rel="noopener">c4model.com</a> — Simon Brown's C4 model</li>
+          </ul>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="index.html">All documentation principles</a></li>
+            <li><a class="docs-next-steps__item" href="ssot.html">SSOT — Single Source of Truth</a> (the <code>.puml</code> source is the SSOT, the SVG is the derivative)</li>
+            <li><a class="docs-next-steps__item" href="docs-as-code.html">Docs as code</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-11">2026-05-11</time></td>
+                  <td>Created PlantUML-only principle page: server-side rendering rationale, five current applications (ADR 0020, system design, API sequences, diagrams component, periodic audit), three honestly listed anti-patterns (Mermaid re-introduction risk verified by repo-wide grep, no source-to-SVG drift check, inconsistent skinparam in older diagrams).</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+</body></html>

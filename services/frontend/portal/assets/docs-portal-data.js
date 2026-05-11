@@ -357,7 +357,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/front/screens/docs-screen-portal-hall-of-contributors.html",
-        "title": "Screen spec: Hall of Contributors (services/portal/internal/portal/people/index.html) — Study App"
+        "title": "Screen spec: Hall of Contributors (services/portal/internal/team/people/index.html) — Study App"
       },
       {
         "path": "internal/front/screens/docs-screen-template.html",
@@ -740,23 +740,23 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "SDLC RACI matrix by change type — Study App"
       },
       {
-        "path": "internal/portal/index.html",
+        "path": "internal/team/index.html",
         "title": "Employee portal moved — Study App"
       },
       {
-        "path": "internal/portal/people/cursor/index.html",
+        "path": "internal/team/people/cursor/index.html",
         "title": "Cursor — Employee portal — Study App"
       },
       {
-        "path": "internal/portal/people/index.html",
+        "path": "internal/team/people/index.html",
         "title": "Hall of Contributors — People maintaining documentation — Study App"
       },
       {
-        "path": "internal/portal/people/ivan-boyarkin/index.html",
+        "path": "internal/team/people/ivan-boyarkin/index.html",
         "title": "Ivan Boyarkin — Employee portal — Study App"
       },
       {
-        "path": "internal/portal/people/kirill-neustroev/index.html",
+        "path": "internal/team/people/kirill-neustroev/index.html",
         "title": "Kirill Neustroev — Employee portal — Study App"
       },
       {
@@ -935,7 +935,7 @@ window.__DOCS_PORTAL_DATA__ = {
       "slug": "cursor",
       "github": "-",
       "displayName": "Cursor",
-      "photo": "internal/portal/people/cursor/i.jpeg",
+      "photo": "internal/team/people/cursor/i.jpeg",
       "groups": [
         "backend"
       ]
@@ -945,7 +945,7 @@ window.__DOCS_PORTAL_DATA__ = {
       "slug": "ivan-boyarkin",
       "github": "iboiarkin96",
       "displayName": "Ivan Boyarkin",
-      "photo": "internal/portal/people/ivan-boyarkin/photo.jpg",
+      "photo": "internal/team/people/ivan-boyarkin/photo.jpg",
       "groups": [
         "backend",
         "pm"
@@ -956,7 +956,7 @@ window.__DOCS_PORTAL_DATA__ = {
       "slug": "kirill-neustroev",
       "github": "-",
       "displayName": "Kirill Neustroev",
-      "photo": "internal/portal/people/kirill-neustroev/photo.png",
+      "photo": "internal/team/people/kirill-neustroev/photo.png",
       "groups": [
         "devops"
       ]

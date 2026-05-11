@@ -1,7 +1,7 @@
 """Add default Page editors (data-maintainer-ids + mount + scripts) to hand-written docs HTML.
 
 Skips ``services/portal/internal/catalog/api/code-reference/**`` (pdoc regenerates) and ``services/frontend/portal/assets/**`` (fragments).
-Skips ``services/portal/internal/portal/people/*/index.html`` (person profiles).
+Skips ``services/portal/internal/team/people/*/index.html`` (person profiles).
 
 Run from repo root: ``python scripts/apply_default_page_editor_to_docs.py``
 """
@@ -124,7 +124,7 @@ def main() -> int:
             or rel.startswith("internal/catalog/api/code-reference/")
         ):
             continue
-        if re.match(r"internal/portal/people/[^/]+/index\.html$", rel):
+        if re.match(r"internal/team/people/[^/]+/index\.html$", rel):
             continue
         try:
             if process_file(path, rel):

@@ -664,7 +664,10 @@
     if (!sections.length || !("IntersectionObserver" in window)) return;
     const obs = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) entry.target.classList.add("is-tinted");
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-tinted");
+          obs.unobserve(entry.target);
+        }
       });
     }, { rootMargin: "0px 0px -25% 0px", threshold: 0.1 });
     sections.forEach((s) => obs.observe(s));

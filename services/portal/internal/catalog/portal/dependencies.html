@@ -24,16 +24,134 @@
       <main class="container">
         <div id="docs-top-nav"></div>
         <h1 class="internal-h1--accent-tail">portal · Dependencies</h1>
+
         <section class="card">
-          <p><em>Skeleton stub.</em> Upstream and downstream entities. Lists what this service consumes (e.g. database, monitoring scrape) and what consumes it (e.g. the portal does not consume the api at runtime).</p>
-          <p>← <a href="index.html">Back to portal entity card</a></p>
+          <p>
+            What the portal service depends on (build-time and runtime) and who depends on it. The portal has
+            <strong>no runtime upstream service</strong> — every dependency is consumed at build time, and the runtime
+            is just static-file serving.
+          </p>
         </section>
+
+        <section class="card" id="upstream-buildtime">
+          <h2>Upstream — build-time dependencies</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Build-time dependencies">
+            <table>
+              <thead><tr><th>Component</th><th>Used for</th></tr></thead>
+              <tbody>
+                <tr><td>Python (≥ 3.12)</td><td>Runs <code>scripts/regenerate_docs.py</code>, <code>scripts/build_docs_search_index.py</code>, pdoc.</td></tr>
+                <tr><td>PlantUML / Kroki (<code>https://kroki.io/plantuml/svg</code>)</td><td>Renders all <code>.puml</code> sources to SVG. Authority: <a href="../../../internal/governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>. Fallback when Kroki is unreachable: <a href="runbooks.html#kroki-unreachable">portal · Runbooks</a>.</td></tr>
+                <tr><td>pdoc</td><td>Generates the api code reference under <a href="../api/code-reference/index.html">catalog/api/code-reference/</a>. Authority: <a href="../../../internal/governance/adr/0016-python-docstrings-google-style-and-pdoc.html">ADR 0016</a>.</td></tr>
+                <tr><td>OpenAPI document (from api)</td><td>Embedded into <code>services/portal/public/reference/api/</code>. Build-time consumer of the <a href="../api/index.html">api</a> service.</td></tr>
+                <tr><td>pre-commit</td><td>Runs <code>scripts/regenerate_docs.py --check</code> on every commit; blocks divergence between PUML sources and committed SVGs. Authority: <a href="../../../internal/governance/adr/0001-docs-as-code.html">ADR 0001</a>.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" id="frontend-assets">
+          <h2>In-repo frontend assets</h2>
+          <p>
+            The CSS / JS layer lives in the same monorepo under
+            <code>services/frontend/portal/assets/</code> and is served by nginx alongside the HTML pages.
+            No install step — pages reference assets via relative paths. This directory is the
+            <strong>source of truth</strong> for all visual and interactive behaviour of both the public
+            and internal portals.
+          </p>
+          <div class="docs-table-scroll" role="region" aria-label="Frontend assets">
+            <table>
+              <thead>
+                <tr>
+                  <th>Path</th>
+                  <th>Contents</th>
+                  <th>Authority</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>services/frontend/portal/assets/</code></td>
+                  <td>CSS stylesheets, JS modules, theme tokens, sidebar config, favicon, syntax themes, UML sources.</td>
+                  <td><a href="../../front/index.html">Frontend docs hub</a></td>
+                </tr>
+                <tr>
+                  <td><code>services/frontend/portal/uml/</code></td>
+                  <td>PlantUML sources for frontend-specific diagrams (components, screens, contracts).</td>
+                  <td><a href="../../../internal/governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small">
+            Changes to <code>services/frontend/portal/assets/</code> affect both the public and internal portals.
+            Full documentation of CSS architecture, component contracts, and token conventions lives in the
+            <a href="../../front/index.html">frontend docs hub</a>.
+          </p>
+        </section>
+
+        <section class="card" id="runtime">
+          <h2>Runtime dependency</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Runtime dependencies">
+            <table>
+              <thead><tr><th>Component</th><th>Role</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>nginx-alpine (or equivalent static server)</td>
+                  <td>Serves <code>services/portal/{public,internal}/</code> over HTTPS. No application logic, no auth, no state. Per <a href="../../../internal/governance/adr/0028-monorepo-with-service-boundaries.html">ADR 0028</a> phase 1.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small">
+            The portal does not call the api at runtime. The OpenAPI document is built into the static tree at build time.
+          </p>
+        </section>
+
+        <section class="card" id="downstream">
+          <h2>Downstream — who consumes the portal</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Downstream consumers">
+            <table>
+              <thead><tr><th>Consumer</th><th>What they read</th></tr></thead>
+              <tbody>
+                <tr><td>Integrators</td><td>Public landing, getting-started guides, OpenAPI sandbox under <code>/reference/api/</code>.</td></tr>
+                <tr><td>Maintainers (this audience)</td><td>Internal portal: ADRs, RFCs, runbooks, audits, handbook, this catalog, system design.</td></tr>
+                <tr><td>Reviewers / interviewers</td><td>Same as maintainers — the portal is the artefact reviewers see when assessing the project.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" id="see-also">
+          <h2>See also</h2>
+          <ul>
+            <li><a href="architecture.html">portal · Architecture</a> — repository layout and build pipeline</li>
+            <li><a href="../../front/index.html">Frontend docs hub</a> — CSS architecture, components, token contracts</li>
+            <li><a href="../api/dependencies.html">api · Dependencies</a> — counterpart for the api service</li>
+            <li><a href="../../../internal/governance/adr/0028-monorepo-with-service-boundaries.html">ADR 0028</a></li>
+          </ul>
+        </section>
+
         <section id="page-history" class="card">
           <h2>Page history</h2>
           <div class="docs-table-scroll" role="region" aria-label="Page history">
             <table class="docs-page-history">
               <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
-              <tbody><tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Initial skeleton stub per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase C.</td><td><a href="../../portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr></tbody>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-10">2026-05-10</time></td>
+                  <td>Added in-repo frontend assets section (<code>services/frontend/portal/assets/</code>).</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+                <tr>
+                  <td><time datetime="2026-05-10">2026-05-10</time></td>
+                  <td>Filled build-time and runtime dependency tables, downstream consumers.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+                <tr>
+                  <td><time datetime="2026-05-08">2026-05-08</time></td>
+                  <td>Initial skeleton stub.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
             </table>
           </div>
         </section>

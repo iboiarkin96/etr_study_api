@@ -4,7 +4,7 @@
 
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>api · Api reference</title>
+  <title>api · API reference</title>
   <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
   <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
   <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
@@ -23,17 +23,234 @@
     <div class="internal-layout__main">
       <main class="container">
         <div id="docs-top-nav"></div>
-        <h1 class="internal-h1--accent-tail">api · Api reference</h1>
+        <h1 class="internal-h1--accent-tail">api · API reference</h1>
+
         <section class="card">
-          <p><em>Skeleton stub.</em> What this service exposes to its consumers. For <code>api</code>, the public-facing Swagger sandbox lives in the standalone developer portal at <code>services/portal/public/reference/api/</code>; for other services, the relevant boundary (static assets / scrape endpoints).</p>
-          <p>← <a href="index.html">Back to api entity card</a></p>
+          <p>
+            The interface this service provides: behavioural contract (functional requirements), the transactional
+            envelope of every critical write, security defaults applied to every route, and the foundational sequence
+            flows. Per-operation pages (request/response shapes, error catalogue, examples) live in the
+            <a href="../../api/index.html">internal HTTP API hub</a>; the OpenAPI document is published on the
+            <a href="../../../public/reference/api/index.html">public developer portal</a>.
+          </p>
+          <p class="small">
+            REST style, error envelope, idempotency, and security come from the
+            <a href="../../api/_shared/spec-template.html">specification template</a> and ADRs
+            <a href="../../../internal/governance/adr/0007-openapi-governance-and-usability-standard.html">0007</a>,
+            <a href="../../../internal/governance/adr/0003-error-contract-governance.html">0003</a>,
+            <a href="../../../internal/governance/adr/0006-idempotency-write-operations.html">0006</a>,
+            <a href="../../../internal/governance/adr/0005-api-security-defaults.html">0005</a>.
+          </p>
         </section>
+
+        <section class="card" id="functional-requirements">
+          <h2>Functional requirements</h2>
+          <p class="small">
+            Behaviour the service must expose to integrators. Concrete request/response shapes are normative in
+            <a href="../../api/index.html">internal API specs</a> and the public OpenAPI document.
+          </p>
+          <div class="docs-table-scroll docs-table--req" role="region" aria-label="Functional requirements">
+            <table>
+              <colgroup>
+                <col class="docs-table__col--id">
+                <col class="docs-table__col--req">
+                <col>
+              </colgroup>
+              <thead><tr><th>ID</th><th>Requirement</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><strong>FR-1</strong></td>
+                  <td>User management</td>
+                  <td>Create and resolve users by <code>system_user_id</code> and <code>system_uuid</code>; preserve a stable <code>client_uuid</code> for ownership checks. Spec: <a href="../../api/user/index.html">/api/v1/user</a>.</td>
+                </tr>
+                <tr>
+                  <td><strong>FR-2</strong></td>
+                  <td>Conspectus create</td>
+                  <td>Accept ETR-shaped payloads (<code>cue_sheet</code>, <code>dense_paragraph</code>, <code>bullets</code>, optional <code>title</code>); persist snapshot and initial schedule per <code>SchedulePolicy</code>; append a <code>CREATED</code> domain event. Spec: <a href="../../api/conspectus/operations/post-api-v1-conspectuses.html">POST /conspectuses</a>.</td>
+                </tr>
+                <tr>
+                  <td><strong>FR-3</strong></td>
+                  <td>Retrieve and review</td>
+                  <td>List due conspectuses; apply deterministic transitions from tags (<code>easy</code>/<code>hard</code>/<code>forgot</code>); append <code>conspectus_review_logs</code> with schedule snapshots. Spec: <a href="../../api/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html">POST …/actions/review</a>.</td>
+                </tr>
+                <tr>
+                  <td><strong>FR-4</strong></td>
+                  <td>Learning error log</td>
+                  <td>Store and list weak-cue records; optional links to conspectus and (via <code>review_log_id</code>) to a review session — semantically distinct from review tags (see <a href="architecture.html#domain-model">domain model</a>). Spec: <a href="../../api/error-log/index.html">/api/v1/errors</a>.</td>
+                </tr>
+                <tr>
+                  <td><strong>FR-5</strong></td>
+                  <td>Schedule insight</td>
+                  <td>Expose aggregate slot distribution and schedule guidance for clients and dashboards. Spec: <a href="../../api/conspectus/operations/get-api-v1-schedule-summary.html">GET /schedule/summary</a>.</td>
+                </tr>
+                <tr>
+                  <td><strong>FR-6</strong></td>
+                  <td>Due conspectuses ("what to review")</td>
+                  <td>List conspectuses due at or before a reference time, ordered per the review-suggestion policy; respect optional user <code>timezone</code> for calendar-day filters. Spec: <a href="../../api/conspectus/operations/get-api-v1-conspectuses-due.html">GET /conspectuses/due</a>.</td>
+                </tr>
+                <tr>
+                  <td><strong>FR-7</strong></td>
+                  <td>Schedule policy resolution</td>
+                  <td>On create and review, resolve <code>(schedule_policy_id, algorithm_version)</code> against <code>schedule_policies</code>; reject unknown or retired pairs with a stable error per <a href="../../../internal/governance/adr/0003-error-contract-governance.html">ADR 0003</a>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" id="critical-writes">
+          <h2>Critical writes — single transaction</h2>
+          <p>
+            Every critical write commits in one transaction. Failures roll back fully; integrators receive a stable
+            error per <a href="../../../internal/governance/adr/0003-error-contract-governance.html">ADR 0003</a> and
+            may retry safely with the same <code>Idempotency-Key</code>
+            (<a href="../../../internal/governance/adr/0006-idempotency-write-operations.html">ADR 0006</a>).
+          </p>
+          <div class="docs-table-scroll" role="region" aria-label="Critical writes — single transaction">
+            <table>
+              <thead><tr><th>Operation</th><th>Transaction touches</th><th>Idempotency</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Create conspectus</td>
+                  <td>Insert conspectus + schedule + <code>CREATED</code> event</td>
+                  <td>Required <code>Idempotency-Key</code> (POST collection)</td>
+                </tr>
+                <tr>
+                  <td>Review</td>
+                  <td>Update schedule (bump <code>schedule_revision</code>) + insert <code>conspectus_review_logs</code> (no duplicate schedule event in <code>conspectus_events</code> by default)</td>
+                  <td>Required; scoped to resource; body carries expected <code>schedule_revision</code></td>
+                </tr>
+                <tr>
+                  <td>Review + learning error</td>
+                  <td>Same as review + insert <code>learning_errors</code> with <code>review_log_id</code> pointing at the new log row</td>
+                  <td>Prefer one request and one transaction; alternatively two calls with explicit correlation</td>
+                </tr>
+                <tr>
+                  <td>PATCH conspectus</td>
+                  <td>Update body + bump <code>content_version</code> + content event</td>
+                  <td>Required per resource</td>
+                </tr>
+                <tr>
+                  <td>Create learning error</td>
+                  <td>Insert <code>learning_errors</code> (optional <code>review_log_id</code>)</td>
+                  <td>Required</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" id="security-defaults">
+          <h2>Security defaults applied to every route</h2>
+          <p>
+            Cross-cutting policy from <a href="../../../internal/governance/adr/0005-api-security-defaults.html">ADR 0005</a>.
+            Per-route overrides live on the corresponding spec page in the
+            <a href="../../api/index.html">internal API hub</a>.
+          </p>
+          <div class="docs-table-scroll" role="region" aria-label="Security defaults">
+            <table>
+              <thead><tr><th>Constraint</th><th>Default</th><th>Effect on integrators</th></tr></thead>
+              <tbody>
+                <tr><td>Authentication</td><td><code>X-API-Key</code> on <code>/api/v1/*</code></td><td>Unauthorized calls return <code>401</code>.</td></tr>
+                <tr><td>Rate limiting</td><td>60 requests / 60 s per client and path</td><td>Overflow returns <code>429</code>; clients must back off.</td></tr>
+                <tr><td>Request body size</td><td>1 MB (<code>API_BODY_MAX_BYTES</code>)</td><td><code>413</code> above the limit; large assets require a dedicated flow.</td></tr>
+                <tr><td>CORS</td><td>Allowlist origins</td><td>Browser clients from non-allowed origins cannot call the API directly.</td></tr>
+                <tr><td>Idempotency</td><td>Required for critical writes</td><td>Safe retries; reusing a key with a different body yields <code>409</code>; deduplication rows persist in the database.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card card--diagram" id="sequences">
+          <h2>Foundational sequences</h2>
+          <p class="small">
+            Each sequence shows how a flow commits its log and snapshot in one transaction. PlantUML sources under
+            <code>services/portal/internal/uml/sequences/</code>.
+          </p>
+
+          <figure class="sys-diagram">
+            <div class="sys-diagram__head">
+              <span class="sys-diagram__badge">Sequence</span>
+              <div class="sys-diagram__titles">
+                <h3>Create conspectus</h3>
+                <p class="sys-diagram__sub">POST /api/v1/conspectuses → snapshot + initial schedule + <code>CREATED</code> event in one transaction.</p>
+              </div>
+            </div>
+            <div class="sys-diagram__canvas">
+              <img alt="Create conspectus sequence" class="diagram diagram--uml" loading="lazy" src="../../uml/rendered/create_conspectus_sequence.svg">
+            </div>
+            <figcaption class="sys-diagram__foot"><code>create_conspectus_sequence.puml</code></figcaption>
+          </figure>
+
+          <figure class="sys-diagram">
+            <div class="sys-diagram__head">
+              <span class="sys-diagram__badge">Sequence</span>
+              <div class="sys-diagram__titles">
+                <h3>Review</h3>
+                <p class="sys-diagram__sub">POST …/actions/review → review log insert + schedule update (revision bump) in one transaction; SchedulePolicy resolves the transition.</p>
+              </div>
+            </div>
+            <div class="sys-diagram__canvas">
+              <img alt="Review sequence" class="diagram diagram--uml" loading="lazy" src="../../uml/rendered/review_retrieve_sequence.svg">
+            </div>
+            <figcaption class="sys-diagram__foot"><code>review_retrieve_sequence.puml</code></figcaption>
+          </figure>
+
+          <figure class="sys-diagram">
+            <div class="sys-diagram__head">
+              <span class="sys-diagram__badge">Sequence</span>
+              <div class="sys-diagram__titles">
+                <h3>Error log</h3>
+                <p class="sys-diagram__sub">POST /api/v1/errors → learning error insert; optional correlation to a review via <code>review_log_id</code>.</p>
+              </div>
+            </div>
+            <div class="sys-diagram__canvas">
+              <img alt="Error log sequence" class="diagram diagram--uml" loading="lazy" src="../../uml/rendered/error_log_sequence.svg">
+            </div>
+            <figcaption class="sys-diagram__foot"><code>error_log_sequence.puml</code></figcaption>
+          </figure>
+        </section>
+
+        <section class="card" id="operations-index">
+          <h2>Operations index</h2>
+          <p>Per-operation specs (request shape, validation, response codes, examples) live under the internal API hub:</p>
+          <ul>
+            <li><a href="../../api/user/index.html">User</a> — <code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>PATCH /api/v1/user</code></li>
+            <li><a href="../../api/conspectus/index.html">Conspectus</a> — collection, due list, schedule summary, review action, PATCH</li>
+            <li><a href="../../api/error-log/index.html">Error log</a> — list and create learning errors</li>
+            <li><a href="../../api/_shared/error-catalog.html">Error catalog</a> — every error code, when it fires, and the recovery action</li>
+            <li><a href="../../api/errors.html">Error matrix (auto-generated)</a> — by HTTP status</li>
+          </ul>
+        </section>
+
+        <section class="card" id="see-also">
+          <h2>See also</h2>
+          <ul>
+            <li><a href="architecture.html">api · Architecture</a> — domain model, C4 L3, ER diagram, schema</li>
+            <li><a href="runbooks.html">api · Runbooks</a> — NFR/SLO, observability, hybrid-storage recovery</li>
+            <li><a href="dependencies.html">api · Dependencies</a> — upstream / downstream entities</li>
+            <li><a href="../../../internal/analysis/system-design.html#api-style">System design — API style and transactional boundaries</a></li>
+            <li><a href="../../api/_shared/idempotency.html">Idempotency contract</a> · <a href="../../api/_shared/error-envelope.html">Error envelope</a> · <a href="../../api/_shared/auth.html">Auth</a></li>
+          </ul>
+        </section>
+
         <section id="page-history" class="card">
           <h2>Page history</h2>
           <div class="docs-table-scroll" role="region" aria-label="Page history">
             <table class="docs-page-history">
               <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
-              <tbody><tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Initial skeleton stub per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase C.</td><td><a href="../../portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr></tbody>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-10">2026-05-10</time></td>
+                  <td>Filled API reference: FR-1…FR-7, critical writes, security defaults, foundational sequences, operations index. Sourced from <a href="../../../internal/analysis/system-design.html">system design</a>; relocated per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> §4.4.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+                <tr>
+                  <td><time datetime="2026-05-08">2026-05-08</time></td>
+                  <td>Initial skeleton stub per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase C.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
             </table>
           </div>
         </section>

@@ -142,7 +142,7 @@
       const p = personById(pid);
       const overflowClass = overflow ? " docs-page-meta__editor--overflow" : "";
       if (p) {
-        const profileHref = relHref(fromDir, `internal/portal/people/${p.slug}/index.html`);
+        const profileHref = relHref(fromDir, `internal/team/people/${p.slug}/index.html`);
         const photoHref = `${docsRootPrefixFromPage()}${p.photo}`;
         const name = p.displayName;
         return `<li class="docs-page-meta__editor${overflowClass}">
@@ -152,7 +152,7 @@
   <a class="docs-page-meta__editor-name-link" href="${profileHref}">${escapeHtml(name)}</a>
 </li>`;
       }
-      return `<li class="docs-page-meta__editor${overflowClass}" role="status">Unknown person id <code>${escapeHtml(pid)}</code> — add a profile under <code>services/portal/internal/portal/people/</code> with this <code>data-person-id</code> and run <code>make docs-fix</code>.</li>`;
+      return `<li class="docs-page-meta__editor${overflowClass}" role="status">Unknown person id <code>${escapeHtml(pid)}</code> — add a profile under <code>services/portal/internal/team/people/</code> with this <code>data-person-id</code> and run <code>make docs-fix</code>.</li>`;
     }
 
     const visibleIds = ids.slice(0, VISIBLE_MAX);
@@ -342,7 +342,7 @@
   }
 
   function renderPersonCard(p, fromDir) {
-    const profileHref = relHref(fromDir, `internal/portal/people/${p.slug}/index.html`);
+    const profileHref = relHref(fromDir, `internal/team/people/${p.slug}/index.html`);
     const photoHref = `${docsRootPrefixFromPage()}${p.photo}`;
     const name = escapeHtml(p.displayName);
     const groupsRaw = Array.isArray(p.groups) ? p.groups : [];
@@ -368,7 +368,7 @@
     }
     mount.innerHTML = `<div class="portal-skeleton-grid" aria-hidden="true"><span></span><span></span><span></span></div>`;
     // Derive fromDir from the current page so the mount works on both
-    // `internal/README.html` and `internal/portal/people/index.html`.
+    // `internal/README.html` and `internal/team/people/index.html`.
     const relPath = currentDocsRelPath();
     const fromDir = relPath.includes("/") ? relPath.slice(0, relPath.lastIndexOf("/")) : "";
     const people = getPortalPeople();
@@ -377,7 +377,7 @@
     const groupEntries = orderedPortalGroupEntries(presentKeys);
 
     if (groupEntries.length === 0) {
-      mount.innerHTML = `<p class="portal-people-group__empty">No profiles with <code>data-groups</code> under <code>services/portal/internal/portal/people/</code> yet. Run <code>make docs-fix</code> after editing profiles.</p>`;
+      mount.innerHTML = `<p class="portal-people-group__empty">No profiles with <code>data-groups</code> under <code>services/portal/internal/team/people/</code> yet. Run <code>make docs-fix</code> after editing profiles.</p>`;
       return;
     }
 
@@ -498,7 +498,7 @@
       return;
     }
     const pages = portalPagesFor(window.__DOCS_PORTAL_DATA__.maintainerPages, top.personId);
-    const profileHref = relHref(fromDir, `internal/portal/people/${top.slug}/index.html`);
+    const profileHref = relHref(fromDir, `internal/team/people/${top.slug}/index.html`);
     const photoHref = `${docsRootPrefixFromPage()}${top.photo}`;
     const tone = portalToneForPerson(top);
     const hex = PORTAL_TONE_HEX[tone];
@@ -545,7 +545,7 @@
   }
 
   function renderPortalPersonCard(p, maintainerPages, fromDir /* , totalPages */) {
-    const profileHref = relHref(fromDir, `internal/portal/people/${p.slug}/index.html`);
+    const profileHref = relHref(fromDir, `internal/team/people/${p.slug}/index.html`);
     const photoHref = `${docsRootPrefixFromPage()}${p.photo}`;
     const tone = portalToneForPerson(p);
     const hex = PORTAL_TONE_HEX[tone];
@@ -598,7 +598,7 @@
     const presentKeys = collectGroupKeysPresent(people);
     const groupEntries = orderedPortalGroupEntries(presentKeys);
     if (groupEntries.length === 0) {
-      mount.innerHTML = `<p class="portal-people-group__empty">No profiles with <code>data-groups</code> under <code>services/portal/internal/portal/people/</code> yet. Run <code>make docs-fix</code> after editing profiles.</p>`;
+      mount.innerHTML = `<p class="portal-people-group__empty">No profiles with <code>data-groups</code> under <code>services/portal/internal/team/people/</code> yet. Run <code>make docs-fix</code> after editing profiles.</p>`;
       return;
     }
     let totalPages = 0;

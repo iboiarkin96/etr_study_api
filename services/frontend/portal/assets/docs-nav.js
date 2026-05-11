@@ -599,7 +599,7 @@ function mountDocsSearch(nav, fromDir) {
   input.className = "docs-search__input";
   input.type = "search";
   input.placeholder = isPublicAudience
-    ? "Search developer docs..."
+    ? "Search docs..."
     : "Type to search all docs...";
   input.setAttribute("autocomplete", "off");
   input.setAttribute("spellcheck", "false");
@@ -727,7 +727,7 @@ function docsHubHrefForPrefix(prefix) {
     developer: "internal/handbook/developer/index.html",
     howto: "internal/handbook/howto/index.html",
     internal: "internal/index.html",
-    "internal/portal/people": "internal/portal/people/index.html",
+    "internal/team/people": "internal/team/people/index.html",
     "internal/api": "internal/api/index.html",
     "internal/api/user": "internal/api/user/index.html",
     "internal/api/conspectus": "internal/api/conspectus/index.html",
@@ -752,8 +752,8 @@ function docsBreadcrumbLabelForPrefix(prefix) {
     developer: "Developer guides",
     howto: "How-to guides",
     internal: "Internal docs",
-    "internal/portal": "Portal",
-    "internal/portal/people": "People",
+    "internal/team": "Team",
+    "internal/team/people": "People",
     "internal/api": "Internal API",
     "internal/api/user": "User",
     "internal/api/conspectus": "Conspectus",
@@ -976,6 +976,45 @@ function syncInternalThemeTogglePlacement() {
   }
 }
 
+/**
+ * Public mirror of `syncInternalThemeTogglePlacement`: moves the inline search
+ * widget from `#docs-top-nav` into the same flex row as H1 + theme toggle, then
+ * collapses the now-empty top-nav strip. Run after `syncDocsThemeToggleWithHeading`
+ * (which creates `[data-docs-page-title-row]` and seeds it with H1 + toggle).
+ *
+ * Result: H1 anchors at the top of the main column on public pages, with the
+ * search bar inline-right — no more vertical gap between top-nav and heading.
+ */
+function syncPublicSearchPlacement() {
+  const isPublic =
+    document.body.classList.contains("public-layout") ||
+    document.body.getAttribute("data-audience") === "public";
+  if (!isPublic) {
+    return;
+  }
+  const main = document.querySelector("main.container");
+  if (!main) {
+    return;
+  }
+  const row = main.querySelector("[data-docs-page-title-row]");
+  if (!row) {
+    return;
+  }
+  const search = main.querySelector("#docs-top-nav .docs-search--public");
+  if (search && search.parentElement !== row) {
+    const themeBtn = row.querySelector("[data-docs-theme-toggle]");
+    if (themeBtn) {
+      row.insertBefore(search, themeBtn);
+    } else {
+      row.appendChild(search);
+    }
+  }
+  const topNav = main.querySelector("#docs-top-nav .top-nav--public-page");
+  if (topNav) {
+    topNav.setAttribute("data-public-topnav-collapsed", "1");
+  }
+}
+
 function syncDocsThemeToggleWithHeading() {
   const main = document.querySelector("main.container");
   if (!main) {
@@ -1177,6 +1216,7 @@ function renderTopNav() {
     syncInternalThemeTogglePlacement();
   } else {
     syncDocsThemeToggleWithHeading();
+    syncPublicSearchPlacement();
   }
 }
 
@@ -1369,11 +1409,7 @@ function renderLifecycleStatusBlocks(main) {
   nav.insertAdjacentElement("afterend", row);
 }
 
-/**
- * Markup fallback when `fetch()` cannot load `audit-score-legend-fragment.html` (e.g. `file://` pages).
- * Keep in sync with the `<aside class="audit-score-legend">` in that file.
- */
-const AUDIT_SCORE_LEGEND_ASIDE_FALLBACK = `<aside class="audit-score-legend" role="note" aria-labelledby="audit-score-legend-title">
+const AUDIT_SCORE_LEGEND_ASIDE_MARKUP = `<aside class="audit-score-legend" role="note" aria-labelledby="audit-score-legend-title">
 <h3 class="audit-score-legend-title" id="audit-score-legend-title">Score scale (1–10)</h3>
 <p class="audit-score-legend-intro">
   Indicative maturity versus the reference practices in <em>this</em> document only. Not comparable across unrelated
@@ -1397,19 +1433,6 @@ const AUDIT_SCORE_LEGEND_ASIDE_FALLBACK = `<aside class="audit-score-legend" rol
 </ul>
 </aside>`;
 
-/**
- * Inject shared audit score legend from `assets/audit-score-legend-fragment.html` into
- * `<div class="audit-score-legend-include" data-legend-id="optional-suffix"></div>`.
- * One source of truth for markup; styles remain in docs.css (ADR 0024).
- */
-function auditScoreLegendFragmentUrl() {
-  return DOCS_ASSET_DIR + "audit-score-legend-fragment.html";
-}
-
-function stripLeadingHtmlComment(text) {
-  return text.replace(/^\s*<!--[\s\S]*?-->\s*/, "").trimStart();
-}
-
 function applyLegendIdSuffix(aside, suffix) {
   const h3 = aside.querySelector(".audit-score-legend-title");
   if (!h3) {
@@ -1422,38 +1445,14 @@ function applyLegendIdSuffix(aside, suffix) {
   }
 }
 
-async function injectAuditScoreLegends() {
+function injectAuditScoreLegends() {
   const hosts = document.querySelectorAll(".audit-score-legend-include");
   if (hosts.length === 0) {
     return;
   }
 
-  const url = auditScoreLegendFragmentUrl();
-  let htmlText;
-  try {
-    const res = await fetch(url, { credentials: "same-origin" });
-    if (!res.ok) {
-      throw new Error(`${res.status}`);
-    }
-    htmlText = await res.text();
-  } catch (e) {
-    htmlText = `<!DOCTYPE html><html><body>${AUDIT_SCORE_LEGEND_ASIDE_FALLBACK}</body></html>`;
-  }
-
-  const cleaned = stripLeadingHtmlComment(htmlText);
-  const parsed = new DOMParser().parseFromString(cleaned, "text/html");
+  const parsed = new DOMParser().parseFromString(AUDIT_SCORE_LEGEND_ASIDE_MARKUP, "text/html");
   const templateAside = parsed.querySelector("aside.audit-score-legend");
-  if (!templateAside) {
-    for (const host of hosts) {
-      const err = document.createElement("p");
-      err.className = "audit-score-legend-error";
-      err.setAttribute("role", "alert");
-      err.textContent =
-        "Could not load the score legend. Open this site over HTTP(S) or see ADR 0024 for the scale.";
-      host.replaceWith(err);
-    }
-    return;
-  }
 
   for (const host of hosts) {
     const suffix = (host.getAttribute("data-legend-id") || "").trim();
@@ -4879,10 +4878,12 @@ function initLevel3StickyTopBar() {
   sentinel.setAttribute("aria-hidden", "true");
   wrapper.parentNode.insertBefore(sentinel, wrapper);
 
-  new IntersectionObserver(
+  const obs = new IntersectionObserver(
     ([entry]) => topNav.classList.toggle("is-scrolled", !entry.isIntersecting),
     { threshold: 0 },
-  ).observe(sentinel);
+  );
+  obs.observe(sentinel);
+  window.addEventListener("pagehide", () => obs.disconnect(), { once: true });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -4940,7 +4941,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // upgrades) so the toggle settles in its final slot rather than its initial,
   // pre-layout one. Removing the second call regressed placement on Safari.
   syncInternalThemeTogglePlacement();
+  syncPublicSearchPlacement();
   window.setTimeout(syncInternalThemeTogglePlacement, 0);
+  window.setTimeout(syncPublicSearchPlacement, 0);
   initInPageTocScrollSpy();
   initBackToTopButton();
   initDocsReadingProgressBar();

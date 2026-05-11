@@ -13,8 +13,8 @@ DOCS_ROOT = ROOT / "services" / "portal"
 ASSETS_ROOT = ROOT / "services" / "frontend" / "portal"
 DOCS_CSS = ASSETS_ROOT / "assets" / "docs.css"
 FROZEN_DOCS_REL_PATHS = {
-    Path("internal/portal/people/ivan-boyarkin/sa-growth.html"),
-    Path("internal/portal/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
+    Path("internal/team/people/ivan-boyarkin/sa-growth.html"),
+    Path("internal/team/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
 }
 
 

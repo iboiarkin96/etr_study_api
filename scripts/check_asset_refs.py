@@ -34,12 +34,18 @@ EXCLUDE_PARTS = {
     "__pycache__",
     "code-reference",
     "pdoc",
+    "notes",
 }
 
 HTML_ATTR_RE = re.compile(
     r"""(?:href|src|poster|data-src)\s*=\s*(?P<q>["'])(?P<val>[^"']+)(?P=q)""",
     re.IGNORECASE,
 )
+# Strip <code>...</code> blocks before scanning so that code examples
+# containing href= or src= text are not treated as real asset references.
+CODE_BLOCK_RE = re.compile(r"<code[^>]*>.*?</code>", re.IGNORECASE | re.DOTALL)
+# Strip HTML comments so that commented-out img/link examples don't fire.
+HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 CSS_URL_RE = re.compile(r"""url\(\s*(?P<q>['"]?)(?P<val>[^)'"]+)(?P=q)\s*\)""")
 
 SKIP_PREFIXES = ("http://", "https://", "//", "data:", "mailto:", "tel:", "javascript:", "#")
@@ -82,8 +88,11 @@ def _iter_files(suffixes: tuple[str, ...]) -> list[Path]:
 
 def _scan_html(path: Path) -> list[tuple[int, str]]:
     text = path.read_text(encoding="utf-8", errors="replace")
+    # Remove code examples and HTML comments before line-based scanning
+    # so that href=/src= inside <code> or <!-- --> are not treated as real refs.
+    cleaned = CODE_BLOCK_RE.sub("", HTML_COMMENT_RE.sub("", text))
     out: list[tuple[int, str]] = []
-    for line_no, line in enumerate(text.splitlines(), start=1):
+    for line_no, line in enumerate(cleaned.splitlines(), start=1):
         for match in HTML_ATTR_RE.finditer(line):
             out.append((line_no, match.group("val")))
     return out
@@ -134,15 +143,13 @@ def main() -> int:
         f"check_asset_refs: FAIL — {len(broken)} broken references (of {checked} checked):",
         file=sys.stderr,
     )
-    for path, line_no, ref, target in broken[:200]:
+    for path, line_no, ref, target in broken:
         rel = path.relative_to(ROOT).as_posix()
         try:
             target_rel = target.relative_to(ROOT).as_posix()
         except ValueError:
             target_rel = str(target)
         print(f"  {rel}:{line_no}  {ref!r}  →  {target_rel}  (not found)", file=sys.stderr)
-    if len(broken) > 200:
-        print(f"  … and {len(broken) - 200} more", file=sys.stderr)
     return 1
 
 

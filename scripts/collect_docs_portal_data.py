@@ -1,7 +1,7 @@
 """Scan docs HTML and emit a combined JS bundle for the employee portal.
 
 1. ``data-maintainer-ids`` on any page under ``services/portal/`` → pages maintained per person id.
-2. Profile pages ``services/portal/internal/portal/people/*/index.html`` with ``data-person-*`` on ``<body>`` →
+2. Profile pages ``services/portal/internal/team/people/*/index.html`` with ``data-person-*`` on ``<body>`` →
    people list for the portal index and editor avatars.
 
 Output: ``services/frontend/portal/assets/docs-portal-data.js`` (``window.__DOCS_PORTAL_DATA__``).
@@ -123,7 +123,7 @@ def collect_people_from_profiles() -> list[dict[str, str | list[str]]]:
         groups = [x for x in groups_raw.split() if x]
         if not display_name or not github:
             continue
-        photo_from_docs = f"internal/portal/people/{slug}/{photo_file}"
+        photo_from_docs = f"internal/team/people/{slug}/{photo_file}"
         people.append(
             {
                 "personId": person_id,

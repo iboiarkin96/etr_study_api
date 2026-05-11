@@ -4,7 +4,7 @@
 
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>api · On call</title>
+  <title>api · On-call</title>
   <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
   <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
   <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
@@ -23,17 +23,99 @@
     <div class="internal-layout__main">
       <main class="container">
         <div id="docs-top-nav"></div>
-        <h1 class="internal-h1--accent-tail">api · On call</h1>
+        <h1 class="internal-h1--accent-tail">api · On-call</h1>
+
         <section class="card">
-          <p><em>Skeleton stub.</em> Alert routing, escalation, primary contact. For a solo project this is currently <a href="../../portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a>; future PagerDuty / OpsGenie integration is queued in the backlog.</p>
-          <p>← <a href="index.html">Back to api entity card</a></p>
+          <p>
+            Who responds when the api service is unhealthy, what they look at first, and how alerts route. The project
+            is in solo-maintainer mode — there is one owner; "rotation" and "escalation" reduce to a single backlog
+            queue. The shape of this page mirrors the Backstage on-call descriptor so it scales when the team grows.
+          </p>
         </section>
+
+        <section class="card" id="ownership">
+          <h2>Ownership and escalation</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Ownership and escalation">
+            <table>
+              <thead><tr><th>Role</th><th>Person</th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td>Primary owner</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td><td>All incidents land here.</td></tr>
+                <tr><td>Secondary / backup</td><td><em>not staffed</em></td><td>Solo project; secondary slot opens when the team grows past one engineer.</td></tr>
+                <tr><td>Escalation channel</td><td><a href="../../governance/backlog/index.html">Backlog</a> as the escalation queue</td><td>Tracked items: severity, status, follow-up runbook deltas. No paging system — incidents are caught at make-time, in CI, or in local probes.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" id="signals">
+          <h2>Health signals — what to look at first</h2>
+          <p>
+            The api exposes three operational endpoints. Standard order when triaging: <code>/health</code> →
+            <code>/ready</code> → <code>/metrics</code> → logs.
+          </p>
+          <div class="docs-table-scroll" role="region" aria-label="Health signals">
+            <table>
+              <thead><tr><th>Endpoint</th><th>Meaning</th><th>Consumer</th></tr></thead>
+              <tbody>
+                <tr><td><code>GET /health</code></td><td>Process is alive.</td><td>Container orchestrator liveness probe.</td></tr>
+                <tr><td><code>GET /ready</code></td><td>Service can accept traffic (DB reachable, migrations applied).</td><td>Blackbox exporter (<a href="../monitoring/index.html">monitoring</a>); orchestrator readiness probe.</td></tr>
+                <tr><td><code>GET /metrics</code></td><td>Prometheus exposition (request rate, latency, error rate).</td><td>Prometheus scrape (<a href="../monitoring/index.html">monitoring</a>).</td></tr>
+                <tr><td>NDJSON log file</td><td>Per-event structured records.</td><td>Filebeat → Elasticsearch / Kibana (optional).</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small">
+            Authority for these signals: <a href="../../../internal/governance/adr/0009-health-readiness-and-observability.html">ADR 0009</a>;
+            SLO and error budget per <a href="../../../internal/governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a>;
+            structured logging per <a href="../../../internal/governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.
+          </p>
+        </section>
+
+        <section class="card" id="symptom-routing">
+          <h2>Symptom → first action</h2>
+          <p>Use this table to land on a runbook within seconds of seeing a symptom.</p>
+          <div class="docs-table-scroll" role="region" aria-label="Symptom to first action">
+            <table>
+              <thead><tr><th>Symptom</th><th>First action</th></tr></thead>
+              <tbody>
+                <tr><td><code>/ready</code> returning 503</td><td><a href="../../sre/runbooks/0002-migrations-failing.html">Migrations runbook</a> · check DB connectivity · last successful migration revision</td></tr>
+                <tr><td>Prometheus shows no samples for the api</td><td><a href="../../sre/runbooks/0008-observability-scrape-failing.html">Observability scrape failing</a></td></tr>
+                <tr><td>5xx rate above SLO</td><td><a href="../../sre/runbooks/0009-error-budget-exhaustion.html">Error budget exhaustion</a> · open Kibana on errors stream</td></tr>
+                <tr><td>Auth/rate-limit headers misbehaving</td><td><a href="../../sre/runbooks/0006-api-security-failing.html">API security failing</a></td></tr>
+                <tr><td>OpenAPI contract test red in CI</td><td><a href="../../sre/runbooks/0007-openapi-contract-test-failing.html">OpenAPI contract test failing</a></td></tr>
+                <tr><td>Logs missing or malformed in Kibana</td><td><a href="../../sre/runbooks/0003-logging-failing.html">Logging failing</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" id="see-also">
+          <h2>See also</h2>
+          <ul>
+            <li><a href="runbooks.html">api · Runbooks</a> — full NFR table and symptom index</li>
+            <li><a href="../monitoring/index.html">monitoring</a> service — where alerts are configured</li>
+            <li><a href="../../sre/runbooks/index.html">SRE · Runbooks index</a></li>
+            <li><a href="../../../internal/governance/adr/0011-slo-sla-error-budget.html">ADR 0011 — SLO / SLA / error budget</a></li>
+          </ul>
+        </section>
+
         <section id="page-history" class="card">
           <h2>Page history</h2>
           <div class="docs-table-scroll" role="region" aria-label="Page history">
             <table class="docs-page-history">
               <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
-              <tbody><tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Initial skeleton stub per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase C.</td><td><a href="../../portal/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr></tbody>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-10">2026-05-10</time></td>
+                  <td>Filled ownership, health signals, and symptom-routing table. Per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> §4.4.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+                <tr>
+                  <td><time datetime="2026-05-08">2026-05-08</time></td>
+                  <td>Initial skeleton stub.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
             </table>
           </div>
         </section>

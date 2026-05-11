@@ -44,7 +44,7 @@
     etaRanges: new Set(),
     search: "",
     quickPreset: "all",
-    viewMode: "board",
+    viewMode: "list",
   };
   const prioritySortRank = {
     P1: 2,
@@ -2258,6 +2258,7 @@
   setQuickPresetButtons(state.quickPreset);
   validateTaxonomy();
   applyViewMode();
+  activateFilterButtons("[data-view-mode]", state.viewMode);
   applyFilter();
   paintBacklogHeroTickers();
 })();

@@ -9,7 +9,7 @@ The hub page is [`index.html`](index.html). It lists people by role groups and l
 1. **Profile pages** — `people/<slug>/index.html` (e.g. [`people/ivan-boyarkin/index.html`](people/ivan-boyarkin/index.html)) are normal HTML. You edit name, bio, photo, and links by hand. The `<body>` also carries **machine-readable attributes** used by tooling (see below); they are not shown as a long explanation on the page.
 
 2. **Generated bundle** — [`services/frontend/portal/assets/docs-portal-data.js`](../../../frontend/portal/assets/docs-portal-data.js) is **generated**. Do not edit it. It defines `window.__DOCS_PORTAL_DATA__` with:
-   - **`people`** — one entry per profile page found under `services/portal/internal/portal/people/*/index.html`, parsed from the profile `<body>` attributes.
+   - **`people`** — one entry per profile page found under `services/portal/internal/team/people/*/index.html`, parsed from the profile `<body>` attributes.
    - **`maintainerPages`** — for each person id, lists doc pages under `services/portal/` whose `<body>` has `data-maintainer-ids` containing that id.
 
 3. **Generator** — [`scripts/collect_docs_portal_data.py`](../../../../scripts/collect_docs_portal_data.py) builds `docs-portal-data.js`. It runs as part of **`make docs-fix`**.
@@ -48,11 +48,11 @@ Then run **`make docs-fix`** so that page appears under **Maintained pages** on 
 
 ### Bulk default editor (hand-written HTML)
 
-Most narrative pages under `services/portal/` already include **`data-maintainer-ids`** with a default person id, **`#docs-page-meta-mount`**, and the two portal scripts. That was applied with [`scripts/apply_default_page_editor_to_docs.py`](../../../../scripts/apply_default_page_editor_to_docs.py) (skips `services/portal/pdoc/` (pdoc), `services/frontend/portal/assets/`, and profile pages under `internal/portal/people/`). Re-run that script after changing the default id or when adding many new pages that follow the same pattern, then **`make docs-fix`**.
+Most narrative pages under `services/portal/` already include **`data-maintainer-ids`** with a default person id, **`#docs-page-meta-mount`**, and the two portal scripts. That was applied with [`scripts/apply_default_page_editor_to_docs.py`](../../../../scripts/apply_default_page_editor_to_docs.py) (skips `services/portal/pdoc/` (pdoc), `services/frontend/portal/assets/`, and profile pages under `internal/team/people/`). Re-run that script after changing the default id or when adding many new pages that follow the same pattern, then **`make docs-fix`**.
 
 ## Adding a new person
 
-1. Create `services/portal/internal/portal/people/<slug>/index.html` (and photo, etc.).
+1. Create `services/portal/internal/team/people/<slug>/index.html` (and photo, etc.).
 2. Set the `data-*` attributes on `<body>` as above.
 3. Run **`make docs-fix`**.
 4. Optionally add a row to the internal sidebar or other nav if your site has a manual list.

@@ -29,45 +29,58 @@
  *   --container-pad           container padding
  */
 
-/* ── Token defaults (public portal contract) ──────────────────────────── */
+/* ── Unified token defaults (both portals) ───────────────────────────── */
 body.public-layout,
 body.internal-layout {
-    --shell-max-width: min(1520px, 100vw);
-    --shell-pad: 0 0 72px;
-    --shell-pad-mobile: 0 max(8px, env(safe-area-inset-right, 0px)) 56px max(8px, env(safe-area-inset-left, 0px));
-    --sidebar-width: 264px;
+    --shell-max-width: min(1680px, calc(100vw - 24px));
+    --shell-pad: 24px 20px 72px;
+    --shell-pad-mobile: 12px max(8px, env(safe-area-inset-right, 0px)) 56px max(8px, env(safe-area-inset-left, 0px));
+    --shell-left: max(0px, calc((100vw - var(--shell-max-width)) / 2));
+    --sidebar-width: 300px;
     --sidebar-collapsed-width: 56px;
-    --sidebar-bg: var(--bg);
-    --sidebar-pad: 0;
+    --sidebar-bg: transparent;
+    --sidebar-pad: 4px 16px 20px 0;
     --sidebar-mobile-pad: 0;
     --sidebar-mobile-display: none;
     --sidebar-z: 10;
-    --main-pad-left: 0;
-    --container-max-width: 100%;
+    --main-pad-left: 20px;
+    --container-max-width: 960px;
     --container-margin-inline: 0;
-    --container-pad: 28px 20px 80px;
+    --container-pad: 12px 24px 0 32px;
+    /* ── FAB ("On this page") positioning tokens ──────────────────────────
+     * Adjust --toc-fab-offset-x / --toc-fab-offset-y on body.internal-layout
+     * or body.public-layout to fine-tune position for each portal.
+     * Positive offset-x shifts right; positive offset-y shifts down. */
+    --toc-fab-size: 52px;
+    --toc-fab-offset-x: 0px;
+    --toc-fab-offset-y: 0px;
+    /* Expanded: FAB centred on sidebar right border, vertically centred in viewport. */
+    --docs-toc-fab-top: 120px;
+    ;
+    --docs-toc-fab-left: calc(var(--shell-left) + var(--sidebar-width) - var(--toc-fab-size) / 2);
 }
 
 @media (min-width: 1025px) {
+
     body.public-layout,
     body.internal-layout {
-        --container-max-width: 960px;
-        --container-pad: 12px 24px 0 32px;
+        --shell-pad: 24px 12px;
     }
 }
 
-/* ── Internal portal token overrides ───────────────────────────────────── */
+@media (max-width: 760px) {
+
+    body.public-layout,
+    body.internal-layout {
+        --container-pad: 0 max(6px, env(safe-area-inset-right, 0px)) 0 max(6px, env(safe-area-inset-left, 0px));
+    }
+}
+
+/* ── Internal portal identity overrides (non-geometry) ──────────────────── */
 body.internal-layout {
-    --shell-max-width: 1280px;
-    --shell-pad: 24px 20px 72px;
-    --shell-pad-mobile: 12px max(8px, env(safe-area-inset-right, 0px)) 56px max(8px, env(safe-area-inset-left, 0px));
     --sidebar-width: min(288px, 92vw);
-    --sidebar-bg: transparent;
-    --sidebar-pad: 4px 16px 20px 0;
-    --sidebar-mobile-pad: 0 0 16px;
     --sidebar-mobile-display: block;
     --sidebar-z: 2;
-    --main-pad-left: 8px;
     --container-max-width: 1160px;
     --container-margin-inline: auto;
     --container-pad: 0;
@@ -75,10 +88,7 @@ body.internal-layout {
 
 @media (min-width: 1025px) {
     body.internal-layout {
-        --shell-max-width: min(1680px, calc(100vw - 24px));
-        --shell-pad: 24px 12px;
         --sidebar-width: 300px;
-        --main-pad-left: 20px;
         /* Width unification with the public portal: prose container is the
          * same readable column on both layouts (960 px capped, left-aligned,
          * identical padding), so a tutorial on the public side and an ADR on
@@ -88,12 +98,6 @@ body.internal-layout {
         --container-max-width: 960px;
         --container-margin-inline: 0;
         --container-pad: 12px 24px 0 32px;
-    }
-}
-
-@media (max-width: 760px) {
-    body.internal-layout {
-        --container-pad: 0 max(6px, env(safe-area-inset-right, 0px)) 0 max(6px, env(safe-area-inset-left, 0px));
     }
 }
 
@@ -150,14 +154,30 @@ body.internal-layout {
 
 /* ── Sidebar collapse (≥1025) ──────────────────────────────────────────── */
 @media (min-width: 1025px) {
+
     .public-layout__shell.is-sidebar-collapsed,
     .internal-layout__shell.is-sidebar-collapsed {
         grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
+        /* FAB: centred in the 56 px collapsed strip.
+         * +0.3cm corrects for the visual centre of the strip (border-right, padding). */
+        --docs-toc-fab-left: calc(var(--shell-left) + var(--sidebar-collapsed-width) / 2 - var(--toc-fab-size) / 2);
+        --toc-fab-offset-x: 0.3cm;
+    }
+
+    /* Lift the overflow + max-height clamp on collapse so absolutely-positioned
+     * children (the toggle's right-side tooltip) can extend beyond the sidebar
+     * box. Bump z-index so the tooltip stacks above the main column. */
+    .public-layout__shell.is-sidebar-collapsed .public-layout__sidebar,
+    .internal-layout__shell.is-sidebar-collapsed .internal-layout__sidebar {
+        max-height: none;
+        overflow: visible;
+        z-index: 50;
     }
 }
 
 /* ── Mobile (≤1024) ────────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
+
     .public-layout__shell,
     .internal-layout__shell {
         grid-template-columns: 1fr;

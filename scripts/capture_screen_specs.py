@@ -208,7 +208,7 @@ def capture_portal_hall_of_contributors(base_url: str):
     """Capture all variants required by the Hall of Contributors screen spec."""
     from playwright.sync_api import sync_playwright
 
-    url = f"{base_url}/internal/portal/people/index.html"
+    url = f"{base_url}/internal/team/people/index.html"
     print(f"Capturing Hall of Contributors from {url}")
 
     def shoot(page, fname, full_page=False, clip=None):

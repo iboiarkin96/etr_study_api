@@ -19,7 +19,7 @@ MAIN_CLOSE_RE = re.compile(r"^(\s*)</main>\s*$", re.MULTILINE)
 
 BASELINE_DATE = "2026-04-21"
 BASELINE_CHANGE = "Added Page history section (repository baseline)."
-PROFILE_PATH = "internal/portal/people/ivan-boyarkin/index.html"
+PROFILE_PATH = "internal/team/people/ivan-boyarkin/index.html"
 
 
 def _normalize_parts(parts: list[str]) -> list[str]:

@@ -177,10 +177,8 @@ def _iter_docs_html() -> list[Path]:
         tracked = {ROOT / rel for rel in output.decode().split("\0") if rel.endswith(".html")}
     except (OSError, subprocess.CalledProcessError):
         tracked = None
-    # `services/frontend/portal/assets/` is intentionally excluded: it holds component fragments
-    # (e.g. audit-score-legend-fragment.html) that are stitched into other pages,
-    # not standalone documents — surfacing them in search would land users on a
-    # decontextualized partial.
+    # `services/frontend/portal/assets/` is intentionally excluded: it holds JS/CSS assets,
+    # not standalone documents.
     return sorted(
         path
         for path in DOCS_DIR.rglob("*.html")

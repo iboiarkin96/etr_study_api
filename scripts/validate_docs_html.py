@@ -9,8 +9,8 @@ import html5lib
 ROOT = Path(__file__).resolve().parent.parent
 DOCS_ROOT = ROOT / "services" / "portal"
 FROZEN_DOCS_REL_PATHS = {
-    Path("internal/portal/people/ivan-boyarkin/sa-growth.html"),
-    Path("internal/portal/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
+    Path("internal/team/people/ivan-boyarkin/sa-growth.html"),
+    Path("internal/team/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
 }
 
 

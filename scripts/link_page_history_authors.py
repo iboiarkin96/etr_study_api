@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "services" / "frontend" / "portal"
 
-PROFILE_PATH = "internal/portal/people/ivan-boyarkin/index.html"
+PROFILE_PATH = "internal/team/people/ivan-boyarkin/index.html"
 
 
 def _normalize_parts(parts: list[str]) -> list[str]:
