@@ -42,6 +42,11 @@ def _iter_portal_html() -> list[Path]:
             continue
         if "services/portal" not in path.as_posix() and "services/frontend" not in path.as_posix():
             continue
+        # Jinja partials/base templates (filename starts with "_") are
+        # never rendered standalone — they extend or get included by the
+        # final pages, which carry the <h1>.
+        if path.name.startswith("_"):
+            continue
         out.append(path)
     return sorted(out)
 

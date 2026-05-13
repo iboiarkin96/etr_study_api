@@ -43,7 +43,7 @@
     owners: new Set(),
     etaRanges: new Set(),
     search: "",
-    quickPreset: "all",
+    quickPreset: "my-focus",
     viewMode: "list",
   };
   const prioritySortRank = {
@@ -1829,28 +1829,13 @@
     }
   };
   const resetAllFilters = () => {
-    state.group = "all";
-    state.priorities.clear();
-    state.taskTypes.clear();
-    state.risks.clear();
-    state.confidences.clear();
-    state.statuses.clear();
-    state.owners.clear();
-    state.etaRanges.clear();
     state.search = "";
-    state.quickPreset = "all";
+    state.quickPreset = "my-focus";
     const searchInput = document.getElementById("backlog-global-search");
     if (searchInput) {
       searchInput.value = "";
     }
-    activateFilterButtons("[data-filter-group]", state.group);
-    activatePriorityButtons();
-    activateTaskTypeButtons();
-    activateRiskButtons();
-    activateConfidenceButtons();
-    activateStatusButtons();
-    activateOwnerButtons();
-    activateEtaRangeButtons();
+    applyDetailedFromQuickPreset(state.quickPreset);
     setQuickPresetButtons(state.quickPreset);
   };
 
@@ -2255,6 +2240,7 @@
   activateStatusButtons();
   activateOwnerButtons();
   activateEtaRangeButtons();
+  applyDetailedFromQuickPreset(state.quickPreset);
   setQuickPresetButtons(state.quickPreset);
   validateTaxonomy();
   applyViewMode();

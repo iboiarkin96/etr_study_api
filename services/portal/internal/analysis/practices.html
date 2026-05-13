@@ -1,0 +1,1543 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("sa-practices-theme");
+        if (saved === "dark" || saved === "light") {
+          document.documentElement.setAttribute("data-theme", saved);
+        } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Systems analysis practices · 25 practices · 5 groups</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+
+  <style>
+    /* ---------- Design tokens ---------- */
+    :root {
+      color-scheme: light;
+      --bg: #f7f9fc;
+      --bg-elev: #ffffff;
+      --bg-mute: #f1f4fa;
+      --text: #0f172a;
+      --text-strong: #020617;
+      --muted: #4b5563;
+      --muted-soft: #6b7280;
+      --accent: #2563eb;
+      --line: #dbe3ef;
+      --line-soft: #eef2f8;
+      --success: #16a34a;
+      --warn: #d97706;
+      --danger: #dc2626;
+      --info: #0ea5e9;
+
+      /* AS-IS vs TO-BE radar polygons */
+      --as-stroke: #ef4444;
+      --as-fill:   rgba(239, 68, 68, 0.16);
+      --to-stroke: #16a34a;
+      --to-fill:   rgba(22, 163, 74, 0.16);
+
+      /* Group accent colors */
+      --gA: #2563eb;
+      --gB: #8b5cf6;
+      --gC: #0d9488;
+      --gD: #d97706;
+      --gE: #dc2626;
+
+      --inline-code-bg: #eef2ff;
+      --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 12px 28px -8px rgba(15, 23, 42, 0.16), 0 4px 10px -4px rgba(15, 23, 42, 0.08);
+      --grad-accent: linear-gradient(135deg, #2563eb 0%, #6366f1 45%, #8b5cf6 100%);
+      --grad-mesh-1: radial-gradient(60% 50% at 10% 0%, rgba(99, 102, 241, 0.14) 0%, transparent 60%);
+      --grad-mesh-2: radial-gradient(50% 50% at 90% 10%, rgba(14, 165, 233, 0.12) 0%, transparent 60%);
+      --radius-sm: 10px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 999px;
+      --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0a0e1a;
+      --bg-elev: #0f1524;
+      --bg-mute: #131a2c;
+      --text: #e2e8f0;
+      --text-strong: #f1f5f9;
+      --muted: #94a3b8;
+      --muted-soft: #64748b;
+      --accent: #818cf8;
+      --line: #1e293b;
+      --line-soft: #1a2236;
+      --as-stroke: #f87171;
+      --as-fill:   rgba(248, 113, 113, 0.18);
+      --to-stroke: #4ade80;
+      --to-fill:   rgba(74, 222, 128, 0.18);
+      --gA: #818cf8;
+      --gB: #c084fc;
+      --gC: #2dd4bf;
+      --gD: #fbbf24;
+      --gE: #f87171;
+      --inline-code-bg: rgba(129, 140, 248, 0.14);
+      --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.36);
+      --shadow-md: 0 12px 28px -8px rgba(0, 0, 0, 0.6), 0 4px 10px -4px rgba(0, 0, 0, 0.5);
+      --grad-mesh-1: radial-gradient(60% 50% at 10% 0%, rgba(129, 140, 248, 0.18) 0%, transparent 60%);
+      --grad-mesh-2: radial-gradient(50% 50% at 90% 10%, rgba(74, 222, 128, 0.14) 0%, transparent 60%);
+    }
+
+    /* ---------- Base ---------- */
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      font-feature-settings: "ss01", "cv11", "cv02", "tnum";
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      position: relative;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: var(--grad-mesh-1), var(--grad-mesh-2);
+      z-index: -1;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    code, kbd, samp {
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+      background: var(--inline-code-bg);
+      padding: 0.14em 0.4em;
+      border-radius: 6px;
+      color: color-mix(in srgb, var(--accent) 60%, var(--text));
+    }
+    ::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); color: var(--text-strong); }
+
+    /* ---------- Topbar ---------- */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: saturate(180%) blur(14px);
+      -webkit-backdrop-filter: saturate(180%) blur(14px);
+      background: color-mix(in srgb, var(--bg) 75%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+    }
+    .topbar__inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-strong);
+      font-size: 14px;
+    }
+    .brand__mark {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: var(--grad-accent);
+      display: grid; place-items: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 13px;
+      box-shadow: var(--shadow-sm);
+    }
+    .crumb { color: var(--muted-soft); font-size: 13px; }
+    .topbar__spacer { flex: 1; }
+    .topbar__link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--line);
+      background: var(--bg-elev);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 160ms var(--ease-out);
+    }
+    .topbar__link:hover {
+      color: var(--text);
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+      text-decoration: none;
+    }
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--line);
+      background: var(--bg-elev);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 160ms var(--ease-out);
+    }
+    .theme-toggle:hover { color: var(--text); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+    .theme-toggle svg { width: 14px; height: 14px; }
+
+    /* ---------- Container ---------- */
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    /* ---------- Hero ---------- */
+    .hero { padding: 56px 0 16px; }
+    .hero__eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: var(--radius-full);
+      background: color-mix(in srgb, var(--accent) 10%, var(--bg-elev));
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .hero__eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    .hero__title {
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.08;
+      letter-spacing: -0.025em;
+      font-weight: 800;
+      color: var(--text-strong);
+      margin: 16px 0 12px;
+      max-width: 26ch;
+    }
+    .hero__lede {
+      font-size: clamp(1rem, 1.25vw, 1.1rem);
+      color: var(--muted);
+      max-width: 72ch;
+      margin: 0;
+    }
+    .hero__lede b { color: var(--text); font-weight: 600; }
+
+    /* ---------- Main radar block ---------- */
+    .main-radar-block {
+      margin-top: 24px;
+      background: var(--bg-elev);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: var(--shadow-sm);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 32px;
+      align-items: start;
+    }
+    .main-radar-svg {
+      width: 100%;
+      max-width: 820px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Radar shared styles */
+    .radar .ring { fill: none; stroke: var(--line); stroke-width: 1; }
+    .radar .ring--outer { stroke: color-mix(in srgb, var(--line) 80%, var(--text)); }
+    .radar .axis-line { stroke: var(--line); stroke-width: 1; }
+    .radar .scale-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      fill: var(--muted-soft);
+    }
+    .radar .axis-label {
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      fill: var(--text-strong);
+    }
+    .radar .axis-label__num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      fill: var(--muted-soft);
+    }
+    .radar .as-polygon {
+      fill: var(--as-fill);
+      stroke: var(--as-stroke);
+      stroke-width: 2;
+      stroke-linejoin: round;
+    }
+    .radar .to-polygon {
+      fill: var(--to-fill);
+      stroke: var(--to-stroke);
+      stroke-width: 2;
+      stroke-dasharray: 6 4;
+      stroke-linejoin: round;
+    }
+    .radar .as-dot { stroke: var(--bg-elev); stroke-width: 2; fill: var(--as-stroke); transition: r 160ms var(--ease-out); }
+    .radar .to-dot { stroke: var(--bg-elev); stroke-width: 2; fill: var(--to-stroke); transition: r 160ms var(--ease-out); }
+
+    /* Numbered badges on main radar */
+    .main-radar-svg .badge { cursor: pointer; }
+    .main-radar-svg .badge-circle { stroke: var(--bg-elev); stroke-width: 2; transition: r 160ms var(--ease-out); }
+    .main-radar-svg .badge-num {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      fill: white;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      pointer-events: none;
+    }
+    .main-radar-svg .badge.gA .badge-circle { fill: var(--gA); }
+    .main-radar-svg .badge.gB .badge-circle { fill: var(--gB); }
+    .main-radar-svg .badge.gC .badge-circle { fill: var(--gC); }
+    .main-radar-svg .badge.gD .badge-circle { fill: var(--gD); }
+    .main-radar-svg .badge.gE .badge-circle { fill: var(--gE); }
+
+    .main-radar-svg [data-axis-group] { cursor: pointer; }
+    .main-radar-svg [data-axis-group]:hover .as-dot,
+    .main-radar-svg [data-axis-group].is-active .as-dot,
+    .main-radar-svg [data-axis-group]:hover .to-dot,
+    .main-radar-svg [data-axis-group].is-active .to-dot { r: 7; }
+    .main-radar-svg [data-axis-group]:hover .badge-circle,
+    .main-radar-svg [data-axis-group].is-active .badge-circle { r: 16; }
+
+    /* Aside (legend, summary) */
+    .main-radar-aside { padding-top: 4px; }
+    .main-radar-aside h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted-soft);
+      font-weight: 700;
+      margin: 0 0 10px;
+    }
+    .legend { display: flex; flex-direction: column; gap: 10px; }
+    .legend__item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text); }
+    .legend__swatch--as { width: 26px; height: 14px; border-radius: 4px; background: var(--as-fill); border: 2px solid var(--as-stroke); flex-shrink: 0; }
+    .legend__swatch--to { width: 26px; height: 14px; border-radius: 4px; background: var(--to-fill); border: 2px dashed var(--to-stroke); flex-shrink: 0; }
+    .legend__swatch--group {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 3px var(--line);
+    }
+    .legend__swatch--group.gA { background: var(--gA); }
+    .legend__swatch--group.gB { background: var(--gB); }
+    .legend__swatch--group.gC { background: var(--gC); }
+    .legend__swatch--group.gD { background: var(--gD); }
+    .legend__swatch--group.gE { background: var(--gE); }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 18px 0;
+    }
+    .summary {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--bg-mute);
+    }
+    .summary__label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted-soft); font-weight: 700; }
+    .summary__value {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-strong);
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+    }
+    .summary__value .of { color: var(--muted-soft); font-size: 12px; font-weight: 500; margin-left: 2px; }
+    .summary__hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .read-tip {
+      padding: 12px 14px;
+      background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 6%, var(--bg-elev)), var(--bg-elev));
+      border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+      border-radius: var(--radius-md);
+      font-size: 12.5px;
+      color: var(--text);
+      line-height: 1.55;
+      margin-bottom: 18px;
+    }
+    .read-tip b { color: var(--text-strong); }
+
+    /* ---------- Number legend table ---------- */
+    .num-legend {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-top: 40px;
+    }
+    .num-legend__col {
+      background: var(--bg-elev);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      border-top: 4px solid;
+    }
+    .num-legend__col.gA { border-top-color: var(--gA); }
+    .num-legend__col.gB { border-top-color: var(--gB); }
+    .num-legend__col.gC { border-top-color: var(--gC); }
+    .num-legend__col.gD { border-top-color: var(--gD); }
+    .num-legend__col.gE { border-top-color: var(--gE); }
+    .num-legend__title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-strong);
+      letter-spacing: -0.01em;
+      margin: 0 0 10px;
+    }
+    .num-legend__items { display: flex; flex-direction: column; gap: 6px; }
+    .num-legend__item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--text);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 6px;
+      transition: background 160ms var(--ease-out);
+    }
+    .num-legend__item:hover, .num-legend__item.is-active { background: var(--line-soft); }
+    .num-legend__num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .num-legend__col.gA .num-legend__num { background: var(--gA); }
+    .num-legend__col.gB .num-legend__num { background: var(--gB); }
+    .num-legend__col.gC .num-legend__num { background: var(--gC); }
+    .num-legend__col.gD .num-legend__num { background: var(--gD); }
+    .num-legend__col.gE .num-legend__num { background: var(--gE); }
+    .num-legend__name { line-height: 1.3; }
+
+    /* ---------- Group sections ---------- */
+    .group { padding: 64px 0 0; }
+    .group__head { margin-bottom: 22px; max-width: 70ch; }
+    .group__eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      color: white;
+    }
+    .group.gA .group__eyebrow { background: var(--gA); }
+    .group.gB .group__eyebrow { background: var(--gB); }
+    .group.gC .group__eyebrow { background: var(--gC); }
+    .group.gD .group__eyebrow { background: var(--gD); }
+    .group.gE .group__eyebrow { background: var(--gE); }
+    .group__title {
+      font-size: clamp(1.5rem, 2.4vw, 2rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-strong);
+      margin: 8px 0 8px;
+    }
+    .group__intro { color: var(--muted); margin: 0; font-size: 1rem; line-height: 1.6; }
+    .group__avg {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      margin-top: 12px;
+      padding: 4px 12px;
+      background: var(--bg-mute);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-full);
+      color: var(--text);
+    }
+    .group__avg b { font-weight: 700; color: var(--text-strong); }
+    .group__avg .arrow { color: var(--muted-soft); margin: 0 2px; }
+    .group__avg .to { color: var(--success); font-weight: 700; }
+
+    .group__body {
+      display: grid;
+      grid-template-columns: 420px minmax(0, 1fr);
+      gap: 32px;
+      align-items: start;
+    }
+    .group-radar-wrap {
+      position: sticky;
+      top: 80px;
+      background: var(--bg-elev);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .group-radar-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .group-radar-svg [data-axis-group] { cursor: pointer; }
+    .group-radar-svg [data-axis-group]:hover .as-dot,
+    .group-radar-svg [data-axis-group].is-active .as-dot,
+    .group-radar-svg [data-axis-group]:hover .to-dot,
+    .group-radar-svg [data-axis-group].is-active .to-dot { r: 7; }
+    .group-radar-svg [data-axis-group]:hover .axis-label,
+    .group-radar-svg [data-axis-group].is-active .axis-label { fill: var(--accent); }
+
+    /* ---------- Practice cards ---------- */
+    .group-cards { display: flex; flex-direction: column; gap: 14px; }
+    .pcard {
+      background: var(--bg-elev);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+      position: relative;
+      transition: transform 240ms var(--ease-out), box-shadow 240ms var(--ease-out), border-color 240ms var(--ease-out);
+      border-left: 4px solid transparent;
+    }
+    .pcard.gA { border-left-color: var(--gA); }
+    .pcard.gB { border-left-color: var(--gB); }
+    .pcard.gC { border-left-color: var(--gC); }
+    .pcard.gD { border-left-color: var(--gD); }
+    .pcard.gE { border-left-color: var(--gE); }
+    .pcard:hover, .pcard.is-active {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+    }
+    .pcard__head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .pcard__num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .pcard.gA .pcard__num { background: var(--gA); }
+    .pcard.gB .pcard__num { background: var(--gB); }
+    .pcard.gC .pcard__num { background: var(--gC); }
+    .pcard.gD .pcard__num { background: var(--gD); }
+    .pcard.gE .pcard__num { background: var(--gE); }
+    .pcard__title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-strong);
+      margin: 0;
+      line-height: 1.35;
+      flex: 1;
+      min-width: 0;
+    }
+    .pcard__scores {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pcard__scores .asis { color: var(--as-stroke); font-weight: 700; }
+    .pcard__scores .tobe { color: var(--to-stroke); font-weight: 700; }
+    .pcard__scores .arr { color: var(--muted-soft); }
+    .pcard__what, .pcard__why {
+      font-size: 0.92rem;
+      color: var(--text);
+      line-height: 1.6;
+      margin: 0 0 8px;
+    }
+    .pcard__why { margin-bottom: 12px; }
+    .pcard__what b, .pcard__why b { color: var(--text-strong); font-weight: 700; }
+    .pcard__refs {
+      font-size: 0.78rem;
+      color: var(--muted-soft);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--line);
+    }
+    .pcard__refs a { font-family: var(--font-mono); font-size: 0.84rem; color: var(--accent); }
+
+    /* ---------- Footer ---------- */
+    .footer {
+      border-top: 1px solid var(--line);
+      padding: 36px 0;
+      margin-top: 64px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .footer__inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .footer__links { display: flex; gap: 18px; flex-wrap: wrap; }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1080px) {
+      .main-radar-block { grid-template-columns: 1fr; }
+      .num-legend { grid-template-columns: repeat(2, 1fr); }
+      .group__body { grid-template-columns: 1fr; }
+      .group-radar-wrap { position: static; }
+    }
+    @media (max-width: 640px) {
+      .container { padding: 0 20px; }
+      .topbar__inner { padding: 12px 20px; flex-wrap: wrap; }
+      .num-legend { grid-template-columns: 1fr; }
+      .hero { padding: 40px 0 12px; }
+      .group { padding: 48px 0 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <div class="brand"><span class="brand__mark">SA</span><span>Study App · Systems analysis</span></div>
+      <span class="crumb">Practices · 25 practices · 5 groups</span>
+      <div class="topbar__spacer"></div>
+      <a class="topbar__link" href="index.html">← SA portal</a>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <span id="themeLabel">Dark</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="hero">
+      <span class="hero__eyebrow"><span class="dot"></span> 25 practices · 5 groups · world-class rubric</span>
+      <h1 class="hero__title">Systems analysis practices at project</h1>
+      <p class="hero__lede">
+        The canonical practice set a FAANG-level architect expects to see: 25 practices across 5 groups — from
+        <em>Design Docs</em> and <em>SLO</em> to <em>RACI</em> and <em>blameless postmortems</em>. The main radar shows
+        the panorama of all 25; below — a pentagon radar per group and a description of each practice (what it is ·
+        why it matters).
+      </p>
+
+      <!-- Main 25-axis radar -->
+      <div class="main-radar-block">
+
+        <svg class="main-radar-svg radar" id="main-radar" viewBox="0 0 800 800" role="img" aria-label="Radar of 25 systems analysis practices">
+
+          <!-- Rings score 2, 4, 6, 8, 10 (unit=24, max=240) -->
+          <circle class="ring" cx="400" cy="400" r="48"/>
+          <circle class="ring" cx="400" cy="400" r="96"/>
+          <circle class="ring" cx="400" cy="400" r="144"/>
+          <circle class="ring" cx="400" cy="400" r="192"/>
+          <circle class="ring ring--outer" cx="400" cy="400" r="240"/>
+
+          <!-- Scale labels on the top axis -->
+          <text class="scale-label" x="404" y="358" text-anchor="start">2</text>
+          <text class="scale-label" x="404" y="310" text-anchor="start">4</text>
+          <text class="scale-label" x="404" y="262" text-anchor="start">6</text>
+          <text class="scale-label" x="404" y="214" text-anchor="start">8</text>
+          <text class="scale-label" x="404" y="166" text-anchor="start">10</text>
+
+          <!-- Axis lines, polygons, dots, badges — injected by JS -->
+          <g id="main-radar-grid"></g>
+          <polygon id="main-to-polygon" class="to-polygon" points=""/>
+          <polygon id="main-as-polygon" class="as-polygon" points=""/>
+          <g id="main-radar-dots"></g>
+          <g id="main-radar-badges"></g>
+
+        </svg>
+
+        <aside class="main-radar-aside">
+          <h3>Legend</h3>
+          <div class="legend">
+            <div class="legend__item"><span class="legend__swatch--as"></span><span><b>AS-IS</b> — what we have today (red solid)</span></div>
+            <div class="legend__item"><span class="legend__swatch--to"></span><span><b>TO-BE</b> — where we are going (green dashed)</span></div>
+          </div>
+
+          <div class="read-tip" style="margin-top:14px">
+            <b>How to read the radar.</b> Each axis is one practice. Centre = 0, edge = 10. The red shape shows the
+            current state, the green shape the target. The wider and more even both shapes, the more mature the project.
+          </div>
+
+          <h3>Summary across all 25 practices</h3>
+          <div class="summary-row">
+            <div class="summary">
+              <div class="summary__label">AS-IS</div>
+              <div class="summary__value" id="overall-as">0.0<span class="of">/10</span></div>
+              <div class="summary__hint">weighted today</div>
+            </div>
+            <div class="summary">
+              <div class="summary__label">TO-BE</div>
+              <div class="summary__value" id="overall-to">0.0<span class="of">/10</span></div>
+              <div class="summary__hint">target</div>
+            </div>
+          </div>
+
+          <h3>5 groups</h3>
+          <div class="legend">
+            <div class="legend__item"><span class="legend__swatch--group gA"></span><span><b>A</b> · Knowledge management</span></div>
+            <div class="legend__item"><span class="legend__swatch--group gB"></span><span><b>B</b> · Architecture &amp; modeling</span></div>
+            <div class="legend__item"><span class="legend__swatch--group gC"></span><span><b>C</b> · Information delivery</span></div>
+            <div class="legend__item"><span class="legend__swatch--group gD"></span><span><b>D</b> · Reliability &amp; operations</span></div>
+            <div class="legend__item"><span class="legend__swatch--group gE"></span><span><b>E</b> · Process &amp; governance</span></div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Number legend (1-25 mapping) -->
+      <div class="num-legend" id="num-legend"></div>
+    </section>
+
+    <!-- ============================================================
+         GROUP A · Knowledge management
+         ============================================================ -->
+    <section class="group gA" id="group-A">
+      <header class="group__head">
+        <span class="group__eyebrow">Group A · 5 practices</span>
+        <h2 class="group__title">Knowledge management</h2>
+        <p class="group__intro">
+          How decisions, facts and terminology of the project are captured. Without this group, a new engineer spends
+          days asking questions, and every architectural decision is reopened three times. This is the team's
+          institutional memory.
+        </p>
+        <div class="group__avg">Group avg score: AS-IS <b id="avg-A-as">0.0</b><span class="arrow">→</span><span class="to" id="avg-A-to">0.0</span> / 10</div>
+      </header>
+      <div class="group__body">
+        <div class="group-radar-wrap">
+          <svg class="group-radar-svg radar" data-group-radar="A" viewBox="0 0 400 400" role="img" aria-label="Group A radar"></svg>
+        </div>
+        <div class="group-cards">
+
+          <article class="pcard gA" data-practice="1">
+            <div class="pcard__head">
+              <span class="pcard__num">01</span>
+              <h3 class="pcard__title">Design Docs — discuss before you code</h3>
+              <span class="pcard__scores"><span class="asis">2.0</span><span class="arr">→</span><span class="tobe">8.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Before any non-trivial change — a short 2–10 page Design Doc: context and problem, options with trade-offs, the chosen path, success metrics, risks, open questions.</p>
+            <p class="pcard__why"><b>Why it matters.</b> At Google this is the <em>primary</em> engineering artefact: the team discusses a decision before the first line of code is written. ADRs capture <em>accepted</em> decisions; Design Docs <em>propose</em> them — different genres, and Google keeps them separate.</p>
+            <div class="pcard__refs">
+              <a href="https://www.industrialempathy.com/posts/design-docs-at-google/">Design Docs at Google</a>
+              <a href="https://kislayverma.com/programming/document-driven-design/">Document-driven design</a>
+            </div>
+          </article>
+
+          <article class="pcard gA" data-practice="2">
+            <div class="pcard__head">
+              <span class="pcard__num">02</span>
+              <h3 class="pcard__title">ADR · RFC — numbered decisions</h3>
+              <span class="pcard__scores"><span class="asis">7.4</span><span class="arr">→</span><span class="tobe">8.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Every significant decision is a numbered file with Context · Decision · Consequences. ADRs for accepted decisions, RFCs for proposals under discussion. Lifecycle: draft → ongoing → done / declined / superseded.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So that a year from now nobody is trying to remember <em>why</em> it was done this way. A new engineer opens an ADR and sees context, alternatives, consequences — without verbal retellings or tribal knowledge.</p>
+            <div class="pcard__refs">
+              <a href="principles/decision-records.html">principle</a>
+              <a href="../governance/adr/index.html">ADR index</a>
+              <a href="../governance/rfc/index.html">RFC index</a>
+              <a href="https://adr.github.io/madr/">MADR 4.0</a>
+            </div>
+          </article>
+
+          <article class="pcard gA" data-practice="3">
+            <div class="pcard__head">
+              <span class="pcard__num">03</span>
+              <h3 class="pcard__title">SSOT — one source of truth per entity</h3>
+              <span class="pcard__scores"><span class="asis">5.0</span><span class="arr">→</span><span class="tobe">8.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Every fact (API contract, DB schema, service catalog, design tokens, terms) has exactly one authoritative file. Everything else is a derivative: generated from the source or referenced.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So that two copies don't drift apart. If a fact lives in two places, one copy will eventually become wrong — and nobody will know which one is the correct version.</p>
+            <div class="pcard__refs">
+              <a href="principles/ssot.html">principle</a>
+              <a href="../governance/adr/0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a>
+            </div>
+          </article>
+
+          <article class="pcard gA" data-practice="4">
+            <div class="pcard__head">
+              <span class="pcard__num">04</span>
+              <h3 class="pcard__title">Glossary — unified domain language</h3>
+              <span class="pcard__scores"><span class="asis">2.5</span><span class="arr">→</span><span class="tobe">7.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> One dictionary of project terms: canonical definition, synonyms, related terms, examples. Source is YAML, rendered to HTML and inline tooltips in prose. This is <em>ubiquitous language</em> from DDD.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So "contract", "API" and "endpoint" mean the same thing to everyone. A shared dictionary removes half the disputes in review, speeds up onboarding, and disciplines requirements before they reach implementation.</p>
+            <div class="pcard__refs">
+              <a href="https://martinfowler.com/bliki/UbiquitousLanguage.html">Fowler · Ubiquitous Language</a>
+              <a href="https://www.thegooddocsproject.dev/template/glossary">Good Docs glossary</a>
+            </div>
+          </article>
+
+          <article class="pcard gA" data-practice="5">
+            <div class="pcard__head">
+              <span class="pcard__num">05</span>
+              <h3 class="pcard__title">Tech Radar — technology portfolio</h3>
+              <span class="pcard__scores"><span class="asis">1.0</span><span class="arr">→</span><span class="tobe">7.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> An ADOPT / TRIAL / ASSESS / HOLD quadrant for the project's technologies. Source — <code>tech-radar.json</code>; rendered visually (Zalando / ThoughtWorks renderer). Reviewed quarterly.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So the team explicitly sees which technologies are adopted, which are experimental, which are forbidden. Transparent for hiring panels, contributors, and decisions like "should we adopt this new library".</p>
+            <div class="pcard__refs">
+              <a href="https://www.thoughtworks.com/radar">ThoughtWorks Tech Radar</a>
+              <a href="https://github.com/zalando/tech-radar">Zalando renderer</a>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         GROUP B · Architecture & modeling
+         ============================================================ -->
+    <section class="group gB" id="group-B">
+      <header class="group__head">
+        <span class="group__eyebrow">Group B · 5 practices</span>
+        <h2 class="group__title">Architecture &amp; modeling</h2>
+        <p class="group__intro">
+          How we record what we built — at different levels of abstraction. Diagrams, schemas, contracts, domain
+          boundaries. The artefacts an engineer must understand before touching the code.
+        </p>
+        <div class="group__avg">Group avg score: AS-IS <b id="avg-B-as">0.0</b><span class="arrow">→</span><span class="to" id="avg-B-to">0.0</span> / 10</div>
+      </header>
+      <div class="group__body">
+        <div class="group-radar-wrap">
+          <svg class="group-radar-svg radar" data-group-radar="B" viewBox="0 0 400 400" role="img" aria-label="Group B radar"></svg>
+        </div>
+        <div class="group-cards">
+
+          <article class="pcard gB" data-practice="6">
+            <div class="pcard__head">
+              <span class="pcard__num">06</span>
+              <h3 class="pcard__title">C4 + PlantUML — diagrams as code</h3>
+              <span class="pcard__scores"><span class="asis">5.6</span><span class="arr">→</span><span class="tobe">8.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Architecture is drawn at three C4 levels: Context (what's outside), Container (what it's made of), Component (how it's built inside). Source — PlantUML / Structurizr DSL in the repo; rendered in CI.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So a new engineer understands the system in 10 minutes, not a day. And so the diagram doesn't lie: it lives next to the code and is updated in the same PR.</p>
+            <div class="pcard__refs">
+              <a href="principles/plantuml-only.html">principle</a>
+              <a href="../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>
+              <a href="https://c4model.com/">C4 model</a>
+            </div>
+          </article>
+
+          <article class="pcard gB" data-practice="7">
+            <div class="pcard__head">
+              <span class="pcard__num">07</span>
+              <h3 class="pcard__title">ER · data domain model</h3>
+              <span class="pcard__scores"><span class="asis">5.2</span><span class="arr">→</span><span class="tobe">8.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> DB structure is documented at the table level: purpose, owner, PII tags, retention, indexes, foreign keys, enum values. The ER diagram is auto-regenerated from metadata on every migration.</p>
+            <p class="pcard__why"><b>Why it matters.</b> To understand data before code. Is the "email" field PII or not? What is its retention? Who owns it? These questions are answered once — at schema time — not on every review or compliance audit.</p>
+            <div class="pcard__refs">
+              <a href="../governance/adr/0029-database-table-documentation.html">ADR 0029</a>
+              <a href="https://docs.getdbt.com/reference/resource-properties/columns">dbt column properties</a>
+            </div>
+          </article>
+
+          <article class="pcard gB" data-practice="8">
+            <div class="pcard__head">
+              <span class="pcard__num">08</span>
+              <h3 class="pcard__title">API contract-first — OpenAPI as the source</h3>
+              <span class="pcard__scores"><span class="asis">6.4</span><span class="arr">→</span><span class="tobe">8.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> The API spec (OpenAPI 3.1) is written before the implementation. SDKs, docs, mock servers and contract tests are generated from it. CI breaks the build when code diverges from spec.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So the integrator and the team speak the same language before the first line of code is written. The contract is the agreement; the code is its implementation, not the other way around.</p>
+            <div class="pcard__refs">
+              <a href="../governance/adr/0025-external-and-internal-api-documentation.html">ADR 0025</a>
+              <a href="https://spec.openapis.org/oas/v3.1.0">OpenAPI 3.1</a>
+              <a href="https://stoplight.io/open-source/spectral">Spectral</a>
+            </div>
+          </article>
+
+          <article class="pcard gB" data-practice="9">
+            <div class="pcard__head">
+              <span class="pcard__num">09</span>
+              <h3 class="pcard__title">AsyncAPI · event schemas</h3>
+              <span class="pcard__scores"><span class="asis">1.0</span><span class="arr">→</span><span class="tobe">7.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> For asynchronous messages (Kafka, RabbitMQ, EventBridge, SNS) — an AsyncAPI specification. Producer and consumer respect the contract; a schema registry checks compatibility.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So the event-driven surface is as contractual as REST. Without AsyncAPI, microservices drift schema-wise and break each other <em>silently</em> — no 4xx, no alert, just corrupted data.</p>
+            <div class="pcard__refs">
+              <a href="https://www.asyncapi.com/">AsyncAPI</a>
+              <a href="https://docs.confluent.io/platform/current/schema-registry/index.html">Confluent Schema Registry</a>
+            </div>
+          </article>
+
+          <article class="pcard gB" data-practice="10">
+            <div class="pcard__head">
+              <span class="pcard__num">10</span>
+              <h3 class="pcard__title">DDD · bounded contexts</h3>
+              <span class="pcard__scores"><span class="asis">2.0</span><span class="arr">→</span><span class="tobe">7.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> A map of bounded contexts: each service belongs to one context; contexts are connected by typed relationships (Customer-Supplier, Conformist, Anti-corruption Layer, Shared Kernel). This is a DDD context map.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So microservice and team boundaries align with domain model boundaries. Without this, "User" means different things in different services — and integration disasters follow at scale.</p>
+            <div class="pcard__refs">
+              <a href="https://martinfowler.com/bliki/BoundedContext.html">Fowler · Bounded Context</a>
+              <a href="https://contextmapper.org/">Context Mapper</a>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         GROUP C · Information delivery
+         ============================================================ -->
+    <section class="group gC" id="group-C">
+      <header class="group__head">
+        <span class="group__eyebrow">Group C · 5 practices</span>
+        <h2 class="group__title">Information delivery</h2>
+        <p class="group__intro">
+          How the reader finds, understands and updates what was written. Content architecture, templates, style,
+          lifecycle, accessibility. This is the "documentation UX" for engineers and auditors.
+        </p>
+        <div class="group__avg">Group avg score: AS-IS <b id="avg-C-as">0.0</b><span class="arrow">→</span><span class="to" id="avg-C-to">0.0</span> / 10</div>
+      </header>
+      <div class="group__body">
+        <div class="group-radar-wrap">
+          <svg class="group-radar-svg radar" data-group-radar="C" viewBox="0 0 400 400" role="img" aria-label="Group C radar"></svg>
+        </div>
+        <div class="group-cards">
+
+          <article class="pcard gC" data-practice="11">
+            <div class="pcard__head">
+              <span class="pcard__num">11</span>
+              <h3 class="pcard__title">Diátaxis — four quadrants, no mixing</h3>
+              <span class="pcard__scores"><span class="asis">6.4</span><span class="arr">→</span><span class="tobe">8.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Every page belongs to one mode: <em>tutorial</em> (teach a beginner), <em>how-to</em> (solve a task), <em>reference</em> (precise data), <em>explanation</em> (build understanding). No "all-in-one" pages.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So the reader immediately knows what to expect. Tutorials teach but aren't reference; reference is precise but doesn't teach. Mixing modes is the main cause of "unreadable" documentation.</p>
+            <div class="pcard__refs">
+              <a href="principles/diataxis.html">principle</a>
+              <a href="https://diataxis.fr/">Diátaxis (Procida)</a>
+            </div>
+          </article>
+
+          <article class="pcard gC" data-practice="12">
+            <div class="pcard__head">
+              <span class="pcard__num">12</span>
+              <h3 class="pcard__title">Docs as code — PR · CODEOWNERS · CI</h3>
+              <span class="pcard__scores"><span class="asis">6.5</span><span class="arr">→</span><span class="tobe">8.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Documentation is code: in the repo, reviewed via PR, versioned, validated in CI (linter, broken-link check, a11y). CODEOWNERS routes every docs folder; no parallel Confluence as SSOT.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So docs behave like tests — you can't forget to update them, can't introduce drift silently. A parallel CMS (Confluence / Notion) guarantees drift with code; the repo is the only SSOT.</p>
+            <div class="pcard__refs">
+              <a href="principles/docs-as-code.html">principle</a>
+              <a href="../governance/adr/0001-docs-as-code.html">ADR 0001</a>
+              <a href="https://www.writethedocs.org/guide/docs-as-code/">Write the Docs</a>
+            </div>
+          </article>
+
+          <article class="pcard gC" data-practice="13">
+            <div class="pcard__head">
+              <span class="pcard__num">13</span>
+              <h3 class="pcard__title">Template registry — Design Doc · ADR · Postmortem · Runbook</h3>
+              <span class="pcard__scores"><span class="asis">5.4</span><span class="arr">→</span><span class="tobe">8.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> One registry of templates for all major page types: Design Doc, ADR, RFC, Postmortem, Runbook, API spec, Screen spec, Audit, Principle. Each template is Jinja with required fields.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So 32 ADRs and 6 RFCs look like one project, not 38 different ones. Templates fix the <em>grammar of the page</em> (structure); the style guide fixes the <em>grammar of sentences</em>. They are different disciplines.</p>
+            <div class="pcard__refs">
+              <a href="principles/single-authoring-model.html">principle</a>
+              <a href="../governance/rfc/0003-documentation-authoring-model.html">RFC 0003</a>
+            </div>
+          </article>
+
+          <article class="pcard gC" data-practice="14">
+            <div class="pcard__head">
+              <span class="pcard__num">14</span>
+              <h3 class="pcard__title">Style guide as code — Vale + alex.js</h3>
+              <span class="pcard__scores"><span class="asis">1.5</span><span class="arr">→</span><span class="tobe">7.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Google Developer Documentation Style or Microsoft Writing Style Guide accepted as canon. Vale rules in <code>.vale/</code>, alex.js for inclusive language, cspell for typos. PR-blocking on style errors.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So the tone of voice is consistent across the portal. Without a linter, every author writes in their own voice; readers see patchwork and lose trust in the documentation.</p>
+            <div class="pcard__refs">
+              <a href="https://developers.google.com/style">Google Dev Style</a>
+              <a href="https://vale.sh/">Vale</a>
+              <a href="https://alexjs.com/">alex.js</a>
+            </div>
+          </article>
+
+          <article class="pcard gC" data-practice="15">
+            <div class="pcard__head">
+              <span class="pcard__num">15</span>
+              <h3 class="pcard__title">Onboarding · accessibility · i18n</h3>
+              <span class="pcard__scores"><span class="asis">3.5</span><span class="arr">→</span><span class="tobe">7.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> README + CONTRIBUTING + <code>.devcontainer/</code> + CODE_OF_CONDUCT + good-first-issue labels. Plus an a11y audit (WCAG 2.2 AA, axe-core, keyboard nav, screen-reader). Infrastructure for a second UI language.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So a new contributor lands their first commit in ≤ 1 working day. So everyone, including users with disabilities, can read and contribute — this isn't charity, it's compliance (EAA 2025).</p>
+            <div class="pcard__refs">
+              <a href="https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions">GitHub Community Standards</a>
+              <a href="https://www.w3.org/TR/WCAG22/">WCAG 2.2</a>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         GROUP D · Reliability & operations
+         ============================================================ -->
+    <section class="group gD" id="group-D">
+      <header class="group__head">
+        <span class="group__eyebrow">Group D · 5 practices</span>
+        <h2 class="group__title">Reliability &amp; operations</h2>
+        <p class="group__intro">
+          How we know the system works "well enough", and what to do when it doesn't. This is the <em>central</em>
+          group in Google SRE — without it the project has no operational maturity. Currently the weakest group in
+          this project.
+        </p>
+        <div class="group__avg">Group avg score: AS-IS <b id="avg-D-as">0.0</b><span class="arrow">→</span><span class="to" id="avg-D-to">0.0</span> / 10</div>
+      </header>
+      <div class="group__body">
+        <div class="group-radar-wrap">
+          <svg class="group-radar-svg radar" data-group-radar="D" viewBox="0 0 400 400" role="img" aria-label="Group D radar"></svg>
+        </div>
+        <div class="group-cards">
+
+          <article class="pcard gD" data-practice="16">
+            <div class="pcard__head">
+              <span class="pcard__num">16</span>
+              <h3 class="pcard__title">SLO · SLI · error budgets</h3>
+              <span class="pcard__scores"><span class="asis">0.5</span><span class="arr">→</span><span class="tobe">7.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Every user-facing service has a Service Level Objective (e.g. 99.9% availability), Service Level Indicators (metrics that measure the SLO), and an error budget. When the budget is exhausted — deployments slow down until reliability recovers.</p>
+            <p class="pcard__why"><b>Why it matters.</b> This is the central concept of the Google SRE Book. Without SLOs you cannot answer "is the service working well enough". The team works on hype instead of metrics; ops and product argue without a shared frame.</p>
+            <div class="pcard__refs">
+              <a href="https://sre.google/sre-book/service-level-objectives/">Google SRE · SLO</a>
+              <a href="https://github.com/google/slo-generator">SLO generator</a>
+            </div>
+          </article>
+
+          <article class="pcard gD" data-practice="17">
+            <div class="pcard__head">
+              <span class="pcard__num">17</span>
+              <h3 class="pcard__title">Runbooks — one per alert</h3>
+              <span class="pcard__scores"><span class="asis">1.5</span><span class="arr">→</span><span class="tobe">7.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> For every alert — a runbook: symptom → diagnosis → actions → escalation → dashboard links. The template is standardized, tied to alert IDs, and updated after every incident.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So the on-call at 3 AM knows what to do instead of paging the architect. Cuts MTTR, reduces on-call burnout, makes on-call scalable to new engineers without years of tribal knowledge.</p>
+            <div class="pcard__refs">
+              <a href="https://sre.google/workbook/incident-response/">Google SRE · runbooks</a>
+            </div>
+          </article>
+
+          <article class="pcard gD" data-practice="18">
+            <div class="pcard__head">
+              <span class="pcard__num">18</span>
+              <h3 class="pcard__title">Blameless postmortems</h3>
+              <span class="pcard__scores"><span class="asis">1.0</span><span class="arr">→</span><span class="tobe">7.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Every P1/P2 incident gets a blameless postmortem: timeline, impact, root cause, contributing factors, action items with owner and due date, lessons. Template is standardized; reviewed quarterly.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So the team learns from mistakes instead of repeating them. "Blameless" means: look for the process problem, not the guilty party. Google and Stripe publish postmortems publicly — a strong external maturity signal.</p>
+            <div class="pcard__refs">
+              <a href="https://sre.google/sre-book/postmortem-culture/">SRE · postmortem culture</a>
+              <a href="https://github.com/dastergon/postmortem-templates">postmortem templates</a>
+            </div>
+          </article>
+
+          <article class="pcard gD" data-practice="19">
+            <div class="pcard__head">
+              <span class="pcard__num">19</span>
+              <h3 class="pcard__title">Risk register — risk log</h3>
+              <span class="pcard__scores"><span class="asis">0.5</span><span class="arr">→</span><span class="tobe">7.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> A risk log: list of risks (technical, business, security, compliance) with severity (probability × impact), mitigation, owner, status and review cadence. Reviewed at every quarterly planning.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So risks are visible and managed instead of living in people's heads. A Senior SA at PMI / PRINCE2 level always maintains a risk register; without it the project goes blind to strategic threats.</p>
+            <div class="pcard__refs">
+              <a href="https://www.pmi.org/learning/library/risk-analysis-project-management-7070">PMI · risk register</a>
+            </div>
+          </article>
+
+          <article class="pcard gD" data-practice="20">
+            <div class="pcard__head">
+              <span class="pcard__num">20</span>
+              <h3 class="pcard__title">Capacity planning · FinOps</h3>
+              <span class="pcard__scores"><span class="asis">0.5</span><span class="arr">→</span><span class="tobe">6.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Back-of-envelope capacity planning per service: QPS, storage growth, cost projections for 6–12 months. FinOps documentation on TCO per service, budgets, optimizations.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So infrastructure doesn't run away on cost or hit a ceiling by end of quarter. A Senior SA thinks about cost-per-request and growth curves, not only functional features.</p>
+            <div class="pcard__refs">
+              <a href="https://www.finops.org/framework/">FinOps Foundation</a>
+              <a href="https://sre.google/workbook/non-abstract-design/">SRE · capacity planning</a>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         GROUP E · Process & governance
+         ============================================================ -->
+    <section class="group gE" id="group-E">
+      <header class="group__head">
+        <span class="group__eyebrow">Group E · 5 practices</span>
+        <h2 class="group__title">Process &amp; governance</h2>
+        <p class="group__intro">
+          How the team operates the project as a system: security, service catalog, AI access, stakeholders, releases.
+          This is the "governance frame" — the thing that separates a prototype from production.
+        </p>
+        <div class="group__avg">Group avg score: AS-IS <b id="avg-E-as">0.0</b><span class="arrow">→</span><span class="to" id="avg-E-to">0.0</span> / 10</div>
+      </header>
+      <div class="group__body">
+        <div class="group-radar-wrap">
+          <svg class="group-radar-svg radar" data-group-radar="E" viewBox="0 0 400 400" role="img" aria-label="Group E radar"></svg>
+        </div>
+        <div class="group-cards">
+
+          <article class="pcard gE" data-practice="21">
+            <div class="pcard__head">
+              <span class="pcard__num">21</span>
+              <h3 class="pcard__title">SECURITY · threat modeling</h3>
+              <span class="pcard__scores"><span class="asis">1.0</span><span class="arr">→</span><span class="tobe">7.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> At the repo root: <code>SECURITY.md</code> (responsible disclosure) and <code>security.txt</code> (RFC 9116). Key services have a one-pager STRIDE / LINDDUN threat-model. Vulnerability disclosure SLA defined.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So a researcher who finds a hole knows where to write — instead of publishing on Twitter. So the team thinks about threats as a process, not a fire drill. This is a SOC2 / ISO 27001 component.</p>
+            <div class="pcard__refs">
+              <a href="https://www.rfc-editor.org/rfc/rfc9116">RFC 9116</a>
+              <a href="https://owasp.org/www-community/Threat_Modeling">OWASP · threat modeling</a>
+            </div>
+          </article>
+
+          <article class="pcard gE" data-practice="22">
+            <div class="pcard__head">
+              <span class="pcard__num">22</span>
+              <h3 class="pcard__title">Service catalog — Backstage YAML</h3>
+              <span class="pcard__scores"><span class="asis">3.0</span><span class="arr">→</span><span class="tobe">7.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Each service has a <code>catalog-info.yaml</code> in Backstage format: kind, metadata, owner, type, lifecycle, dependsOn, providesApis, consumesApis. HTML pages are <em>generated</em> from the YAML.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So the catalog is read not only by humans but by automation: on-call routing, dashboard auto-discovery, owner lookup, dependency graph. Without a machine format, every internal tool reinvents its own HTML parser.</p>
+            <div class="pcard__refs">
+              <a href="https://backstage.io/docs/features/software-catalog/descriptor-format">Backstage catalog</a>
+              <a href="principles/ssot.html">SSOT principle</a>
+            </div>
+          </article>
+
+          <article class="pcard gE" data-practice="23">
+            <div class="pcard__head">
+              <span class="pcard__num">23</span>
+              <h3 class="pcard__title">AI-augmented docs — llms.txt</h3>
+              <span class="pcard__scores"><span class="asis">1.8</span><span class="arr">→</span><span class="tobe">7.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> Documentation written so it can be read not only by humans but by Claude / ChatGPT / Cursor. <code>llms.txt</code> marks the canon, an MD source is read by LLMs tens of times better than HTML, an Ask-AI widget gives RAG answers.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So AI tools answer questions about the project correctly. An assistant giving a precise answer from the docs saves hours; an assistant hallucinating from an HTML soup misleads users and erodes trust.</p>
+            <div class="pcard__refs">
+              <a href="https://llmstxt.org/">llms.txt spec</a>
+              <a href="https://www.kapa.ai/">Kapa.ai · Ask-AI</a>
+            </div>
+          </article>
+
+          <article class="pcard gE" data-practice="24">
+            <div class="pcard__head">
+              <span class="pcard__num">24</span>
+              <h3 class="pcard__title">Stakeholder map · personas · JTBD</h3>
+              <span class="pcard__scores"><span class="asis">1.0</span><span class="arr">→</span><span class="tobe">7.0</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> A list of stakeholders (role, goal, influence, information needs) and user personas (JTBD statements, frustrations, expectations). A Power-Interest grid; refreshed quarterly.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So the product is built for real needs, not assumptions. Without personas, documentation and UX address "everyone" = "no one". This is the <em>purest</em> SA artefact.</p>
+            <div class="pcard__refs">
+              <a href="https://www.nngroup.com/articles/personas-study-guide/">NN/g · personas</a>
+              <a href="https://jobs-to-be-done.com/">JTBD framework</a>
+            </div>
+          </article>
+
+          <article class="pcard gE" data-practice="25">
+            <div class="pcard__head">
+              <span class="pcard__num">25</span>
+              <h3 class="pcard__title">RACI · release · review SLA</h3>
+              <span class="pcard__scores"><span class="asis">2.0</span><span class="arr">→</span><span class="tobe">7.5</span></span>
+            </div>
+            <p class="pcard__what"><b>What it is.</b> A RACI matrix (Responsible · Accountable · Consulted · Informed) on key processes; release process with semver, changelog, canary, rollback playbook; code review SLA (e.g. 2 working days), escalation process.</p>
+            <p class="pcard__why"><b>Why it matters.</b> So processes are predictable and scalable as the team grows. Without RACI, decisions stall; without a release process, every release is improvisation; without a review SLA, PRs sit for weeks.</p>
+            <div class="pcard__refs">
+              <a href="https://about.gitlab.com/handbook/people-group/global-volunteering/raci/">GitLab · RACI</a>
+              <a href="https://semver.org/">SemVer</a>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div>Formed 13 May 2026 · world-class 25-practice rubric</div>
+      <div class="footer__links">
+        <a href="index.html">SA portal</a>
+        <a href="principles/index.html">Principles</a>
+        <a href="../governance/audit/maturity/2026-05-13-systems-analysis-maturity-assessment.html">SA Maturity Audit (13 May)</a>
+        <a href="../governance/audit/maturity/2026-05-10-tech-docs-maturity-assessment-v2.html">Tech Docs v2 (10 May)</a>
+        <a href="../governance/adr/index.html">ADR</a>
+        <a href="../governance/rfc/index.html">RFC</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ---------- Data: 25 practices in 5 groups ---------- */
+    const PRACTICES = [
+      // Group A · Knowledge management
+      { id: 1,  group: 'A', short: 'Design Docs',       asis: 2.0, tobe: 8.0 },
+      { id: 2,  group: 'A', short: 'ADR · RFC',         asis: 7.4, tobe: 8.5 },
+      { id: 3,  group: 'A', short: 'SSOT',              asis: 5.0, tobe: 8.0 },
+      { id: 4,  group: 'A', short: 'Glossary',          asis: 2.5, tobe: 7.0 },
+      { id: 5,  group: 'A', short: 'Tech Radar',        asis: 1.0, tobe: 7.0 },
+      // Group B · Architecture & modeling
+      { id: 6,  group: 'B', short: 'C4 · PlantUML',     asis: 5.6, tobe: 8.0 },
+      { id: 7,  group: 'B', short: 'ER · domain',       asis: 5.2, tobe: 8.0 },
+      { id: 8,  group: 'B', short: 'API · OpenAPI',     asis: 6.4, tobe: 8.5 },
+      { id: 9,  group: 'B', short: 'AsyncAPI',          asis: 1.0, tobe: 7.0 },
+      { id: 10, group: 'B', short: 'DDD bounded ctx',   asis: 2.0, tobe: 7.0 },
+      // Group C · Information delivery
+      { id: 11, group: 'C', short: 'Diátaxis',          asis: 6.4, tobe: 8.0 },
+      { id: 12, group: 'C', short: 'Docs as code',      asis: 6.5, tobe: 8.5 },
+      { id: 13, group: 'C', short: 'Templates',         asis: 5.4, tobe: 8.0 },
+      { id: 14, group: 'C', short: 'Style guide',       asis: 1.5, tobe: 7.5 },
+      { id: 15, group: 'C', short: 'Onboarding · a11y', asis: 3.5, tobe: 7.0 },
+      // Group D · Reliability & operations
+      { id: 16, group: 'D', short: 'SLO',               asis: 0.5, tobe: 7.0 },
+      { id: 17, group: 'D', short: 'Runbooks',          asis: 1.5, tobe: 7.5 },
+      { id: 18, group: 'D', short: 'Postmortems',       asis: 1.0, tobe: 7.5 },
+      { id: 19, group: 'D', short: 'Risk register',     asis: 0.5, tobe: 7.0 },
+      { id: 20, group: 'D', short: 'Capacity · FinOps', asis: 0.5, tobe: 6.5 },
+      // Group E · Process & governance
+      { id: 21, group: 'E', short: 'SECURITY',          asis: 1.0, tobe: 7.5 },
+      { id: 22, group: 'E', short: 'Service catalog',   asis: 3.0, tobe: 7.5 },
+      { id: 23, group: 'E', short: 'AI-augmented',      asis: 1.8, tobe: 7.5 },
+      { id: 24, group: 'E', short: 'Stakeholder map',   asis: 1.0, tobe: 7.0 },
+      { id: 25, group: 'E', short: 'RACI · release',    asis: 2.0, tobe: 7.5 },
+    ];
+    const GROUPS = ['A', 'B', 'C', 'D', 'E'];
+
+    /* ---------- Helpers ---------- */
+    const SVGNS = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs) {
+      const e = document.createElementNS(SVGNS, tag);
+      if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+    function polarPoint(cx, cy, r, angleDegFromTopCW) {
+      const a = angleDegFromTopCW * Math.PI / 180;
+      return { x: cx + r * Math.sin(a), y: cy - r * Math.cos(a) };
+    }
+
+    /* ---------- Build main 25-axis radar ---------- */
+    function buildMainRadar() {
+      const cx = 400, cy = 400, unit = 24, badgeR = 268;
+      const grid = document.getElementById('main-radar-grid');
+      const dots = document.getElementById('main-radar-dots');
+      const badges = document.getElementById('main-radar-badges');
+
+      // 25 axis lines
+      for (let i = 0; i < 25; i++) {
+        const angle = i * (360 / 25);
+        const p = polarPoint(cx, cy, 240, angle);
+        const line = el('line', {
+          class: 'axis-line',
+          x1: cx, y1: cy, x2: p.x.toFixed(2), y2: p.y.toFixed(2),
+        });
+        grid.appendChild(line);
+      }
+
+      // AS-IS polygon and TO-BE polygon points
+      const asPts = [];
+      const toPts = [];
+      PRACTICES.forEach((p, i) => {
+        const angle = i * (360 / 25);
+        const pAS = polarPoint(cx, cy, p.asis * unit, angle);
+        const pTO = polarPoint(cx, cy, p.tobe * unit, angle);
+        asPts.push(pAS.x.toFixed(2) + ',' + pAS.y.toFixed(2));
+        toPts.push(pTO.x.toFixed(2) + ',' + pTO.y.toFixed(2));
+      });
+      document.getElementById('main-as-polygon').setAttribute('points', asPts.join(' '));
+      document.getElementById('main-to-polygon').setAttribute('points', toPts.join(' '));
+
+      // Dots and badges (per axis), wrapped in clickable groups
+      PRACTICES.forEach((p, i) => {
+        const angle = i * (360 / 25);
+        const pAS = polarPoint(cx, cy, p.asis * unit, angle);
+        const pTO = polarPoint(cx, cy, p.tobe * unit, angle);
+        const pB  = polarPoint(cx, cy, badgeR, angle);
+
+        const g = el('g', { 'data-axis-group': '', 'data-practice': String(p.id), tabindex: '0' });
+        const toDot = el('circle', { class: 'to-dot', cx: pTO.x.toFixed(2), cy: pTO.y.toFixed(2), r: '4.5' });
+        const asDot = el('circle', { class: 'as-dot', cx: pAS.x.toFixed(2), cy: pAS.y.toFixed(2), r: '4.5' });
+        g.appendChild(toDot);
+        g.appendChild(asDot);
+        dots.appendChild(g);
+
+        const bg = el('g', { class: 'badge g' + p.group, 'data-axis-group': '', 'data-practice': String(p.id), tabindex: '0' });
+        const bgc = el('circle', { class: 'badge-circle', cx: pB.x.toFixed(2), cy: pB.y.toFixed(2), r: '13' });
+        const bgn = el('text', { class: 'badge-num', x: pB.x.toFixed(2), y: pB.y.toFixed(2) });
+        bgn.textContent = String(p.id);
+        bg.appendChild(bgc);
+        bg.appendChild(bgn);
+        badges.appendChild(bg);
+      });
+    }
+
+    /* ---------- Build a group pentagon radar ---------- */
+    function buildGroupRadar(group) {
+      const svg = document.querySelector('[data-group-radar="' + group + '"]');
+      if (!svg) return;
+      const cx = 200, cy = 200, unit = 14, labelR = 168;
+      const practicesInGroup = PRACTICES.filter(p => p.group === group);
+
+      // Clear (in case)
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+      // Pentagon rings at scores 2,4,6,8,10
+      for (const s of [2, 4, 6, 8, 10]) {
+        const pts = [];
+        for (let i = 0; i < 5; i++) {
+          const angle = i * 72;
+          const p = polarPoint(cx, cy, s * unit, angle);
+          pts.push(p.x.toFixed(2) + ',' + p.y.toFixed(2));
+        }
+        const pg = el('polygon', {
+          class: s === 10 ? 'ring ring--outer' : 'ring',
+          points: pts.join(' '),
+        });
+        svg.appendChild(pg);
+      }
+
+      // 5 axis lines
+      for (let i = 0; i < 5; i++) {
+        const angle = i * 72;
+        const p = polarPoint(cx, cy, 140, angle);
+        const line = el('line', {
+          class: 'axis-line',
+          x1: cx, y1: cy, x2: p.x.toFixed(2), y2: p.y.toFixed(2),
+        });
+        svg.appendChild(line);
+      }
+
+      // Scale labels (along top axis): 2, 4, 6, 8, 10
+      for (let s = 2; s <= 10; s += 2) {
+        const p = polarPoint(cx, cy, s * unit, 0);
+        const t = el('text', { class: 'scale-label', x: (p.x + 4).toFixed(2), y: (p.y + 3).toFixed(2) });
+        t.textContent = String(s);
+        svg.appendChild(t);
+      }
+
+      // TO-BE polygon
+      const toPts = [];
+      practicesInGroup.forEach((p, i) => {
+        const angle = i * 72;
+        const pt = polarPoint(cx, cy, p.tobe * unit, angle);
+        toPts.push(pt.x.toFixed(2) + ',' + pt.y.toFixed(2));
+      });
+      svg.appendChild(el('polygon', { class: 'to-polygon', points: toPts.join(' ') }));
+
+      // AS-IS polygon
+      const asPts = [];
+      practicesInGroup.forEach((p, i) => {
+        const angle = i * 72;
+        const pt = polarPoint(cx, cy, p.asis * unit, angle);
+        asPts.push(pt.x.toFixed(2) + ',' + pt.y.toFixed(2));
+      });
+      svg.appendChild(el('polygon', { class: 'as-polygon', points: asPts.join(' ') }));
+
+      // Per-axis group: dots + labels
+      practicesInGroup.forEach((p, i) => {
+        const angle = i * 72;
+        const pAS = polarPoint(cx, cy, p.asis * unit, angle);
+        const pTO = polarPoint(cx, cy, p.tobe * unit, angle);
+        const pL  = polarPoint(cx, cy, labelR, angle);
+
+        const g = el('g', { 'data-axis-group': '', 'data-practice': String(p.id), tabindex: '0' });
+        g.appendChild(el('circle', { class: 'to-dot', cx: pTO.x.toFixed(2), cy: pTO.y.toFixed(2), r: '4.5' }));
+        g.appendChild(el('circle', { class: 'as-dot', cx: pAS.x.toFixed(2), cy: pAS.y.toFixed(2), r: '4.5' }));
+
+        // Determine text anchor based on horizontal position
+        const dx = pL.x - cx;
+        let anchor = 'middle';
+        if (dx > 12) anchor = 'start';
+        else if (dx < -12) anchor = 'end';
+
+        // Number above label
+        const num = el('text', {
+          class: 'axis-label__num',
+          x: pL.x.toFixed(2),
+          y: (pL.y - 6).toFixed(2),
+          'text-anchor': anchor,
+        });
+        num.textContent = String(p.id).padStart(2, '0');
+        g.appendChild(num);
+
+        // Practice short name below
+        const lbl = el('text', {
+          class: 'axis-label',
+          x: pL.x.toFixed(2),
+          y: (pL.y + 9).toFixed(2),
+          'text-anchor': anchor,
+        });
+        lbl.textContent = p.short;
+        g.appendChild(lbl);
+
+        svg.appendChild(g);
+      });
+    }
+
+    /* ---------- Build number legend (1-25 mapping by group) ---------- */
+    function buildNumLegend() {
+      const root = document.getElementById('num-legend');
+      const titles = {
+        A: 'A · Knowledge management',
+        B: 'B · Architecture & modeling',
+        C: 'C · Information delivery',
+        D: 'D · Reliability & operations',
+        E: 'E · Process & governance',
+      };
+      GROUPS.forEach(g => {
+        const col = document.createElement('div');
+        col.className = 'num-legend__col g' + g;
+        col.innerHTML = '<h4 class="num-legend__title">' + titles[g] + '</h4><div class="num-legend__items"></div>';
+        const items = col.querySelector('.num-legend__items');
+        PRACTICES.filter(p => p.group === g).forEach(p => {
+          const item = document.createElement('div');
+          item.className = 'num-legend__item';
+          item.dataset.practice = String(p.id);
+          item.innerHTML = '<span class="num-legend__num">' + String(p.id).padStart(2, '0') + '</span>' +
+                           '<span class="num-legend__name">' + p.short + '</span>';
+          items.appendChild(item);
+        });
+        root.appendChild(col);
+      });
+    }
+
+    /* ---------- Update summary numbers ---------- */
+    function updateSummary() {
+      let asSum = 0, toSum = 0;
+      PRACTICES.forEach(p => { asSum += p.asis; toSum += p.tobe; });
+      const asAvg = (asSum / PRACTICES.length).toFixed(1);
+      const toAvg = (toSum / PRACTICES.length).toFixed(1);
+      document.getElementById('overall-as').firstChild.nodeValue = asAvg;
+      document.getElementById('overall-to').firstChild.nodeValue = toAvg;
+
+      GROUPS.forEach(g => {
+        const items = PRACTICES.filter(p => p.group === g);
+        const asA = items.reduce((s, p) => s + p.asis, 0) / items.length;
+        const toA = items.reduce((s, p) => s + p.tobe, 0) / items.length;
+        document.getElementById('avg-' + g + '-as').textContent = asA.toFixed(1);
+        document.getElementById('avg-' + g + '-to').textContent = toA.toFixed(1);
+      });
+    }
+
+    /* ---------- Cross-highlight between any element with data-practice ---------- */
+    function bindCrossHighlight() {
+      const all = Array.from(document.querySelectorAll('[data-practice]'));
+
+      function setActive(id) {
+        all.forEach(elm => elm.classList.toggle('is-active', elm.dataset.practice === id));
+      }
+      function clearActive() {
+        all.forEach(elm => elm.classList.remove('is-active'));
+      }
+
+      all.forEach(elm => {
+        elm.addEventListener('mouseenter', () => setActive(elm.dataset.practice));
+        elm.addEventListener('mouseleave', clearActive);
+        elm.addEventListener('focus', () => setActive(elm.dataset.practice));
+        elm.addEventListener('blur', clearActive);
+        elm.addEventListener('click', () => {
+          const id = elm.dataset.practice;
+          const card = document.querySelector('.pcard[data-practice="' + id + '"]');
+          if (card && elm !== card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setActive(id);
+        });
+      });
+    }
+
+    /* ---------- Theme toggle ---------- */
+    function bindTheme() {
+      const themeToggle = document.getElementById('themeToggle');
+      const themeLabel = document.getElementById('themeLabel');
+      const themeIcon = document.getElementById('themeIcon');
+      const sunPath = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
+      const moonPath = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+
+      function applyThemeUI(theme) {
+        if (theme === 'dark') { themeIcon.innerHTML = sunPath; themeLabel.textContent = 'Light'; }
+        else { themeIcon.innerHTML = moonPath; themeLabel.textContent = 'Dark'; }
+      }
+      applyThemeUI(document.documentElement.getAttribute('data-theme') || 'light');
+
+      themeToggle.addEventListener('click', () => {
+        const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('sa-practices-theme', next); } catch (e) { /* noop */ }
+        applyThemeUI(next);
+      });
+    }
+
+    /* ---------- Boot ---------- */
+    buildMainRadar();
+    GROUPS.forEach(buildGroupRadar);
+    buildNumLegend();
+    updateSummary();
+    bindTheme();
+    bindCrossHighlight();
+
+  })();
+  </script>
+</body>
+</html>

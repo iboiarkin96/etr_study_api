@@ -23,6 +23,9 @@ FROZEN_DOCS_REL_PATHS = {
     # top-nav mount, no section.card, no page-history). It picks between the
     # public and internal portals, and is not a docs page itself.
     Path("index.html"),
+    # Standalone 25-practices grid with its own embedded design tokens;
+    # not part of the legacy docs skeleton.
+    Path("internal/analysis/practices.html"),
 }
 
 
@@ -46,6 +49,11 @@ def _iter_docs_pages(candidates: list[str] | None = None) -> list[Path]:
             continue
         rel = path.relative_to(DOCS_ROOT)
         if rel.parts and rel.parts[0] in {"api", "assets", "pdoc"}:
+            continue
+        # UI Kit v2 showcase uses a different baseline:
+        # assets_v2/runtime/internal/entry.{css,js} instead of legacy
+        # docs.css + docs-nav.js. Exempt from the legacy design baseline.
+        if rel.parts and rel.parts[0] == "ui-kit":
             continue
         # Generated pdoc tree under internal/catalog/api/code-reference/ is opaque.
         if len(rel.parts) >= 4 and rel.parts[0:4] == (
