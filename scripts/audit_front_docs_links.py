@@ -87,7 +87,12 @@ def scan_links(page: Path) -> list[dict]:
         target_path = strip_anchor_query(href)
         if not target_path:
             continue
-        resolved = (page_dir / target_path).resolve()
+        # Hrefs starting with "/" are root-relative (served from the project
+        # root by the dev server), not filesystem-absolute.
+        if target_path.startswith("/"):
+            resolved = (ROOT / target_path.lstrip("/")).resolve()
+        else:
+            resolved = (page_dir / target_path).resolve()
         if resolved.exists():
             continue
         try:

@@ -197,10 +197,13 @@ def main() -> None:
 
         redirect_stub = _is_redirect_stub(doc, text)
 
-        if not _has_docs_css(doc):
-            failures.append(f"{rel}: missing docs.css stylesheet link")
-        if not _has_docs_nav_script(doc):
-            failures.append(f"{rel}: missing docs-nav.js script link")
+        # Redirect stubs (meta http-equiv="refresh") are by definition tiny
+        # forwarding pages — they don't carry the docs skeleton.
+        if not redirect_stub:
+            if not _has_docs_css(doc):
+                failures.append(f"{rel}: missing docs.css stylesheet link")
+            if not _has_docs_nav_script(doc):
+                failures.append(f"{rel}: missing docs-nav.js script link")
 
         if not redirect_stub:
             swagger_layout = _is_swagger_layout(doc)

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Service catalog — machine-readable Backstage YAML — Practice 22 · Systems analysis</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gE" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">22</span>
+          <span class="pa-eyebrow__group">Group E · Process & governance</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">3.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Service catalog — machine-readable Backstage YAML</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Each service ships a catalog-info.yaml; HTML catalog pages and tooling are generated from it.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">A catalog page that only a human can read is half a catalog. With <code>catalog-info.yaml</code> per service, the team gets ownership routing, dependency graphs, alert ownership, and dashboard discovery for free. The HTML page is generated from the same YAML.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Hero diagram">
+          <svg viewBox="0 0 720 260" role="img" aria-label="Catalog YAML pipeline"><rect class="pa-svg-box pa-svg-box--accent" x="40" y="100" width="180" height="80" rx="10"/><text class="pa-svg-text pa-svg-text--accent" x="130" y="135" text-anchor="middle" font-weight="700">catalog-info.yaml</text><text class="pa-svg-text pa-svg-text--muted" x="130" y="155" text-anchor="middle" font-size="11">one per service</text><rect class="pa-svg-box" x="280" y="100" width="160" height="80" rx="10"/><text class="pa-svg-text" x="360" y="135" text-anchor="middle" font-weight="600">build_catalog.py</text><text class="pa-svg-text pa-svg-text--muted" x="360" y="155" text-anchor="middle" font-size="11">validate + render</text><rect class="pa-svg-box pa-svg-box--good" x="500" y="30" width="200" height="50" rx="10"/><text class="pa-svg-text pa-svg-text--good" x="600" y="60" text-anchor="middle">Service HTML pages</text><rect class="pa-svg-box pa-svg-box--good" x="500" y="90" width="200" height="50" rx="10"/><text class="pa-svg-text pa-svg-text--good" x="600" y="120" text-anchor="middle">Dependency graph</text><rect class="pa-svg-box pa-svg-box--good" x="500" y="150" width="200" height="50" rx="10"/><text class="pa-svg-text pa-svg-text--good" x="600" y="180" text-anchor="middle">On-call routing config</text><rect class="pa-svg-box pa-svg-box--good" x="500" y="210" width="200" height="40" rx="10"/><text class="pa-svg-text pa-svg-text--good" x="600" y="235" text-anchor="middle">Tooling index (_index.json)</text><path class="pa-svg-arrow" d="M220 140 L275 140 L268 136 M275 140 L268 144"/><path class="pa-svg-arrow" d="M440 130 L495 55 L486 56 M495 55 L488 62"/><path class="pa-svg-arrow" d="M440 135 L495 115 L488 111 M495 115 L488 119"/><path class="pa-svg-arrow" d="M440 145 L495 175 L488 171 M495 175 L488 179"/><path class="pa-svg-arrow" d="M440 155 L495 230 L486 228 M495 230 L488 235"/></svg>
+          <figcaption class="pa-figure__caption">One YAML, four downstream consumers — pages for humans, JSON for tools.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>The <strong>service catalog</strong> is the team's inventory of services with the metadata each one needs: name, owner, type, lifecycle, dependencies, APIs provided, APIs consumed, dashboards, runbooks. The Backstage <code>catalog-info.yaml</code> schema is a published, well-tested format that captures all of this.</p><p>Each service ships its YAML in its own repo folder. CI aggregates them, validates the schema, and generates two things: the public HTML catalog under <code>internal/catalog/</code> and a machine-readable index for tools (on-call routing, dashboard discovery, ownership lookup).</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>A pure HTML catalog needs a human reader to be useful. Once we want tooling — automatic on-call routing for an alert, a dependency graph that updates itself, a 'who owns this service' lookup — the HTML is the wrong shape. We end up with bespoke scrapers per tool.</p><p>A machine-readable catalog avoids that. The YAML is the source; the HTML is generated; the tools read the YAML directly. There is one truth, and it is automatable.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <p>Short tour of how teams known for the practice apply it. Each card is one company, what they do, and what we take from it.</p>
+          <div class="pa-industry">
+<div class="pa-industry__card"><p class="pa-industry__company">Spotify</p><p class="pa-industry__what">Built Backstage internally, open-sourced it in 2020. Now a CNCF incubating project with hundreds of corporate adopters.</p><p class="pa-industry__lesson"><strong>What we take:</strong> Backstage is the de-facto standard for internal developer portals. Adopt the schema even if you don't run the UI.</p><p class="pa-industry__source">Source: <a href="https://backstage.io/docs/features/software-catalog/" rel="noopener">Backstage software catalog</a></p></div>
+<div class="pa-industry__card"><p class="pa-industry__company">Netflix</p><p class="pa-industry__what">Eureka (the service registry) was open-sourced from Netflix; Spinnaker uses a similar idea. Both treat service metadata as machine-readable infrastructure.</p><p class="pa-industry__lesson"><strong>What we take:</strong> A service catalog is infrastructure, not documentation. It should be available via API, not just via a web page.</p><p class="pa-industry__source">Source: <a href="https://github.com/Netflix/eureka" rel="noopener">Netflix OSS — Eureka</a></p></div>
+<div class="pa-industry__card"><p class="pa-industry__company">Cortex (commercial)</p><p class="pa-industry__what">Built a 'production readiness' product around the catalog idea: scorecards against catalog entries (has a runbook, has an owner, has SLOs).</p><p class="pa-industry__lesson"><strong>What we take:</strong> Once the catalog exists, scorecards on top come almost for free — and they drive measurable engineering hygiene.</p><p class="pa-industry__source">Source: <a href="https://www.cortex.io/" rel="noopener">Cortex Internal Developer Portal</a></p></div>
+<div class="pa-industry__card"><p class="pa-industry__company">Adobe</p><p class="pa-industry__what">Public case study on adopting Backstage across 300+ services; biggest gain was 'no more hunting for who owns this service'.</p><p class="pa-industry__lesson"><strong>What we take:</strong> At ~50 services or more, the catalog pays for itself in saved hunting time alone.</p><p class="pa-industry__source">Source: <a href="https://blog.developer.adobe.com/" rel="noopener">Adobe Tech blog — Backstage</a></p></div>
+</div>
+<p class="pa-industry-pattern">The same recipe across adopters: YAML in each service repo, aggregator that builds an index, UI on top of the index, and scorecards to drive hygiene. The YAML schema is Backstage; the UI is replaceable.</p>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <p>The parts a complete practice has, with one sentence on each. None of these are optional.</p>
+          <div class="pa-anatomy">
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">apiVersion / kind</p><p class="pa-anatomy__hint">Backstage envelope; constant per entry.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">metadata</p><p class="pa-anatomy__hint">Name, description, tags, owner annotation.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">spec.type</p><p class="pa-anatomy__hint"><em>service / library / website / documentation</em>.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">spec.lifecycle</p><p class="pa-anatomy__hint"><em>experimental / production / deprecated</em>.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">spec.dependsOn</p><p class="pa-anatomy__hint">Other catalog entities; renders as the dependency graph.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">providesApis / consumesApis</p><p class="pa-anatomy__hint">OpenAPI/AsyncAPI references; ties catalog to API contracts.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Custom annotations</p><p class="pa-anatomy__hint">Dashboard URL, on-call rotation, repo URL, runbook URL.</p></div>
+</div>
+        </section>
+
+        <section id="how" class="card">
+          <h2>How it works in this project</h2>
+          <p>The schema is the Backstage <a href='https://backstage.io/docs/features/software-catalog/descriptor-format'>software-catalog descriptor</a>. The file lives at <code>services/&lt;name&gt;/catalog-info.yaml</code>. CI runs <code>scripts/build_catalog.py</code> which validates each YAML, resolves references, and writes:</p><ul><li><code>internal/catalog/&lt;name&gt;/index.html</code> + sibling pages (architecture, dependencies, on-call, runbooks).</li><li><code>internal/catalog/_index.json</code> for tooling.</li></ul><p>The HTML pages get the same skeleton no matter the service. The dependency graph on each page is rendered from <code>dependsOn</code>.</p>
+        </section>
+
+        <section id="deep-dive" class="card">
+          <h2>Deep dive — the theory you need</h2>
+          <div class="pa-deepdive"><h3>Backstage entity kinds — what each describes</h3><p>Backstage's catalog distinguishes several entity kinds. The five that matter for most projects:</p><div class='docs-table-scroll' role='region'><table><thead><tr><th>Kind</th><th>What it is</th><th>Example</th></tr></thead><tbody><tr><td><strong>Component</strong></td><td>A piece of software you build and run</td><td>The sessions service; the iOS app</td></tr><tr><td><strong>Resource</strong></td><td>Infrastructure a Component depends on</td><td>A PostgreSQL cluster; an S3 bucket</td></tr><tr><td><strong>API</strong></td><td>An interface a Component provides or consumes</td><td>An OpenAPI doc; an AsyncAPI doc; a gRPC service</td></tr><tr><td><strong>System</strong></td><td>A group of Components delivering a capability</td><td>Study App platform; Identity platform</td></tr><tr><td><strong>Domain</strong></td><td>A business area that contains Systems</td><td>Customer engagement; Operations</td></tr></tbody></table></div><h4>The relationship graph</h4><p>The kinds compose: Components <em>belongTo</em> Systems; Systems <em>belongTo</em> Domains; Components <em>provideApi</em> APIs and <em>consumeApi</em> other APIs; Components <em>dependsOn</em> Resources and other Components.</p><p>The graph that comes out of this is the dependency map for free. The same YAML feeds the catalog UI, the on-call routing, and the architecture documentation.</p></div>
+        </section>
+
+        <section id="lifecycle" class="card">
+          <h2>Lifecycle</h2>
+          <div class="pa-states">
+<span class="pa-state">proposed</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">experimental</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">production</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">deprecated</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">retired</span>
+</div>
+          <p>A new service starts as <em>experimental</em> in its YAML. The lifecycle value is moved to <em>production</em> with a Design Doc and a working SLO. <em>Deprecated</em> means we will retire it; the YAML stays so consumers know. <em>Retired</em> archives the entry.</p>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls"><table class="pa-pitfalls"><thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead><tbody><tr><td>YAML drifts from reality</td><td>Author changes the deploy without updating the YAML.</td><td>CODEOWNERS routes the YAML to the same person as the deploy; PR fails if one is touched without the other.</td></tr><tr><td>Two sources of truth</td><td>Catalog YAML + a hand-maintained ownership spreadsheet.</td><td>Spreadsheet stops being authoritative the day the YAML lands; one source only.</td></tr><tr><td>Lifecycle stays at 'production' forever</td><td>Service is unused but no one moves it to deprecated.</td><td>Quarterly review: any service with zero traffic for 90 days is reviewed for retirement.</td></tr><tr><td>Dependency list is incomplete</td><td>Author lists the obvious deps; forgets the rare ones.</td><td>Test environment can generate the actual dependency graph from runtime traces; reconcile quarterly.</td></tr></tbody></table></div>
+        </section>
+
+        <section id="example" class="card">
+          <h2>Worked example</h2>
+          <div class="pa-example"><div class="pa-example__head"><span class="pa-example__tag">catalog-info.yaml</span><p class="pa-example__title">sessions service entry</p></div><div class="pa-example__body"><pre><code>apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sessions
+  description: Owns the study-session lifecycle.
+  tags: [backend, fastapi]
+  annotations:
+    github.com/project-slug: study-app/services-sessions
+    grafana/dashboard-url: https://grafana.example/d/sessions
+    pagerduty/integration-key: sessions-primary
+    runbook-url: ../sre/runbooks/0007-sessions-5xx.html
+spec:
+  type: service
+  lifecycle: production
+  owner: backend-leads
+  system: study-app
+  providesApis:
+    - sessions-v1
+  consumesApis:
+    - decks-v1
+    - identity-v1
+  dependsOn:
+    - component:decks
+    - component:identity
+    - resource:sessions-pg</code></pre><p>From this single YAML, CI writes the service's catalog page, its row in the dependency graph, its on-call route, and the dashboard link on every related page.</p></div></div>
+        </section>
+
+        <section id="quality" class="card">
+          <h2>Quality bar — what good looks like</h2>
+          <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+          <ul class="pa-quality">
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every service has catalog-info.yaml</p><p class="pa-quality__hint">No YAML today.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Catalog pages are generated, not hand-written</p><p class="pa-quality__hint">Today, ten hand-written HTML files.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Dependency graph is auto-rendered</p><p class="pa-quality__hint">Hand-drawn today.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">On-call routing reads the YAML</p><p class="pa-quality__hint">PagerDuty + integration key per service.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Quarterly lifecycle review</p><p class="pa-quality__hint">Catch unused services; move to deprecated.</p></div></li>
+</ul>
+        </section>
+
+        <section id="references" class="card">
+          <h2>References</h2>
+          <div class="pa-refs"><div class="pa-refs__column"><h3>Industry sources</h3><ul><li><a href="https://backstage.io/docs/features/software-catalog/" rel="noopener">Backstage software catalog</a><span class="pa-refs__hint">The canonical reference; descriptor format and examples.</span></li><li><a href="https://backstage.io/docs/features/software-catalog/descriptor-format" rel="noopener">Backstage descriptor format</a><span class="pa-refs__hint">Schema for catalog-info.yaml.</span></li><li><a href="https://www.cortex.io/" rel="noopener">Cortex — Internal Developer Portal</a><span class="pa-refs__hint">Commercial alternative; same catalog schema.</span></li><li><a href="https://github.com/Netflix/eureka" rel="noopener">Netflix — Eureka (service registry)</a><span class="pa-refs__hint">Earlier-generation service catalog; useful for the 'machine-readable infrastructure' framing.</span></li></ul></div><div class="pa-refs__column"><h3>Inside the project</h3><ul><li><a href="ssot.html">SSOT — sibling practice</a><span class="pa-refs__hint"></span></li><li><a href="ddd-bounded-contexts.html">DDD bounded contexts — sibling practice</a><span class="pa-refs__hint">Catalog YAML declares the bounded context of each service.</span></li></ul></div></div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="index.html">All 25 practices</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Practices radar</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">SA portal hub</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-13">2026-05-13</time></td>
+                <td>Self-contained version of practice 22 (Service catalog): added Industry experience + Deep dive; refs split into Industry / Inside the project.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

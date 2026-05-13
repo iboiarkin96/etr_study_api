@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSS architecture · Portal UI Kit</title>
+  <script>/* no-flash theme bootstrap */(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../../../../services/frontend/portal/assets_v2/runtime/internal/entry.css">
+  <link rel="icon" type="image/svg+xml" href="../../../../../services/frontend/portal/assets/favicon.svg">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../../services/portal/ui-kit/index.html"><span aria-hidden="true">🚀</span><span>Study App · UI Kit</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../../services/portal/ui-kit/index.html">UI Kit</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="./philosophy.html">Foundations</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">CSS architecture</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions"><button class="docs-theme-toggle" type="button" aria-label="Toggle theme"><span aria-hidden="true">◐</span></button></div>
+  </header>
+
+  <aside data-component="sidebar"
+         data-nav-src="../../../../../services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-uikit.json"
+         aria-label="UI Kit navigation"></aside>
+
+  <main>
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">Foundations</span></p>
+        <h1>CSS architecture</h1>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">BEM naming, a four-layer token cascade, one shell. No magic numbers, no portal forks, no per-page CSS.</p>
+      </header>
+
+      <h2 id="cascade">The four-layer cascade</h2>
+      <p>Every rule in the kit reaches the page through one of four layers, in this order. Later layers may only set <em>tokens</em>, never override component selectors.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table">
+          <thead><tr><th>Layer</th><th>Owns</th><th>Path</th></tr></thead>
+          <tbody>
+            <tr><td><strong>1 · Tokens · base</strong></td><td>radius, space, shadow, ease, layout dims</td><td><code>ui-kit/tokens/_base.css</code></td></tr>
+            <tr><td><strong>2 · Tokens · typography</strong></td><td>font-family, scale (<code>--fs-100</code>..<code>--fs-900</code>), weights, line-heights</td><td><code>tokens/_typography.css</code></td></tr>
+            <tr><td><strong>3 · Tokens · theme</strong></td><td>colour for light + dark</td><td><code>tokens/_theme-light.css</code>, <code>_theme-dark.css</code></td></tr>
+            <tr><td><strong>4 · Tokens · portal</strong></td><td>accent only — <em>not</em> components</td><td><code>tokens/_portal-internal.css</code>, <code>_portal-public.css</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Anything below the four layers is a component. Components reference tokens, never raw values.</p>
+
+      <h2 id="bem">BEM naming</h2>
+      <p>Every class follows <code>.docs-block</code> / <code>.docs-block__element</code> / <code>.docs-block--modifier</code>. The <code>docs-</code> prefix is the kit's namespace — anything without it is portal-level (<code>.topbar</code>, <code>.docs-shell</code>) or a token utility.</p>
+
+      <div class="docs-example" style="border:1px solid var(--line);border-radius:var(--radius-md);padding:var(--space-4);margin:var(--space-4) 0">
+        <p style="margin:0 0 var(--space-2);font-size:var(--fs-100);letter-spacing:0.1em;text-transform:uppercase;color:var(--muted-soft);font-weight:var(--fw-semibold)">Example</p>
+        <pre class="docs-code"><code>.docs-card                      /* block */
+.docs-card__title               /* element */
+.docs-card__body                /* element */
+.docs-card--elevated            /* modifier — shadow up */
+.docs-card--ghost               /* modifier — transparent */
+.docs-card--interactive:hover   /* state — pseudo */</code></pre>
+      </div>
+
+      <h2 id="rules">Three rules, no exceptions</h2>
+      <ol>
+        <li><strong>Tokens before values.</strong> If you typed <code>16px</code>, ask which space token it is. If you typed <code>#2563eb</code>, ask which accent.</li>
+        <li><strong>One file per component.</strong> <code>card.css</code> owns <code>.docs-card*</code> and nothing else. Cross-component glue lives in <code>layout.css</code>.</li>
+        <li><strong>Portal layer only flips tokens.</strong> If you find yourself writing <code>html[data-portal="public"] .docs-card { … }</code>, you are forking the component. Stop, extract a token.</li>
+      </ol>
+
+      <h2 id="entry">Entry bundles</h2>
+      <p>Each portal has one CSS entry that imports the kit in canonical order:</p>
+      <pre class="docs-code"><code class="language-css">/* runtime/internal/entry.css */
+@import "../../ui-kit/tokens/_base.css";
+@import "../../ui-kit/tokens/_typography.css";
+@import "../../ui-kit/tokens/_theme-light.css";
+@import "../../ui-kit/tokens/_theme-dark.css";
+@import "../../ui-kit/tokens/_portal-internal.css";
+
+@import "../../ui-kit/components/layout.css";
+@import "../../ui-kit/components/prose.css";
+/* …component imports… */
+
+@import "./internal-overrides.css";   /* last — portal-only tweaks */</code></pre>
+      <p>Order matters: tokens first, layout second, components after, portal-overrides last. The overrides file should be a few lines, not a dumping ground.</p>
+
+      <h2 id="anti">Anti-patterns</h2>
+      <ul>
+        <li><strong>Per-page stylesheets</strong> — if a page needs CSS that no other page needs, the page is wrong, not the kit.</li>
+        <li><strong>Inline <code>style="…"</code> beyond demos</strong> — exception only inside <code>.docs-example</code> wrappers where the showcase explicitly demonstrates raw markup.</li>
+        <li><strong><code>!important</code></strong> — never in component CSS. Acceptable only in <code>prefers-reduced-motion</code> guards.</li>
+        <li><strong>Hard-coded breakpoints</strong> — the three tiers (≥1025 / 761–1024 / ≤760) are the contract. No 768, no 992, no 1280.</li>
+      </ul>
+
+      <h2 id="further">Further reading</h2>
+      <ul>
+        <li><a href="./philosophy.html">Design philosophy</a></li>
+        <li><a href="../tokens.html">Tokens gallery</a></li>
+        <li><a href="./motion.html">Motion contract</a></li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row"><span class="docs-history__date">2026-05-13</span><span class="docs-history__author">@ivan</span><span class="docs-history__note">CSS architecture relocated to UI Kit Foundations.</span></li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#cascade">Four-layer cascade</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#bem">BEM naming</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rules">Three rules</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#entry">Entry bundles</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti">Anti-patterns</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#further">Further reading</a></li>
+    </ol>
+  </aside>
+
+  <button data-component="toc-fab" type="button" aria-label="Open on this page" aria-expanded="false"></button>
+  <div data-component="rocket" aria-hidden="true"></div>
+
+  <script type="module" src="../../../../../services/frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+</body>
+</html>

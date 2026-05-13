@@ -5,7 +5,7 @@
  *
  * Conventions enforced across the tree:
  *   - The first child of every group is `label: "Overview"` (B3, 2026-05-11).
- *     See analysis/principles/single-authoring-model.html for the rule.
+ *     See analysis/practices/single-authoring-model.html for the rule.
  *   - No decorative emoji in labels (B2, 2026-05-11). Screen readers re-announce
  *     them and they clutter the drawer's tree.
  *   - Top-level entries are grouped by audience under `{ kind: "section" }`
@@ -26,7 +26,7 @@
    * The canonical SSOT is the directory tree on disk; this array is a hand-
    * maintained projection. Adding / renaming / removing a page requires editing
    * BOTH the file AND this array — divergence is silent until a reader hits a
-   * 404. See analysis/principles/ssot.html for the principle and the planned
+   * 404. See analysis/practices/ssot.html for the principle and the planned
    * Phase 2 work (generate the nav from a directory walk or a single YAML
    * manifest) that will eliminate the duplication.
    */
@@ -400,14 +400,13 @@
         {
           label: "Documentation principles",
           children: [
-            { label: "Overview", path: "internal/analysis/principles/index.html" },
-            { label: "SSOT (Single Source of Truth)", path: "internal/analysis/principles/ssot.html" },
-            { label: "Docs as code", path: "internal/analysis/principles/docs-as-code.html" },
-            { label: "Diátaxis", path: "internal/analysis/principles/diataxis.html" },
-            { label: "Decision records (ADR/RFC)", path: "internal/analysis/principles/decision-records.html" },
-            { label: "Single authoring model", path: "internal/analysis/principles/single-authoring-model.html" },
-            { label: "Mobile contract", path: "internal/analysis/principles/mobile-contract.html" },
-            { label: "PlantUML only", path: "internal/analysis/principles/plantuml-only.html" },
+            { label: "Overview", path: "internal/analysis/practices/index.html" },
+            { label: "SSOT (Single Source of Truth)", path: "internal/analysis/practices/ssot.html" },
+            { label: "Docs as code", path: "internal/analysis/practices/docs-as-code.html" },
+            { label: "Diátaxis", path: "internal/analysis/practices/diataxis.html" },
+            { label: "Decision records (ADR/RFC)", path: "internal/analysis/practices/decision-records.html" },
+            { label: "Single authoring model", path: "internal/analysis/practices/single-authoring-model.html" },
+            { label: "C4 + PlantUML", path: "internal/analysis/practices/c4-plantuml.html" },
           ],
         },
       ],

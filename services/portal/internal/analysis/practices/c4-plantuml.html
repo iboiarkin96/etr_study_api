@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C4 + PlantUML — diagrams as code — Practice 06 · Systems analysis</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">06</span>
+          <span class="pa-eyebrow__group">Group B · Architecture & modeling</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">5.6</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.0</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">C4 + PlantUML — diagrams as code</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Architecture drawn at three levels — Context, Container, Component — with PlantUML as the only diagram source.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">C4 is the layered way of drawing systems: zoom out for the big picture, zoom in for the parts. PlantUML is how we draw it — text in the repo, SVG in CI, no client-side rendering. The two together give us diagrams that stay in sync with reality because they live next to the code.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Hero diagram">
+          <svg viewBox="0 0 720 240" role="img" aria-label="C4 three levels"><g><rect class="pa-svg-box pa-svg-box--accent" x="20" y="60" width="200" height="120" rx="10"/><text class="pa-svg-text pa-svg-text--accent" x="120" y="95" text-anchor="middle" font-weight="700">Level 1 · Context</text><text class="pa-svg-text pa-svg-text--muted" x="120" y="120" text-anchor="middle" font-size="11">system + users + ext. systems</text><text class="pa-svg-text pa-svg-text--muted" x="120" y="138" text-anchor="middle" font-size="11">1 page total</text><rect class="pa-svg-box pa-svg-box--accent" x="260" y="60" width="200" height="120" rx="10"/><text class="pa-svg-text pa-svg-text--accent" x="360" y="95" text-anchor="middle" font-weight="700">Level 2 · Container</text><text class="pa-svg-text pa-svg-text--muted" x="360" y="120" text-anchor="middle" font-size="11">services / DB / queues</text><text class="pa-svg-text pa-svg-text--muted" x="360" y="138" text-anchor="middle" font-size="11">1 page per system</text><rect class="pa-svg-box pa-svg-box--accent" x="500" y="60" width="200" height="120" rx="10"/><text class="pa-svg-text pa-svg-text--accent" x="600" y="95" text-anchor="middle" font-weight="700">Level 3 · Component</text><text class="pa-svg-text pa-svg-text--muted" x="600" y="120" text-anchor="middle" font-size="11">modules / libraries</text><text class="pa-svg-text pa-svg-text--muted" x="600" y="138" text-anchor="middle" font-size="11">1 page per container</text><path class="pa-svg-arrow" d="M220 120 L255 120 L248 116 M255 120 L248 124"/><path class="pa-svg-arrow" d="M460 120 L495 120 L488 116 M495 120 L488 124"/><text class="pa-svg-text pa-svg-text--muted" x="360" y="220" text-anchor="middle" font-size="12" font-style="italic">"zoom in step by step — never one mega-diagram"</text></g></svg>
+          <figcaption class="pa-figure__caption">Three diagrams, three levels of zoom. Each answers a different question.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>C4</strong> is a system-architecture notation invented by Simon Brown. It says: don't draw one big diagram. Draw three smaller ones, each at a different zoom level.</p><ul><li><strong>Context.</strong> What is around the system — the users, the external services, the data sources.</li><li><strong>Container.</strong> What the system is made of — services, databases, queues, front-ends.</li><li><strong>Component.</strong> What is inside a single container — the modules, classes, or libraries.</li></ul><p><strong>PlantUML</strong> is the format we write those diagrams in: a small text DSL that CI renders into SVG. The source is in the repo, the rendered SVG is committed, and the same diagram looks the same on every machine.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>A picture saves a new engineer a day of code reading. But only if the picture is current. A diagram in Figma or a Mermaid block that depends on a CDN slowly drifts away from the code — and a stale diagram is worse than no diagram, because the reader trusts it.</p><p>Storing the source in the repo and rendering server-side fixes both problems. Reviewers see the diff between the old and new diagram in the same PR; the rendered SVG is accessible (screen-readers, no-JS); the renderer version is pinned.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <p>Short tour of how teams known for the practice apply it. Each card is one company, what they do, and what we take from it.</p>
+          <div class="pa-industry">
+<div class="pa-industry__card"><p class="pa-industry__company">Simon Brown (originator)</p><p class="pa-industry__what">Created the C4 model in 2011; publishes free materials, runs Structurizr (a paid renderer), and gives the talk 'Visualising software architecture' on conference circuits.</p><p class="pa-industry__lesson"><strong>What we take:</strong> Start with Context (Level 1). Most teams stop there and already get most of the value.</p><p class="pa-industry__source">Source: <a href="https://c4model.com/" rel="noopener">C4 model — official site</a></p></div>
+<div class="pa-industry__card"><p class="pa-industry__company">ING Bank</p><p class="pa-industry__what">Standardised on C4 across hundreds of internal services; every service has Context and Container diagrams in its repo, rendered from PlantUML in CI.</p><p class="pa-industry__lesson"><strong>What we take:</strong> C4 only works at scale when the source lives next to the code — diagrams in Confluence drift within months.</p><p class="pa-industry__source">Source: <a href="https://medium.com/ing-blog/visualizing-software-architecture-the-c4-model-d50e69bd9a3a" rel="noopener">ING Engineering — Visualizing software architecture</a></p></div>
+<div class="pa-industry__card"><p class="pa-industry__company">GitHub Engineering</p><p class="pa-industry__what">Uses PlantUML for sequence and state diagrams in engineering RFCs; the diagrams are rendered server-side and committed as SVG.</p><p class="pa-industry__lesson"><strong>What we take:</strong> Server-side rendering means the diagram works on every page that links to it, including the wiki, the PR view, and the editor preview.</p><p class="pa-industry__source">Source: <a href="https://github.blog/engineering/" rel="noopener">GitHub Engineering blog</a></p></div>
+</div>
+<p class="pa-industry-pattern">The repeated lesson: pictures live longer when they're text in the repo, not exports from a design tool. The renderer is replaceable; the source is not.</p>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <p>The parts a complete practice has, with one sentence on each. None of these are optional.</p>
+          <div class="pa-anatomy">
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Level 1: Context</p><p class="pa-anatomy__hint">One page. Shows the system as a single box, the users, and the external systems it talks to.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Level 2: Container</p><p class="pa-anatomy__hint">One page per system. Shows the containers (services, databases, queues) inside the box.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Level 3: Component</p><p class="pa-anatomy__hint">One page per container. Shows the components (modules, libraries) inside it.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Source</p><p class="pa-anatomy__hint">A <code>.puml</code> file next to the page that displays the SVG.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Renderer</p><p class="pa-anatomy__hint">PlantUML invoked in CI; version pinned in the build container.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Output</p><p class="pa-anatomy__hint">Committed <code>.svg</code> file. The HTML page <code>&lt;img&gt;</code>s it.</p></div>
+</div>
+        </section>
+
+        <section id="how" class="card">
+          <h2>How it works in this project</h2>
+          <p>The architecture map at <code>internal/front/architecture-map.html</code> already follows the C4 layout. Each PlantUML source lives next to the page that displays it. CI runs <code>scripts/render_plantuml.py</code>, which calls the PlantUML jar and writes the SVG. The SVG is committed so the page works without JS and without a network call.</p><p>The style is locked in <a href='../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html'>ADR 0020</a>: same colour palette, same arrows, same legend on every diagram. Authors don't pick their own style; the team picks one.</p>
+        </section>
+
+        <section id="deep-dive" class="card">
+          <h2>Deep dive — the theory you need</h2>
+          <div class="pa-deepdive"><h3>The three C4 levels — when to draw which</h3><p>C4 has four levels in the original model, but Level 4 (Code) is rarely useful because the IDE already shows the code. The three that matter:</p><div class='docs-table-scroll' role='region'><table><thead><tr><th>Level</th><th>Audience</th><th>Shows</th><th>Cap on boxes</th></tr></thead><tbody><tr><td><strong>1. Context</strong></td><td>Anyone (PMs, executives, new hires)</td><td>The system as one box + users + external systems it talks to</td><td>~10</td></tr><tr><td><strong>2. Container</strong></td><td>Engineers joining the team</td><td>What's inside the system: services, databases, queues, front-ends</td><td>~15</td></tr><tr><td><strong>3. Component</strong></td><td>Engineers inside one container</td><td>Modules, libraries, classes inside one service</td><td>~12 per container</td></tr></tbody></table></div><h4>The 'one diagram per question' rule</h4><p>Each diagram answers <em>one</em> question. If you cannot state the question in one sentence, you have two diagrams pretending to be one.</p><ul><li>Context diagram: <em>'What does the system talk to?'</em></li><li>Container diagram for service X: <em>'What does service X contain?'</em></li><li>Component diagram for module Y inside X: <em>'How is Y structured?'</em></li></ul><p>If you find yourself drawing 25 boxes on one canvas, you are either at the wrong level (zoom out) or trying to answer two questions at once (split into two diagrams).</p><h4>Why PlantUML, not Mermaid</h4><p>Both are text DSLs that render diagrams. The difference is where they render:</p><ul><li><strong>PlantUML</strong> renders server-side in CI; the result is a static SVG that ships with the docs.</li><li><strong>Mermaid</strong> renders client-side in the browser; the result depends on the user's JavaScript runtime and the Mermaid version loaded from the CDN.</li></ul><p>Server-side rendering gives three things Mermaid cannot: accessibility (screen readers reach the SVG), version pinning (the same source always renders the same picture), and offline viewing. The project's ADR 0020 locks PlantUML for these reasons.</p></div>
+        </section>
+
+        <section id="lifecycle" class="card">
+          <h2>Lifecycle</h2>
+          <div class="pa-states">
+<span class="pa-state">draft .puml</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">CI renders SVG</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">SVG committed</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">page embeds SVG</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">review in PR</span>
+</div>
+          <p>Author edits the <code>.puml</code> source. The PR triggers CI, which renders the SVG and pushes it back into the branch. Reviewers see the SVG diff inline; nothing needs to be regenerated locally. When the PR merges, the committed SVG ships with the docs.</p>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls"><table class="pa-pitfalls"><thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead><tbody><tr><td>One mega-diagram</td><td>Author tries to fit context, containers, and components into one picture.</td><td>Force the three-level split. If a diagram has more than 12 boxes, it is at the wrong level.</td></tr><tr><td>Mermaid sneaks back in</td><td>Mermaid is convenient inline; an author drops one in.</td><td>CI lints for <code>```mermaid</code>; rejects the PR.</td></tr><tr><td>Diagram drifts from code</td><td>A service is renamed; the diagram still shows the old name.</td><td>CODEOWNERS routes diagram files to the same owner as the service; the rename PR has to touch both.</td></tr><tr><td>Style is per-author</td><td>Every diagram looks different.</td><td>Shared <code>!include</code> for colours, arrows, legend. Authors include it; do not redefine.</td></tr></tbody></table></div>
+        </section>
+
+        <section id="example" class="card">
+          <h2>Worked example</h2>
+          <div class="pa-example"><div class="pa-example__head"><span class="pa-example__tag">PlantUML source</span><p class="pa-example__title">Context diagram for the portal</p></div><div class="pa-example__body"><pre><code>@startuml portal-context
+!include &lt;C4/C4_Context&gt;
+!include common-style.iuml
+Person(reader, &quot;Reader&quot;, &quot;Engineer, auditor, or AI assistant&quot;)
+System(portal, &quot;Docs portal&quot;, &quot;HTML docs served from the repo&quot;)
+System_Ext(github, &quot;GitHub&quot;, &quot;Source of truth — PRs, CI, hosting&quot;)
+System_Ext(grafana, &quot;Grafana&quot;, &quot;Dashboards referenced from runbooks&quot;)
+Rel(reader, portal, &quot;Reads docs, opens issues&quot;)
+Rel(portal, github, &quot;Fetched from&quot;, &quot;git pull on build&quot;)
+Rel(portal, grafana, &quot;Embeds links to&quot;)
+@enduml</code></pre><p>CI renders this into <code>portal-context.svg</code>; the architecture page embeds the SVG. Reviewers see a clean diff: <code>+ Rel(portal, grafana, ...)</code>.</p></div></div>
+        </section>
+
+        <section id="quality" class="card">
+          <h2>Quality bar — what good looks like</h2>
+          <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+          <ul class="pa-quality">
+<li class="pa-quality__item pa-quality__item--done"><span class="pa-quality__mark" aria-label="done">✓</span><div><p class="pa-quality__title">Source is in the repo</p><p class="pa-quality__hint">No Figma exports, no Mermaid.</p></div></li>
+<li class="pa-quality__item pa-quality__item--done"><span class="pa-quality__mark" aria-label="done">✓</span><div><p class="pa-quality__title">Rendering is server-side</p><p class="pa-quality__hint">CI runs PlantUML; SVG is committed.</p></div></li>
+<li class="pa-quality__item pa-quality__item--partial"><span class="pa-quality__mark" aria-label="partial">◐</span><div><p class="pa-quality__title">Three levels per service</p><p class="pa-quality__hint">Some services only have Container; missing Component.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Shared style include</p><p class="pa-quality__hint">Each diagram redefines colours today.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">CODEOWNERS routes diagrams</p><p class="pa-quality__hint">Service rename must touch the diagram in the same PR.</p></div></li>
+</ul>
+        </section>
+
+        <section id="references" class="card">
+          <h2>References</h2>
+          <div class="pa-refs"><div class="pa-refs__column"><h3>Industry sources</h3><ul><li><a href="https://c4model.com/" rel="noopener">C4 model — official site</a><span class="pa-refs__hint">Free materials, examples, and the canonical reference.</span></li><li><a href="https://structurizr.com/" rel="noopener">Structurizr (Simon Brown)</a><span class="pa-refs__hint">DSL and rendering service from the C4 author; the JSON output is portable.</span></li><li><a href="https://plantuml.com/" rel="noopener">PlantUML</a><span class="pa-refs__hint">Open-source diagram-as-code; rendered server-side.</span></li><li><a href="https://medium.com/ing-blog/visualizing-software-architecture-the-c4-model-d50e69bd9a3a" rel="noopener">ING Engineering — Visualising software architecture</a><span class="pa-refs__hint">Large-bank case study of C4 at scale.</span></li></ul></div><div class="pa-refs__column"><h3>Inside the project</h3><ul><li><a href="../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020 — C4 + PlantUML style and conventions</a><span class="pa-refs__hint">Locks PlantUML as the only diagram source.</span></li><li><a href="../../front/architecture-map.html">Architecture map</a><span class="pa-refs__hint">The current C4 Context + Container diagrams for the portal.</span></li></ul></div></div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="index.html">All 25 practices</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Practices radar</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">SA portal hub</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-13">2026-05-13</time></td>
+                <td>Self-contained version of practice 06 (C4 + PlantUML): added Industry experience + Deep dive; refs split into Industry / Inside the project.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

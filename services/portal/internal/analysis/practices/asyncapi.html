@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AsyncAPI — events as a contract — Practice 09 · Systems analysis</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">09</span>
+          <span class="pa-eyebrow__group">Group B · Architecture & modeling</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">1.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.0</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">AsyncAPI — events as a contract</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Async messages (Kafka, RabbitMQ, EventBridge, SNS) get the same contract discipline as HTTP — written before code, validated by a schema registry.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Event-driven systems break each other silently. There is no 4xx and no alert — just a stream of corrupted data that surfaces a week later. AsyncAPI makes events as contractual as REST. A schema registry catches incompatible producers before they ship.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Hero diagram">
+          <svg viewBox="0 0 720 240" role="img" aria-label="AsyncAPI with registry"><rect class="pa-svg-box pa-svg-box--accent" x="20" y="80" width="140" height="80" rx="10"/><text class="pa-svg-text pa-svg-text--accent" x="90" y="115" text-anchor="middle" font-weight="700">Producer</text><text class="pa-svg-text pa-svg-text--muted" x="90" y="135" text-anchor="middle" font-size="11">sessions service</text><rect class="pa-svg-box" x="200" y="50" width="180" height="140" rx="10"/><text class="pa-svg-text" x="290" y="90" text-anchor="middle" font-weight="700">Schema registry</text><text class="pa-svg-text pa-svg-text--muted" x="290" y="112" text-anchor="middle" font-size="11">session.opened-v1</text><text class="pa-svg-text pa-svg-text--muted" x="290" y="128" text-anchor="middle" font-size="11">session.opened-v2 ✗</text><text class="pa-svg-text pa-svg-text--muted" x="290" y="144" text-anchor="middle" font-size="11">backward only</text><rect class="pa-svg-box pa-svg-box--accent" x="420" y="40" width="160" height="60" rx="10"/><text class="pa-svg-text pa-svg-text--accent" x="500" y="70" text-anchor="middle">Consumer A</text><rect class="pa-svg-box pa-svg-box--accent" x="420" y="120" width="160" height="60" rx="10"/><text class="pa-svg-text pa-svg-text--accent" x="500" y="150" text-anchor="middle">Consumer B</text><path class="pa-svg-arrow" d="M160 120 L195 120 L188 116 M195 120 L188 124"/><path class="pa-svg-arrow" d="M380 90 L415 70 L406 70 M415 70 L408 75"/><path class="pa-svg-arrow" d="M380 150 L415 150 L408 146 M415 150 L408 154"/><text class="pa-svg-text pa-svg-text--muted" x="180" y="195" font-size="11">publish with schema-id</text><text class="pa-svg-text pa-svg-text--muted" x="410" y="225" font-size="11">fetch schema, decode</text></svg>
+          <figcaption class="pa-figure__caption">The registry stands between producer and consumers; an incompatible schema is rejected at write time.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>AsyncAPI</strong> is the OpenAPI equivalent for async messages. It describes the channels (topics, queues, subjects), the producer, the consumer(s), and the payload schema for each event. Like OpenAPI, it's a YAML/JSON file in the repo.</p><p>A schema registry (Confluent, Apicurio, Karapace) stores the schemas, assigns them IDs, and refuses incompatible writes. Every produced message carries the schema ID; consumers fetch the schema from the registry to decode.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>The hardest production incidents in event-driven systems come from silent schema drift. A producer adds a field; a consumer downstream that does strict decoding throws on the new field; messages back up; a queue fills; a dependent service stops processing — all without an alert that points at the cause.</p><p>A contract plus a schema registry catches that on the producer side. The producer cannot publish a message whose schema is not backward-compatible. The consumer never sees the bad data.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <p>Short tour of how teams known for the practice apply it. Each card is one company, what they do, and what we take from it.</p>
+          <div class="pa-industry">
+<div class="pa-industry__card"><p class="pa-industry__company">Postman</p><p class="pa-industry__what">Acquired AsyncAPI Initiative in 2024; ships AsyncAPI support in Postman Collections, Postbot, and the Postman API Network.</p><p class="pa-industry__lesson"><strong>What we take:</strong> Async APIs got a real ecosystem only after the contract format had a corporate backer; before that, every team rolled their own.</p><p class="pa-industry__source">Source: <a href="https://www.postman.com/explore/asyncapi" rel="noopener">Postman — AsyncAPI integration</a></p></div>
+<div class="pa-industry__card"><p class="pa-industry__company">Confluent (Kafka)</p><p class="pa-industry__what">Built Confluent Schema Registry: producers register schemas; consumers fetch by ID; incompatible writes are rejected at publish time.</p><p class="pa-industry__lesson"><strong>What we take:</strong> The registry is the enforcement point. Without it, AsyncAPI is documentation; with it, AsyncAPI is a contract.</p><p class="pa-industry__source">Source: <a href="https://docs.confluent.io/platform/current/schema-registry/index.html" rel="noopener">Confluent Schema Registry</a></p></div>
+<div class="pa-industry__card"><p class="pa-industry__company">Slack</p><p class="pa-industry__what">Uses AsyncAPI to describe the Events API (events delivered by webhook); developers generate their own consumers from the spec.</p><p class="pa-industry__lesson"><strong>What we take:</strong> If you have webhooks, you have an async API — and your integrators want a machine-readable contract just as much as for REST.</p><p class="pa-industry__source">Source: <a href="https://api.slack.com/apis/events-api" rel="noopener">Slack — Events API</a></p></div>
+</div>
+<p class="pa-industry-pattern">AsyncAPI without a schema registry is documentation; AsyncAPI plus a registry that enforces compatibility is a contract. The registry is the part that prevents silent drift.</p>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <p>The parts a complete practice has, with one sentence on each. None of these are optional.</p>
+          <div class="pa-anatomy">
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">asyncapi.yaml</p><p class="pa-anatomy__hint">The spec, one per service that publishes or consumes.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Channels</p><p class="pa-anatomy__hint">Topics or queues. Each has a producer and one or more consumers.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Payload schemas</p><p class="pa-anatomy__hint">Avro, Protobuf, or JSON Schema. Versioned in the registry.</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Schema registry</p><p class="pa-anatomy__hint">Stores schemas, enforces compatibility (backward, forward, or full).</p></div>
+<div class="pa-anatomy__part"><p class="pa-anatomy__name">Bindings</p><p class="pa-anatomy__hint">Transport-specific config: Kafka cluster, RabbitMQ exchange, EventBridge bus.</p></div>
+</div>
+        </section>
+
+        <section id="how" class="card">
+          <h2>How it works in this project</h2>
+          <p>The project will adopt AsyncAPI for the events that already exist (analytics, audit, search-index notifications). Each producing service ships an <code>asyncapi.yaml</code>. CI publishes the payload schemas to the registry on merge; consumers fetch by ID.</p><p>A short ADR will lock the compatibility mode (backward by default), the registry choice, and the layout. The reference page at <code>internal/api/events/</code> will list every topic with its producer, consumers, and current schema version.</p>
+        </section>
+
+        <section id="deep-dive" class="card">
+          <h2>Deep dive — the theory you need</h2>
+          <div class="pa-deepdive"><h3>Compatibility modes — backward, forward, full</h3><p>A schema registry enforces one of three compatibility modes when a producer tries to publish a new schema version:</p><div class='docs-table-scroll' role='region'><table><thead><tr><th>Mode</th><th>Allowed change</th><th>Who it protects</th></tr></thead><tbody><tr><td><strong>Backward</strong></td><td>New schema can read data written with the old schema.</td><td>Consumers. New consumers + old data.</td></tr><tr><td><strong>Forward</strong></td><td>Old schema can read data written with the new schema.</td><td>Producers. Old consumers + new data.</td></tr><tr><td><strong>Full</strong></td><td>Both directions. New ↔ old in both directions.</td><td>Both, during long migrations.</td></tr></tbody></table></div><h4>Concrete examples</h4><ul><li><strong>Backward-compatible</strong>: add an optional field (<code>tags</code>); remove a field that has a default; widen an enum.</li><li><strong>Breaking</strong>: add a required field; rename a field; narrow an enum; change a type.</li><li><strong>Forward-only</strong> (rarer): same shape, but readers now ignore a deprecated field that producers stopped sending.</li></ul><p>Pick <strong>backward</strong> as the default. It is the only mode that lets producers move first; producers always outnumber consumers, and you want the side that moves first to be the side with the most code.</p></div>
+        </section>
+
+        <section id="lifecycle" class="card">
+          <h2>Lifecycle</h2>
+          <div class="pa-states">
+<span class="pa-state">draft spec</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">spec accepted</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">schemas registered</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">compatible publishes</span>
+<span class="pa-state__arrow">→</span>
+<span class="pa-state">incompatible publishes rejected</span>
+</div>
+          <p>A new event starts as a PR on the AsyncAPI file. Once accepted, the payload schema goes into the registry with version 1. The producer publishes with that schema ID; the registry refuses an incompatible v2 unless the team explicitly opts in.</p>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls"><table class="pa-pitfalls"><thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead><tbody><tr><td>'We'll add a schema later'</td><td>Team ships the first event without a schema; consumer parses manually.</td><td>One rule: an event without a registered schema is not shipped to production.</td></tr><tr><td>Schema compatibility mode is wrong</td><td>Default is 'none'; producers can ship anything.</td><td>Choose backward as the default; require an explicit override for breaking changes.</td></tr><tr><td>Versioning by topic name</td><td>Producer publishes to <code>orders-v2</code>; consumers need to migrate.</td><td>Use schema versioning inside the registry, not topic name. The registry's job is to handle versioning.</td></tr><tr><td>Consumers ignore unknown fields</td><td>Consumer libraries that throw on extras break on any additive change.</td><td>Configure consumers to ignore unknown fields by default; treat strict mode as opt-in.</td></tr></tbody></table></div>
+        </section>
+
+        <section id="example" class="card">
+          <h2>Worked example</h2>
+          <div class="pa-example"><div class="pa-example__head"><span class="pa-example__tag">AsyncAPI fragment</span><p class="pa-example__title">session.opened event</p></div><div class="pa-example__body"><pre><code>asyncapi: 3.0.0
+info: { title: Sessions service, version: 1.0.0 }
+channels:
+  session.opened:
+    address: sessions.events.opened
+    messages:
+      sessionOpened:
+        $ref: '#/components/messages/sessionOpened'
+operations:
+  publishSessionOpened:
+    action: send
+    channel: { $ref: '#/channels/session.opened' }
+components:
+  messages:
+    sessionOpened:
+      payload:
+        type: object
+        required: [session_id, user_id, started_at]
+        properties:
+          session_id: { type: string, format: uuid }
+          user_id:    { type: string, format: uuid }
+          started_at: { type: string, format: date-time }
+          tags:       { type: array, items: { type: string } }</code></pre><p>On merge, the payload schema is registered as <code>session.opened-v1</code>. Adding <code>tags</code> as a new optional field is backward-compatible; adding a required field is not, and the registry will refuse it.</p></div></div>
+        </section>
+
+        <section id="quality" class="card">
+          <h2>Quality bar — what good looks like</h2>
+          <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+          <ul class="pa-quality">
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every event has an AsyncAPI entry</p><p class="pa-quality__hint">Today, events are documented only in code comments.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every payload is in the schema registry</p><p class="pa-quality__hint">Producer can't ship without a registered schema.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Compatibility mode is backward by default</p><p class="pa-quality__hint">Breaking changes require explicit ADR.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Reference page is generated</p><p class="pa-quality__hint">One row per topic, with current version and consumers.</p></div></li>
+<li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">openapi-diff equivalent for events</p><p class="pa-quality__hint">Catch breaking changes in CI before publish.</p></div></li>
+</ul>
+        </section>
+
+        <section id="references" class="card">
+          <h2>References</h2>
+          <div class="pa-refs"><div class="pa-refs__column"><h3>Industry sources</h3><ul><li><a href="https://www.asyncapi.com/" rel="noopener">AsyncAPI 3.0 specification</a><span class="pa-refs__hint">The canonical spec.</span></li><li><a href="https://docs.confluent.io/platform/current/schema-registry/index.html" rel="noopener">Confluent Schema Registry</a><span class="pa-refs__hint">Most-used registry; explains compatibility modes well.</span></li><li><a href="https://www.apicur.io/registry/" rel="noopener">Apicurio Registry (open-source)</a><span class="pa-refs__hint">Open-source alternative to Confluent.</span></li><li><a href="https://api.slack.com/apis/events-api" rel="noopener">Slack Events API</a><span class="pa-refs__hint">Real public async API to read.</span></li></ul></div><div class="pa-refs__column"><h3>Inside the project</h3><ul><li><a href="openapi-contract-first.html">OpenAPI contract-first — sibling practice</a><span class="pa-refs__hint"></span></li></ul></div></div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="index.html">All 25 practices</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Practices radar</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">SA portal hub</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-13">2026-05-13</time></td>
+                <td>Self-contained version of practice 09 (AsyncAPI): added Industry experience + Deep dive; refs split into Industry / Inside the project.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>
