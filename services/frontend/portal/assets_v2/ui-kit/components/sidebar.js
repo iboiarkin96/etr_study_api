@@ -1,8 +1,12 @@
-/* ui-kit/components/sidebar.js — fetch nav-tree JSON, render tree,
-   highlight active link, persist group collapse state in localStorage. */
+/* ui-kit/components/sidebar.js — fetch nav-tree JSON, render the tree
+   with an optional brand block and a sidebar-wide collapse toggle.
+   Persists group-collapse state, scroll, and full-sidebar collapse state. */
 
 const STORAGE_KEY = "docs-sidebar-collapsed-v2";
 const SCROLL_KEY = "docs-sidebar-scroll-v2";
+const SHELL_COLLAPSE_KEY = "docs-sidebar-shell-collapsed-v2";
+
+const CHEVRON_LEFT = "<svg viewBox='0 0 16 16' aria-hidden='true' width='14' height='14'><path d='M10 4l-4 4 4 4' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
 function loadScroll() {
   try {
@@ -38,6 +42,22 @@ function saveCollapsed(set) {
   }
 }
 
+function loadShellCollapsed() {
+  try {
+    return localStorage.getItem(SHELL_COLLAPSE_KEY) === "1";
+  } catch (_) {
+    return false;
+  }
+}
+
+function saveShellCollapsed(flag) {
+  try {
+    localStorage.setItem(SHELL_COLLAPSE_KEY, flag ? "1" : "0");
+  } catch (_) {
+    /* ignore quota */
+  }
+}
+
 function isActive(href) {
   if (!href) return false;
   const here = window.location.pathname.replace(/\/+$/, "");
@@ -58,13 +78,69 @@ function hasActiveDescendant(node) {
   return false;
 }
 
+function buildBrand(brand) {
+  // Brand block = optional wordmark + always-present collapse toggle.
+  const header = document.createElement("header");
+  header.className = "docs-sidebar__brand";
+
+  if (brand) {
+    const link = document.createElement("a");
+    link.className = "docs-sidebar__wordmark";
+    link.href = brand.href || "#";
+    if (brand.ariaLabel) link.setAttribute("aria-label", brand.ariaLabel);
+
+    if (brand.mark) {
+      const mark = document.createElement("span");
+      mark.className = "docs-sidebar__brand-mark";
+      mark.setAttribute("aria-hidden", "true");
+      mark.textContent = brand.mark;
+      link.appendChild(mark);
+    }
+
+    const text = document.createElement("span");
+    text.className = "docs-sidebar__brand-text";
+
+    const product = document.createElement("span");
+    product.className = "docs-sidebar__brand-product";
+    if (brand.productHtml) {
+      product.innerHTML = brand.productHtml;
+    } else {
+      product.textContent = brand.product || "";
+    }
+    text.appendChild(product);
+
+    if (brand.tagline) {
+      const tagline = document.createElement("span");
+      tagline.className = "docs-sidebar__brand-tagline";
+      tagline.textContent = brand.tagline;
+      text.appendChild(tagline);
+    }
+
+    link.appendChild(text);
+    header.appendChild(link);
+  }
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "docs-sidebar__collapse-toggle";
+  toggle.setAttribute("aria-label", "Collapse navigation");
+  toggle.setAttribute("aria-expanded", "true");
+  toggle.innerHTML = CHEVRON_LEFT;
+  header.appendChild(toggle);
+
+  return header;
+}
+
 function buildNode(node, collapsed) {
   const item = document.createElement("li");
   item.className = "docs-sidebar__item";
+  if (node.kind) item.classList.add(`docs-sidebar__item--${node.kind}`);
   item.dataset.nodeId = node.id || "";
+  if (node.kind) item.dataset.kind = node.kind;
 
   const row = document.createElement("div");
   row.className = "docs-sidebar__row";
+  if (node.kind) row.classList.add(`docs-sidebar__row--${node.kind}`);
 
   if (node.children && node.children.length) {
     const caret = document.createElement("button");
@@ -75,9 +151,18 @@ function buildNode(node, collapsed) {
     row.appendChild(caret);
   }
 
+  if (node.icon) {
+    const ic = document.createElement("span");
+    ic.className = "docs-sidebar__icon";
+    ic.setAttribute("aria-hidden", "true");
+    ic.textContent = node.icon;
+    row.appendChild(ic);
+  }
+
   if (node.href) {
     const a = document.createElement("a");
     a.className = "docs-sidebar__link";
+    if (node.kind) a.classList.add(`docs-sidebar__link--${node.kind}`);
     a.href = node.href;
     a.textContent = node.label;
     if (isActive(node.href)) a.setAttribute("aria-current", "page");
@@ -141,19 +226,58 @@ function restoreScroll(container) {
   });
 }
 
+function applyShellCollapsed(shell, toggle, collapsed) {
+  if (!shell) return;
+  shell.classList.toggle("is-sidebar-collapsed", collapsed);
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    toggle.setAttribute("aria-label", collapsed ? "Expand navigation" : "Collapse navigation");
+  }
+}
+
+function wireCollapseToggle(container, toggle) {
+  const shell = container.closest(".docs-shell");
+  // Skip the global shell-collapse wiring for drawer copies and showcase
+  // examples that aren't the actual page-level sidebar.
+  if (!shell || container.closest(".docs-drawer") || container.closest(".docs-example")) {
+    // Inside an example: still let the toggle visually demo (no shell binding).
+    return;
+  }
+
+  // Apply persisted state on mount.
+  applyShellCollapsed(shell, toggle, loadShellCollapsed());
+
+  toggle.addEventListener("click", () => {
+    const next = !shell.classList.contains("is-sidebar-collapsed");
+    applyShellCollapsed(shell, toggle, next);
+    saveShellCollapsed(next);
+  });
+}
+
 function render(container, tree) {
   const collapsed = loadCollapsed();
+  container.classList.add("docs-sidebar");
+  container.innerHTML = "";
+
+  // Brand + collapse toggle header (brand is optional via `tree.brand`).
+  const header = buildBrand(tree.brand);
+  container.appendChild(header);
+
   const list = document.createElement("ul");
   list.className = "docs-sidebar__list";
   tree.sections.forEach((s) => list.appendChild(buildNode(s, collapsed)));
-  container.classList.add("docs-sidebar");
-  container.innerHTML = "";
   container.appendChild(list);
 
   // Restore scroll AFTER the DOM is populated so the offset is meaningful.
   restoreScroll(container);
 
+  // Wire the sidebar-wide collapse toggle (button is always present).
+  const toggle = header.querySelector(".docs-sidebar__collapse-toggle");
+  wireCollapseToggle(container, toggle);
+
   container.addEventListener("click", (e) => {
+    // Sidebar-wide collapse button has its own handler — skip group logic.
+    if (e.target.closest(".docs-sidebar__collapse-toggle")) return;
     // Let real links navigate unmodified.
     if (e.target.closest(".docs-sidebar__link")) return;
     const row = e.target.closest(".docs-sidebar__row");

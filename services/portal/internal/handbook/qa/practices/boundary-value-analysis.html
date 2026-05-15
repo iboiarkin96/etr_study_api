@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Boundary Value Analysis — test the edges · Practice 06 · QA Engineer</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">06</span>
+          <span class="pa-eyebrow__group">Group B · Test Design</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">3.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.0</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Boundary Value Analysis — test the edges</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Systematically tests the values at and immediately outside the edges of valid input ranges, catching off-by-one errors that random testing misses.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Boundary Value Analysis (BVA), developed by Glenford Myers in 1979, tests the minimum, minimum+1, maximum-1, and maximum values of any bounded input domain — because defects cluster at boundaries, not in the middle. A field that accepts 1–255 characters is most likely to fail at 0, 1, 254, 255, and 256. BVA makes this systematic: every bounded field in the application has a BVA test set that covers these five values at minimum.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Boundary value number line">
+          <svg viewBox="0 0 720 160" role="img" aria-label="Number line showing boundary test points for range 1 to 255">
+            <defs>
+              <style>
+                .bv-label { font-family: ui-monospace,monospace; font-size: 11px; fill: var(--text, #0f172a); }
+                .bv-sub   { font-family: ui-monospace,monospace; font-size: 10px; fill: var(--muted-soft, #6b7280); }
+              </style>
+            </defs>
+            <!-- Number line -->
+            <line x1="60" y1="80" x2="660" y2="80" stroke="var(--line,#dbe3ef)" stroke-width="2"/>
+            <!-- Invalid left zone -->
+            <rect x="60" y="60" width="120" height="40" fill="rgba(220,38,38,0.1)" stroke="#dc2626" stroke-width="1" rx="4"/>
+            <text class="bv-sub" x="120" y="85" text-anchor="middle">invalid</text>
+            <!-- Valid zone -->
+            <rect x="180" y="60" width="360" height="40" fill="rgba(22,163,74,0.1)" stroke="#16a34a" stroke-width="1" rx="4"/>
+            <text class="bv-sub" x="360" y="85" text-anchor="middle">valid (1–255)</text>
+            <!-- Invalid right zone -->
+            <rect x="540" y="60" width="120" height="40" fill="rgba(220,38,38,0.1)" stroke="#dc2626" stroke-width="1" rx="4"/>
+            <text class="bv-sub" x="600" y="85" text-anchor="middle">invalid</text>
+            <!-- Boundary markers -->
+            <circle cx="120" cy="80" r="7" fill="#dc2626"/>
+            <text class="bv-label" x="120" y="50" text-anchor="middle" fill="#dc2626">0</text>
+            <text class="bv-sub" x="120" y="130" text-anchor="middle">min−1</text>
+            <circle cx="180" cy="80" r="7" fill="#16a34a"/>
+            <text class="bv-label" x="180" y="50" text-anchor="middle" fill="#16a34a">1</text>
+            <text class="bv-sub" x="180" y="130" text-anchor="middle">min</text>
+            <circle cx="250" cy="80" r="5" fill="#8b5cf6"/>
+            <text class="bv-label" x="250" y="50" text-anchor="middle" fill="#8b5cf6">2</text>
+            <text class="bv-sub" x="250" y="130" text-anchor="middle">min+1</text>
+            <circle cx="470" cy="80" r="5" fill="#8b5cf6"/>
+            <text class="bv-label" x="470" y="50" text-anchor="middle" fill="#8b5cf6">254</text>
+            <text class="bv-sub" x="470" y="130" text-anchor="middle">max−1</text>
+            <circle cx="540" cy="80" r="7" fill="#16a34a"/>
+            <text class="bv-label" x="540" y="50" text-anchor="middle" fill="#16a34a">255</text>
+            <text class="bv-sub" x="540" y="130" text-anchor="middle">max</text>
+            <circle cx="600" cy="80" r="7" fill="#dc2626"/>
+            <text class="bv-label" x="600" y="50" text-anchor="middle" fill="#dc2626">256</text>
+            <text class="bv-sub" x="600" y="130" text-anchor="middle">max+1</text>
+          </svg>
+          <figcaption class="pa-figure__caption">For a field accepting 1–255 characters: five BVA test points (0, 1, 2, 254, 255, 256) cover the boundary defect class completely.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>Boundary Value Analysis is a black-box test design technique that selects test values at and immediately around the edges of valid input partitions. The technique was described by Glenford Myers in his 1979 book <em>The Art of Software Testing</em> and remains one of the most effective techniques for finding a specific class of defects: boundary errors.</p>
+          <p>For any input with a defined valid range [min, max], BVA selects the following test values:</p>
+          <ul>
+            <li><strong>min − 1:</strong> One below the minimum (invalid input — should be rejected)</li>
+            <li><strong>min:</strong> The minimum valid value (should be accepted)</li>
+            <li><strong>min + 1:</strong> One above the minimum (should be accepted)</li>
+            <li><strong>max − 1:</strong> One below the maximum (should be accepted)</li>
+            <li><strong>max:</strong> The maximum valid value (should be accepted)</li>
+            <li><strong>max + 1:</strong> One above the maximum (invalid input — should be rejected)</li>
+          </ul>
+          <p>The rationale is that defects are most likely to occur at the boundaries of a domain, not in the middle. A field that accepts 1–255 characters is almost never wrong at 128 characters, but it is frequently wrong at 0, 255, and 256 — the points where the implementation must handle the transition from valid to invalid (or vice versa).</p>
+          <p>BVA applies to any bounded domain: numeric ranges, string lengths, list sizes, date ranges, price ranges, and array indices. It is used in combination with equivalence partitioning — EP identifies the partitions, BVA selects the test values within and around the partition boundaries.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Off-by-one errors are among the most common defect classes in software. A loop that runs one iteration too many, a validation that accepts 256 characters when the database column is 255 characters wide, a date range that excludes the last day — all of these are boundary defects that random or middle-of-range testing misses entirely.</p>
+          <p>Without BVA, test case selection is intuitive — testers pick values that "feel right" but systematically avoid the edges where defects actually live. BVA makes boundary testing mandatory and systematic, so the defect class cannot be skipped by accident.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Glenford Myers (originator, 1979)</p>
+              <p class="pa-industry__what">Myers introduced BVA in <em>The Art of Software Testing</em> as a complement to equivalence partitioning. His original insight was that test cases derived from the boundaries of equivalence classes are more productive than test cases derived from the interior. He demonstrated that boundary errors account for a disproportionate share of all defects in programs with numeric computations, string processing, and array manipulation.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> BVA and EP are always used together — EP identifies the partitions, BVA selects the boundary test values. Neither technique alone is sufficient.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.istqb.org/certifications/foundation-level" rel="noopener">ISTQB FL Syllabus (BVA section)</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">ISTQB</p>
+              <p class="pa-industry__what">ISTQB's Foundation Level syllabus defines BVA as one of the four core black-box techniques (alongside EP, decision tables, and state transition testing). The ISTQB 2-value BVA selects min and max from each partition; the 3-value BVA (required for ISTQB Advanced) also selects min−1, min+1, max−1, max+1. ISTQB certification exams include BVA questions in every sitting — it is the most frequently examined technique.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Use 3-value BVA for high-risk fields (the full six-point set); use 2-value BVA for low-risk fields (just min and max).</p>
+              <p class="pa-industry__source">Source: <a href="https://www.istqb.org/certifications/foundation-level" rel="noopener">ISTQB — Foundation Level</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Google (Testing at Google)</p>
+              <p class="pa-industry__what">Google's engineering culture embeds BVA implicitly through their testing guidelines, which require that any function with a numeric parameter includes tests at the minimum, maximum, and one-past-maximum values. The "Fuzz testing" programme at Google is partly an automated form of BVA at scale — the fuzzer is particularly good at finding boundary values that human testers miss. Google's internal test review process flags test suites that lack boundary coverage as incomplete.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> For high-risk fields, complement manual BVA with automated property-based testing or fuzzing — they find boundaries that human analysis misses.</p>
+              <p class="pa-industry__source">Source: <a href="https://abseil.io/resources/swe-book" rel="noopener">Software Engineering at Google</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Input domain identification</p>
+              <p class="pa-anatomy__hint">For each test area, list all bounded inputs: numeric ranges, string lengths, date ranges, list sizes, enum values.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Boundary value set</p>
+              <p class="pa-anatomy__hint">For each bounded input: min−1, min, min+1 (lower boundary) and max−1, max, max+1 (upper boundary). Six values per range.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Expected outcomes</p>
+              <p class="pa-anatomy__hint">For each boundary value: what the system should return (accept and process, reject with a specific error code, or return a boundary-specific result).</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Risk-tiered coverage</p>
+              <p class="pa-anatomy__hint">High-risk fields use 3-value BVA (full six-point set); low-risk fields use 2-value BVA (min and max only).</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Testing only the valid range</td>
+                  <td>Testers test min and max but not min−1 and max+1, missing the invalid-input boundary defects.</td>
+                  <td>Always include min−1 and max+1 in the BVA test set. Invalid boundary values are as important as valid ones — they verify rejection behaviour.</td>
+                </tr>
+                <tr>
+                  <td>BVA without defined expected outcomes</td>
+                  <td>The tester knows the boundary values to test but not what the system should return for each.</td>
+                  <td>Define expected outcomes before executing. "The API should return 422 with error code FIELD_TOO_LONG when the name field exceeds 255 characters" — not "the API should reject it."</td>
+                </tr>
+                <tr>
+                  <td>Skipping non-obvious boundaries</td>
+                  <td>Testers apply BVA to numeric fields but forget about string length limits, list size limits, and date range boundaries.</td>
+                  <td>Include all bounded domains in the BVA analysis: numeric values, string lengths, array/list sizes, date ranges, and pagination limits.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="test-environment-design.html">← 05 · Test Environment Design</a></li>
+            <li><a class="docs-next-steps__item" href="equivalence-partitioning.html">07 · Equivalence Partitioning →</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Back to radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: Boundary Value Analysis practice for QA Engineer radar.</td>
+                  <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

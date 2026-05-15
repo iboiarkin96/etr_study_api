@@ -48,7 +48,7 @@ CODE_BLOCK_RE = re.compile(r"<code[^>]*>.*?</code>", re.IGNORECASE | re.DOTALL)
 HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 CSS_URL_RE = re.compile(r"""url\(\s*(?P<q>['"]?)(?P<val>[^)'"]+)(?P=q)\s*\)""")
 
-SKIP_PREFIXES = ("http://", "https://", "//", "data:", "mailto:", "tel:", "javascript:", "#")
+SKIP_PREFIXES = ("http://", "https://", "//", "data:", "mailto:", "tel:", "javascript:", "#", "%")
 
 
 def _is_skippable(ref: str) -> bool:

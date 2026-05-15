@@ -1,4 +1,19 @@
-/* ui-kit/components/rocket.css — slot for prod WebGL rocket canvas + reduced-motion fallback. */
+/* ui-kit/components/rocket.css
+   Two surfaces in one file:
+   1. .docs-rocket / .docs-rocket__canvas / .docs-rocket__fallback —
+      slot for the landing-page WebGL rocket canvas + reduced-motion fallback.
+   2. .docs-rocket-fab — fixed bottom-right scroll-to-top FAB on every
+      doc-shell page. Ported from the legacy docs-back-to-top design:
+        • stroke-based SVG icon (premium thin-line look)
+        • idle bob + rotate animation
+        • 5 ember particles rising from the exhaust
+        • 3 CSS smoke puffs drifting down
+        • CSS flame + trail during launch
+        • conic-gradient progress ring (0→100 % of page scroll)
+        • WebGL2 smoke cloud on click (see rocket.js)
+   "Armed" gate removed — button is always clickable when visible. */
+
+/* ─── Landing-page rocket slot ───────────────────────────────── */
 
 .docs-rocket {
   position: relative;
@@ -27,78 +42,392 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .docs-rocket__canvas {
-    display: none;
-  }
-  .docs-rocket__fallback {
-    display: flex;
-  }
+  .docs-rocket__canvas   { display: none; }
+  .docs-rocket__fallback { display: flex; }
 }
 
-/* ─── Scroll-to-top FAB (docs-shell pages) ─── */
+/* ─── Rocket FAB ─────────────────────────────────────────────── */
 
-.docs-scroll-top {
+.docs-rocket-fab {
   position: fixed;
   bottom: var(--space-5);
-  right: var(--space-5);
+  /* Match topbar's right padding-inline so the FAB shares a vertical column
+     with the topbar actions (search / bug / theme toggle). The formula
+     mirrors `.docs-shell > header.topbar` in layout.css and degrades to
+     var(--space-5) on viewports narrower than --layout-shell-max. */
+  right: max(
+    var(--space-5),
+    calc((100vw - var(--layout-shell-max)) / 2 + var(--space-5))
+  );
   width: 44px;
   height: 44px;
   padding: 0;
-  border: 1.5px solid var(--line);
-  border-radius: var(--radius-full);
-  background: var(--card);
-  color: var(--accent);
-  cursor: pointer;
+  gap: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 59;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--accent);
+  font: inherit;
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  overflow: visible;       /* embers + smoke extend outside the pill */
   opacity: 0;
   pointer-events: none;
   transform: translateY(8px);
-  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out),
-    background 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out),
+    color 320ms ease,
+    border-color 320ms ease,
+    background 140ms var(--ease-out),
+    box-shadow 140ms var(--ease-out);
+  z-index: 59;
 }
 
-.docs-scroll-top[data-visible="true"] {
+.docs-rocket-fab[data-visible="true"] {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
 }
 
-.docs-scroll-top:hover {
-  background: var(--bg-mute);
+.docs-rocket-fab:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
-.docs-scroll-top:focus-visible {
+.docs-rocket-fab:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
-.docs-scroll-top svg {
-  width: 18px;
-  height: 18px;
+/* ── Progress ring ─────────────────────────────────────────────
+   Conic arc wraps the pill border and fills 0→100 % as the page
+   is scrolled. JS sets --rocket-progress (0..100) on scroll.
+   Uses inset: -3px so the ring sits right on the border; the mask
+   punches it to a 2 px band. */
+
+.docs-rocket-fab__progress-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--radius-full);
+  pointer-events: none;
+  background: conic-gradient(
+    from -90deg,
+    color-mix(in srgb, var(--accent) 88%, transparent)
+      0%,
+    color-mix(in srgb, var(--accent) 88%, transparent)
+      calc(var(--rocket-progress, 0) * 1%),
+    color-mix(in srgb, var(--line) 60%, transparent)
+      calc(var(--rocket-progress, 0) * 1%),
+    color-mix(in srgb, var(--line) 60%, transparent)
+      100%
+  );
+  -webkit-mask:
+    radial-gradient(
+      circle,
+      transparent 19.5px,
+      #000 20px,
+      #000 22px,
+      transparent 22.5px
+    );
+  mask:
+    radial-gradient(
+      circle,
+      transparent 19.5px,
+      #000 20px,
+      #000 22px,
+      transparent 22.5px
+    );
+  opacity: 0;
+  transition: opacity 320ms ease;
 }
+
+.docs-rocket-fab[data-visible="true"] .docs-rocket-fab__progress-ring {
+  opacity: 0.85;
+}
+
+.docs-rocket-fab.is-launching .docs-rocket-fab__progress-ring {
+  opacity: 0;
+  transition: opacity 420ms ease-out;
+}
+
+/* ── Inner wrap — carries SVG + particles ──────────────────────
+   28 px square, relative-positioned so all absolute children
+   (smoke, embers, flame, trail) anchor to it. */
+
+.docs-rocket-fab__rocket-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+/* ── SVG icon — stroke-based premium thin-line look ────────── */
+
+.docs-rocket-fab__rocket {
+  display: block;
+  transform-origin: 50% 62%;
+  animation: docs-rocket-fab-hover 1.7s ease-in-out infinite;
+  filter: drop-shadow(0 3px 4px rgba(37, 99, 235, 0.22));
+}
+
+.docs-rocket-fab:hover .docs-rocket-fab__rocket,
+.docs-rocket-fab:focus-visible .docs-rocket-fab__rocket {
+  animation-duration: 1s;
+}
+
+@keyframes docs-rocket-fab-hover {
+  0%,
+  100% { transform: translateY(0) rotate(0deg); }
+  50%  { transform: translateY(-2px) rotate(-3deg); }
+}
+
+/* ── Ember particles — 5 sparks rising from the exhaust ─────── */
+
+.docs-rocket-fab__ember {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 32%,
+    #fff7ed 0%,
+    #fed7aa 22%,
+    #fb923c 58%,
+    #f97316 100%
+  );
+  box-shadow: 0 0 6px rgba(251, 146, 60, 0.55);
+  opacity: 0;
+  transform: translate(-50%, 0) scale(0.3);
+  pointer-events: none;
+  --ember-drift: 0px;
+}
+
+.docs-rocket-fab__ember--1 { animation-delay:    0ms; --ember-drift: -7px; }
+.docs-rocket-fab__ember--2 { animation-delay:  320ms; --ember-drift:  6px; }
+.docs-rocket-fab__ember--3 { animation-delay:  640ms; --ember-drift: -4px; }
+.docs-rocket-fab__ember--4 { animation-delay:  960ms; --ember-drift:  8px; }
+.docs-rocket-fab__ember--5 { animation-delay: 1280ms; --ember-drift: -2px; }
+
+.docs-rocket-fab[data-visible="true"] .docs-rocket-fab__ember {
+  animation: docs-rocket-fab-ember-rise 1.7s ease-out infinite;
+}
+
+@keyframes docs-rocket-fab-ember-rise {
+  0%  { opacity: 0;    transform: translate(-50%, 6px) scale(0.3); }
+  20% { opacity: 1;    transform: translate(-50%, 2px) scale(0.75); }
+  65% { opacity: 0.78; transform: translate(calc(-50% + var(--ember-drift) * 0.55), -3px) scale(1); }
+  100%{ opacity: 0;    transform: translate(calc(-50% + var(--ember-drift)), -9px) scale(1.25); }
+}
+
+/* ── CSS smoke — 3 puffs drifting down from the nozzle ─────── */
+
+.docs-rocket-fab__smoke {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card) 42%, white 58%);
+  opacity: 0;
+  transform: translate(-50%, -2px) scale(0.5);
+}
+
+.docs-rocket-fab__smoke--left {
+  margin-left: -6px;
+  animation: docs-rocket-fab-smoke-left 1.3s ease-out infinite;
+}
+
+.docs-rocket-fab__smoke--mid {
+  animation: docs-rocket-fab-smoke-mid 1.15s ease-out infinite 0.12s;
+}
+
+.docs-rocket-fab__smoke--right {
+  margin-left: 6px;
+  animation: docs-rocket-fab-smoke-right 1.25s ease-out infinite 0.24s;
+}
+
+@keyframes docs-rocket-fab-smoke-left {
+  0%   { opacity: 0;    transform: translate(-50%, -2px) scale(0.45); }
+  22%  { opacity: 0.26; }
+  100% { opacity: 0;    transform: translate(-7px, 10px) scale(1.12); }
+}
+
+@keyframes docs-rocket-fab-smoke-mid {
+  0%   { opacity: 0;    transform: translate(-50%, -2px) scale(0.42); }
+  18%  { opacity: 0.3; }
+  100% { opacity: 0;    transform: translate(-50%, 12px) scale(1.2); }
+}
+
+@keyframes docs-rocket-fab-smoke-right {
+  0%   { opacity: 0;    transform: translate(-50%, -2px) scale(0.45); }
+  26%  { opacity: 0.26; }
+  100% { opacity: 0;    transform: translate(7px, 10px) scale(1.12); }
+}
+
+/* ── Flame — CSS pulsing flame below nozzle during launch ───── */
+
+.docs-rocket-fab__flame {
+  position: absolute;
+  left: 50%;
+  top: calc(100% - 1px);
+  width: 12px;
+  height: 18px;
+  border-radius: 50% 50% 70% 70%;
+  transform: translateX(-50%) scaleY(0.75);
+  transform-origin: 50% 0%;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.95) 0 24%, rgba(255, 255, 255, 0) 54%),
+    linear-gradient(180deg, #fde68a 0%, #fb923c 55%, #f97316 100%);
+  filter: blur(0.2px) drop-shadow(0 0 8px rgba(251, 146, 60, 0.45));
+}
+
+/* ── Trail — warm glow below rocket during launch ────────────── */
+
+.docs-rocket-fab__trail {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 1px);
+  width: 15px;
+  height: 34px;
+  border-radius: 999px;
+  opacity: 0;
+  transform: translateX(-50%) scaleY(0.52);
+  transform-origin: 50% 0%;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 250, 230, 0.66) 0%, rgba(255, 250, 230, 0.1) 46%, rgba(255, 250, 230, 0) 78%),
+    linear-gradient(180deg, rgba(251, 146, 60, 0.5) 0%, rgba(96, 165, 250, 0.26) 58%, rgba(59, 130, 246, 0) 100%);
+  filter: blur(0.92px);
+}
+
+/* ── Speed lines — streak marks during launch ────────────────── */
+
+.docs-rocket-fab__speed-line {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  width: 14px;
+  height: 2px;
+  border-radius: 999px;
+  opacity: 0;
+  transform: translate(-50%, 0) scaleX(0.5);
+  transform-origin: 50% 50%;
+  pointer-events: none;
+}
+
+.docs-rocket-fab__speed-line--a {
+  margin-left: -13px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 250, 230, 0.92) 100%);
+  filter: blur(0.4px);
+}
+
+.docs-rocket-fab__speed-line--b {
+  margin-left: 13px;
+  background: linear-gradient(90deg, rgba(255, 250, 230, 0.92) 0%, rgba(255, 255, 255, 0) 100%);
+  filter: blur(0.4px);
+}
+
+/* ── Launch state ─────────────────────────────────────────────
+   Button shell fades out (bg → transparent) while the rocket SVG
+   flies the Bézier trajectory in JS rAF. WebGL2 smoke canvas is
+   appended to body and removed when the animation ends. */
+
+.docs-rocket-fab.is-launching {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transition:
+    background-color 420ms ease-out,
+    border-color 420ms ease-out,
+    box-shadow 420ms ease-out;
+}
+
+.docs-rocket-fab.is-launching .docs-rocket-fab__rocket {
+  animation: none;
+}
+
+.docs-rocket-fab.is-launching .docs-rocket-fab__flame {
+  opacity: 1;
+  animation: docs-rocket-fab-flame 0.4s ease-in-out infinite;
+}
+
+.docs-rocket-fab.is-launching .docs-rocket-fab__ember {
+  animation: none;
+  opacity: 0;
+}
+
+.docs-rocket-fab.is-launching .docs-rocket-fab__smoke {
+  animation: none;
+  opacity: 0;
+}
+
+.docs-rocket-fab.is-launching .docs-rocket-fab__trail {
+  opacity: 0;
+  animation: none;
+}
+
+.docs-rocket-fab.is-launching .docs-rocket-fab__speed-line--a,
+.docs-rocket-fab.is-launching .docs-rocket-fab__speed-line--b {
+  display: none;
+}
+
+@keyframes docs-rocket-fab-flame {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(0.9, 0.92);
+    filter: blur(0.2px) drop-shadow(0 0 8px rgba(251, 146, 60, 0.45));
+  }
+  50% {
+    transform: translateX(-50%) scale(0.98, 1.04);
+    filter: blur(0.3px) drop-shadow(0 0 12px rgba(251, 146, 60, 0.62));
+  }
+}
+
+/* ── Mobile ────────────────────────────────────────────────────── */
 
 @media (max-width: 1024px) {
-  .docs-scroll-top {
+  .docs-rocket-fab {
     bottom: calc(var(--space-5) + 68px);
   }
 }
 
 @media (max-width: 760px) {
-  .docs-scroll-top {
+  .docs-rocket-fab {
     bottom: calc(var(--space-3) + 68px);
-    right: var(--space-3);
+    /* `right` inherits the responsive default, which degrades to
+       var(--space-5) below --layout-shell-max — same as the topbar. */
   }
 }
 
+/* ── Reduced motion ─────────────────────────────────────────────── */
+
 @media (prefers-reduced-motion: reduce) {
-  .docs-scroll-top {
-    transition: opacity 120ms linear;
-    transform: none !important;
+  .docs-rocket-fab,
+  .docs-rocket-fab:hover {
+    transform: translateY(0);
+  }
+  .docs-rocket-fab[data-visible="true"] {
+    transform: translateY(0);
+  }
+  .docs-rocket-fab__rocket,
+  .docs-rocket-fab__smoke,
+  .docs-rocket-fab__flame,
+  .docs-rocket-fab__trail,
+  .docs-rocket-fab__ember,
+  .docs-rocket-fab__speed-line {
+    animation: none !important;
+  }
+  .docs-rocket-fab.is-launching {
+    animation: none;
   }
 }

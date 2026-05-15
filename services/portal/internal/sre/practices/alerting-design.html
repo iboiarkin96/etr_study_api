@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alerting Design — Practice 09 · SRE</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">09</span>
+          <span class="pa-eyebrow__group">Group B · Observability</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">2.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Alerting Design — fewer alerts, each one actionable</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Alert on symptoms, not causes. Every alert has a runbook, a severity, and an owner. Alert noise is a first-class metric — alert fatigue kills on-call effectiveness faster than alert gaps.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Good alerting design follows three rules: alert on symptoms (SLO burn rate, user-visible error rate) not causes (CPU at 90%, disk at 80%); every alert has a runbook link, a named owner, and a documented response time; alert quality is measured by pages per engineer per week and false-positive rate. Google's target: every alert is actionable within 5 minutes. Target fewer than 5 pages per on-call engineer per shift. Any alert that fires and requires no action should be deleted or demoted to a notification.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Alerting hierarchy">
+          <svg viewBox="0 0 720 195" role="img" aria-label="Alert severity and routing hierarchy">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box pa-svg-box--accent" x="20" y="20" width="680" height="40" rx="8"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="360" y="43" text-anchor="middle" font-size="11" font-weight="700">P0 / P1 — Page immediately (PagerDuty, 5 min ACK SLA) — user-visible SLO breach</text>
+              <rect class="pa-svg-box" x="20" y="72" width="680" height="40" rx="8"/>
+              <text class="pa-svg-text" x="360" y="95" text-anchor="middle" font-size="11" font-weight="700">P2 — Ticket (Jira) + Slack notification — budget risk, degraded (not broken)</text>
+              <rect class="pa-svg-box pa-svg-box--good" x="20" y="124" width="680" height="40" rx="8"/>
+              <text class="pa-svg-text pa-svg-text--good" x="360" y="147" text-anchor="middle" font-size="11" font-weight="700">Informational — dashboard annotation only — trend to watch, not act on</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="185" text-anchor="middle" font-size="10" font-style="italic">anything that doesn't fit these three tiers should be deleted, not kept as a "just in case"</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">Three alert tiers. P0/P1 pages. P2 creates a ticket. Informational annotates dashboards. Nothing in between.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>Alerting design</strong> is the principled approach to deciding which conditions should wake someone up, which should create a ticket, and which should only appear on a dashboard. A well-designed alert has five mandatory properties:</p>
+          <ul>
+            <li><strong>Symptom-based:</strong> It fires on user-visible impact (high error rate, SLO budget burning fast) — not on internal resource usage (CPU at 90%, disk at 80%). CPU at 90% might be fine; users returning 5xx is never fine.</li>
+            <li><strong>Actionable:</strong> The on-call engineer knows exactly what to do when it fires. If the response is "wait and see," it's not a page — it's a dashboard annotation.</li>
+            <li><strong>Documented:</strong> Every alert has a runbook link in its annotation. The runbook is the first thing the on-call opens — it should be there before the engineer needs it.</li>
+            <li><strong>Owned:</strong> A named service and team is responsible for the alert. Ownerless alerts are silenced and forgotten.</li>
+            <li><strong>Reviewed:</strong> Alert rules are reviewed quarterly for accuracy — false positive rate, actionability, and continued relevance.</li>
+          </ul>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Alert fatigue is the most common on-call pathology. When engineers acknowledge 60 alerts per shift and most are noise, they stop treating alerts as signals. The psychological term is "alarm fatigue" — the same phenomenon documented in ICU nursing. When the one real alert fires, it gets acknowledged and silenced with the same muscle memory as the 59 noisy ones before it.</p>
+          <p>Fewer alerts, each meaningful, each actionable — this is the engineering target. Google's internal target is that every alert be actionable within 5 minutes. If it can't be resolved in 5 minutes, the on-call can't close the alert before the next one fires, creating an alert queue that degrades shift quality.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Google SRE (burn-rate alerts)</p>
+              <p class="pa-industry__what">Google's SRE Workbook specifies multi-window, multi-burn-rate alerts as the correct approach for SLO-based alerting. The algorithm: alert fires when both the 1-hour burn rate exceeds 14.4× and the 6-hour burn rate exceeds 6×. The two-window approach catches both fast and slow budget depletion while eliminating false positives from transient spikes that the single-window approach fires on.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Stop writing threshold alerts on raw metrics. Adopt multi-window burn-rate alerts for every SLO. The precision improvement — fewer false positives, earlier real warnings — is significant enough to justify the migration effort.</p>
+              <p class="pa-industry__source">Source: <a href="https://sre.google/workbook/alerting-on-slos/" rel="noopener">Google SRE Workbook — Alerting on SLOs</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">PagerDuty</p>
+              <p class="pa-industry__what">PagerDuty's "Operational Maturity Model" defines alert quality metrics: mean time to acknowledge (MTTA), mean time to resolve (MTTR), and "noise ratio" (alerts that require no action / total alerts). Their recommendation: any team with a noise ratio above 30% should run an alert audit before adding new alerts — new alerts on a noisy foundation make the signal-to-noise ratio worse, not better.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Measure alert quality explicitly. Pages per engineer per shift, MTTA, and noise ratio. Review these metrics monthly. A team that doesn't measure alert quality doesn't know whether its alert improvements are working.</p>
+              <p class="pa-industry__source">Source: <a href="https://response.pagerduty.com/" rel="noopener">PagerDuty Incident Response Guide</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Alert audit</p><p class="pa-anatomy__hint">Classify every existing alert as "actionable", "informational", or "noise." Delete noise. Demote informational to dashboard annotations. The audit takes one half-day sprint for a team with 50 alerts and immediately reduces on-call noise.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Runbook link requirement</p><p class="pa-anatomy__hint">Every alert rule must have a runbook URL in its annotations before it's merged to the alert repository. CI blocks alert PRs without a runbook link. "Runbook: TODO" is treated the same as no runbook — the alert doesn't ship until the runbook exists.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Alert quality dashboard</p><p class="pa-anatomy__hint">Pages per engineer per week, MTTA (mean time to acknowledge), MTTR (mean time to resolve), and noise ratio. Reviewed in the monthly SRE retrospective. Target: under 5 pages per on-call engineer per shift.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Quarterly alert review</p><p class="pa-anatomy__hint">Review every alert against its noise ratio over the past quarter. Any alert with a false-positive rate above 20% is either retuned or deleted. New alerts are only added after the team's noise ratio is below the target threshold.</p></div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr><td>Alerting on causes (CPU, disk) instead of symptoms</td><td>Infrastructure metrics are easy to instrument; user-visible symptoms require SLO definition first.</td><td>Alert on the four golden signals and SLO burn rate. CPU at 90% is not a reason to page unless it's also causing latency degradation — and if latency is degrading, the latency alert fires.</td></tr>
+                <tr><td>Alert added, never reviewed</td><td>Adding alerts is easy; removing them feels risky.</td><td>Every alert has a "review by" date set when it's created. After 90 days without a genuine trigger, it is automatically deleted unless explicitly renewed. Entropy favours alert accumulation; the process must actively fight it.</td></tr>
+                <tr><td>No owner on an alert</td><td>"The platform team owns all alerts" — no specific person.</td><td>Every alert has a named service and a named team in PagerDuty. Escalation policy routes to the right on-call. An alert without an owner is an alert that will be silenced when it becomes inconvenient.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="slo-error-budget.html">Practice 01 — SLO &amp; Error Budget</a></li>
+            <li><a class="docs-next-steps__item" href="runbooks.html">Practice 14 — Runbooks</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">SRE practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+                <td>Initial version: Alerting Design practice for SRE radar.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body></html>

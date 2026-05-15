@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test Environment Design — reliable infrastructure for tests · Practice 05 · QA Engineer</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">05</span>
+          <span class="pa-eyebrow__group">Group A · Test Strategy &amp; Risk</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">4.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Test Environment Design — reliable infrastructure for tests</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Classifies and documents each test environment by purpose, owner, and reset procedure so that flaky infrastructure never silently invalidates test results.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Test environment design is the deliberate planning of the infrastructure, data, and configuration needed to execute tests reliably. Environments are classified by purpose: local (developer-controlled, free mutation), CI (ephemeral, side-effect-free), staging (mirrors prod configuration), and prod-like (for release rehearsal). Each environment has a documented owner, reset procedure, and data seeding strategy. Environment differences are the number-one cause of "passes locally, fails in CI" — documented environments eliminate the ambiguity.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Environment tiers diagram">
+          <svg viewBox="0 0 720 200" role="img" aria-label="Four environment columns: local, CI, staging, prod-like">
+            <defs>
+              <style>
+                .env-label { font-family: ui-sans-serif,system-ui,sans-serif; font-size: 13px; fill: var(--text, #0f172a); }
+                .env-sub   { font-family: ui-monospace,monospace; font-size: 10px; fill: var(--muted-soft, #6b7280); }
+                .env-box   { rx: 8; }
+              </style>
+            </defs>
+            <!-- Local -->
+            <rect class="env-box" x="20" y="20" width="155" height="160" fill="rgba(37,99,235,0.08)" stroke="#2563eb" stroke-width="1.5"/>
+            <text class="env-label" x="97" y="50" text-anchor="middle" font-weight="700">Local</text>
+            <text class="env-sub" x="97" y="68" text-anchor="middle">developer laptop</text>
+            <text class="env-sub" x="97" y="88" text-anchor="middle">free mutation</text>
+            <text class="env-sub" x="97" y="106" text-anchor="middle">docker-compose</text>
+            <text class="env-sub" x="97" y="124" text-anchor="middle">seed data: fixtures</text>
+            <text class="env-sub" x="97" y="142" text-anchor="middle">owner: developer</text>
+            <!-- CI -->
+            <rect class="env-box" x="195" y="20" width="155" height="160" fill="rgba(139,92,246,0.08)" stroke="#8b5cf6" stroke-width="1.5"/>
+            <text class="env-label" x="272" y="50" text-anchor="middle" font-weight="700">CI</text>
+            <text class="env-sub" x="272" y="68" text-anchor="middle">GitHub Actions</text>
+            <text class="env-sub" x="272" y="88" text-anchor="middle">ephemeral · no state</text>
+            <text class="env-sub" x="272" y="106" text-anchor="middle">containers spun fresh</text>
+            <text class="env-sub" x="272" y="124" text-anchor="middle">seed data: migrations</text>
+            <text class="env-sub" x="272" y="142" text-anchor="middle">owner: CI pipeline</text>
+            <!-- Staging -->
+            <rect class="env-box" x="370" y="20" width="155" height="160" fill="rgba(13,148,136,0.08)" stroke="#0d9488" stroke-width="1.5"/>
+            <text class="env-label" x="447" y="50" text-anchor="middle" font-weight="700">Staging</text>
+            <text class="env-sub" x="447" y="68" text-anchor="middle">mirrors prod config</text>
+            <text class="env-sub" x="447" y="88" text-anchor="middle">persistent data</text>
+            <text class="env-sub" x="447" y="106" text-anchor="middle">integration testing</text>
+            <text class="env-sub" x="447" y="124" text-anchor="middle">seed data: anonymised</text>
+            <text class="env-sub" x="447" y="142" text-anchor="middle">owner: QA</text>
+            <!-- Prod-like -->
+            <rect class="env-box" x="545" y="20" width="155" height="160" fill="rgba(217,119,6,0.08)" stroke="#d97706" stroke-width="1.5"/>
+            <text class="env-label" x="622" y="50" text-anchor="middle" font-weight="700">Prod-like</text>
+            <text class="env-sub" x="622" y="68" text-anchor="middle">release rehearsal</text>
+            <text class="env-sub" x="622" y="88" text-anchor="middle">prod topology</text>
+            <text class="env-sub" x="622" y="106" text-anchor="middle">perf &amp; smoke tests</text>
+            <text class="env-sub" x="622" y="124" text-anchor="middle">seed data: prod snapshot</text>
+            <text class="env-sub" x="622" y="142" text-anchor="middle">owner: SRE + QA</text>
+          </svg>
+          <figcaption class="pa-figure__caption">Four environment tiers, each with a distinct purpose, owner, and data strategy. Mixing them causes silent invalidation of test results.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>Test environment design is the practice of deliberately specifying and documenting the infrastructure, data, and configuration needed to execute tests reliably. It is a design activity, not an afterthought — environment decisions made early in the project prevent the "passes locally, fails in CI" class of problems that erode team trust in automated testing.</p>
+          <p>A well-designed test environment strategy classifies environments by purpose and enforces that each environment is used only for its intended purpose. The four canonical tiers are:</p>
+          <ul>
+            <li><strong>Local:</strong> The developer's laptop or dev container. Data can be freely mutated, reset, and re-seeded. Not used for test result evidence.</li>
+            <li><strong>CI:</strong> A fresh, ephemeral environment spun up for each pull request. Contains no persistent state between runs. Uses migration-based seeding. All tests run here must be side-effect-free.</li>
+            <li><strong>Staging:</strong> A persistent environment whose configuration mirrors production (same service versions, same feature flags, same external service URLs). Used for integration testing and QA sign-off. Data is anonymised production snapshots or carefully maintained seed data.</li>
+            <li><strong>Prod-like (pre-production):</strong> Used for release rehearsal, performance testing, and smoke testing before each release. Has production topology (same number of nodes, same load balancer configuration). Data is a recent production snapshot.</li>
+          </ul>
+          <p>Each environment has a documented owner (who is responsible for keeping it healthy), a reset procedure (how to restore it to a known state), and a data seeding strategy (what data it contains and how it got there).</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Flaky tests caused by environment differences are the leading cause of test suite distrust. When a test fails in CI but passes locally, the team must spend time investigating whether the failure is a real defect or an environment artefact. If environment problems are frequent, developers learn to re-run failing tests until they pass — and real defects get ignored.</p>
+          <p>The 12-Factor App principle of "dev/prod parity" articulates the same insight: the greater the gap between development and production environments, the greater the chance that a defect is present in production but not visible in testing. Test environment design is the practice of minimising that gap deliberately rather than accidentally.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Martin Fowler (Continuous Integration)</p>
+              <p class="pa-industry__what">Fowler's seminal CI article and the associated bliki entries describe "testing in a clone of production" as one of the ten practices of continuous integration. He distinguishes between the CI environment (ephemeral, side-effect-free, runs on every commit) and the staging environment (persistent, production-like, used for integration testing). The key principle is that CI must be fast enough that developers run it before committing — environment complexity that slows CI kills the practice.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> CI environment must be side-effect-free and fast. Any external dependency (database, third-party API) must be mocked or containerised in CI.</p>
+              <p class="pa-industry__source">Source: <a href="https://martinfowler.com/articles/continuousIntegration.html" rel="noopener">Martin Fowler — Continuous Integration</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Netflix</p>
+              <p class="pa-industry__what">Netflix's engineering blog describes their "environment per build" approach where every CI build produces its own isolated environment. This eliminates environment sharing conflicts (two builds testing against the same staging database and contaminating each other's data). Netflix uses AWS ECS and containerisation to make per-build environments fast to spin up and cheap to run. Their chaos engineering practice (Chaos Monkey) requires production-like environments for chaos tests.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Ephemeral CI environments are achievable with containers and eliminate the class of "environment state contamination" failures entirely.</p>
+              <p class="pa-industry__source">Source: <a href="https://netflixtechblog.com/" rel="noopener">Netflix Tech Blog</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">12factor.net</p>
+              <p class="pa-industry__what">The twelve-factor app methodology dedicates a full factor to "dev/prod parity": keep development, staging, and production as similar as possible. The three gaps to minimise are the time gap (deploy frequently), the personnel gap (developers own production), and the tools gap (same backing services). The methodology specifically warns against using SQLite in development when production uses PostgreSQL — a class of environment difference that produces silent test failures.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Use the same backing services in all environments (same database engine, same cache engine). Never use SQLite in CI if production uses PostgreSQL.</p>
+              <p class="pa-industry__source">Source: <a href="https://12factor.net/dev-prod-parity" rel="noopener">12factor.net — Dev/Prod Parity</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Environment registry</p>
+              <p class="pa-anatomy__hint">A documented list of all environments: name, purpose, owner, URL/access, and data strategy. Maintained in the test environments reference page.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Reset procedure</p>
+              <p class="pa-anatomy__hint">Step-by-step instructions for restoring each environment to a known clean state. Automated where possible (a Make target or CI pipeline).</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Data seeding strategy</p>
+              <p class="pa-anatomy__hint">How each environment gets its data: fixtures (local), migrations (CI), anonymised snapshot (staging), production snapshot (prod-like).</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Service dependency map</p>
+              <p class="pa-anatomy__hint">Which backing services (database, cache, external APIs) each environment uses, and which are mocked versus real.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Environment usage policy</p>
+              <p class="pa-anatomy__hint">Written rules about which tests can run in which environments. CI must be side-effect-free; staging must not be used for destructive tests.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Shared mutable staging</td>
+                  <td>Multiple developers run tests against the same staging environment simultaneously, contaminating each other's data and causing non-deterministic failures.</td>
+                  <td>Provision per-developer or per-PR ephemeral environments for integration testing. Or strictly serialise staging access with a queue and automatic state reset between users.</td>
+                </tr>
+                <tr>
+                  <td>Different backing services across environments</td>
+                  <td>SQLite in CI, PostgreSQL in production — or Redis mocked in CI but real in staging. Differences introduce a class of failures that only appear in production.</td>
+                  <td>Use the same backing service in all environments. Containerisation makes this cheap: a Docker Compose file with PostgreSQL costs the same to run as SQLite.</td>
+                </tr>
+                <tr>
+                  <td>Undocumented environment state</td>
+                  <td>Nobody knows what data is currently in staging because the reset procedure is manual and inconsistently applied.</td>
+                  <td>Automate the reset procedure as a Make target or CI pipeline. Require a fresh reset before every QA test cycle. Document the expected state in the environment registry.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="test-oracle-definition.html">← 04 · Test Oracle Definition</a></li>
+            <li><a class="docs-next-steps__item" href="boundary-value-analysis.html">06 · Boundary Value Analysis →</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Back to radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: Test Environment Design practice for QA Engineer radar.</td>
+                  <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

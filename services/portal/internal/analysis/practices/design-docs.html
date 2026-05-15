@@ -85,7 +85,235 @@
 
         <section id="deep-dive" class="card">
           <h2>Deep dive — the theory you need</h2>
-          <div class="pa-deepdive"><h3>What goes in a Design Doc, and why</h3><p>The structure is not arbitrary. Each section answers one question that a reviewer must answer before they can disagree responsibly:</p><ul><li><strong>Context</strong> — <em>What do I need to know first?</em> The reviewer needs the same background as the author. Two paragraphs cap.</li><li><strong>Problem</strong> — <em>Is this a real problem?</em> One paragraph with a measurable symptom (latency, ticket count, drift rate). No symptom, no problem.</li><li><strong>Goals &amp; non-goals</strong> — <em>What is in scope?</em> Non-goals are as important as goals; they stop scope creep in the review.</li><li><strong>Alternatives</strong> — <em>Did the author look around?</em> Two or three real options. Each must be defensible — no straw men.</li><li><strong>Proposal</strong> — <em>What do I do if I disagree?</em> The recommended path in enough detail that a reviewer can write a counter-argument.</li><li><strong>Risks</strong> — <em>What is the author worried about?</em> Includes boring ones (migrations, dependencies).</li><li><strong>Rollout</strong> — <em>How will we land it safely?</em> Order of work and rollback path.</li><li><strong>Open questions</strong> — <em>What does the author not know?</em> A short list signals honesty.</li></ul><h4>Design Doc vs ADR vs Spec — they are three different documents</h4><p>This is the single most common confusion.</p><ul><li><strong>Design Doc</strong> — proposal stage. Alternatives are alive. Status: <em>under review</em>.</li><li><strong>ADR</strong> — decision stage. One option won; the others are now history. Status: <em>accepted</em>.</li><li><strong>Spec</strong> — implementation stage. Final shape of the code or API. Lives next to the code.</li></ul><p>A change of consequence walks through all three: Design Doc proposes, ADR records the chosen path, Spec describes what shipped.</p></div>
+          <div class="pa-deepdive"><h3>What goes in a Design Doc, and why</h3><p>The structure is not arbitrary. Each section answers one question that a reviewer must answer before they can disagree responsibly:</p><ul><li><strong>Context</strong> — <em>What do I need to know first?</em> The reviewer needs the same background as the author. Two paragraphs cap.</li><li><strong>Problem</strong> — <em>Is this a real problem?</em> One paragraph with a measurable symptom (latency, ticket count, drift rate). No symptom, no problem.</li><li><strong>Goals &amp; non-goals</strong> — <em>What is in scope?</em> Non-goals are as important as goals; they stop scope creep in the review.</li><li><strong>Alternatives</strong> — <em>Did the author look around?</em> Two or three real options. Each must be defensible — no straw men.</li><li><strong>Proposal</strong> — <em>What do I do if I disagree?</em> The recommended path in enough detail that a reviewer can write a counter-argument.</li><li><strong>Risks</strong> — <em>What is the author worried about?</em> Includes boring ones (migrations, dependencies).</li><li><strong>Rollout</strong> — <em>How will we land it safely?</em> Order of work and rollback path.</li><li><strong>Open questions</strong> — <em>What does the author not know?</em> A short list signals honesty.</li></ul><h4>Design Doc vs ADR vs Spec — they are three different documents</h4><p>This is the single most common confusion.</p><ul><li><strong>Design Doc</strong> — proposal stage. Alternatives are alive. Status: <em>under review</em>.</li><li><strong>ADR</strong> — decision stage. One option won; the others are now history. Status: <em>accepted</em>.</li><li><strong>Spec</strong> — implementation stage. Final shape of the code or API. Lives next to the code.</li></ul><p>A change of consequence walks through all three: Design Doc proposes, ADR records the chosen path, Spec describes what shipped.</p><h4>Trade-offs — what this practice costs</h4><ul><li><strong>Time before code.</strong> A doc is one to three days of writing and one to two days of review — billed against feature velocity. For small changes the doc is overhead; the rule that gates it (touches &gt; 1 service, new dependency, contract change) must be enforced to keep that overhead off routine work.</li><li><strong>Async vs sync review.</strong> A doc reviewed only on the PR is faster but less rigorous; a 30-min sync review catches more but costs a calendar slot from 4–6 engineers. Pick one mode per doc up front; mixing them is the worst of both.</li><li><strong>Stale Design Docs.</strong> A doc that lands in <em>accepted</em> and then changes course in the code is a lie waiting to happen. The retirement step (<em>retired</em> status with a forward link to the ADR) is what keeps the doc honest after shipping.</li></ul></div>
+        </section>
+
+        <section id="pipeline" class="card">
+          <h2>The full proposal-to-ship pipeline</h2>
+          <p>Five names — <strong>Design Doc</strong>, <strong>ADR</strong>, <strong>RFC</strong>, <strong>Spec</strong>, <strong>JIRA ticket</strong> — describe consecutive stages of the same idea. The exact order and overlap depend on each team's convention. Below is the convention used in <em>this</em> project, and a comparison with the two main industry conventions so the names don't trip you up when reading external docs.</p>
+
+          <h3>This project's convention (ADR → RFC)</h3>
+          <p>The project defines RFC and ADR with a precise split, written down on the <a href="../../governance/rfc/index.html">RFC index page</a>:</p>
+          <blockquote style="margin:0 0 12px;padding:10px 14px;border-left:3px solid var(--accent);background:color-mix(in srgb, var(--accent) 5%, transparent);font-style:italic">
+            ADRs record <strong>what</strong> we decided and <strong>why</strong>. RFCs spell out <strong>how</strong> we build and run things — implementation detail, design rationale, operational steps. An RFC usually follows an ADR and provides the specification the ADR intentionally omits.
+          </blockquote>
+          <p>So in this repo, <strong>ADR comes first</strong>, <strong>RFC follows</strong>. ADRs are one-page decision records (32 of them today, in <code>governance/adr/</code>); RFCs are longer "how to do this in practice" documents (6 of them today, in <code>governance/rfc/</code>). The Design Doc is the proposal stage that feeds the ADR, and lives in its own <code>design-docs/</code> folder once that is wired up.</p>
+
+          <figure class="pa-figure" aria-label="Proposal to ship pipeline">
+            <svg viewBox="0 0 1000 240" role="img" aria-label="Idea to production pipeline">
+              <rect class="pa-svg-box" x="20" y="90" width="100" height="80" rx="10"/>
+              <text class="pa-svg-text" x="70" y="120" text-anchor="middle" font-weight="600">Idea</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="70" y="140" text-anchor="middle" font-size="11">in someone's head</text>
+
+              <rect class="pa-svg-box pa-svg-box--accent" x="145" y="70" width="150" height="120" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="220" y="95" text-anchor="middle" font-weight="700">Design Doc</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="220" y="118" text-anchor="middle" font-size="11">proposal stage</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="220" y="132" text-anchor="middle" font-size="11">alternatives alive</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="220" y="146" text-anchor="middle" font-size="11">comments in PR</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="220" y="172" text-anchor="middle" font-size="10" font-style="italic">design-docs/NNNN</text>
+
+              <rect class="pa-svg-box pa-svg-box--good" x="320" y="90" width="120" height="80" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--good" x="380" y="115" text-anchor="middle" font-weight="700">ADR</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="380" y="135" text-anchor="middle" font-size="11">what + why</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="380" y="150" text-anchor="middle" font-size="11">one page</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="380" y="173" text-anchor="middle" font-size="10" font-style="italic">governance/adr/NNNN</text>
+
+              <rect class="pa-svg-box pa-svg-box--good" x="465" y="90" width="120" height="80" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--good" x="525" y="115" text-anchor="middle" font-weight="700">RFC</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="525" y="135" text-anchor="middle" font-size="11">how</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="525" y="150" text-anchor="middle" font-size="11">long-form spec</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="525" y="173" text-anchor="middle" font-size="10" font-style="italic">governance/rfc/NNNN</text>
+
+              <rect class="pa-svg-box" x="610" y="90" width="120" height="80" rx="10"/>
+              <text class="pa-svg-text" x="670" y="115" text-anchor="middle" font-weight="600">Spec artefact</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="670" y="135" text-anchor="middle" font-size="11">OpenAPI / schema</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="670" y="150" text-anchor="middle" font-size="11">final shape</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="670" y="173" text-anchor="middle" font-size="10" font-style="italic">openapi.yaml, migration</text>
+
+              <rect class="pa-svg-box" x="755" y="90" width="120" height="80" rx="10"/>
+              <text class="pa-svg-text" x="815" y="115" text-anchor="middle" font-weight="600">JIRA tickets</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="815" y="135" text-anchor="middle" font-size="11">5–10 tasks</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="815" y="150" text-anchor="middle" font-size="11">2-week sprint</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="815" y="173" text-anchor="middle" font-size="10" font-style="italic">JIRA / Linear</text>
+
+              <path class="pa-svg-arrow" d="M120 130 L140 130 L133 126 M140 130 L133 134"/>
+              <path class="pa-svg-arrow" d="M295 130 L315 130 L308 126 M315 130 L308 134"/>
+              <path class="pa-svg-arrow" d="M440 130 L460 130 L453 126 M460 130 L453 134"/>
+              <path class="pa-svg-arrow" d="M585 130 L605 130 L598 126 M605 130 L598 134"/>
+              <path class="pa-svg-arrow" d="M730 130 L750 130 L743 126 M750 130 L743 134"/>
+
+              <text class="pa-svg-text pa-svg-text--muted" x="500" y="220" text-anchor="middle" font-size="12" font-style="italic">Idea → proposal → decision → specification → tasks. Not every change needs every box.</text>
+            </svg>
+            <figcaption class="pa-figure__caption">This project's pipeline. The colour shift at ADR marks where alternatives stop being alive.</figcaption>
+          </figure>
+
+          <h3>What each stage answers (this project)</h3>
+          <div class="docs-table-scroll" role="region" aria-label="Pipeline stages">
+            <table>
+              <thead><tr><th scope="col">Stage</th><th scope="col">Answers</th><th scope="col">Length</th><th scope="col">Status when "done"</th><th scope="col">Lives in</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Design Doc</strong></td><td><em>Which path should we take?</em></td><td>2–10 pages</td><td>accepted (one option won)</td><td><code>design-docs/NNNN-…html</code> (planned)</td></tr>
+                <tr><td><strong>ADR</strong></td><td><em>What did we decide and why?</em></td><td>1 page</td><td>accepted (record is permanent)</td><td><code>governance/adr/NNNN-…html</code></td></tr>
+                <tr><td><strong>RFC</strong></td><td><em>How do we build and run it?</em></td><td>5–30 pages</td><td>accepted (specification frozen)</td><td><code>governance/rfc/NNNN-…html</code></td></tr>
+                <tr><td><strong>Spec artefact</strong></td><td><em>What is the final shape in code?</em></td><td>varies</td><td>merged into the code repo</td><td><code>openapi.yaml</code>, <code>asyncapi.yaml</code>, schema migration</td></tr>
+                <tr><td><strong>JIRA tickets</strong></td><td><em>Who does what when?</em></td><td>5–10 tickets per RFC</td><td>each ticket merged + deployed</td><td>JIRA (or Linear / GitHub Projects)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Three industry conventions — how the names overlap</h3>
+          <p>Outside this repo, the words RFC / ADR / Design Doc are used differently by different communities. The three patterns you will most often encounter:</p>
+          <div class="docs-table-scroll" role="region" aria-label="Industry conventions">
+            <table>
+              <thead><tr><th scope="col">Convention</th><th scope="col">Who uses it</th><th scope="col">Proposal stage</th><th scope="col">Decision record</th><th scope="col">Implementation spec</th></tr></thead>
+              <tbody>
+                <tr><td><strong>This project</strong></td><td>Study App (here)</td><td>Design Doc</td><td>ADR (1 page)</td><td>RFC (long-form)</td></tr>
+                <tr><td><strong>"Design Doc + ADR"</strong></td><td>Google, Stripe, AWS</td><td>Design Doc</td><td>ADR (1 page)</td><td>none — Spec is in the code (OpenAPI, schema, etc.)</td></tr>
+                <tr><td><strong>"RFC merge = decision"</strong></td><td>Rust, HashiCorp, Python PEP</td><td>RFC (long, public)</td><td>none — the merged RFC IS the decision</td><td>same RFC + tracking issue</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>When you read a HashiCorp or Rust RFC, do not look for a separate ADR — there isn't one. When you read a Google Design Doc, do not expect an RFC — Google does not use that word. The shape of the artefact you find tells you which convention the team chose.</p>
+
+          <h3>RFC vs Design Doc — the source of the confusion</h3>
+          <p>The names mean different things in different places, and that is the only reason the question feels confusing:</p>
+          <ul>
+            <li><strong>This project's RFC</strong> = long-form implementation spec that follows an ADR. Status often stays <em>Proposed</em> for weeks while the team comments on the details.</li>
+            <li><strong>Rust / HashiCorp RFC</strong> = the proposal stage itself — alternatives are alive, the merge of the RFC PR is the decision.</li>
+            <li><strong>Google Design Doc</strong> = same role as the Rust RFC — proposal stage, alternatives alive — but reviewed internally and faster.</li>
+          </ul>
+          <p>So "RFC" in this project ≠ "RFC" in the wider open-source world. Names are local. The pipeline shape is what matters.</p>
+          <p>Below are two real templates from the Rust / HashiCorp tradition. They are useful here because the project's Design Doc draws on them and the project's RFC borrows several sections (Drawbacks, Alternatives, Prior Art).</p>
+
+          <h3>Template: HashiCorp Terraform RFC</h3>
+          <p>From the public Terraform RFC repository. Used for any change to the Terraform language, providers, or core behaviour.</p>
+          <pre class="docs-code"><code class="language-text"># RFC NNNN — &lt;short title&gt;
+
+## Summary
+One paragraph explaining the feature.
+
+## Motivation
+Why are we doing this? What use cases does it support?
+What is the expected outcome?
+
+## Stakeholders
+Who is affected? Who must agree before this lands?
+
+## Design Proposal
+Detailed design. Diagrams, examples, edge cases.
+
+## Drawbacks
+Why should we *not* do this?
+
+## Alternatives
+What other designs were considered? Why were they rejected?
+
+## Prior Art
+What can we learn from how other tools / projects solved this?
+
+## Unresolved Questions
+What parts of the design are still open?
+
+## References
+Links to issues, related RFCs, external standards.</code></pre>
+          <p>Source: <a href="https://github.com/hashicorp/terraform/tree/main/rfc" rel="noopener">github.com/hashicorp/terraform/tree/main/rfc</a></p>
+
+          <h3>Template: Rust RFC</h3>
+          <p>From the Rust language RFC process. Used for any change to the language, standard library, or compiler.</p>
+          <pre class="docs-code"><code class="language-text"># Feature Name: &lt;feature_name&gt;
+- Start Date: YYYY-MM-DD
+- RFC PR: &lt;link to PR&gt;
+- Rust Issue: &lt;link to tracking issue&gt;
+
+## Summary
+One paragraph explanation of the feature.
+
+## Motivation
+Why are we doing this? What use cases does it support?
+What is the expected outcome?
+
+## Guide-level explanation
+Explain the proposal as if it were already accepted and we were
+teaching it to a new Rust programmer. Examples, terminology.
+
+## Reference-level explanation
+The technical portion of the RFC. Interaction with other features,
+corner cases, implementation details.
+
+## Drawbacks
+Why should we *not* do this?
+
+## Rationale and alternatives
+Why is this design the best in the space of possible designs?
+What other designs have been considered? What is the impact of not doing this?
+
+## Prior art
+Discuss prior art (good and bad) in relation to this proposal.
+
+## Unresolved questions
+What parts of the design do you expect to resolve through the RFC process?
+What parts do you expect to resolve through the implementation?
+
+## Future possibilities
+Think about what the natural extension and evolution of your proposal would be.</code></pre>
+          <p>Source: <a href="https://github.com/rust-lang/rfcs/blob/master/0000-template.md" rel="noopener">github.com/rust-lang/rfcs/blob/master/0000-template.md</a></p>
+
+          <h3>Template: this project's Design Doc</h3>
+          <p>Inspired by Google's Design Doc shape, kept tighter than the Rust/HashiCorp RFC:</p>
+          <pre class="docs-code"><code class="language-text">## Context
+Two paragraphs of background. What the reviewer needs to know.
+
+## Problem
+One paragraph. A concrete, measurable symptom.
+
+## Goals &amp; non-goals
+What success looks like; what this change explicitly does NOT try to fix.
+
+## Alternatives
+Two or three real options, each with trade-offs. No straw men.
+
+## Proposal
+The path we recommend, in enough detail to argue with.
+
+## Risks
+What could go wrong, including the boring risks (migrations, deps).
+
+## Rollout &amp; metrics
+Order of work; how we measure success; what we watch in week 1.
+
+## Open questions
+Things the author does not know yet.</code></pre>
+
+          <h3>End-to-end example — search rewrite (worked through this project's pipeline)</h3>
+          <ol>
+            <li><strong>Idea (week 0, Tuesday).</strong> Engineer notices P95 search latency is 1.6 s, complains in the team channel.</li>
+            <li><strong>Design Doc (week 1).</strong> Author writes <code>design-docs/0042-search-rewrite.html</code> with three alternatives (cache the grep / inverted index at CI / off-the-shelf engine). Two reviewers comment on the PR for two days. Team agrees on option B.</li>
+            <li><strong>ADR (week 1, Friday).</strong> <code>governance/adr/0033-inverted-index-search.html</code> is filed with three sections — Context, Decision, Consequences. One page. Alternatives are now history. The Design Doc moves to <em>retired</em> with a forward link to ADR 0033.</li>
+            <li><strong>RFC (week 2).</strong> <code>governance/rfc/0005-search-index-implementation.html</code> spells out <em>how</em>: index file format, build trigger, memory budget at portal start, fallback path if the index is missing, monitoring on index freshness, rollback procedure. The RFC is reviewed for a week; team comments resolve into a frozen specification.</li>
+            <li><strong>Spec artefact (week 3).</strong> The actual file format (JSON schema for the index entries) lives next to the indexer in the code repo. The RFC links to it; the schema is the binding artefact.</li>
+            <li><strong>JIRA tickets (week 3).</strong> The RFC is broken into 6 tickets: SEARCH-101 (indexer script), SEARCH-102 (CI job), SEARCH-103 (load index in portal), SEARCH-104 (replace grep path behind a feature flag), SEARCH-105 (monitoring on freshness), SEARCH-106 (rollout + metrics).</li>
+            <li><strong>Code (weeks 3–4).</strong> Each ticket becomes a PR. Standard review, merge, deploy behind the flag.</li>
+            <li><strong>Rollout (week 5).</strong> Flag flipped to 100% after a week of canary; P95 falls from 1.6 s to 35 ms. SEARCH-106 closed; RFC moves to <em>implemented</em> in its status block.</li>
+          </ol>
+
+          <h3>When you skip stages</h3>
+          <ul>
+            <li><strong>Skip Design Doc</strong> for changes with no real alternative — only one viable path. Go directly from Idea to ADR.</li>
+            <li><strong>Skip RFC</strong> when the ADR is already concrete enough that the team can break it into JIRA tickets without a long-form spec. About half the project's ADRs (the smaller ones — naming conventions, idempotency rules, single-knob policies) do not need an RFC.</li>
+            <li><strong>Skip ADR + RFC</strong> entirely for routine work: dependency bumps, bug fixes, single-service refactors. Idea → JIRA. Most engineering hours go here.</li>
+            <li><strong>Never skip JIRA</strong> when the work spans more than one PR; broken-down tickets are the only way the team sees progress.</li>
+          </ul>
+
+          <h3>How to know which stages a piece of work needs</h3>
+          <p>Five quick yes/no questions:</p>
+          <ol>
+            <li>Are there two or more real ways to solve this? → <strong>Design Doc</strong>.</li>
+            <li>Will engineers six months from now wonder why we did it this way? → <strong>ADR</strong>.</li>
+            <li>Does the team need a written spec longer than one page (operational steps, data formats, rollback)? → <strong>RFC</strong>.</li>
+            <li>Is there an API or schema change other teams must read? → <strong>Spec artefact</strong> (OpenAPI / AsyncAPI / migration).</li>
+            <li>Does the work fit in more than one PR or take more than one engineer? → <strong>JIRA tickets</strong>.</li>
+          </ol>
+          <p>Answer "yes" to a question, the stage is in. Answer "no", skip it. The pipeline is a checklist, not a ritual.</p>
         </section>
 
         <section id="lifecycle" class="card">
@@ -109,7 +337,7 @@
 
         <section id="example" class="card">
           <h2>Worked example</h2>
-          <div class="pa-example"><div class="pa-example__head"><span class="pa-example__tag">Worked example</span><p class="pa-example__title">0042 — Replace the in-process search with an inverted index</p></div><div class="pa-example__body"><p><strong>Context.</strong> Today the portal grep-walks the page tree at request time. P95 query latency is 1.6 s on the analysis subtree (8 k files). Users have complained twice this quarter.</p><p><strong>Problem.</strong> Search is the second-most-clicked surface; 1.6 s P95 is above the 800 ms SLO.</p><p><strong>Alternatives.</strong></p><ul><li><strong>A. Cache the grep result.</strong> Cheap. Fixes cold-start only; warm path still iterates files.</li><li><strong>B. Inverted index at CI time.</strong> ~200 ms cold, ~30 ms warm. Adds a build artefact and a CI step.</li><li><strong>C. Off-the-shelf engine (Tantivy, Bleve).</strong> Strongest performance, biggest surface area to maintain.</li></ul><p><strong>Proposal.</strong> Option B. Build cost is acceptable (≈8 s in CI); the index file ships with the docs and is read into memory on portal start.</p><p><strong>Risks.</strong> Build-time index can desync from sources if the script silently fails. Mitigation: a non-zero exit code in the indexer fails the docs CI job.</p><p><strong>Rollout.</strong> Land behind a flag for two weeks; compare P95 in production; remove the old grep path.</p><p><strong>Open questions.</strong> JSON or binary index format? Defer to the implementation PR.</p></div></div>
+          <div class="pa-example"><div class="pa-example__head"><span class="pa-example__tag">Worked example</span><p class="pa-example__title">0042 — Replace the in-process search with an inverted index</p></div><div class="pa-example__body"><p><strong>Context.</strong> Today the portal grep-walks the page tree at request time. P95 query latency is 1.6 s on the analysis subtree (8 k files). Users have complained twice this quarter.</p><p><strong>Problem.</strong> Search is the second-most-clicked surface; 1.6 s P95 is above the 800 ms SLO.</p><p><strong>Alternatives.</strong></p><ul><li><strong>A. Cache the grep result.</strong> Cheap. Fixes cold-start only; warm path still iterates files.</li><li><strong>B. Inverted index at CI time.</strong> ~200 ms cold, ~30 ms warm. Adds a build artefact and a CI step.</li><li><strong>C. Off-the-shelf engine (Tantivy, Bleve).</strong> Strongest performance, biggest surface area to maintain.</li></ul><p><strong>Proposal.</strong> Option B. Build cost is acceptable (≈8 s in CI); the index file ships with the docs and is read into memory on portal start.</p><p><strong>Risks.</strong> Build-time index can desync from sources if the script silently fails. Mitigation: a non-zero exit code in the indexer fails the docs CI job.</p><p><strong>Rollout.</strong> Land behind a flag for two weeks; compare P95 in production; remove the old grep path.</p><p><strong>Open questions.</strong> JSON or binary index format? Defer to the implementation PR.</p><p><strong>Outcome.</strong> The Design Doc is reviewed in the PR; option B is picked; the implementation PR opens the next day with the doc number in its title; ADR 0042 is filed once the rollout completes and the Design Doc moves to <em>retired</em> with a forward link.</p></div></div>
         </section>
 
         <section id="quality" class="card">

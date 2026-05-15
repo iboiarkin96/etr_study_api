@@ -1,4 +1,11 @@
-/* ui-kit/components/toc.css — right-rail on-this-page list (desktop only). */
+/* ui-kit/components/toc.css — right-rail "On this page" navigation.
+   Two-level hierarchy (h2 base + h3 indented), scroll-spy active highlight,
+   one-click collapse that hands the rail's width back to <main>.
+
+   Sizing: fixed 220 px column in the grid. When collapsed the column
+   collapses to 0 (see body[data-toc-collapsed="true"] rule at the bottom)
+   and the aside detaches to a small right-edge tab so the reader can
+   re-open it. */
 
 .docs-toc {
   position: sticky;
@@ -39,7 +46,9 @@
   color: var(--muted);
   text-decoration: none;
   line-height: 1.4;
-  transition: color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+  transition:
+    color 140ms var(--ease-out),
+    border-color 140ms var(--ease-out);
 }
 
 .docs-toc__link:hover {
@@ -51,22 +60,37 @@
   outline-offset: 2px;
 }
 
+/* ── Hierarchy ─────────────────────────────────────────────────
+   H3 items are styled two ways so both authoring styles work:
+   1. Nested <ol class="docs-toc__list"> inside an <li> (DOM-driven).
+   2. Explicit .docs-toc__item--h3 modifier on a flat list (class-driven).
+   H4+ are skipped (don't render). */
+
+.docs-toc__list .docs-toc__list .docs-toc__link,
 .docs-toc__item--h3 .docs-toc__link {
   padding-left: var(--space-5);
   font-size: var(--fs-100);
+  color: var(--muted-soft);
 }
 
-.docs-toc__item--active .docs-toc__link {
+.docs-toc__list .docs-toc__list .docs-toc__list {
+  display: none;
+}
+
+.docs-toc__item--active .docs-toc__link,
+.docs-toc__item--active > a.docs-toc__link {
   border-left-color: var(--accent);
   color: var(--accent);
   font-weight: var(--fw-medium);
 }
 
-/* Collapse header */
+/* ── Collapse header ─────────────────────────────────────────── */
+
 .docs-toc__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   padding: 0 var(--space-3) var(--space-1);
   margin-bottom: var(--space-1);
 }
@@ -74,22 +98,26 @@
 .docs-toc__header .docs-toc__title {
   margin: 0;
   padding: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .docs-toc__toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  border: none;
+  border: 0;
   background: transparent;
   color: var(--muted-soft);
   cursor: pointer;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
-  transition: color 140ms var(--ease-out), background 140ms var(--ease-out);
+  transition:
+    color 140ms var(--ease-out),
+    background 140ms var(--ease-out);
 }
 
 .docs-toc__toggle:hover {
@@ -105,19 +133,118 @@
 .docs-toc__toggle svg {
   width: 10px;
   height: 10px;
-  transition: transform 200ms var(--ease-out);
+  transition: transform 220ms var(--ease-out);
 }
 
-.docs-toc[data-collapsed] .docs-toc__toggle svg {
+/* ── Collapsed state ──────────────────────────────────────────
+   The aside leaves the grid flow and becomes a slim vertical
+   bookmark-tab anchored to the viewport's right edge. <main>
+   reclaims the column width via the body[data-toc-collapsed="true"]
+   grid override below. Click the chevron disc to re-expand.
+
+   Visual: rotated "On this page" label reads bottom-to-top below a
+   small accent-tinted chevron disc. The whole tab sits vertically
+   centered on the viewport so it's discoverable without being
+   intrusive. Hover tints the surface and brightens the label so it
+   reads as an affordance, not chrome. */
+
+.docs-toc[data-collapsed] {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  left: auto;
+  width: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  z-index: 5;
+  overflow: visible;
+  transform: translateY(-50%);
+  transition:
+    background 200ms var(--ease-out),
+    border-color 200ms var(--ease-out),
+    box-shadow 200ms var(--ease-out);
+}
+
+.docs-toc[data-collapsed]:hover,
+.docs-toc[data-collapsed]:focus-within {
+  background: color-mix(in srgb, var(--accent) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+  box-shadow: var(--shadow-md);
+}
+
+.docs-toc[data-collapsed] .docs-toc__header {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 6px 14px;
+  margin: 0;
+}
+
+.docs-toc[data-collapsed] .docs-toc__title {
+  display: block;
+  margin: 0;
+  padding: 0;
+  writing-mode: vertical-rl;
   transform: rotate(180deg);
+  font-size: var(--fs-100);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-soft);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  transition: color 200ms var(--ease-out);
+}
+
+.docs-toc[data-collapsed]:hover .docs-toc__title,
+.docs-toc[data-collapsed]:focus-within .docs-toc__title {
+  color: var(--accent);
 }
 
 .docs-toc[data-collapsed] .docs-toc__list {
   display: none;
 }
 
+.docs-toc[data-collapsed] .docs-toc__toggle {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.docs-toc[data-collapsed] .docs-toc__toggle:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.docs-toc[data-collapsed] .docs-toc__toggle svg {
+  width: 11px;
+  height: 11px;
+  transform: rotate(90deg); /* point ← (expand toward main) */
+}
+
+.docs-toc:not([data-collapsed]) .docs-toc__toggle svg {
+  transform: rotate(-90deg); /* point → (collapse away from main) */
+}
+
+/* Grid override — when body declares the TOC collapsed, the column
+   shrinks to 0 and <main> absorbs the recovered width. */
+body[data-toc-collapsed="true"] .docs-shell {
+  grid-template-columns: var(--layout-sidebar) minmax(0, 1fr) 0;
+}
+
 @media (max-width: 1024px) {
   .docs-toc {
     display: none;
+  }
+  body[data-toc-collapsed="true"] .docs-shell {
+    grid-template-columns: 1fr; /* mobile cascade still wins */
   }
 }

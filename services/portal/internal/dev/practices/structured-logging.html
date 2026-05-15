@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Structured Logging — JSON, context, severity — Practice 16 · Developer</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">16</span>
+          <span class="pa-eyebrow__group">Group D · Observability &amp; operability</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">4.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Structured Logging — JSON, context, severity</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">The engineer writes <code>log.info("checkout.submitted", order_id=42, amount_cents=1999)</code> instead of <code>print(f"order {x} done")</code> — every line becomes a queryable event, joined to traces and metrics by the correlation IDs the logger fills in automatically.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Structured logging means every log line is a JSON object with a fixed schema: <code>timestamp</code>, <code>level</code>, <code>service</code>, <code>trace_id</code>, <code>message</code>, plus domain fields. Modern libraries — structlog (Python, Hynek Schlawack), pino (Node.js), zerolog (Go), slog (Go stdlib since 1.21) — make the call-site cost essentially zero. The job of the engineer is to pick a verb-shaped message key, attach the IDs the rest of the system will join on, and stop writing prose into log messages. The payoff is that "find the bug" becomes a SQL-like query instead of a multi-tab grep through gigabytes of free text.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Free-text log vs structured JSON log">
+          <svg viewBox="0 0 720 200" role="img" aria-label="Free-text vs structured log comparison">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box" x="20" y="20" width="320" height="160" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--muted" x="180" y="42" text-anchor="middle" font-size="11" font-weight="700">free-text (today)</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="35" y="68" font-size="9">2026-05-14 12:03 INFO checkout</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="35" y="84" font-size="9">user 42 paid 19.99 USD ok</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="35" y="108" font-size="9">grep "paid" | awk hope</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="35" y="128" font-size="9">no trace_id, no severity ladder</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="35" y="148" font-size="9">no schema — every service different</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="35" y="168" font-size="9">unsearchable, unalertable</text>
+              <rect class="pa-svg-box pa-svg-box--accent" x="380" y="20" width="320" height="160" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="540" y="42" text-anchor="middle" font-size="11" font-weight="700">structured JSON (target)</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="395" y="68" font-size="9">&#123;"ts":"2026-05-14T12:03Z",</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="395" y="84" font-size="9"> "level":"info","svc":"checkout",</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="395" y="100" font-size="9"> "event":"checkout.submitted",</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="395" y="116" font-size="9"> "trace_id":"abc123","user_id":42,</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="395" y="132" font-size="9"> "amount_cents":1999&#125;</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="395" y="156" font-size="9">→ query, group by, join with traces</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="395" y="172" font-size="9">→ alert on event=… severity&gt;=warn</text>
+              <path class="pa-svg-arrow" d="M345 100 L375 100"/>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">The call-site difference is small. The downstream difference is the difference between a 30-minute log grep and a one-line query.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>Structured logging</strong> is the practice of emitting each log line as a JSON object with a canonical schema, rather than as a free-form text string. The engineer's job is to pick a verb-shaped event name, attach the relevant IDs as fields, and let the logging library handle the rest.</p>
+          <p>Every log event consists of:</p>
+          <ul>
+            <li><strong>severity</strong> — <code>debug</code> / <code>info</code> / <code>warn</code> / <code>error</code>; the ladder is enforced.</li>
+            <li><strong>event / message</strong> — a stable, dotted key like <code>checkout.submitted</code> — not a sentence.</li>
+            <li><strong>context</strong> — <code>service</code>, <code>env</code>, <code>version</code> from environment, not hard-coded.</li>
+            <li><strong>correlation IDs</strong> — <code>trace_id</code> and <code>span_id</code> from the OpenTelemetry context, injected automatically by middleware.</li>
+            <li><strong>domain fields</strong> — <code>user_id</code>, <code>order_id</code>, <code>latency_ms</code>, etc., chosen per event.</li>
+            <li><strong>sink/format</strong> — JSON to stdout; the platform ships it to Loki / Datadog / OpenSearch.</li>
+          </ul>
+          <p>In practice this is a one-line library call: <code>log.info("payment.refused", reason="insufficient_funds", order_id=order.id)</code>. Tools that make this idiomatic: <a href="https://www.structlog.org/en/stable/why.html" rel="noopener">structlog</a> in Python, <a href="https://getpino.io/" rel="noopener">pino</a> in Node, <a href="https://github.com/rs/zerolog" rel="noopener">zerolog</a> and Go's standard-library <code>log/slog</code> in Go. None of them require the developer to construct JSON by hand.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Free-text logs are a write-once medium: somebody grep-debugs them once during an incident, and they are never queried again. That is the worst possible ROI on storage you are already paying for. The minute the lines are JSON with a stable schema, the log store becomes a queryable database — "show me every <code>checkout.submitted</code> event in the last hour where <code>amount_cents&gt;10000</code> and the trace went through the fraud service" is one query, not an afternoon.</p>
+          <p>The correlation IDs are the load-bearing piece. Once every log line carries the same <code>trace_id</code> as the distributed trace and the same <code>request_id</code> as the metric tag, the three pillars of observability are joined — pick any one and pivot to the other two. Without correlation, every diagnosis starts from scratch in a different tool.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Stripe</p>
+              <p class="pa-industry__what">Stripe's API emits a structured log line for every request with a <code>request_id</code> that is also returned in the <code>Stripe-Request-Id</code> response header — so the customer's "this charge failed" report comes with the exact log lookup key already in it. Internally every service uses the same canonical logger; severity discipline and field naming are enforced by code review and a shared library, not by convention.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Expose your request ID to the caller. The fastest support ticket is the one that arrives with the join key. Internally, a single shared logger library is the only way to get a consistent schema — convention is not enough.</p>
+              <p class="pa-industry__source">Source: <a href="https://stripe.com/blog" rel="noopener">Stripe Engineering Blog</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">structlog (Python, Hynek Schlawack)</p>
+              <p class="pa-industry__what">structlog popularised "key-value pairs, not f-strings" in the Python world. Its <em>why</em> page is a manifesto for treating logs as events, not as prose: bind contextual fields once at the start of a request (<code>logger.bind(user_id=42, trace_id=…)</code>), and every subsequent log call within that request inherits them. The output format (JSON, key=value, dev-readable) is a render-time decision, not a coding decision.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Bind context at the boundary (HTTP handler, queue consumer), not at the call site. The engineer writing business logic should not have to remember to pass <code>user_id</code> to every <code>log.info</code> — the library does it.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.structlog.org/en/stable/why.html" rel="noopener">structlog — why structured logging?</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Elastic / Datadog (vendor docs)</p>
+              <p class="pa-industry__what">Both Elastic Common Schema and Datadog's standard log attributes specify a fixed set of names for the same concept (<code>service.name</code>, <code>trace.id</code>, <code>error.stack_trace</code>). Once your services emit logs that conform, every dashboard, alert, and correlation feature works out of the box. Diverging from the schema is technically allowed and operationally painful.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Pick a published schema (ECS is the most widely adopted) and follow it field-for-field. Inventing your own naming is a tax you pay every time you set up a new tool.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.elastic.co/blog" rel="noopener">Elastic Engineering Blog</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy of a structured log event</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Severity ladder</p><p class="pa-anatomy__hint">Exactly four levels: <code>debug</code> (off in prod or sampled at 1%), <code>info</code> (significant state change), <code>warn</code> (recovered from an error), <code>error</code> (someone needs to look). Anything more granular gets ignored.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Event key, not sentence</p><p class="pa-anatomy__hint">The <code>message</code> field is a dotted, stable name (<code>order.shipped</code>), not a templated string. Variable data goes in domain fields. Aggregations over <code>event=order.shipped</code> become trivial; aggregations over "order {id} shipped" require regex.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Bound context at the boundary</p><p class="pa-anatomy__hint">HTTP middleware binds <code>request_id</code>, <code>user_id</code>, <code>trace_id</code> once per request. Every <code>log.info</code> inside that request inherits them. Domain code never plumbs context manually.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">PII redaction at the emitter</p><p class="pa-anatomy__hint">A processor strips or hashes known-sensitive fields (<code>card_number</code>, <code>password</code>, <code>email</code> raw) before serialisation. PII never leaves the process. Allow-list the fields you do want, deny-list everything else.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">JSON to stdout, ship by platform</p><p class="pa-anatomy__hint">The service writes JSON to <code>stdout</code>; the runtime (k8s logging agent, ECS Firelens) ships it. The service is not aware of Loki vs OpenSearch vs Datadog — that is one config change at the platform layer, not a code change in every service.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Schema CI lint</p><p class="pa-anatomy__hint">A linter rejects raw <code>print</code>, <code>console.log</code>, <code>fmt.Println</code>, or log calls that don't go through the shared library. Catches violations at PR time instead of during the next incident.</p></div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr><td><code>print</code> / <code>console.log</code> next to the structured logger</td><td>"Just debugging real quick" — and then the line ships. Free-text bypasses the schema and the JSON pipeline drops it.</td><td>CI lint that fails the build on <code>print</code> / <code>console.log</code> / bare <code>fmt.Println</code>. Pre-commit hook for the same. Zero exceptions; the cost of one mixed-format line is a broken dashboard.</td></tr>
+                <tr><td>No correlation ID — trace, log, and metric live in different worlds</td><td>The team adopted JSON logs but never wired the OpenTelemetry context into the logger. Each pillar is searchable, but you cannot pivot.</td><td>Middleware (HTTP handler, queue consumer, gRPC interceptor) that pulls the current span from the OTel context and binds <code>trace_id</code> + <code>span_id</code> on every log call. One-time setup, not per call site.</td></tr>
+                <tr><td>PII logged in plaintext — emails, full card numbers, raw passwords</td><td>The engineer logged the whole request body "for debugging" and forgot to take it out. Logs are retained for 90+ days; legal/GDPR exposure is enormous.</td><td>Field-level redaction in the logger processor: allow-list domain fields, deny-list anything matching <code>password</code>, <code>card</code>, <code>token</code>, <code>email</code>. Hash, don't drop, when you still need the join. Audit weekly with a known-bad-pattern grep over the log store.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="design-docs.html">Practice 15 — Design docs</a></li>
+            <li><a class="docs-next-steps__item" href="distributed-tracing.html">Practice 17 — Distributed tracing</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Developer practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+                <td>Initial version: Structured Logging practice for Developer radar.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

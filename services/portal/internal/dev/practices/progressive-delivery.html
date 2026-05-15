@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Progressive Delivery — Practice 10 · Developer</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">10</span>
+          <span class="pa-eyebrow__group">Group B · Delivery &amp; automation</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">1.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Progressive Delivery — canary, blue-green, ramped</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Every deploy reaches a 1% slice first, gets compared to the baseline on automated health metrics, and only proceeds if those gates stay green.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">The term "progressive delivery" was coined by James Governor (RedMonk, 2018) as the umbrella for canary, blue-green, and ramped rollout patterns plus the automation that makes them safe to run on every deploy. The new version takes 1% of traffic; automated health gates compare error rate, p99 latency, and a business KPI between new and old; the rollout pauses or rolls back automatically if any gate fails. Argo Rollouts (Kubernetes) and Flagger are the open-source standard; Netflix's Spinnaker is the historical reference implementation. The principle: bugs are revealed by users at 1% scale at a hundredth of the cost compared to 100%.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Traffic ramp with health gates">
+          <svg viewBox="0 0 720 200" role="img" aria-label="Progressive traffic ramp from 1% to 100% with health checkpoints">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <line class="pa-svg-arrow" x1="40" y1="150" x2="690" y2="150"/>
+              <rect class="pa-svg-box" x="60" y="135" width="80" height="20" rx="6"/>
+              <text class="pa-svg-text" x="100" y="148" text-anchor="middle" font-size="11">1%</text>
+              <rect class="pa-svg-box" x="180" y="125" width="100" height="30" rx="6"/>
+              <text class="pa-svg-text" x="230" y="145" text-anchor="middle" font-size="11">5%</text>
+              <rect class="pa-svg-box" x="320" y="105" width="120" height="50" rx="6"/>
+              <text class="pa-svg-text" x="380" y="135" text-anchor="middle" font-size="11">25%</text>
+              <rect class="pa-svg-box" x="480" y="80" width="100" height="75" rx="6"/>
+              <text class="pa-svg-text" x="530" y="120" text-anchor="middle" font-size="11">50%</text>
+              <rect class="pa-svg-box pa-svg-box--accent" x="620" y="40" width="60" height="115" rx="6"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="650" y="100" text-anchor="middle" font-size="11">100%</text>
+              <circle cx="140" cy="50" r="6" fill="none" stroke="currentColor"/>
+              <text class="pa-svg-text pa-svg-text--muted" x="140" y="36" text-anchor="middle" font-size="10">✓ gate</text>
+              <circle cx="280" cy="50" r="6" fill="none" stroke="currentColor"/>
+              <text class="pa-svg-text pa-svg-text--muted" x="280" y="36" text-anchor="middle" font-size="10">✓ gate</text>
+              <circle cx="440" cy="50" r="6" fill="none" stroke="currentColor"/>
+              <text class="pa-svg-text pa-svg-text--muted" x="440" y="36" text-anchor="middle" font-size="10">✓ gate</text>
+              <circle cx="580" cy="50" r="6" fill="none" stroke="currentColor"/>
+              <text class="pa-svg-text pa-svg-text--muted" x="580" y="36" text-anchor="middle" font-size="10">✓ gate</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="100" y="180" text-anchor="middle" font-size="9">15 min</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="230" y="180" text-anchor="middle" font-size="9">30 min</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="380" y="180" text-anchor="middle" font-size="9">1 h</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="530" y="180" text-anchor="middle" font-size="9">2 h</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="650" y="180" text-anchor="middle" font-size="9">done</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="18" text-anchor="middle" font-size="11" font-style="italic">error rate &lt; baseline +2σ · p99 &lt; baseline +20% · business KPI ≥ baseline</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">Traffic ramps in defined steps. Each step holds for a measurement window; an automated gate either advances, pauses, or rolls back.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>Progressive Delivery</strong> is the umbrella name for a family of rollout patterns plus the automation that makes them safe: <em>canary</em> (a small slice of users sees the new version), <em>blue-green</em> (an entire new fleet runs in parallel and traffic flips instantly), and <em>ramped/percentage rollouts</em> (traffic shifts gradually). James Governor of RedMonk coined the umbrella term in 2018 to capture the shift from "deploy is a moment" to "deploy is a controlled process."</p>
+          <p>The mechanism: a controller (Argo Rollouts, Flagger, Spinnaker) takes a deployment and a "promotion strategy" — typically a list of traffic percentages with hold windows: 1% for 15 min → 5% for 30 min → 25% for 1 h → 50% for 2 h → 100%. At each step, an automated analysis runs: it queries Prometheus / Datadog / a metrics provider for the new and old cohorts on a set of metrics (error rate, p99 latency, success rate, sometimes a business KPI). If all metrics are within tolerance, the rollout advances; otherwise it pauses or rolls back.</p>
+          <p>"Rollback" in this world is not a redeploy — it is a traffic-weight change. The old version is still running; shifting 100% of traffic back to it takes seconds, not minutes. This is the core difference from traditional deploys.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>A "deploy to all users" change exposes 100% of traffic to any latent bug simultaneously. A 0.2% regression that was invisible in staging — because staging has 1% of production load and none of the long-tail traffic patterns — becomes immediately visible in production dashboards but at maximum cost: every user is affected, the incident is high-severity, the rollback is a redeploy. With canary, that same 0.2% regression manifests at 1% of users, observable within 15 minutes, with two orders of magnitude smaller blast radius.</p>
+          <p>Progressive delivery also breaks the false binary between "deploy now" and "wait." A change that is unsafe for 100% of traffic might be perfectly safe for 5%; you discover the safe ceiling empirically rather than by guessing. Combined with the automated health gates, the deploy decision is data-driven on every promotion, not pundit-driven on day one.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Netflix — Spinnaker</p>
+              <p class="pa-industry__what">Netflix built Spinnaker (open-sourced 2015) as the canonical continuous-delivery platform for canary deploys at scale. Their "Kayenta" component does the automated canary analysis: it compares Atlas metrics between the canary and baseline clusters and produces a verdict. Every major service at Netflix deploys through Spinnaker; deploys are continuous and most rollbacks are automated.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Automated canary analysis (ACA) is a distinct, hard problem from the deploy mechanics. Decide what to compare, over what window, with what statistical test, and what counts as "safe to proceed" — before you wire up the rollout controller. Kayenta and its successors do this part of the work; the deploy controller is the easier half.</p>
+              <p class="pa-industry__source">Source: <a href="https://netflixtechblog.com/" rel="noopener">netflixtechblog.com</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Intuit — Argo Rollouts</p>
+              <p class="pa-industry__what">Intuit has publicly documented its adoption of Argo Rollouts across its TurboTax and QuickBooks platforms. Their pattern: every service runs canary on every deploy, with hold windows tuned per service criticality (tax-filing days use longer holds and higher thresholds). The analysis template is shared across services so the team uses one set of well-tested metrics rather than reinventing per-service.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Per-service tuning over a shared template, not per-service from-scratch. The analysis template (error rate, p99 latency, success rate, business KPI) is org-wide; the thresholds and hold windows are per-service. This keeps the rollout system simple to operate while letting critical services demand stricter gates.</p>
+              <p class="pa-industry__source">Source: <a href="https://argo-rollouts.readthedocs.io/" rel="noopener">argo-rollouts.readthedocs.io</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Google — canary across the fleet</p>
+              <p class="pa-industry__what">Google's SRE Workbook documents a canary process where every binary push goes through a multi-stage rollout: a single task, a single cluster, a small zone, a region, then the fleet. Health checks at each stage gate the next. The principle they articulate clearly: "the goal is not zero defects but bounded blast radius." A bad binary affects N tasks, not the entire planet.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Multi-stage rollouts (zone → region → fleet) compound the benefit of canary. Even at 100% of one region, you're still at &lt; 30% of total traffic; the gate at "promote to next region" catches issues that didn't show in the single-region canary. Geographic staging is essentially free if your service is already multi-region.</p>
+              <p class="pa-industry__source">Source: <a href="https://sre.google/workbook/" rel="noopener">sre.google/workbook</a></p>
+            </div>
+          </div>
+          <p class="pa-industry-pattern">The repeating pattern: predefined ramp steps with hold windows, automated analysis comparing new vs. baseline cohorts, and an explicit rollback as a traffic-weight change. Teams that adopt ramps without the analysis just have slower deploys; teams that add the analysis get the safety story.</p>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy of a progressive rollout</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Ramp schedule</p><p class="pa-anatomy__hint">Typical: 1% / 5% / 25% / 50% / 100% with hold windows of 15 min / 30 min / 1 h / 2 h. Configured per service in the rollout CRD; tightens for higher-criticality services.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Analysis template</p><p class="pa-anatomy__hint">Shared org-wide: error rate, p99 latency, success rate, one business KPI per service. PromQL or Datadog queries baked into the template; per-service tuning is on thresholds, not on which metric.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Health gates</p><p class="pa-anatomy__hint">Concrete numbers, not vibes. Example: error rate &lt; baseline + 2σ over 10 min; p99 &lt; baseline × 1.2; success rate ≥ baseline − 0.5%. Failing any one pauses the rollout.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Auto-rollback path</p><p class="pa-anatomy__hint">Failed gate → traffic weight flips to 100% old version within seconds. The new pods stay around for diagnostics; only routing changes. Targets &lt; 60 s for the routing change itself.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Statistical-significance window</p><p class="pa-anatomy__hint">First step (1%) needs enough traffic for a detectable effect on the chosen metrics. For low-traffic services, set the minimum first step at "≥ 500 requests in the window" rather than 1%; otherwise the gate is noise.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Manual gate at the riskiest step</p><p class="pa-anatomy__hint">Most teams require an explicit human approval to promote from 25% → 100% on changes touching payments, auth, or data writes. The automation is fast; the human is the safety net at the high-cost step.</p></div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr><td>No metric to gate on, just hope</td><td>The team wires up Argo Rollouts with a traffic ramp but never defines the analysis template. The rollout "pauses for 15 minutes" at each step, but nobody is checking anything; it's a slow deploy with theatre.</td><td>Concrete analysis template before the ramp: error rate, p99 latency, success rate, one business KPI. Specific PromQL queries, specific thresholds, specific windows. If you don't have the metrics, fix that first — the rollout system without metrics is strictly worse than a single-step deploy.</td></tr>
+                <tr><td>Rollback runs the canary in reverse — double-deploy</td><td>The team treats "rollback" as "deploy the previous version," which itself goes through the canary ramp. A high-severity incident now takes 30 more minutes to resolve while the rollback canaries safely back through 1% → 5% → 25%.</td><td>Rollback is a traffic-weight flip, not a deploy. Keep the previous version's pods running until the rollout completes. Define an "emergency abort" path that bypasses the analysis — high-sev incidents trump statistical rigour.</td></tr>
+                <tr><td>10% of traffic isn't enough for stat-sig</td><td>The service handles 50 requests/min. At 1%, that's 0.5 requests/min — not even one in the 10-min window. The gate either passes trivially (no failed requests because no requests) or flaps on a single 500.</td><td>Set a minimum-traffic floor for the first step: e.g., "wait until 500 requests in the new cohort before evaluating gates." For low-volume services, start the ramp at 25% or 50% — the math of stat-sig doesn't care about your percentage, it cares about the request count.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="conventional-commits.html">Practice 09 — Conventional Commits</a></li>
+            <li><a class="docs-next-steps__item" href="twelve-factor-app.html">Practice 11 — Twelve-Factor App</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Developer practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+                <td>Initial version: Progressive Delivery practice for Developer radar.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

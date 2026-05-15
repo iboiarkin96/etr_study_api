@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SLOs in code — error budgets that gate releases — Practice 18 · Developer</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">18</span>
+          <span class="pa-eyebrow__group">Group D · Observability &amp; operability</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">1.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">SLOs in code — error budgets that gate releases</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">The engineer writes the SLI as a Prometheus expression, commits it next to the service, and lets the burn-rate decide whether the next release ships — instead of negotiating reliability vs. features in a meeting.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Service-Level Objectives originate in Google's SRE book (Beyer, Jones, Petoff, Murphy, 2016) and the follow-on <a href="https://sre.google/workbook/implementing-slos/" rel="noopener">SRE Workbook</a> chapters on <em>Implementing</em> and <em>Alerting on</em> SLOs. The developer view is "SLOs in code": the SLI metric is wired up in the service itself, the SLO target and burn-rate alerting rules live in the repo (Prometheus rules + a tool like <a href="https://github.com/pyrra-dev/pyrra" rel="noopener">Pyrra</a> or Sloth), and the team's release decision becomes deterministic — budget healthy means ship, budget burning means stop and fix.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="SLO line chart with SLI and error budget burn">
+          <svg viewBox="0 0 720 200" role="img" aria-label="SLI vs SLO target with error budget consumed">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <text class="pa-svg-text pa-svg-text--muted" x="20" y="22" font-size="10">availability over 28 days · target 99.9% · budget 43 min</text>
+              <line x1="40" y1="60" x2="40" y2="170" stroke="currentColor" stroke-width="0.8" opacity="0.5"/>
+              <line x1="40" y1="170" x2="700" y2="170" stroke="currentColor" stroke-width="0.8" opacity="0.5"/>
+              <line x1="40" y1="80" x2="700" y2="80" stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" opacity="0.7"/>
+              <text class="pa-svg-text pa-svg-text--muted" x="50" y="76" font-size="9">SLO 99.9%</text>
+              <path class="pa-svg-arrow" d="M40 90 L120 88 L180 92 L240 95 L300 110 L360 120 L420 135 L480 145 L540 150 L600 152 L660 155" fill="none"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="500" y="140" font-size="10" font-weight="700">SLI (actual)</text>
+              <rect class="pa-svg-box pa-svg-box--accent" x="240" y="80" width="420" height="75" rx="4" opacity="0.18"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="450" y="105" text-anchor="middle" font-size="11" font-weight="700">budget consumed → freeze releases</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="40" y="190" font-size="10">day 0</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="680" y="190" font-size="10">day 28</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">The SLI line trends below the SLO target after day 12. The shaded region is consumed error budget. Multi-window burn-rate alerts page; the release pipeline auto-freezes.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>An <strong>SLO</strong> (Service-Level Objective) is a contractual target on a measurable property of the service — e.g. "99.9% of API responses complete in &lt;250 ms over a rolling 28-day window." The supporting machinery has four parts:</p>
+          <ul>
+            <li><strong>SLI (Service-Level Indicator)</strong> — the metric the SLO is measured against. For a request-driven service this is almost always <code>good_events / valid_events</code>, computed in PromQL or its equivalent: <code>sum(rate(http_requests_total{status!~"5.."}[5m])) / sum(rate(http_requests_total[5m]))</code>.</li>
+            <li><strong>Target and window</strong> — "99.9% over 28 days." Anything tighter than 99.95% is operationally heroic; anything looser than 99% is undemanding.</li>
+            <li><strong>Error budget</strong> — <code>(1 − SLO) × valid_events</code>. The amount of badness the team is permitted to spend. At 99.9% over 28d that is ~43 minutes of full-throttle outage or its equivalent in slow responses.</li>
+            <li><strong>Burn-rate alert</strong> — multi-window: fast burn (e.g. 14.4× over 1h) pages immediately; slow burn (e.g. 6× over 6h) opens a ticket. Defined in the SRE Workbook's <a href="https://sre.google/workbook/alerting-on-slos/" rel="noopener">Alerting on SLOs</a> chapter.</li>
+          </ul>
+          <p>"SLOs in code" means the SLI expression, target, window, and burn-rate rules live in the service repo, generated to Prometheus rule YAML by a tool such as <a href="https://github.com/pyrra-dev/pyrra" rel="noopener">Pyrra</a> or <a href="https://github.com/slok/sloth" rel="noopener">Sloth</a>. They are reviewed in PRs and version-controlled with the code.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Without an error budget, "ship features" and "fix reliability" compete politically. Whoever shouts loudest wins, and the answer changes every quarter. With a budget, both are operational: budget healthy ⇒ release, budget burning ⇒ freeze and pay it back. The argument moves from "should we slow down?" to "how much budget is left?" — which is a number.</p>
+          <p>For the engineer, the practical value is that the SLI metric forces the question "what does <em>good</em> mean for this service from the user's seat?" before any feature flag is added. A service whose SLI is "successful checkout submissions per attempt" is a service whose team understands what they are actually building.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Google (SRE Workbook)</p>
+              <p class="pa-industry__what">Google's SRE Workbook is the canonical primary source. The <em>Implementing SLOs</em> chapter walks through SLI selection (request-driven, pipeline, storage), target setting from historical performance, and the relationship between SLO, error budget, and release policy. The companion <em>Alerting on SLOs</em> chapter defines the multi-window, multi-burn-rate alert formula that everyone now copies.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Use the multi-window burn-rate alert formula verbatim. Don't invent your own. The math is published, peer-reviewed by SREs across Google, and tuned to be neither noisy nor slow. Anything else is rediscovering it badly.</p>
+              <p class="pa-industry__source">Source: <a href="https://sre.google/workbook/implementing-slos/" rel="noopener">SRE Workbook — Implementing SLOs</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Pyrra (open-source)</p>
+              <p class="pa-industry__what">Pyrra is a Kubernetes-native SLO tool: the developer writes a small <code>ServiceLevelObjective</code> CRD (target, window, indicator), commits it next to the service, and Pyrra generates the Prometheus recording rules and burn-rate alerts. The SLO definition is a 20-line YAML, version-controlled, code-reviewed. Sloth is the equivalent for plain-Prometheus shops without operators.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Don't write Prometheus rule YAML by hand. Use a generator. The hand-written rules will drift, get the burn-rate math wrong, and no one will dare refactor them. The generator is the source of truth.</p>
+              <p class="pa-industry__source">Source: <a href="https://github.com/pyrra-dev/pyrra" rel="noopener">Pyrra on GitHub</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Shopify / Stripe (release freeze policy)</p>
+              <p class="pa-industry__what">Both companies have published versions of "error budget exhaustion freezes feature releases until budget is repaid." The freeze is automatic and explicit: the deploy pipeline checks the burn-rate metric and refuses non-critical releases. Security fixes and reliability work are always allowed; feature work is not. The policy is in a written runbook the engineers can quote during the argument.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> The freeze must be automated in the pipeline, not vibes-based. A pipeline check that reads the burn-rate metric and fails the build is the difference between a policy and a wish.</p>
+              <p class="pa-industry__source">Source: <a href="https://stripe.com/blog" rel="noopener">Stripe Engineering Blog</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy of an SLO-in-code</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">SLI expression in the service repo</p><p class="pa-anatomy__hint">The Prometheus query is in a file like <code>slo/availability.yaml</code> next to the service code. The reviewer can read it. Example: <code>sum(rate(http_requests_total{status!~"5.."}[5m])) / sum(rate(http_requests_total[5m]))</code>.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Target chosen from historicals, not aspiration</p><p class="pa-anatomy__hint">Pick the SLO at the 5th-percentile of the past 90 days of actual behaviour — slightly below where you typically run. Targets pulled from thin air either burn constantly (noise) or never burn (meaningless).</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Multi-window burn-rate alerts</p><p class="pa-anatomy__hint">Two alerts: fast (14.4× burn over 1h = consumes 2% of monthly budget in 1h → page) and slow (6× over 6h → ticket). The SRE Workbook gives the table; do not deviate.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Release-freeze gate in CI/CD</p><p class="pa-anatomy__hint">The deploy pipeline reads the current burn-rate from Prometheus. If &gt;1× burn over the last 6h, non-reliability releases fail the gate. Override requires written justification on the PR.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Public budget dashboard</p><p class="pa-anatomy__hint">One panel per service: budget remaining (%), burn-rate (×), days until exhaustion at current rate. The PM looks at it before planning. Engineering looks at it before merging.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Quarterly SLO review</p><p class="pa-anatomy__hint">If a service spent the whole quarter at 100% budget remaining, the SLO is too lenient — tighten it. If it spent the quarter at 0%, either reliability work is owed or the SLO is too strict — adjust with written justification.</p></div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr><td>Alerting on the SLI directly, not on the burn-rate</td><td>"P99 latency &gt; 500ms" looks like a sensible alert. It fires every time one user hits a cold cache. The team learns to ignore the page within a week.</td><td>Alert on burn-rate, not on instantaneous SLI. Fast burn over 1h + slow burn over 6h. The page only fires when the budget is genuinely at risk over a meaningful window. Copy the SRE Workbook table verbatim.</td></tr>
+                <tr><td>SLO so lenient it never burns — meaningless</td><td>Team set 99.0% because "it should be easy to hit." Service runs at 99.97% and the budget is never touched. Releases never freeze, reliability work never gets prioritised — the SLO is a sticker.</td><td>Calibrate the target to actual user expectation and to the historical 5th percentile of measured behaviour. If you've never burnt budget in a quarter, the SLO is wrong, not the service. Tighten.</td></tr>
+                <tr><td>No release-freeze policy — budget burns are advisory</td><td>The team wrote the SLO but didn't wire it into deploy. The dashboard goes red; the next feature ships anyway because the PM has a launch date.</td><td>Automate the freeze in CI/CD. The pipeline must refuse non-reliability deploys when the burn-rate is above 1× over a rolling window. Override is a written PR comment with a name on it. Otherwise the SLO is advisory, which means it is decoration.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="distributed-tracing.html">Practice 17 — Distributed tracing</a></li>
+            <li><a class="docs-next-steps__item" href="error-monitoring.html">Practice 19 — Error monitoring</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Developer practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+                <td>Initial version: SLOs in code practice for Developer radar.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

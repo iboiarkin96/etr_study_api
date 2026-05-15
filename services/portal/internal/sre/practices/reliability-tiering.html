@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reliability Tiering — Practice 03 · SRE</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">03</span>
+          <span class="pa-eyebrow__group">Group A · Reliability foundations</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">2.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.0</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Reliability Tiering — not every service deserves a pager</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">A formal tier system maps every service to its business criticality, drives proportional SLO targets, DR requirements, and on-call response, and prevents both gold-plating internal tools and under-resourcing critical paths.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Reliability tiering classifies every service into 3–4 tiers (Tier 0 = business-critical; Tier 1 = important; Tier 2 = best-effort) with explicit per-tier commitments: SLO target, maintenance window, DR RTO/RPO, on-call response time, and alerting routing. The tier drives the investment — a Tier 0 service gets multi-zone redundancy and a 5-minute pager response; a Tier 2 service gets best-effort infra and a Slack notification. Tiering makes the trade-off explicit and non-negotiable.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Reliability tier matrix">
+          <svg viewBox="0 0 720 210" role="img" aria-label="Three-tier reliability classification matrix">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box pa-svg-box--accent" x="20" y="20" width="210" height="160" rx="8"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="125" y="50" text-anchor="middle" font-size="13" font-weight="700">Tier 0</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="125" y="70" text-anchor="middle" font-size="10">Business critical</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="125" y="90" text-anchor="middle" font-size="10">SLO: 99.99%</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="125" y="108" text-anchor="middle" font-size="10">Response: 5 min</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="125" y="126" text-anchor="middle" font-size="10">DR: RTO &lt; 1h</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="125" y="144" text-anchor="middle" font-size="10">Infra: multi-zone</text>
+              <rect class="pa-svg-box" x="255" y="20" width="210" height="160" rx="8"/>
+              <text class="pa-svg-text" x="360" y="50" text-anchor="middle" font-size="13" font-weight="700">Tier 1</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="70" text-anchor="middle" font-size="10">Important</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="90" text-anchor="middle" font-size="10">SLO: 99.9%</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="108" text-anchor="middle" font-size="10">Response: 30 min</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="126" text-anchor="middle" font-size="10">DR: RTO &lt; 4h</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="144" text-anchor="middle" font-size="10">Infra: single-zone HA</text>
+              <rect class="pa-svg-box pa-svg-box--good" x="490" y="20" width="210" height="160" rx="8"/>
+              <text class="pa-svg-text pa-svg-text--good" x="595" y="50" text-anchor="middle" font-size="13" font-weight="700">Tier 2</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="595" y="70" text-anchor="middle" font-size="10">Best-effort</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="595" y="90" text-anchor="middle" font-size="10">SLO: 99.5%</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="595" y="108" text-anchor="middle" font-size="10">Response: next biz day</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="595" y="126" text-anchor="middle" font-size="10">DR: RTO &lt; 24h</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="595" y="144" text-anchor="middle" font-size="10">Infra: best-effort</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="198" text-anchor="middle" font-size="10" font-style="italic">tier drives investment — not every service deserves a 3 am page</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">Three tiers, three investment levels. Tier assignment is a joint product and engineering decision — it's a business judgment, not a technical one.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>Reliability tiering</strong> is the practice of formally classifying every service into a small number of tiers based on business impact, and then applying per-tier standards for:</p>
+          <ul>
+            <li><strong>SLO target:</strong> The reliability percentage the team commits to maintaining.</li>
+            <li><strong>On-call response time:</strong> How quickly an on-call engineer must acknowledge a page — ranging from 5 minutes for Tier 0 to next business day for Tier 2.</li>
+            <li><strong>Maintenance windows:</strong> When the service is allowed to be taken offline for maintenance, and how much notice is required.</li>
+            <li><strong>DR requirements:</strong> Recovery Time Objective (RTO) and Recovery Point Objective (RPO) for the service in a disaster scenario.</li>
+            <li><strong>Alerting routing:</strong> Where alerts go — PagerDuty for Tier 0, email for Tier 1, Slack for Tier 2.</li>
+          </ul>
+          <p>The tier registry lives in the service catalog and is updated when a service's business criticality changes.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Without tiering, every service is implicitly treated as equally critical. The result: critical services are under-resourced because the team is spending DR budget on internal tools, and non-critical services are over-engineered for reliability that the business doesn't need or pay for.</p>
+          <p>Tiering also clarifies the paging decision. The question "should this alert page someone at 3 am?" is hard to answer without a tier. With a tier, the answer is procedural: Tier 0 alerts page; Tier 2 alerts go to Slack.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">PagerDuty</p>
+              <p class="pa-industry__what">PagerDuty's own internal tier system uses four tiers: P0 (mission-critical — their core paging product), P1 (important — integrations and mobile app), P2 (supporting — internal analytics), P3 (best-effort — internal tools). Tier assignments are reviewed by product and engineering annually and whenever a service's business criticality changes materially.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Tier assignment is a product decision with engineering input — not a pure engineering decision. Product knows which services generate the most revenue or support the most critical customer journeys; engineering knows the technical cost of higher reliability commitments. Both inputs are required.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.pagerduty.com/resources/learn/service-tiers/" rel="noopener">PagerDuty — Service Tiers</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Netflix</p>
+              <p class="pa-industry__what">Netflix uses a two-tier approach with a hard distinction between "critical path" (services that directly affect stream start) and "non-critical path" (everything else). Critical-path services receive engineering investment proportional to their blast radius: redundancy across 3 AWS regions, automatic failover, and chaos engineering testing every month. Non-critical-path services are treated as best-effort.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> The simplest effective tier system is two tiers — critical path and non-critical path. More granularity is useful at scale; at smaller scale, a two-tier system is easier to maintain and harder to game.</p>
+              <p class="pa-industry__source">Source: <a href="https://netflixtechblog.com/" rel="noopener">Netflix Tech Blog</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Tier definition document</p><p class="pa-anatomy__hint">Written criteria for each tier: revenue impact, customer-facing exposure, number of dependent services. Criteria must be objective enough that two engineers independently assign the same tier to the same service at least 90% of the time.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Per-tier standards table</p><p class="pa-anatomy__hint">One table: tier vs. SLO target, response time, maintenance window, RTO, RPO, alerting routing. Published in the service catalog. No exceptions without an escalation.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Tier registry in service catalog</p><p class="pa-anatomy__hint">Every service has an assigned tier, a named engineering owner, a last-review date, and a tier justification (one sentence). Updated when a service launches or its criticality changes.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Annual tier review</p><p class="pa-anatomy__hint">Review all tier assignments annually with product. Services grow, their criticality changes, and a Tier 2 service may have become Tier 0 through 12 months of product decisions. Stale tier assignments are more dangerous than no tier system at all.</p></div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr><td>Everything is Tier 0</td><td>Every team wants their service treated as critical.</td><td>Set a capacity limit: no more than 20% of services can be Tier 0. Scarcity forces honest prioritisation. If every service is critical, none is.</td></tr>
+                <tr><td>Tier assigned, standards not enforced</td><td>The tier registry exists but alerting routing still goes to PagerDuty for everything.</td><td>Automate tier enforcement: alerting routing, maintenance window enforcement, and DR drill scheduling should all read from the tier field in the service catalog.</td></tr>
+                <tr><td>Tier never reviewed after assignment</td><td>Initial tier was assigned at service launch; nothing triggers a review.</td><td>Add tier review to the annual architecture review cadence. When a service's revenue or user dependency changes significantly, trigger an ad hoc review.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="slo-error-budget.html">Practice 01 — SLO &amp; Error Budget</a></li>
+            <li><a class="docs-next-steps__item" href="alerting-design.html">Practice 09 — Alerting design</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">SRE practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+                <td>Initial version: Reliability Tiering practice for SRE radar.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body></html>

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accessibility Test Automation — embed a11y in CI · Practice 14 · QA Engineer</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">14</span>
+          <span class="pa-eyebrow__group">Group C · Automation &amp; Tooling</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">2.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.0</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Accessibility Test Automation — embed a11y in CI</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Runs axe-core on every CI build to catch WCAG 2.1 AA violations automatically before they reach users.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Accessibility test automation combines axe-core (automated rule engine) with keyboard and screen-reader testing against WCAG 2.1 Level AA. axe-core runs in CI and catches approximately 30–40% of WCAG failures automatically. Critical violations fail the build; serious violations raise warnings. The remaining 60–70% require manual verification guided by checklist 0005. axe catches missing alt text, duplicate IDs, colour contrast failures, and missing form labels — the most common classes of accessibility defects.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="POUR accessibility principles diagram">
+          <svg viewBox="0 0 720 180" role="img" aria-label="Four POUR columns: Perceivable, Operable, Understandable, Robust">
+            <defs>
+              <style>
+                .po-label { font-family: ui-sans-serif,system-ui,sans-serif; font-size: 13px; fill: var(--text, #0f172a); }
+                .po-sub   { font-family: ui-monospace,monospace; font-size: 10px; fill: var(--muted-soft, #6b7280); }
+                .po-box   { rx: 8; }
+              </style>
+            </defs>
+            <rect class="po-box" x="20" y="20" width="160" height="140" fill="rgba(37,99,235,0.1)" stroke="#2563eb" stroke-width="1.5"/>
+            <text class="po-label" x="100" y="52" text-anchor="middle" font-weight="700">Perceivable</text>
+            <text class="po-sub" x="100" y="72" text-anchor="middle">alt text</text>
+            <text class="po-sub" x="100" y="90" text-anchor="middle">colour contrast</text>
+            <text class="po-sub" x="100" y="108" text-anchor="middle">captions</text>
+            <text class="po-sub" x="100" y="126" text-anchor="middle">resize text</text>
+
+            <rect class="po-box" x="200" y="20" width="160" height="140" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1.5"/>
+            <text class="po-label" x="280" y="52" text-anchor="middle" font-weight="700">Operable</text>
+            <text class="po-sub" x="280" y="72" text-anchor="middle">keyboard nav</text>
+            <text class="po-sub" x="280" y="90" text-anchor="middle">focus visible</text>
+            <text class="po-sub" x="280" y="108" text-anchor="middle">no seizures</text>
+            <text class="po-sub" x="280" y="126" text-anchor="middle">skip links</text>
+
+            <rect class="po-box" x="380" y="20" width="160" height="140" fill="rgba(13,148,136,0.1)" stroke="#0d9488" stroke-width="1.5"/>
+            <text class="po-label" x="460" y="52" text-anchor="middle" font-weight="700">Understandable</text>
+            <text class="po-sub" x="460" y="72" text-anchor="middle">language attr</text>
+            <text class="po-sub" x="460" y="90" text-anchor="middle">error messages</text>
+            <text class="po-sub" x="460" y="108" text-anchor="middle">labels</text>
+            <text class="po-sub" x="460" y="126" text-anchor="middle">input purpose</text>
+
+            <rect class="po-box" x="560" y="20" width="140" height="140" fill="rgba(217,119,6,0.1)" stroke="#d97706" stroke-width="1.5"/>
+            <text class="po-label" x="630" y="52" text-anchor="middle" font-weight="700">Robust</text>
+            <text class="po-sub" x="630" y="72" text-anchor="middle">valid HTML</text>
+            <text class="po-sub" x="630" y="90" text-anchor="middle">ARIA roles</text>
+            <text class="po-sub" x="630" y="108" text-anchor="middle">unique IDs</text>
+            <text class="po-sub" x="630" y="126" text-anchor="middle">name/role/value</text>
+          </svg>
+          <figcaption class="pa-figure__caption">WCAG 2.1 is organised around four POUR principles. axe-core automates checks across all four; manual testing fills the gaps for Operable and Understandable.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>Accessibility test automation is the practice of running automated tools against the rendered UI to detect violations of WCAG 2.1 Level AA accessibility guidelines. The most widely used tool is axe-core (developed by Deque Systems), a JavaScript library that analyses the DOM and reports accessibility violations as structured JSON.</p>
+          <p>axe-core is integrated into the CI pipeline and runs on every build against the rendered portal pages. Violations are classified by impact:</p>
+          <ul>
+            <li><strong>Critical:</strong> Violations that completely prevent users with disabilities from accessing content (e.g. missing alt text on informational images, no focusable elements). Critical violations fail the CI build.</li>
+            <li><strong>Serious:</strong> Violations that significantly impair access (e.g. insufficient colour contrast, missing form labels). Serious violations raise a warning and must be resolved before release.</li>
+            <li><strong>Moderate / Minor:</strong> Violations that create a poor experience but don't completely block access. Tracked as backlog items.</li>
+          </ul>
+          <p>axe-core catches approximately 30–40% of WCAG 2.1 Level AA failures automatically. The remaining 60–70% require manual testing: keyboard-only navigation testing (can every interactive element be reached and operated with only the keyboard?), screen reader testing (do NVDA/JAWS/VoiceOver users get correct, meaningful information?), and cognitive accessibility testing (is the content readable and navigable without visual cues?). These are guided by checklist 0005.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Accessibility failures are legal liabilities in most jurisdictions. The European Accessibility Act (EAA) requires digital products to meet EN 301 549 (which references WCAG 2.1 Level AA) for all products sold in the EU market by June 2025. In the US, the ADA has been applied to digital products through court precedent. An inaccessible product exposes the company to legal action, regulatory fines, and exclusion from procurement processes that require WCAG compliance.</p>
+          <p>Beyond legal risk, accessibility affects 15–20% of the global population. Automated scanning catches the most common violations (missing alt text, duplicate IDs, colour contrast failures, missing form labels) before any human tester is involved. Catching these in CI is far cheaper than fixing them post-release.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Deque / axe-core (tool inventors)</p>
+              <p class="pa-industry__what">Deque Systems created axe-core, which has become the de facto standard for automated accessibility testing. axe-core is used by Google Chrome DevTools, Microsoft's accessibility insights tool, and most major CI accessibility integrations. The axe-core rule set is maintained by the accessibility community and covers over 90 WCAG 2.1 success criteria. Deque provides axe-playwright (for Playwright), axe-selenium (for Selenium), and axe-react (for React testing) integrations.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> axe-core is the standard. Use it in CI, not just in DevTools. The CI integration provides evidence of accessibility testing for compliance audits.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.deque.com/axe/" rel="noopener">Deque — axe-core</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">W3C / WAI (WCAG standards body)</p>
+              <p class="pa-industry__what">The Web Accessibility Initiative (WAI) at W3C publishes WCAG 2.1, the normative standard for web accessibility. WCAG 2.1 Level AA is the most commonly required conformance level in legislation and procurement. WAI also publishes ARIA 1.1 (Accessible Rich Internet Applications), which defines how to make dynamic content accessible using semantic attributes. The WAI-ARIA specification is the foundation for the ARIA-related rules in axe-core.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> WCAG 2.1 Level AA is the target conformance level. Passing axe-core is necessary but not sufficient — the standard requires manual testing for subjective criteria.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.w3.org/WAI/standards-guidelines/wcag/" rel="noopener">W3C — WCAG 2.1</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Microsoft (Inclusive Design)</p>
+              <p class="pa-industry__what">Microsoft's Inclusive Design framework and Accessibility Insights tool extend automated accessibility testing with a structured manual testing workflow. Accessibility Insights provides two modes: FastPass (automated axe scan, takes 5 minutes) and Assessment (guided manual testing, takes 2–3 hours per page). Microsoft requires FastPass for every PR that touches UI; Assessment for every major feature before release. Their "accessibility fundamentals" training programme is publicly available and trains both developers and QA engineers.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> FastPass (automated scan) on every PR; Assessment (guided manual) before every major release. The two levels of testing are complementary, not alternatives.</p>
+              <p class="pa-industry__source">Source: <a href="https://accessibilityinsights.io/" rel="noopener">Microsoft — Accessibility Insights</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">axe-core CI integration</p>
+              <p class="pa-anatomy__hint">axe-core runs on every CI build against the rendered portal pages. Critical violations fail the build; serious violations raise warnings.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Violation severity policy</p>
+              <p class="pa-anatomy__hint">Documented policy: critical = build fail; serious = warning + tracked issue; moderate/minor = backlog. No exceptions without a documented waiver.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Manual testing checklist (0005)</p>
+              <p class="pa-anatomy__hint">Checklist 0005 guides manual keyboard and screen-reader testing for the 60–70% of WCAG criteria that axe cannot automate.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">WCAG conformance target</p>
+              <p class="pa-anatomy__hint">WCAG 2.1 Level AA. The target is documented and referenced in the test strategy so it is not ambiguous which standard is being applied.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Treating axe as sufficient</td>
+                  <td>Teams run axe, it passes, and they declare the product accessible. axe only catches 30–40% of WCAG failures.</td>
+                  <td>Explicitly document that axe is a first filter, not a conformance proof. Checklist 0005 is required for WCAG conformance claims.</td>
+                </tr>
+                <tr>
+                  <td>Suppressing violations instead of fixing them</td>
+                  <td>axe violations block the build and developers suppress them to unblock themselves, with the intention of fixing them later.</td>
+                  <td>Require a documented waiver for any suppressed violation. Waivers expire — they must be reviewed and re-approved each quarter.</td>
+                </tr>
+                <tr>
+                  <td>No keyboard testing</td>
+                  <td>axe cannot test keyboard navigability — it cannot verify that all interactive elements are reachable by Tab key only.</td>
+                  <td>Include keyboard navigation testing in checklist 0005 for every major feature. Keyboard testing is the highest-value manual accessibility test.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="visual-regression-testing.html">← 13 · Visual Regression Testing</a></li>
+            <li><a class="docs-next-steps__item" href="ci-quality-gates.html">15 · CI Quality Gates →</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Back to radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: Accessibility Test Automation practice for QA Engineer radar.</td>
+                  <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

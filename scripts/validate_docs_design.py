@@ -26,6 +26,13 @@ FROZEN_DOCS_REL_PATHS = {
     # Standalone 25-practices grid with its own embedded design tokens;
     # not part of the legacy docs skeleton.
     Path("internal/analysis/practices.html"),
+    # Role-portal practices hubs — standalone grids with embedded design tokens
+    # (same pattern as internal/analysis/practices.html above).
+    Path("internal/architect/practices.html"),
+    Path("internal/dev/practices.html"),
+    Path("internal/manager/practices.html"),
+    Path("internal/sre/practices.html"),
+    Path("internal/handbook/qa/practices.html"),
 }
 
 

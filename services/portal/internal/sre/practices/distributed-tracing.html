@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Distributed Tracing — Practice 08 · SRE</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">08</span>
+          <span class="pa-eyebrow__group">Group B · Observability</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">1.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.0</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Distributed Tracing — follow one request across every service it touches</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">A trace_id propagated across every service in a request path, with spans that record latency and context per service, forms the Gantt chart that answers "where is the time going?" for any individual request.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Distributed tracing propagates a <code>trace_id</code> across every service in a request path. Each service emits spans — records of work done within that service, with start time, duration, status, and context. The collected spans form a Gantt-style trace showing exactly where time is spent across the distributed call graph. Implemented via OpenTelemetry with Tempo, Jaeger, or a cloud provider backend. Sampling: 5–10% for normal traffic, 100% for errors. Traces enable the pivot from "the P99 is slow" to "this specific DB query in this specific service at this specific percentile is the bottleneck."</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Distributed trace Gantt diagram">
+          <svg viewBox="0 0 720 200" role="img" aria-label="Gantt-style distributed trace across four services">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <text class="pa-svg-text pa-svg-text--muted" x="20" y="30" font-size="10">trace_id: abc123</text>
+              <rect class="pa-svg-box pa-svg-box--accent" x="20" y="45" width="680" height="24" rx="4"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="30" y="61" font-size="10" font-weight="700">API Gateway · 342 ms</text>
+              <rect class="pa-svg-box" x="20" y="80" width="420" height="22" rx="4"/>
+              <text class="pa-svg-text" x="30" y="95" font-size="10">UserService · 210 ms</text>
+              <rect class="pa-svg-box" x="20" y="113" width="180" height="22" rx="4"/>
+              <text class="pa-svg-text" x="30" y="128" font-size="10">DB query · 85 ms</text>
+              <rect class="pa-svg-box pa-svg-box--accent" x="450" y="80" width="250" height="22" rx="4"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="460" y="95" font-size="10" font-weight="700">AuthService · 128 ms ← slow!</text>
+              <rect class="pa-svg-box" x="450" y="113" width="250" height="22" rx="4"/>
+              <text class="pa-svg-text" x="460" y="128" font-size="10">Cache miss + DB · 120 ms</text>
+              <line x1="20" y1="155" x2="700" y2="155" stroke="var(--line)" stroke-width="1"/>
+              <text class="pa-svg-text pa-svg-text--muted" x="20" y="172" font-size="9">0 ms</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="168" y="172" font-size="9">85 ms</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="348" y="172" font-size="9">210 ms</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="598" y="172" font-size="9">342 ms</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="192" text-anchor="middle" font-size="9" font-style="italic">AuthService cache miss identified without adding any logging or redeploying</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">A trace reveals the bottleneck (AuthService cache miss) with zero additional instrumentation — it was already in the span data.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>Distributed tracing</strong> works by propagating a <code>trace_id</code> in the headers of every request between services. Each service that receives the request creates a <strong>span</strong> — a record of the work it did — with:</p>
+          <ul>
+            <li><strong>trace_id:</strong> Shared across all spans for the same request.</li>
+            <li><strong>span_id:</strong> Unique to this service's contribution.</li>
+            <li><strong>parent_span_id:</strong> The span that called this service, enabling the Gantt tree structure.</li>
+            <li><strong>start_time and duration:</strong> When the work started and how long it took.</li>
+            <li><strong>status:</strong> Success or error, with an error message if applicable.</li>
+            <li><strong>attributes:</strong> Service-specific context — SQL query text, HTTP endpoint, user_id.</li>
+          </ul>
+          <p>OpenTelemetry is the vendor-neutral standard for trace instrumentation. It provides auto-instrumentation libraries for all major languages and frameworks that instrument HTTP, gRPC, database drivers, and message queues without code changes.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Metrics tell you the aggregate is slow. Logs tell you something went wrong at a specific line of code. Traces tell you which service in a 15-service call graph is the bottleneck for this specific request, at this specific percentile, right now. Without tracing, performance investigations require custom logging patches, redeployments, and cross-team coordination that takes days. With tracing, the bottleneck is identified in one query in seconds.</p>
+          <p>Traces also surface the "hidden cost" of distributed systems — N+1 database queries that look fast individually but add up to 2 seconds in aggregate, retry storms that are invisible in per-service metrics, and cold-start latency in serverless functions that looks like a random P99 spike.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Uber</p>
+              <p class="pa-industry__what">Uber built Jaeger (now a CNCF project) to address distributed tracing at scale — thousands of services, millions of traces per second. Key design decisions: adaptive sampling (sampling rate adjusts based on traffic volume to ensure rare error paths are always sampled), tail-based sampling for anomalies (collect the full trace for any request that breaches a latency threshold), and trace search by service, operation, tag, and duration range.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Sample errors at 100% even when sampling normal traffic at 5%. Errors are the traces you most need, and they're the rarest. Dropping errors in the sampler defeats the primary value of tracing.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.jaegertracing.io/" rel="noopener">Jaeger Distributed Tracing</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Shopify</p>
+              <p class="pa-industry__what">Shopify's observability team builds trace-to-log correlation as a first-class feature: every log line in the central aggregator (Loki) carries the trace_id, and every Grafana dashboard has a "Logs for this trace" button that opens the log query pre-filtered by the trace_id. Engineers never need to copy a trace_id and paste it into a log query — the correlation is automatic.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Build the trace→log→metric pivot into the dashboard as a workflow, not just a possibility. The correlation is only useful if it's one click, not a manual copy-paste operation that most engineers skip because it's too slow.</p>
+              <p class="pa-industry__source">Source: <a href="https://shopify.engineering/" rel="noopener">Shopify Engineering Blog</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">OpenTelemetry auto-instrumentation</p><p class="pa-anatomy__hint">Instrument the HTTP client / gRPC interceptor layer in the shared library once. Every service that uses the shared library gets automatic span generation and context propagation. Individual service teams add manual spans only for custom operations that auto-instrumentation doesn't cover.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Sampling strategy</p><p class="pa-anatomy__hint">5–10% head-based sampling for normal traffic. 100% tail-based sampling for errors (any request that returns a 5xx or breaches the SLO latency threshold). The error sample is the most valuable — never drop it.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Trace-to-log correlation</p><p class="pa-anatomy__hint">trace_id and span_id injected into every log line automatically (via the logging library middleware). Grafana panels link from span events to the log stream filtered by trace_id. One-click pivot from trace to logs.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">DoD requirement</p><p class="pa-anatomy__hint">Tracing is a Definition of Done criterion for every new service before it reaches production. A service that generates no traces is invisible in the call graph. No traces = no observability for that service's contribution to latency.</p></div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr><td>Context propagation gaps break the trace</td><td>One service doesn't propagate the trace_id to its outbound calls.</td><td>Use auto-instrumentation middleware for all HTTP/gRPC clients. Manual propagation is unreliable — developers forget, and a trace that breaks in the middle is useless. Auto-instrumentation covers 95% of cases.</td></tr>
+                <tr><td>100% sampling rate in production</td><td>"We want to see everything."</td><td>100% sampling at production traffic volumes produces storage and CPU costs that are prohibitive. 5–10% sampling for normal traffic with 100% for errors gives excellent coverage at manageable cost.</td></tr>
+                <tr><td>Tracing only on the happy path</td><td>Instrumentation is added where it's easiest, not where it's most needed.</td><td>Ensure all error paths, retries, and timeout handlers are instrumented. The most valuable traces are for the failures — if the error path isn't instrumented, the trace disappears exactly when you need it.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="structured-logging.html">Practice 06 — Structured logging</a></li>
+            <li><a class="docs-next-steps__item" href="metrics-dashboards.html">Practice 07 — Metrics &amp; dashboards</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">SRE practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+                <td>Initial version: Distributed Tracing practice for SRE radar.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body></html>

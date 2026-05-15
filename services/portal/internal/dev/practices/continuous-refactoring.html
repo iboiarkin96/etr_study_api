@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Continuous Refactoring — Practice 05 · Developer</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">05</span>
+          <span class="pa-eyebrow__group">Group A · Code craft &amp; quality</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">3.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.0</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Continuous Refactoring — Boy Scout rule, no rewrite weeks</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Refactoring is a daily activity, not a quarterly project; every PR leaves the code slightly better than it found it.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Continuous Refactoring is the practice of folding small, behaviour-preserving improvements into every PR — drawing from Martin Fowler's <em>Refactoring</em> (1999, 2nd ed. 2018) catalogue and Robert C. Martin's "Boy Scout Rule": leave the code cleaner than you found it. The alternative is the great rewrite: a six-month engineering sink, a parallel codebase, no new features, an exhausted team. Continuous refactoring keeps the maintenance cost approximately constant over time, rather than letting it grow exponentially until a rewrite feels inevitable.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Continuous improvement curve versus rewrite cliff">
+          <svg viewBox="0 0 720 200" role="img" aria-label="Maintenance cost: continuous refactoring versus rewrite cliff">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <line class="pa-svg-arrow" x1="40" y1="170" x2="680" y2="170" stroke-width="2"/>
+              <line class="pa-svg-arrow" x1="40" y1="170" x2="40" y2="30" stroke-width="2"/>
+              <text class="pa-svg-text pa-svg-text--muted" x="20" y="100" text-anchor="middle" font-size="10" transform="rotate(-90 20 100)">maintenance cost</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="190" text-anchor="middle" font-size="10">time</text>
+              <path d="M40 150 Q200 145 360 142 Q520 138 680 135" stroke="currentColor" stroke-width="2.5" fill="none" opacity="0.6"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="600" y="125" font-size="11" font-weight="700">continuous refactoring</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="600" y="140" font-size="9">approximately flat</text>
+              <path d="M40 150 Q150 130 260 90 L300 50 L310 50 L320 170" stroke="currentColor" stroke-width="2.5" fill="none" opacity="0.9"/>
+              <text class="pa-svg-text" x="220" y="80" font-size="11" font-weight="700">no refactoring</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="220" y="100" font-size="9">grows until rewrite</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="335" y="45" font-size="10" font-style="italic">REWRITE</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="195" text-anchor="middle" font-size="10" font-style="italic">two paths · one keeps the codebase alive · the other forces a periodic cliff</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">Without continuous refactoring, maintenance cost grows until a rewrite becomes inevitable. With it, the cost stays approximately flat.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>Continuous Refactoring</strong> is the discipline of folding small, behaviour-preserving code improvements into the normal flow of feature work. There is no "refactoring sprint" because there is no refactoring debt large enough to require one. Every PR makes the code marginally better — a clearer name here, an extracted function there, a deleted dead branch.</p>
+          <p>The practice rests on two named ideas:</p>
+          <ul>
+            <li><strong>The Refactoring Catalogue</strong> — Martin Fowler's <em>Refactoring: Improving the Design of Existing Code</em> (1999; 2nd edition 2018) is the source-of-truth catalogue of behaviour-preserving moves: Rename Variable, Extract Function, Inline Variable, Replace Conditional with Polymorphism, Move Function, and so on. Each move is named, has a defined mechanics, and is small enough to apply safely.</li>
+            <li><strong>The Boy Scout Rule</strong> — Robert C. Martin's formulation: "Always leave the campground cleaner than you found it." Applied to code, every PR includes at least one improvement to the file(s) it touches, even if that improvement is unrelated to the feature.</li>
+          </ul>
+          <p>Continuous refactoring requires a strong test bar: refactoring without tests is just rewriting and hoping. Combined with TDD (Practice 02), the green bar after every cycle is the safety net that makes the small moves safe.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>The alternative to continuous refactoring is what Joel Spolsky famously called "the single worst strategic mistake any software company can make" — the great rewrite. A team that defers code improvement eventually reaches a point where the codebase is so brittle that no feature can be added without a parallel rewrite. The rewrite takes six months, ships no new value, exhausts the team, and produces a system with a different set of bugs.</p>
+          <p>Continuous refactoring routes around that cliff. Each PR pays a small, voluntary cost; the cumulative effect is a codebase whose maintenance cost is approximately constant rather than exponentially growing. The team can ship the same kind of change in week 100 as in week 1, without slowing down.</p>
+          <p>Good looks like: every PR contains at least one named refactoring move; cyclomatic complexity per file stays under a defined threshold; the team has not had a "refactoring sprint" or "tech-debt week" in two years because the work never accumulates that high.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Martin Fowler (originator of the catalogue)</p>
+              <p class="pa-industry__what">Fowler's <em>Refactoring</em> (1999, 2nd edition 2018) is the canonical reference. The book defines refactoring as a "disciplined technique for restructuring existing code, altering its internal structure without changing its external behaviour" and catalogues dozens of named moves with their mechanics. The 2nd edition updates the examples to JavaScript and removes a few moves that modern IDEs make trivial. Fowler's site (refactoring.com) and martinfowler.com keep the catalogue current with new entries and clarifications.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Adopt the named-move vocabulary. "Extract Function" and "Inline Variable" become shared team language; the names are precise and the mechanics are documented.</p>
+              <p class="pa-industry__source">Source: <a href="https://martinfowler.com/books/refactoring.html" rel="noopener">martinfowler.com — Refactoring (2nd ed., 2018)</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Robert C. Martin — Boy Scout Rule</p>
+              <p class="pa-industry__what">Martin's "Boy Scout Rule" — always leave the campground cleaner than you found it — has been published across several of his books (<em>Clean Code</em>, the Clean Coder blog) and became the rallying phrase for incremental code improvement. His "Cycles of TDD" post on the cleancoder blog ties the Boy Scout rule to the refactor step of TDD: every red-green-refactor cycle is a Boy Scout opportunity. The cumulative effect over a year is a codebase that has been touched many times by small improvements.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Make the Boy Scout rule a PR-template line: "What did this PR leave better than it found it?" Even one trivial answer per PR shifts the team norm.</p>
+              <p class="pa-industry__source">Source: <a href="https://blog.cleancoder.com/uncle-bob/2014/12/17/TheCyclesOfTDD.html" rel="noopener">cleancoder.com — Cycles of TDD</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Shopify Engineering</p>
+              <p class="pa-industry__what">Shopify has written extensively on managing the maintenance cost of one of the largest Rails monoliths in production. Their approach combines static-analysis tooling (Sorbet, Packwerk) with cultural norms: every PR is expected to touch only the files it needs to and to leave them in better shape. Shopify's engineering blog documents specific refactoring campaigns — including the multi-year Sorbet type-annotation effort — that show how incremental refactoring at scale actually works.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Tooling helps but does not replace culture. Even with the best static analysis, the daily PR-level discipline is what keeps the codebase healthy.</p>
+              <p class="pa-industry__source">Source: <a href="https://shopify.engineering/" rel="noopener">shopify.engineering — engineering blog</a></p>
+            </div>
+          </div>
+          <p class="pa-industry-pattern">The pattern: continuous refactoring is not a heroic act. It is a small, daily, almost-invisible practice that compounds. The teams that practise it never need a rewrite week.</p>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">"Refactors included" PR section</p>
+              <p class="pa-anatomy__hint">PR template has a required field: list the named refactorings included in this PR. One line per move. Even "Rename Variable: customerId → customerExternalId" counts. The visible expectation produces the behaviour.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Named-move vocabulary</p>
+              <p class="pa-anatomy__hint">The team uses the Fowler catalogue names: Extract Function, Inline Variable, Replace Conditional with Polymorphism, Move Field. Naming the move makes the change reviewable as a refactoring (zero behaviour change) rather than mixed with feature logic.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Refactor-only PRs</p>
+              <p class="pa-anatomy__hint">Large refactorings live in standalone PRs, not mixed with feature changes. A pure refactor PR is easy to review (the diff is large but the behaviour is unchanged; tests pass) and easy to roll back if needed.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">IDE-safe refactoring tools</p>
+              <p class="pa-anatomy__hint">Use the IDE's safe-rename, extract-function, and inline-variable operations rather than hand-edits. The IDE updates every caller atomically; hand-edits miss one and break the build. Required tooling: JetBrains IDEs, VS Code with appropriate language servers, or equivalent.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Test bar as the safety net</p>
+              <p class="pa-anatomy__hint">A refactor is only safe if a test suite covers the behaviour. The minimum bar before refactoring an area: at least one characterisation test exercising the area's public contract. Without that test, the first move is to write it.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Visible code-health trend</p>
+              <p class="pa-anatomy__hint">A weekly chart in the engineering channel: cyclomatic complexity per file (p90), files-without-tests count, comment-rot score. The trend matters more than the absolute number. A flat or improving trend means continuous refactoring is working.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr><td>Refactoring is deferred to a future "tech-debt sprint"</td><td>Roadmap pressure makes feature work feel urgent and refactoring feel optional. The tech-debt sprint never happens because new feature work always wins the next quarter.</td><td>Fold refactoring into the PR template as a required field. Reject PRs that touch a complex file without an attempt to improve it. Make the small improvement the default expectation, not a special event.</td></tr>
+                <tr><td>Refactoring is mixed with feature changes in one PR</td><td>The author is already in the file; folding in a rename feels efficient. The reviewer is left disentangling behaviour change from refactor and rubber-stamps both.</td><td>Split refactor-only PRs from feature PRs. A pure-refactor PR is reviewed as a refactor (zero behaviour change); a feature PR is reviewed as a feature. The split costs five minutes and saves an incident.</td></tr>
+                <tr><td>Refactoring without test coverage</td><td>The team wants to clean up a legacy area but it has no tests. They refactor anyway, "carefully," and a subtle behaviour shift slips through. The "carefully" is the failure mode.</td><td>Add a characterisation test before any refactor in an untested area. The test pins the current behaviour; the refactor either preserves it (green) or surfaces an intended change (now a feature PR, not a refactor).</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="pair-mob-programming.html">Practice 04 — Pair &amp; Mob Programming</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Developer practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+                <td>Initial version: Continuous Refactoring practice for Developer radar.</td>
+                <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

@@ -1,0 +1,615 @@
+/* ui-kit/components/design-canvas-card.css
+   Hero "design stage" card — replaces the terminal-card in landing heroes.
+   A dark aurora stage with drifting orb mesh, big stencil type, a 3D-tilted
+   frosted-glass component card with holographic conic shimmer + cursor-lit
+   spotlight, and floating token chips. Mouse parallax drives `--dcc-mx/my`
+   (set by the JS) which the CSS turns into rotateX/Y on the stage.
+
+   The stage is always dark (regardless of page theme) so the aurora + glass
+   look reads consistently; only the outer chrome adapts via tokens. */
+
+.dcc {
+  --dcc-stage-1: #f6efe1;
+  --dcc-stage-2: #ebdfc8;
+  --dcc-stage-3: #fbf5e8;
+  --dcc-stage-ink: #2a221a;
+  --dcc-stage-ink-soft: rgba(42, 34, 26, 0.62);
+  --dcc-glass-1: rgba(255, 253, 248, 0.94);
+  --dcc-glass-2: rgba(248, 242, 230, 0.84);
+  --dcc-glass-line: rgba(255, 255, 255, 0.7);
+  --dcc-ink: #1a1410;
+  --dcc-ink-soft: #6b5d4f;
+  --dcc-mx: 0.5;
+  --dcc-my: 0.5;
+
+  position: relative;
+  width: min(100%, 460px);
+  aspect-ratio: 5 / 4;
+  min-height: 360px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(120% 80% at 50% 0%, var(--dcc-stage-3) 0%, transparent 60%),
+    linear-gradient(180deg, var(--dcc-stage-1) 0%, var(--dcc-stage-2) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, rgba(42, 34, 26, 0.10));
+  box-shadow:
+    0 32px 70px -28px color-mix(in srgb, var(--accent) 32%, transparent),
+    0 14px 32px -16px rgba(60, 48, 28, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  font-family: var(--font-sans);
+  color: var(--dcc-stage-ink);
+  perspective: 1400px;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* ─── Aurora orbs (mesh-gradient backdrop) ──────────────────────────── */
+
+.dcc__sky {
+  position: absolute;
+  inset: -18%;
+  z-index: 0;
+  filter: blur(48px) saturate(110%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.dcc__orb {
+  position: absolute;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  mix-blend-mode: multiply;
+  will-change: transform;
+}
+
+.dcc__orb--blue {
+  top: -8%;
+  left: -10%;
+  background: radial-gradient(circle, #a8c5e8 0%, transparent 70%);
+  animation: dcc-orb-a 14s ease-in-out infinite;
+}
+.dcc__orb--pink {
+  bottom: -16%;
+  right: -8%;
+  background: radial-gradient(circle, #e6c2d0 0%, transparent 70%);
+  animation: dcc-orb-b 18s ease-in-out infinite;
+}
+.dcc__orb--cyan {
+  top: 32%;
+  right: -12%;
+  width: 50%;
+  background: radial-gradient(circle, #b8d8d4 0%, transparent 72%);
+  animation: dcc-orb-c 22s ease-in-out infinite;
+}
+.dcc__orb--gold {
+  bottom: 10%;
+  left: 18%;
+  width: 42%;
+  background: radial-gradient(circle, #e8d4ac 0%, transparent 72%);
+  animation: dcc-orb-d 26s ease-in-out infinite;
+  opacity: 0.85;
+}
+
+@keyframes dcc-orb-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(22%, 28%) scale(1.18); }
+}
+@keyframes dcc-orb-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-24%, -22%) scale(0.88); }
+}
+@keyframes dcc-orb-c {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-30%, 22%) scale(1.22); }
+}
+@keyframes dcc-orb-d {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(34%, -18%) scale(0.92); }
+}
+
+/* Subtle scan grid above the aurora */
+.dcc__grid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(42, 34, 26, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(42, 34, 26, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black, transparent 92%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black, transparent 92%);
+}
+
+/* Grain layer — very subtle paper texture */
+.dcc__noise {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.16  0 0 0 0 0.13  0 0 0 0 0.10  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ─── Big stencil type (background numerals) ────────────────────────── */
+
+.dcc__bigtype {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-sans);
+  font-weight: 900;
+  font-size: clamp(110px, 28vw, 168px);
+  letter-spacing: -0.06em;
+  line-height: 0.84;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(42, 34, 26, 0.18);
+  text-stroke: 1px rgba(42, 34, 26, 0.18);
+  pointer-events: none;
+  white-space: nowrap;
+  text-align: center;
+  user-select: none;
+}
+
+.dcc__bigtype-row {
+  display: block;
+}
+.dcc__bigtype-row + .dcc__bigtype-row {
+  margin-top: -0.06em;
+  -webkit-text-stroke-color: rgba(42, 34, 26, 0.10);
+  text-stroke-color: rgba(42, 34, 26, 0.10);
+}
+
+/* ─── 3D-tilted stage holding the glass card ────────────────────────── */
+
+.dcc__stage {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  transform-style: preserve-3d;
+  transform:
+    rotateX(calc((0.5 - var(--dcc-my)) * 14deg))
+    rotateY(calc((var(--dcc-mx) - 0.5) * 16deg));
+  transition: transform 420ms var(--ease-out);
+  pointer-events: none;
+}
+
+.dcc__card {
+  position: relative;
+  width: 76%;
+  padding: 18px 18px 16px;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(155deg, var(--dcc-glass-1) 0%, var(--dcc-glass-2) 100%);
+  border: 1px solid var(--dcc-glass-line);
+  color: var(--dcc-ink);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    0 28px 56px -20px rgba(2, 6, 23, 0.55),
+    0 10px 24px -10px rgba(2, 6, 23, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+  transform-style: preserve-3d;
+  /* Card sits slightly closer in Z, plus a tiny parallax shift */
+  transform: translate3d(
+    calc((0.5 - var(--dcc-mx)) * 10px),
+    calc((0.5 - var(--dcc-my)) * 8px),
+    40px
+  );
+  transition: transform 420ms var(--ease-out);
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: auto;
+}
+
+/* Holographic conic sweep — sits over the card, softly tints the glass */
+.dcc__holo {
+  position: absolute;
+  inset: -50%;
+  z-index: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(96, 165, 250, 0.14) 60deg,
+    rgba(236, 72, 153, 0.12) 140deg,
+    rgba(34, 211, 238, 0.12) 220deg,
+    rgba(250, 204, 21, 0.14) 300deg,
+    transparent 360deg
+  );
+  mix-blend-mode: multiply;
+  filter: blur(6px);
+  animation: dcc-spin 11s linear infinite;
+  opacity: 0.6;
+}
+
+@keyframes dcc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Cursor-following highlight spot inside the card */
+.dcc__cursor {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    220px circle at calc(var(--dcc-mx) * 100%) calc(var(--dcc-my) * 100%),
+    rgba(255, 250, 240, 0.7) 0%,
+    transparent 58%
+  );
+  mix-blend-mode: soft-light;
+  opacity: 0.85;
+  transition: opacity 240ms var(--ease-out);
+}
+.dcc:not(:hover) .dcc__cursor { opacity: 0; }
+
+/* ─── Glass card contents ───────────────────────────────────────────── */
+
+.dcc__card-head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.dcc__card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #15803d;
+}
+.dcc__card-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+  animation: dcc-pulse 2.2s ease-in-out infinite;
+}
+@keyframes dcc-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(0.75); opacity: 0.55; }
+}
+
+.dcc__card-file {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--dcc-ink-soft);
+}
+
+/* Token specimen — palette ramp + type sample. Reads as a design-system
+   swatch card rather than a user profile, which matches the UI Kit's purpose. */
+.dcc__specimen {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.dcc__palette {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dcc__palette-bar {
+  display: flex;
+  height: 30px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06),
+    0 3px 10px -4px rgba(2, 6, 23, 0.35);
+}
+
+.dcc__palette-swatch {
+  flex: 1;
+  position: relative;
+  transition: flex 320ms var(--ease-out);
+}
+.dcc__palette-swatch--1 { background: #dbeafe; }
+.dcc__palette-swatch--2 { background: #93c5fd; }
+.dcc__palette-swatch--3 { background: #3b82f6; }
+.dcc__palette-swatch--4 { background: #1d4ed8; }
+.dcc__palette-swatch--5 { background: #1e3a8a; }
+.dcc:hover .dcc__palette-swatch--3 { flex: 1.35; }
+
+.dcc__palette-labels {
+  display: flex;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dcc-ink-soft);
+}
+.dcc__palette-labels span {
+  flex: 1;
+  text-align: center;
+}
+
+.dcc__type {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.dcc__type-sample {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 40px;
+  letter-spacing: -0.045em;
+  line-height: 0.85;
+  background: linear-gradient(135deg, #0b1124 0%, #1e3a8a 60%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.dcc__type-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dcc-ink-soft);
+  text-align: right;
+}
+.dcc__type-meta strong {
+  color: var(--dcc-ink);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.dcc__rule {
+  position: relative;
+  z-index: 2;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(15, 23, 42, 0.14) 30%, rgba(15, 23, 42, 0.14) 70%, transparent);
+  margin-bottom: 14px;
+}
+
+.dcc__cta-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dcc__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px 7px 13px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  border: 0;
+  cursor: default;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 4px 12px -4px rgba(15, 23, 42, 0.45);
+}
+.dcc__cta svg {
+  transition: transform 240ms var(--ease-out);
+}
+.dcc:hover .dcc__cta svg {
+  transform: translateX(3px);
+}
+
+.dcc__metrics {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--dcc-ink-soft);
+  letter-spacing: 0.02em;
+}
+
+/* ─── Floating token chips around the card ──────────────────────────── */
+
+.dcc__token {
+  position: absolute;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px 5px 7px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--dcc-ink);
+  background: rgba(255, 252, 244, 0.78);
+  border: 1px solid rgba(42, 34, 26, 0.10);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 8px 16px -8px rgba(60, 48, 28, 0.32);
+  transform-style: preserve-3d;
+  /* Each token shifts independently for parallax depth */
+  transition: transform 320ms var(--ease-out);
+}
+
+.dcc__token-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--dot, var(--accent));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.dcc__token-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(42, 34, 26, 0.08);
+  color: var(--dcc-ink-soft);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+}
+
+.dcc__token--1 {
+  top: 9%;
+  left: 6%;
+  transform: translate3d(calc((0.5 - var(--dcc-mx)) * 18px), calc((0.5 - var(--dcc-my)) * 14px), 60px) rotate(-7deg);
+  --dot: #3b82f6;
+}
+.dcc__token--2 {
+  top: 16%;
+  right: 5%;
+  transform: translate3d(calc((var(--dcc-mx) - 0.5) * 16px), calc((0.5 - var(--dcc-my)) * 12px), 50px) rotate(5deg);
+}
+.dcc__token--3 {
+  bottom: 10%;
+  left: 8%;
+  transform: translate3d(calc((0.5 - var(--dcc-mx)) * 14px), calc((var(--dcc-my) - 0.5) * 14px), 30px) rotate(4deg);
+}
+.dcc__token--4 {
+  bottom: 14%;
+  right: 6%;
+  transform: translate3d(calc((var(--dcc-mx) - 0.5) * 20px), calc((var(--dcc-my) - 0.5) * 14px), 70px) rotate(-5deg);
+  --dot: #ec4899;
+}
+
+/* ─── Frame label + spec ribbon ─────────────────────────────────────── */
+
+.dcc__hud {
+  position: absolute;
+  z-index: 6;
+  top: 14px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dcc-stage-ink-soft);
+}
+.dcc__hud::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--dcc-stage-ink);
+  border-radius: 1px;
+  box-shadow: 0 0 0 3px rgba(42, 34, 26, 0.12);
+}
+
+.dcc__foot {
+  position: absolute;
+  z-index: 6;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--dcc-stage-ink-soft);
+}
+.dcc__foot-val {
+  color: var(--dcc-stage-ink);
+  font-weight: 600;
+}
+
+/* ─── Entrance staging ──────────────────────────────────────────────── */
+
+.dcc__stage,
+.dcc__token,
+.dcc__bigtype,
+.dcc__hud,
+.dcc__foot {
+  opacity: 0;
+  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+}
+.dcc.is-visible .dcc__bigtype { opacity: 1; transition-delay: 120ms; }
+.dcc.is-visible .dcc__hud     { opacity: 1; transition-delay: 60ms; }
+.dcc.is-visible .dcc__foot    { opacity: 1; transition-delay: 60ms; }
+.dcc.is-visible .dcc__stage   { opacity: 1; transition-delay: 260ms; }
+.dcc.is-visible .dcc__token   { opacity: 1; }
+.dcc.is-visible .dcc__token--1 { transition-delay: 480ms; }
+.dcc.is-visible .dcc__token--2 { transition-delay: 540ms; }
+.dcc.is-visible .dcc__token--3 { transition-delay: 600ms; }
+.dcc.is-visible .dcc__token--4 { transition-delay: 660ms; }
+
+/* ─── Reduced motion + responsive ───────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .dcc__orb,
+  .dcc__holo,
+  .dcc__card-dot,
+  .dcc__stage,
+  .dcc__card,
+  .dcc__token,
+  .dcc__bigtype,
+  .dcc__hud,
+  .dcc__foot,
+  .dcc__cta svg {
+    animation: none !important;
+    transition: none !important;
+  }
+  .dcc__stage { transform: none; }
+  .dcc__card { transform: translateZ(0); }
+  .dcc:not(.is-visible) .dcc__stage,
+  .dcc:not(.is-visible) .dcc__token,
+  .dcc:not(.is-visible) .dcc__bigtype,
+  .dcc:not(.is-visible) .dcc__hud,
+  .dcc:not(.is-visible) .dcc__foot { opacity: 1; }
+}
+
+@media (max-width: 760px) {
+  .dcc {
+    min-height: 320px;
+    aspect-ratio: 5 / 4;
+  }
+  .dcc__bigtype { font-size: 110px; }
+  .dcc__card { width: 82%; padding: 14px; }
+}
+
+/* No backdrop-filter fallback (very old browsers): make the glass solid */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .dcc__card {
+    background: rgba(255, 253, 248, 0.98);
+  }
+  .dcc__token {
+    background: rgba(255, 252, 244, 0.96);
+  }
+}

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SLO &amp; SLA Design — Practice 17 · Architect</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">17</span>
+          <span class="pa-eyebrow__group">Group D · Reliability &amp; quality</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">3.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">9.0</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">SLO &amp; SLA Design — reliability as a contract</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">A shared, measurable definition of "the system is healthy" that turns reliability into an engineering decision rather than a feeling.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">SLOs (Service Level Objectives) are internal reliability targets backed by SLIs (Service Level Indicators) — measurable signals like availability or latency. SLAs are contractual commitments to customers. The error budget (100% − SLO) defines how much unreliability is acceptable per month before stopping feature work. Codified by Google SRE in the early 2000s, the SLO/error-budget model turns reliability from a feeling into an engineering decision. Teams that adopt SLOs reduce alert fatigue dramatically — alerts fire only when the error budget is at risk, not on every error.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="SLO and error budget">
+          <svg viewBox="0 0 720 180" role="img" aria-label="SLO with error budget consumption">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box pa-svg-box--accent" x="20" y="55" width="160" height="65" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="100" y="82" text-anchor="middle" font-size="11" font-weight="700">SLI</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="100" y="100" text-anchor="middle" font-size="10">measured signal</text>
+
+              <rect class="pa-svg-box pa-svg-box--accent" x="220" y="55" width="160" height="65" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="300" y="82" text-anchor="middle" font-size="11" font-weight="700">SLO</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="300" y="100" text-anchor="middle" font-size="10">target: 99.9%</text>
+
+              <rect class="pa-svg-box pa-svg-box--good" x="420" y="55" width="160" height="65" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--good" x="500" y="82" text-anchor="middle" font-size="11" font-weight="700">Error Budget</text>
+              <text class="pa-svg-text pa-svg-text--good" x="500" y="100" text-anchor="middle" font-size="10">0.1% / month</text>
+
+              <rect class="pa-svg-box" x="620" y="55" width="80" height="65" rx="8"/>
+              <text class="pa-svg-text" x="660" y="82" text-anchor="middle" font-size="11" font-weight="700">SLA</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="660" y="100" text-anchor="middle" font-size="9">contract</text>
+
+              <path class="pa-svg-arrow" d="M180 87 L217 87 L210 83 M217 87 L210 91"/>
+              <path class="pa-svg-arrow" d="M380 87 L417 87 L410 83 M417 87 L410 91"/>
+              <path class="pa-svg-arrow" d="M580 87 L617 87 L610 83 M617 87 L610 91"/>
+
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="158" text-anchor="middle" font-size="10" font-style="italic">"SLO is internal; SLA is external and looser than SLO with margin for change"</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">SLI → SLO → Error Budget → SLA. Each layer is a step further from the raw measurement. SLAs are deliberately looser than SLOs to leave the team headroom for change.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>Four related concepts define modern reliability engineering:</p>
+          <ul>
+            <li><strong>SLI</strong> (Service Level Indicator) — a measured signal, typically a ratio: "good events / total events." Example: requests returning a 2xx status / total requests.</li>
+            <li><strong>SLO</strong> (Service Level Objective) — a target for the SLI over a rolling window. Example: "99.9% of requests return 2xx over a 30-day window."</li>
+            <li><strong>Error Budget</strong> — 100% minus the SLO. The allowed amount of failure. A 99.9% SLO over 30 days has a 0.1% error budget = ~43 minutes of total downtime.</li>
+            <li><strong>SLA</strong> (Service Level Agreement) — a contractual commitment to a customer, usually with financial penalties. SLAs are deliberately set looser than SLOs (e.g. SLO 99.9%, SLA 99.5%) to leave engineering headroom.</li>
+          </ul>
+          <p>The error budget is the operational mechanism. When the team is well within budget, fast feature delivery is encouraged. When the budget is consumed, the team prioritises reliability work — bug fixes, reliability improvements — until budget is restored. The model creates an automatic feedback loop between feature velocity and reliability.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Without SLOs, on-call alerts are noise. Every error fires; the team becomes desensitised; real outages are missed in the chatter. There is no shared definition of "healthy" — one engineer thinks 99% uptime is fine, another thinks 99.99% is the standard. Stakeholder conversations about reliability ("are we reliable enough?") have no anchor.</p>
+          <p>SLOs anchor the conversation. "We're at 99.92% against a 99.9% SLO" is a precise answer. The error budget gives the team a tool to negotiate trade-offs: when budget is plentiful, ship features; when budget is exhausted, slow down. This automatic regulation prevents both extremes (chronic reliability problems and chronic feature stagnation in pursuit of perfect uptime).</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Google SRE (originator)</p>
+              <p class="pa-industry__what">Google formalised the SLI/SLO/error budget model in the early 2000s and published it externally in the <em>Site Reliability Engineering</em> book (2016) and the <em>SRE Workbook</em> (2018). Google operates thousands of SLOs across its services; the SRE team treats SLO design as a core engineering activity. Their guidance: pick three SLIs maximum per service (availability, latency, throughput or quality). More SLIs than that produces a dashboard nobody reads. The error budget is enforced operationally: when the budget is exhausted, the team's feature work is paused until budget is restored.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Start with three SLIs maximum per service: availability, latency, and either correctness or throughput. Adding a fourth SLI before the first three are stable is premature.</p>
+              <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/service-level-objectives/" rel="noopener">Google SRE Book — SLOs chapter</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">SLO Development Lifecycle (slodlc.com)</p>
+              <p class="pa-industry__what">The SLO Development Lifecycle is a community-driven framework formalised by a working group from Google, Nobl9, and Mercari. It defines six stages: Discovery, Design, Implementation, Promotion, Observation, Iteration. Each stage has specific deliverables and decision criteria. The framework addresses the most common SLO failure: SLOs that are technically correct but never adopted because the lifecycle stopped at "implementation" without the promotion and iteration phases.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> SLO adoption requires explicit Promotion and Iteration phases. Designing an SLO is 20% of the work; making it the team's daily reference is the other 80%. Schedule monthly SLO reviews from the start.</p>
+              <p class="pa-industry__source">Source: <a href="https://slodlc.com/" rel="noopener">SLO Development Lifecycle</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Stripe</p>
+              <p class="pa-industry__what">Stripe is publicly committed to a 99.999% SLA on payment processing — five nines, an extremely aggressive target. The engineering culture is built around defending this SLA: every team that touches the payment path operates SLOs that are an order of magnitude stricter than the SLA. Stripe also publishes an extensive status page (status.stripe.com) with historical SLA reporting. Their public SLA commitment is a major competitive differentiator and a major engineering constraint.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> A public SLA is a marketing asset. It also bounds your engineering choices. Set SLOs (internal) significantly stricter than your SLA (external) — typically 0.1–0.5 percentage points stricter — to leave margin for the unexpected.</p>
+              <p class="pa-industry__source">Source: <a href="https://status.stripe.com/" rel="noopener">Stripe status page</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">SLI (Measured Signal)</p>
+              <p class="pa-anatomy__hint">A ratio: good events / total events. Typical choices: availability (2xx responses / total), latency (requests under threshold / total), correctness (validated outputs / total). Implemented as Prometheus queries or equivalent. Measured continuously.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">SLO (Target with Window)</p>
+              <p class="pa-anatomy__hint">A target value for the SLI over a rolling time window. "99.9% over rolling 30 days" is the canonical format. The window choice matters: 30-day windows are stable enough to be actionable; 7-day windows are too noisy; 90-day windows are too slow to react to.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Error Budget Policy</p>
+              <p class="pa-anatomy__hint">A written policy describing what happens when error budget is exhausted. Typical: feature work pauses, reliability work prioritises, post-mortem required. The policy is the most important artefact — without it the SLO is informational, not operational.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Burn Rate Alert</p>
+              <p class="pa-anatomy__hint">An alert that fires when the error budget is consumed too fast. Multi-window burn rate alerts (Google SRE pattern): 2% budget burned in 1 hour = page on-call; 5% in 6 hours = page on-call. Calibrated to catch real problems without firing on transient errors. Replaces raw error-rate alerts.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Monthly SLO Review</p>
+              <p class="pa-anatomy__hint">A 30-minute monthly review with engineering and product leadership. Reports SLO compliance, error budget consumption, top causes of budget burn, and any planned SLO adjustments. Without this ritual the SLO drifts from operational reality.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead>
+                <tr>
+                  <th scope="col">Pitfall</th>
+                  <th scope="col">Why it happens</th>
+                  <th scope="col">What to do instead</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>SLOs that are unrealistically high (99.999% for everything)</td>
+                  <td>The team aspires to "best in class" reliability and sets SLOs at 99.999% across the board. Each additional 9 costs roughly 10× more than the previous. The team burns out chasing impossible targets.</td>
+                  <td>Set SLOs based on actual user need. Internal admin tools may need 99% (3.6 days/year downtime allowed). Customer-facing transactional flows need 99.9% (8.7 hours/year). Payment processing needs 99.99% (52 minutes/year). Match the SLO to the cost of failure.</td>
+                </tr>
+                <tr>
+                  <td>SLOs measured but not enforced (theatre)</td>
+                  <td>The team publishes an SLO dashboard but does not change behaviour when the error budget is consumed. Features keep shipping; the dashboard becomes wallpaper. Reliability problems persist.</td>
+                  <td>Write the error budget policy explicitly. Get product leadership to agree to feature pause when budget is exhausted. The first time the policy is enforced sets the precedent for the rest of the year.</td>
+                </tr>
+                <tr>
+                  <td>SLOs derived from system capabilities, not user expectations</td>
+                  <td>The team picks the SLO threshold based on what the current system can achieve. The SLO is comfortable; it does not represent the customer's actual tolerance for failure. The customer leaves before the SLO fires.</td>
+                  <td>Derive SLOs from user research or customer commitments. "Users abandon checkout after 3 seconds" is a latency budget. The SLO threshold should be inside the user's tolerance, not at the edge of the system's current capability.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="nfr-definition.html">Practice 16 — Non-Functional Requirements</a></li>
+            <li><a class="docs-next-steps__item" href="chaos-engineering.html">Practice 18 — Chaos Engineering</a></li>
+            <li><a class="docs-next-steps__item" href="../practices.html">Architect practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: SLO &amp; SLA Design practice for Architect radar.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body>
+</html>
