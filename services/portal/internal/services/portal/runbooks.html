@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>portal · Runbooks</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">portal · Runbooks</h1>
+
+        <section class="card">
+          <p>
+            Operational guidance for the portal service. Because the portal has no runtime application logic, almost
+            every "incident" is a build-time issue — reproducible by running <code>make docs-fix</code> locally.
+            Authoritative procedures live in <a href="../../how-to/runbooks/index.html">internal/sre/runbooks/</a> and are
+            indexed below by symptom.
+          </p>
+        </section>
+
+        <section class="card" id="symptom-runbook-index">
+          <h2>Symptom-keyed runbook index</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Symptom to runbook">
+            <table>
+              <thead><tr><th>Symptom</th><th>First action</th></tr></thead>
+              <tbody>
+                <tr><td>"On this page" TOC missing on a doc</td><td><a href="../../how-to/runbooks/0010-in-page-toc-missing.html">0010 · in-page TOC missing</a></td></tr>
+                <tr><td>Broken link in the portal</td><td><code>make docs-check</code> reports broken refs; fix the source. Pre-commit catches most cases — see <a href="../../how-to/runbooks/0004-pre-commit-failing.html">0004 · pre-commit failing</a>.</td></tr>
+                <tr><td>Diagram (PlantUML SVG) is stale or missing</td><td>Run <code>make docs-fix</code>. If Kroki is unreachable, see <a href="#kroki-unreachable">Kroki unreachable</a> below.</td></tr>
+                <tr><td>Search returns nothing for a known page</td><td>Search index is stale: re-run <code>make docs-fix</code>. KPI policy: <a href="../../governance/rfc/0002-docs-search-kpi-policy-and-slo.html">RFC 0002</a>.</td></tr>
+                <tr><td>pdoc page missing for a Python module</td><td>Module is not imported by <code>app/</code> root, or docstring fails to parse. Re-run <code>make docs-fix</code>; see <a href="../../governance/adr/0016-python-docstrings-google-style-and-pdoc.html">ADR 0016</a>.</td></tr>
+                <tr><td>Pre-commit complains about unrendered SVGs</td><td><a href="../../how-to/runbooks/0004-pre-commit-failing.html">0004 · pre-commit failing</a> — usually <code>make docs-fix</code> followed by <code>git add</code>.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" id="kroki-unreachable">
+          <h2>Kroki unreachable — partial-render strategy</h2>
+          <p>
+            The render step uses Kroki at <code>https://kroki.io/plantuml/svg</code>. When the host is offline or the
+            network blocks egress (corporate proxy, sandboxed CI), the build fails on first changed PUML.
+          </p>
+          <ol>
+            <li>Confirm: <code>curl -sI https://kroki.io</code>. If TLS fails, the issue is the network, not Kroki.</li>
+            <li>Workaround: commit the PUML sources without the SVGs. Re-run <code>make docs-fix</code> when the network is restored. The fingerprint cache (<code>input-hashes.json</code>) detects changes and regenerates only what needs regeneration.</li>
+            <li>Long-term mitigation: bundle a local <code>plantuml.jar</code> + Java runtime in the dev container, and let <code>scripts/regenerate_docs.py</code> fall back to local rendering. Tracked in <a href="../../governance/backlog/index.html">backlog</a>.</li>
+          </ol>
+        </section>
+
+        <section class="card" id="rebuild-locally">
+          <h2>Rebuild the portal locally</h2>
+          <pre><code># Full rebuild (UML + pdoc + search index)
+make docs-fix
+
+# Verify only — no writes (used by pre-commit / CI)
+make docs-check
+
+# Specific pieces
+.venv/bin/python scripts/regenerate_docs.py --force      # ignore fingerprint cache
+.venv/bin/python scripts/build_docs_search_index.py     # search index only</code></pre>
+          <p class="small">
+            See <a href="../../how-to/docs/change-docs-frontend-safely.html">handbook · how to change docs frontend safely</a>
+            for the full workflow including visual regression checks.
+          </p>
+        </section>
+
+        <section class="card" id="see-also">
+          <h2>See also</h2>
+          <ul>
+            <li><a href="architecture.html">portal · Architecture</a> — build pipeline detail</li>
+            <li><a href="on-call.html">portal · On-call</a> — symptom routing</li>
+            <li><a href="../../how-to/runbooks/index.html">SRE · Runbooks index</a></li>
+            <li><a href="../../reference/front/index.html">Frontend docs hub</a></li>
+          </ul>
+        </section>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-10">2026-05-10</time></td>
+                  <td>Filled symptom index, Kroki workaround, local rebuild commands.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+                <tr>
+                  <td><time datetime="2026-05-08">2026-05-08</time></td>
+                  <td>Initial skeleton stub.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+</body></html>

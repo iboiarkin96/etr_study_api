@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Event-Driven Architecture — Practice 02 · Architect</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">02</span>
+          <span class="pa-eyebrow__group">Group A · System design &amp; patterns</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">3.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Event-Driven Architecture — decouple through events</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Replace synchronous point-to-point calls with immutable domain events to achieve temporal decoupling and resilient integration.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Event-Driven Architecture (EDA) is a design style in which services communicate by publishing and consuming immutable domain events rather than calling each other directly. CQRS (Command Query Responsibility Segregation) separates write and read models; Event Sourcing stores the full state history as an ordered event log. Together they enable temporal decoupling, free audit trails, and independent service scaling. Netflix, Uber, and LinkedIn all run core systems on event-driven backbones.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Event flow diagram">
+          <svg viewBox="0 0 720 190" role="img" aria-label="Producer, broker, and consumer pattern">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box pa-svg-box--accent" x="20" y="55" width="140" height="70" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="90" y="87" text-anchor="middle" font-size="12" font-weight="700">Producer</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="90" y="107" text-anchor="middle" font-size="10">OrderService</text>
+
+              <rect class="pa-svg-box" x="260" y="40" width="200" height="100" rx="10"/>
+              <text class="pa-svg-text" x="360" y="75" text-anchor="middle" font-size="12" font-weight="700">Event Broker</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="95" text-anchor="middle" font-size="10">Kafka / SQS / Pub-Sub</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="115" text-anchor="middle" font-size="10">OrderPlaced event</text>
+
+              <rect class="pa-svg-box pa-svg-box--good" x="540" y="30" width="160" height="55" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--good" x="620" y="62" text-anchor="middle" font-size="11">InventoryService</text>
+
+              <rect class="pa-svg-box pa-svg-box--good" x="540" y="105" width="160" height="55" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--good" x="620" y="137" text-anchor="middle" font-size="11">NotificationService</text>
+
+              <path class="pa-svg-arrow" d="M160 90 L255 90 L248 86 M255 90 L248 94"/>
+              <path class="pa-svg-arrow" d="M460 68 L535 57 L527 55 L528 61 M535 57 L527 61"/>
+              <path class="pa-svg-arrow" d="M460 112 L535 133 L527 130 L528 136 M535 133 L527 136"/>
+
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="178" text-anchor="middle" font-size="10" font-style="italic">"producer does not know its consumers — temporal &amp; spatial decoupling"</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">A single OrderPlaced event fans out to multiple consumers independently. Adding a new consumer requires no change to the producer.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>Event-Driven Architecture is a system integration style where components communicate by publishing and consuming events. An event is an immutable record of something that happened in the domain: <code>OrderPlaced</code>, <code>PaymentFailed</code>, <code>UserVerified</code>. The producer does not know who will consume the event.</p>
+          <p>Three related patterns that often appear together:</p>
+          <ul>
+            <li><strong>Pub-Sub</strong> — a broker (Kafka, SQS, Google Pub/Sub) delivers events from producers to one or more consumer groups. Each consumer group processes every event independently.</li>
+            <li><strong>CQRS</strong> (Command Query Responsibility Segregation) — separates the write model (commands that change state) from the read model (queries on projections). Martin Fowler and Greg Young popularised the pattern around 2009. The read model is eventually consistent with the write model.</li>
+            <li><strong>Event Sourcing</strong> — stores every state change as an immutable event in an append-only log. The current state is the result of replaying the event log. First described by Martin Fowler in 2005. Enables time travel (rewind to any point), audit trails, and replayable migrations.</li>
+          </ul>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Synchronous point-to-point calls create two failure modes at startup speed. First, availability coupling: when Service A calls Service B synchronously, A's uptime is bounded by B's uptime. A slow B cascades into a full A outage. Second, team coupling: adding a new consumer of data from Service A requires a contract negotiation with A's team and an API change.</p>
+          <p>Events eliminate both. A producer publishes to a broker and moves on. Consumers subscribe independently. The producer team never needs to know about new consumers. Failure in one consumer does not propagate upstream. The event log also provides a free audit trail — a regulatory requirement that is expensive to add after the fact.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Netflix</p>
+              <p class="pa-industry__what">Netflix processes over 1 trillion events per day through its Keystone pipeline (Apache Kafka-based). Every user interaction — play, pause, search — is an event. Consumers include the recommendation engine, A/B testing, billing, and fraud detection. The entire analytics and personalisation stack is event-driven; no service polls another for state.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Events as the primary integration primitive from day one, not as a migration from RPC. Designing for event replay enables the recommendation engine to be retrained on any historical window.</p>
+              <p class="pa-industry__source">Source: <a href="https://netflixtechblog.com/keystone-real-time-stream-processing-platform-a3ee651812a" rel="noopener">Netflix Tech Blog — Keystone pipeline</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Uber</p>
+              <p class="pa-industry__what">Uber uses Apache Kafka as the central nervous system for its real-time systems. Every trip state change (requested, matched, started, completed) is published as a domain event. Over 1 million messages per second at peak. The driver location system, ETA calculation, and surge pricing all consume the same event stream independently. Uber publishes its Kafka deployment patterns via the open-source <a href="https://github.com/uber/uReplicator" rel="noopener">uReplicator</a> project.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Make the trip/order lifecycle an event stream from day one. Every business question ("how many active rides at 3 pm?") becomes a stream query rather than an expensive DB aggregation.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.uber.com/en-US/blog/apache-kafka-uber-use-case/" rel="noopener">Uber Engineering — Apache Kafka use case</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Martin Fowler / Greg Young (CQRS + Event Sourcing)</p>
+              <p class="pa-industry__what">Greg Young formalised CQRS as a pattern in 2009 and popularised Event Sourcing for financial systems where immutable audit trails are a regulatory requirement. His EventStore is the canonical reference implementation. Fowler codified the patterns on martinfowler.com. The canonical guidance: "Don't use Event Sourcing unless you genuinely need the audit log or replay capability — the complexity cost is real."</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Apply Event Sourcing selectively to the Core Domain aggregates with regulatory audit requirements. Do not use it as a default persistence mechanism — the query complexity is significant.</p>
+              <p class="pa-industry__source">Source: <a href="https://martinfowler.com/eaaDev/EventSourcing.html" rel="noopener">Fowler — Event Sourcing</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Domain Event Schema</p>
+              <p class="pa-anatomy__hint">Every event has: eventId (UUID), eventType (namespaced string), occurredAt (ISO-8601), correlationId, and a typed payload. Defined in AsyncAPI 2.x. Breaking changes follow a versioning policy (new topic per major version). Schema registry validates compatibility before deployment.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Event Broker</p>
+              <p class="pa-anatomy__hint">The delivery infrastructure (Kafka, SQS/SNS, Google Pub/Sub). Retention: minimum 7 days for replay. Consumer groups: each downstream system has its own consumer group so it can replay independently. Partition count: sized to expected peak throughput with 2× headroom.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Idempotent Consumer</p>
+              <p class="pa-anatomy__hint">Every consumer must be idempotent — processing the same event twice produces the same result. Implemented via deduplication on eventId with a 24-hour TTL. Required for at-least-once delivery guarantees. Non-idempotent consumers cause duplicate charges, duplicate emails, and duplicate inventory decrements.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Dead Letter Queue (DLQ)</p>
+              <p class="pa-anatomy__hint">Events that fail processing after 3 retries are routed to a DLQ. The DLQ is monitored and alerted. DLQ messages are investigated and replayed manually or through a retry job. Without a DLQ, failed events are silently lost.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Outbox Pattern</p>
+              <p class="pa-anatomy__hint">To guarantee that a database write and an event publication happen atomically, the event is written to an "outbox" table in the same transaction, then a separate relay process publishes it to the broker. Prevents the dual-write problem (DB write succeeds, broker publish fails). Required for any event that drives financial or inventory state.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead>
+                <tr>
+                  <th scope="col">Pitfall</th>
+                  <th scope="col">Why it happens</th>
+                  <th scope="col">What to do instead</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Event payload contains too much data ("fat events")</td>
+                  <td>Teams include the entire entity state in the event payload to avoid consumers making follow-up calls. Consumers become coupled to the full data model and every schema change is a breaking change.</td>
+                  <td>Publish thin events (IDs and key facts only). Let consumers call the source service for full state if needed, or maintain their own projections. Use the "notification + fetch" pattern.</td>
+                </tr>
+                <tr>
+                  <td>Non-idempotent consumers causing duplicate side effects</td>
+                  <td>Developers assume at-most-once delivery. Network retries and consumer restarts cause duplicate delivery. Duplicate emails, duplicate charges, and duplicate inventory decrements follow.</td>
+                  <td>Design every consumer for idempotency from day one. Use a deduplication store keyed on eventId. Test with duplicate event injection in CI.</td>
+                </tr>
+                <tr>
+                  <td>Event schema changes break consumers silently</td>
+                  <td>A producer adds or renames a field. Consumers in other teams do not know until their processing silently fails or produces incorrect results. There is no contract enforcement.</td>
+                  <td>Use a schema registry (Confluent Schema Registry or AWS Glue). Enforce backward-compatible changes only (add optional fields, never remove or rename required fields). Use separate topics for breaking major versions.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="domain-driven-design.html">Practice 01 — Domain-Driven Design</a></li>
+            <li><a class="docs-next-steps__item" href="c4-model.html">Practice 03 — C4 Model Diagrams</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">Architect practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: Event-Driven Architecture practice for Architect radar.</td>
+                  <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body>
+</html>

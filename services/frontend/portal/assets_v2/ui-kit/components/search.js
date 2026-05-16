@@ -291,6 +291,7 @@ function ensureSearchMarkup(host) {
     SEARCH_SVG +
     `<input class="docs-search__input" type="search" placeholder="Search docs…"` +
     ` aria-label="Search docs" autocomplete="off" spellcheck="false"` +
+    ` data-tooltip="Search all docs. Press / or ⌘K to focus." data-tooltip-placement="bottom"` +
     ` role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}">` +
     `<div class="docs-search__panel" id="${id}" role="listbox" aria-hidden="true"></div>`;
 }

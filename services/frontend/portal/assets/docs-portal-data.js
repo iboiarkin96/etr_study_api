@@ -364,7 +364,7 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Screen spec template — international standard"
       },
       {
-        "path": "internal/governance/adr/0000-template.html",
+        "path": "internal/reference/templates/adr.html",
         "title": "ADR template"
       },
       {
@@ -488,55 +488,55 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "ADR Index — ETR Study API"
       },
       {
-        "path": "internal/governance/audit/AUDIT_TEMPLATE.html",
+        "path": "internal/governance/audits/AUDIT_TEMPLATE.html",
         "title": "Assessment template — services/portal/audit"
       },
       {
-        "path": "internal/governance/audit/api/2026-04-14-rest-api-assessment.html",
+        "path": "internal/governance/audits/api/2026-04-14-rest-api-assessment.html",
         "title": "REST API Assessment — Study App — formed 14 Apr 2026"
       },
       {
-        "path": "internal/governance/audit/api/index.html",
+        "path": "internal/governance/audits/api/index.html",
         "title": "REST API assessments — index"
       },
       {
-        "path": "internal/governance/audit/bugs/2026-05-07-portal-bug-audit.html",
+        "path": "internal/governance/audits/bugs/2026-05-07-portal-bug-audit.html",
         "title": "Bug audit — study_app — 2026-05-07"
       },
       {
-        "path": "internal/governance/audit/docs/2026-04-14-documentation-experience-assessment.html",
+        "path": "internal/governance/audits/docs/2026-04-14-documentation-experience-assessment.html",
         "title": "Documentation Experience (DX) Assessment — Study App — formed 14 Apr 2026"
       },
       {
-        "path": "internal/governance/audit/docs/2026-04-18-documentation-experience-assessment.html",
+        "path": "internal/governance/audits/docs/2026-04-18-documentation-experience-assessment.html",
         "title": "Documentation Experience (DX) Assessment — Study App — formed 18 Apr 2026 (test snapshot)"
       },
       {
-        "path": "internal/governance/audit/docs/2026-05-01-documentation-experience-assessment.html",
+        "path": "internal/governance/audits/docs/2026-05-01-documentation-experience-assessment.html",
         "title": "Documentation Experience (DX) Assessment — Study App — formed 1 May 2026"
       },
       {
-        "path": "internal/governance/audit/docs/index.html",
+        "path": "internal/governance/audits/docs/index.html",
         "title": "Documentation experience assessments — index"
       },
       {
-        "path": "internal/governance/audit/index.html",
+        "path": "internal/governance/audits/index.html",
         "title": "Architecture &amp; quality assessments — index"
       },
       {
-        "path": "internal/governance/audit/ui-ux/2026-04-23-ui-ux-assessment.html",
+        "path": "internal/governance/audits/ui-ux/2026-04-23-ui-ux-assessment.html",
         "title": "UI/UX Assessment (repeat) — Study App docs experience — formed 2026-04-23"
       },
       {
-        "path": "internal/governance/audit/ui-ux/2026-04-24-ui-ux-assessment.html",
+        "path": "internal/governance/audits/ui-ux/2026-04-24-ui-ux-assessment.html",
         "title": "UI/UX Assessment (premium benchmark) — Study App product and docs experience — formed 2026-04-23"
       },
       {
-        "path": "internal/governance/audit/ui-ux/2026-05-09-ui-ux-consistency-assessment.html",
+        "path": "internal/governance/audits/ui-ux/2026-05-09-ui-ux-consistency-assessment.html",
         "title": "UI/UX consistency &amp; design-system assessment — Study App — formed 2026-05-09"
       },
       {
-        "path": "internal/governance/audit/ui-ux/index.html",
+        "path": "internal/governance/audits/ui-ux/index.html",
         "title": "UI/UX consistency assessments — index"
       },
       {
@@ -548,7 +548,7 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Governance — Internal docs"
       },
       {
-        "path": "internal/governance/rfc/0000-template.html",
+        "path": "internal/reference/templates/rfc.html",
         "title": "RFC template"
       },
       {

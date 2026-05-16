@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Toil Reduction — Practice 02 · SRE</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">02</span>
+          <span class="pa-eyebrow__group">Group A · Reliability foundations</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">1.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Toil Reduction — automate the repetitive or pay for it in burnout</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Toil is manual, repetitive operational work that scales with load and provides no enduring value. Google's SRE model caps it at 50% of working time — the other 50% eliminates it through engineering.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Toil is any work that is manual, repetitive, automatable, tactical, devoid of lasting value, and grows linearly with load. The 50% rule: no SRE should spend more than half their time on toil. Toil must be explicitly tracked (in the on-call log or a shared spreadsheet), the top sources identified monthly, and reduction projects assigned with deadlines. Unchecked toil is the primary driver of SRE burnout and the reason on-call rotations collapse.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Toil accumulation vs engineering reduction">
+          <svg viewBox="0 0 720 195" role="img" aria-label="Toil vs engineering time balance">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box pa-svg-box--accent" x="20" y="30" width="300" height="80" rx="8"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="170" y="62" text-anchor="middle" font-size="12" font-weight="700">Toil</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="170" y="80" text-anchor="middle" font-size="10">manual · repetitive · scales with load</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="170" y="97" text-anchor="middle" font-size="10">ticket restarts · manual rotations · dashb. checks</text>
+              <rect class="pa-svg-box pa-svg-box--good" x="400" y="30" width="300" height="80" rx="8"/>
+              <text class="pa-svg-text pa-svg-text--good" x="550" y="62" text-anchor="middle" font-size="12" font-weight="700">Engineering work</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="550" y="80" text-anchor="middle" font-size="10">automation · alerting · self-healing</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="550" y="97" text-anchor="middle" font-size="10">permanently reduces future toil</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="170" y="150" text-anchor="middle" font-size="28" font-weight="800">&lt; 50%</text>
+              <text class="pa-svg-text pa-svg-text--good" x="550" y="150" text-anchor="middle" font-size="28" font-weight="800">&gt; 50%</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="185" text-anchor="middle" font-size="10" font-style="italic">Google's SRE standard: toil must never crowd out engineering work</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">Toil and engineering work compete for the same hours. The 50% rule forces a ceiling on toil and a floor on improvement work.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>Google's SRE Book defines toil by six characteristics — a piece of work is toil if it is:</p>
+          <ul>
+            <li><strong>Manual:</strong> A human does it by hand rather than a machine.</li>
+            <li><strong>Repetitive:</strong> It recurs; it isn't a unique problem.</li>
+            <li><strong>Automatable:</strong> A machine could do it with engineering investment.</li>
+            <li><strong>Tactical (reactive):</strong> It's triggered by something happening, not a project the team chose to do.</li>
+            <li><strong>Devoid of lasting value:</strong> Completing it leaves the system no better than before it was triggered.</li>
+            <li><strong>Scales with load:</strong> If the number of services doubles, the toil doubles too (unlike a one-time architectural improvement).</li>
+          </ul>
+          <p>Classic toil examples: manually restarting a service after every deploy, rotating credentials by hand on a fixed schedule, clicking through a set of dashboards to confirm a deploy is healthy, responding to recurring alerts that are always noise.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Uncontrolled toil is the primary driver of on-call burnout. As the system grows, toil grows linearly with load — unless engineering work systematically eliminates it. The 50% rule is a forcing function: when toil crosses the ceiling, the team must automate rather than just hire more SREs to do more of the same manual work.</p>
+          <p>Toil also degrades alert quality over time. When engineers spend hours per shift on predictable manual tasks, they start treating everything as noise — including alerts that matter. Eliminating toil sharpens the team's situational awareness because the remaining work is genuinely non-routine and worthy of attention.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Google SRE</p>
+              <p class="pa-industry__what">Google introduced the toil concept and the 50% rule in "Site Reliability Engineering" (2016). Their implementation: every SRE tracks toil vs. project work weekly. Managers review the ratio monthly. Teams above 50% toil are required to submit a toil reduction plan and are not allocated new services to operate until the ratio drops below the ceiling.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Toil tracking must be explicit — not a feeling, but a number derived from the on-call log or ticket system. Without measurement, the 50% rule is meaningless. Classify every on-call ticket as toil or non-toil at close time; aggregate monthly.</p>
+              <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/eliminating-toil/" rel="noopener">Google SRE Book — Eliminating Toil</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Stripe</p>
+              <p class="pa-industry__what">Stripe's infrastructure team uses quarterly "toil sprints" — one week per quarter dedicated exclusively to reducing the top 3 toil sources identified from the previous quarter's on-call data. During toil week, no feature work is accepted. Engineers who reduce toil by the largest magnitude are publicly recognised in the quarterly all-hands.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Dedicated toil reduction sprints prevent the "we'll automate it when we have time" trap. Time is never found voluntarily; it must be protected. Quarterly sprints also create a rhythm of measurement-then-improvement that compounds over years.</p>
+              <p class="pa-industry__source">Source: <a href="https://stripe.com/blog/engineering" rel="noopener">Stripe Engineering Blog</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Toil classification at ticket close</p><p class="pa-anatomy__hint">Every on-call ticket is tagged toil or non-toil when it's resolved. The tag can be a field in PagerDuty, Jira, or a simple spreadsheet column. Classification takes 5 seconds per ticket and produces monthly data automatically.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Monthly toil review</p><p class="pa-anatomy__hint">Top 3 toil sources by hours consumed. Each source gets a named reduction project with a 90-day deadline and an owner. Not a discussion — a decision list with names and dates.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Toil percentage metric</p><p class="pa-anatomy__hint">Total toil hours / total on-call hours per month. Track this as an explicit engineering health metric. Alert when it exceeds 50% for two consecutive months.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Automation investment</p><p class="pa-anatomy__hint">Every toil reduction project is an engineering project — it needs design, implementation, testing, and monitoring. Budget 1 sprint per major toil source per quarter. Don't try to automate everything at once.</p></div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr><td>Toil not tracked — estimated from memory</td><td>"We know it's bad" without data.</td><td>Classify every on-call ticket at close. One field, 5 seconds. After 30 days you have a month of data. After 3 months you have a trend.</td></tr>
+                <tr><td>Toil reduction projects never started</td><td>Feature work always wins in sprint planning.</td><td>Reserve a fixed engineering capacity (e.g., one sprint per quarter) for toil reduction. If it's not budgeted, it doesn't happen.</td></tr>
+                <tr><td>Automating the wrong toil first</td><td>Teams automate the most technically interesting toil, not the most frequent.</td><td>Sort by hours consumed, not by engineering interest. The top 3 by volume are almost always the highest-ROI automations.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="slo-error-budget.html">Practice 01 — SLO &amp; Error Budget</a></li>
+            <li><a class="docs-next-steps__item" href="on-call-handbook.html">Practice 11 — On-call handbook</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">SRE practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+                <td>Initial version: Toil Reduction practice for SRE radar.</td>
+                <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body></html>

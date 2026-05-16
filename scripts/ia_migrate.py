@@ -450,7 +450,19 @@ def rewrite_html(text: str, page_old: str, page_new: str, mapping: dict[str, str
         # Resolve old-target as internal/-relative path (handles ../internal/ form)
         resolved_old = _resolve_internal(old_dir, bare)
         if resolved_old is None:
-            return m.group(0)
+            # Path escapes internal/ (e.g. ../../../frontend/...). When the page
+            # moves to a different depth we still need to adjust the leading ../
+            # prefix. Recompute via portal-root-relative coordinates.
+            if old_dir == new_dir:
+                return m.group(0)
+            INTERNAL_PREFIX = "services/portal/internal"
+            abs_target = posix_normpath(f"{INTERNAL_PREFIX}/{old_dir}/{bare}")
+            new_abs_dir = posix_normpath(f"{INTERNAL_PREFIX}/{new_dir}")
+            try:
+                new_rel = _to_rel(new_abs_dir, abs_target)
+            except ValueError:
+                return m.group(0)
+            return _rebuild_attr(attr, quote, new_rel + suffix)
 
         # If the target is a directory ref ending with /, lookup index.html
         lookup = resolved_old
@@ -494,17 +506,36 @@ def make_redirect_stub(new_internal_rel: str, from_internal_rel: str) -> str:
     )
 
 
+def _is_tracked(path: Path) -> bool:
+    result = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", str(path)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
 def git_mv(old_abs: Path, new_abs: Path, dry_run: bool) -> None:
-    new_abs.parent.mkdir(parents=True, exist_ok=True)
     if dry_run:
         print(f"  git mv {old_abs.relative_to(REPO_ROOT)} -> {new_abs.relative_to(REPO_ROOT)}")
         return
+    new_abs.parent.mkdir(parents=True, exist_ok=True)
     # Some new locations may already have files from earlier merges — fall back to delete + write.
     if new_abs.exists():
         print(
             f"  WARN: target exists, will overwrite via plain move: {new_abs.relative_to(REPO_ROOT)}"
         )
         old_abs.unlink()
+        return
+    # Untracked files (e.g., .DS_Store) can't be `git mv`'d. Skip them — they
+    # are noise the repo doesn't need to follow.
+    if not _is_tracked(old_abs):
+        print(f"  skip untracked: {old_abs.relative_to(REPO_ROOT)}")
+        try:
+            old_abs.unlink()
+        except OSError:
+            pass
         return
     subprocess.run(
         ["git", "mv", str(old_abs), str(new_abs)],

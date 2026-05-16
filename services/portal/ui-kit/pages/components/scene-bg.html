@@ -10,8 +10,129 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../../../../services/frontend/portal/assets_v2/runtime/internal/entry.css">
   <link rel="icon" type="image/svg+xml" href="../../../../../services/frontend/portal/assets/favicon.svg">
+  <style>
+    /* Local-only scoped previews. The shipped component attaches to <body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+       via .has-scene-bg + fixed pseudo-elements at near-black backdrop; in
+       a showcase frame we reproduce the same two layers but on a slightly
+       elevated, brighter ground so the mesh & grid actually read. The
+       boosted demo at the top deliberately cranks gradient opacities for
+       didactic visibility — production uses 0.14–0.18, see "Markup". */
+    .sb-preview {
+      position: relative;
+      height: 280px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      /* Lift the preview ground 6% toward the accent so dark-mode mesh
+         lobes (which are translucent blue) actually contrast against it. */
+      background:
+        radial-gradient(120% 110% at 50% 0%,
+          color-mix(in srgb, var(--accent) 6%, var(--bg-elev)) 0%,
+          var(--bg-elev) 60%,
+          var(--bg) 100%);
+      isolation: isolate;
+    }
+    .sb-preview--sm { height: 200px; }
+    .sb-preview__mesh,
+    .sb-preview__grid {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .sb-preview__mesh {
+      z-index: 0;
+      background: var(--grad-mesh-1), var(--grad-mesh-2), var(--grad-mesh-3);
+      animation: sb-preview-drift 28s ease-in-out infinite alternate;
+    }
+    /* "Boosted" demo — same three radials, opacities tripled, so the
+       blue/violet bloom is unmistakable in a showcase. The Markup section
+       below shows the production values (0.14–0.18). */
+    .sb-preview--boost .sb-preview__mesh {
+      background:
+        radial-gradient(60% 50% at 10% 0%,   color-mix(in srgb, var(--accent)   54%, transparent) 0%, transparent 62%),
+        radial-gradient(50% 50% at 90% 10%,  color-mix(in srgb, var(--accent-2) 42%, transparent) 0%, transparent 62%),
+        radial-gradient(60% 60% at 50% 110%, color-mix(in srgb, var(--accent)   60%, transparent) 0%, transparent 60%);
+    }
+    .sb-preview__grid {
+      z-index: 1;
+      background-image:
+        linear-gradient(to right,  color-mix(in srgb, var(--line) 90%, transparent) 1px, transparent 1px),
+        linear-gradient(to bottom, color-mix(in srgb, var(--line) 90%, transparent) 1px, transparent 1px);
+      background-size: 48px 48px;
+      -webkit-mask-image: radial-gradient(80% 60% at 50% 30%, #000 0%, transparent 80%);
+              mask-image: radial-gradient(80% 60% at 50% 30%, #000 0%, transparent 80%);
+    }
+    .sb-preview--soft .sb-preview__grid { display: none; }
+    .sb-preview__caption {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text);
+      font-size: var(--fs-200);
+      letter-spacing: 0.04em;
+      text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
+    }
+    /* Force public-portal palette inside this one preview, regardless of
+       the page's data-portal value, so light/dark + accent both read true. */
+    .sb-preview--public {
+      --accent: #8b5cf6;
+      --accent-2: #a78bfa;
+      --accent-3: #c084fc;
+      --grad-mesh-1: radial-gradient(60% 50% at 10% 0%,  rgba(167, 139, 250, 0.18) 0%, transparent 60%);
+      --grad-mesh-2: radial-gradient(50% 50% at 90% 10%, rgba(192, 132, 252, 0.14) 0%, transparent 60%);
+      --grad-mesh-3: radial-gradient(60% 60% at 50% 110%, rgba(139, 92, 246, 0.18) 0%, transparent 60%);
+    }
+    /* Light-mode preview readability: at very low alpha the mesh disappears
+       on white. Map up the alpha just inside the preview frame. */
+    html[data-theme="light"] .sb-preview {
+      background:
+        radial-gradient(120% 110% at 50% 0%,
+          color-mix(in srgb, var(--accent) 4%, #f8fafc) 0%,
+          #f1f5f9 100%);
+    }
+    @keyframes sb-preview-drift {
+      from { transform: translate(0, 0); }
+      to   { transform: translate(40px, 20px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sb-preview__mesh { animation: none; }
+    }
+
+    /* Tiny live indicator showing the page itself is using scene-bg. */
+    .sb-livecallout {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      color: var(--text-strong);
+      font-size: var(--fs-200);
+      letter-spacing: 0.02em;
+      border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+    }
+    .sb-livecallout::before {
+      content: "";
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+      animation: sb-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes sb-pulse {
+      0%, 100% { opacity: 0.55; transform: scale(0.85); }
+      50%      { opacity: 1;    transform: scale(1.15); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sb-livecallout::before { animation: none; }
+    }
+  </style>
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+<body data-page-type="reference" class="docs-shell has-scene-bg" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../../../../services/portal/ui-kit/index.html"><span aria-hidden="true">🚀</span><span>ETR Study API</span></a>
@@ -33,62 +154,103 @@
   <main>
     <header class="page-head">
       <h1>Scene background</h1>
-      <p>Decorative layered radial-gradient mesh, used as an ambient backdrop on landings. Two intensities: default and soft.</p>
+      <p>Page-level ambient backdrop. Two stacked fixed layers attached to <code>&lt;body&gt;</code>: a slowly drifting radial mesh (portal accent) and a soft grid lattice masked to a centre-top vignette. The mesh inherits the portal accent via <code>--grad-mesh-1/2/3</code> — internal renders sky-blue, public renders violet, both adapt to <code>data-theme</code>.</p>
+      <p><span class="sb-livecallout">This page <strong>is</strong> running scene-bg — look behind every section.</span></p>
+      <p>Pair with <a href="#aurora-pair">aurora-rail</a> at the foot of the page for the full atmosphere stack: scene-bg sets the room, aurora-rail sets the horizon.</p>
     </header>
 
     <section aria-labelledby="sb-ex">
-      <h2 id="sb-ex">Example · default</h2>
-      <div class="docs-example"><div style="position:relative;height:280px;border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg)">
-        <div class="docs-scene-bg" aria-hidden="true" style="position:absolute;inset:0;background:var(--grad-mesh-1),var(--grad-mesh-2),var(--grad-mesh-3)"></div>
-        <div style="position:relative;display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">content sits on top</div>
-      </div></div>
+      <h2 id="sb-ex">Example · boosted (didactic intensity)</h2>
+      <p>Same three radial lobes + grid lattice as the shipped component, but with opacity cranked ~3× so the bloom is unmistakable. <strong>This is not the production look</strong> — it's here to make the structure obvious. The production values (0.14–0.18 alpha) are shown in <a href="#sb-prod">Production intensity</a> below and in <a href="#sb-markup">Markup</a>.</p>
+      <div class="docs-example">
+        <div class="sb-preview sb-preview--boost" role="img" aria-label="Scene background preview, boosted intensity">
+          <div class="sb-preview__mesh" aria-hidden="true"></div>
+          <div class="sb-preview__grid" aria-hidden="true"></div>
+          <p class="sb-preview__caption">content sits on top · z-index ≥ 0 (mesh = −2, grid = −1)</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="sb-prod">
+      <h2 id="sb-prod">Example · production intensity (internal accent)</h2>
+      <p>The actual on-disk values. Intentionally subtle so prose stays readable on top — the bloom is felt more than seen.</p>
+      <div class="docs-example">
+        <div class="sb-preview" role="img" aria-label="Scene background preview, production intensity, internal portal accent">
+          <div class="sb-preview__mesh" aria-hidden="true"></div>
+          <div class="sb-preview__grid" aria-hidden="true"></div>
+          <p class="sb-preview__caption">production opacity — subtle by design</p>
+        </div>
+      </div>
     </section>
 
     <section aria-labelledby="sb-var">
       <h2 id="sb-var">Variants</h2>
+
       <h3>Soft</h3>
-      <div style="position:relative;height:200px;border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg)">
-        <div class="docs-scene-bg docs-scene-bg--soft" aria-hidden="true" style="position:absolute;inset:0;background:var(--grad-mesh-1),var(--grad-mesh-2);opacity:0.6"></div>
+      <p>Mesh only; grid lattice is dropped. Use on dense reading pages where the grid competes with prose.</p>
+      <div class="sb-preview sb-preview--sm sb-preview--soft sb-preview--boost" role="img" aria-label="Soft scene background — mesh only">
+        <div class="sb-preview__mesh" aria-hidden="true"></div>
+        <p class="sb-preview__caption">soft · mesh only</p>
       </div>
 
       <h3>Public portal accent</h3>
-      <div style="position:relative;height:200px;border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg)">
-        <div aria-hidden="true" style="position:absolute;inset:0;background:radial-gradient(60% 50% at 10% 0%,rgba(20,184,166,0.18) 0%,transparent 60%),radial-gradient(50% 50% at 90% 10%,rgba(16,185,129,0.14) 0%,transparent 60%)"></div>
+      <p>Identical structure; the violet palette comes from <code>_portal-public.css</code> rebinding the three mesh tokens.</p>
+      <div class="sb-preview sb-preview--sm sb-preview--public sb-preview--boost" role="img" aria-label="Scene background preview, public portal accent">
+        <div class="sb-preview__mesh" aria-hidden="true"></div>
+        <div class="sb-preview__grid" aria-hidden="true"></div>
+        <p class="sb-preview__caption">public · violet accent</p>
       </div>
+    </section>
+
+    <section aria-labelledby="aurora-pair">
+      <h2 id="aurora-pair">Companion · aurora-rail</h2>
+      <p><a href="../../../../../services/portal/internal/governance/adr/index.html">Aurora rail</a> is the matching pre-footer atmosphere zone — a CSS-only port of the legacy <code>body::before</code> fog + <code>body::after</code> dot-wave system. Auto-mounts on every page above <code>.site-footer</code>; honours <code>html[data-aurora="off"]</code> and <code>prefers-reduced-motion</code>. No JSON to wire — just import the entry bundle.</p>
+      <ul>
+        <li><strong>scene-bg</strong> — full-page ambient, fixed to viewport, drifts gently.</li>
+        <li><strong>aurora-rail</strong> — local to the foot of the page, blooms with scroll progress via <code>--docs-footer-scroll-strength</code>.</li>
+      </ul>
     </section>
 
     <section aria-labelledby="sb-markup">
       <h2 id="sb-markup">Markup</h2>
-      <pre class="docs-code"><code>&lt;div class="docs-scene-bg" aria-hidden="true"&gt;&lt;/div&gt;
-&lt;!-- soft variant --&gt;
-&lt;div class="docs-scene-bg docs-scene-bg--soft" aria-hidden="true"&gt;&lt;/div&gt;</code></pre>
-      <p>Place inside a relatively-positioned container at <code>z-index: 0</code>; main content sits at <code>z-index: 1</code> or higher.</p>
+      <p>Scene-bg is a body-level decoration — there is no element to drop in. Add the class to <code>&lt;body&gt;</code>:</p>
+      <pre class="docs-code"><code>&lt;body class="docs-shell has-scene-bg"&gt;
+  &lt;!-- page content --&gt;
+&lt;/body&gt;</code></pre>
+      <p>For the soft variant, also add <code>docs-scene-bg--soft</code> (CSS hides <code>::after</code>, leaving the mesh only):</p>
+      <pre class="docs-code"><code>&lt;body class="docs-shell has-scene-bg docs-scene-bg--soft"&gt;…&lt;/body&gt;</code></pre>
+      <p>The two layers come from <code>body.has-scene-bg::before</code> (mesh, <code>z-index: -2</code>) and <code>body.has-scene-bg::after</code> (grid, <code>z-index: -1</code>). Page content sits at the default stacking context above them.</p>
     </section>
 
     <section aria-labelledby="sb-states">
       <h2 id="sb-states">States</h2>
-      <p>Decorative — no interactive states.</p>
+      <p>Decorative — no interactive states. The mesh drifts 28s ease-in-out alternate; the drift halts under <code>prefers-reduced-motion: reduce</code>. The grid layer is static.</p>
     </section>
 
     <section aria-labelledby="sb-a11y">
       <h2 id="sb-a11y">A11y</h2>
       <ul>
-        <li>Always set <code>aria-hidden="true"</code>.</li>
-        <li>Ensure foreground text retains ≥ 4.5:1 contrast over the brightest mesh point.</li>
-        <li>Do not animate the gradient — it costs paint cycles and triggers motion-sensitive readers.</li>
+        <li>Pseudo-elements are inert to AT — nothing to label.</li>
+        <li>Keep <code>z-index: -1 / -2</code> intact; never let the grid land above text.</li>
+        <li>Ensure foreground text retains ≥ 4.5:1 contrast over the brightest mesh point (the bottom-centre bloom in <code>--grad-mesh-3</code>).</li>
+        <li>Drift is slow (28s, &lt;20% travel) and respects reduced-motion. Don't shorten the duration without re-checking AAA motion thresholds.</li>
       </ul>
     </section>
 
     <section aria-labelledby="sb-tokens">
       <h2 id="sb-tokens">Tokens used</h2>
       <ul>
-        <li><code>--grad-mesh-1</code>, <code>--grad-mesh-2</code>, <code>--grad-mesh-3</code></li>
-        <li><code>--bg</code> (fallback)</li>
+        <li><code>--grad-mesh-1</code>, <code>--grad-mesh-2</code>, <code>--grad-mesh-3</code> — portal-keyed in <code>_portal-internal.css</code> (blue) and <code>_portal-public.css</code> (violet).</li>
+        <li><code>--line</code> — grid stroke (mixed 60% with transparent).</li>
+        <li><code>--bg</code> — fallback paint underneath the layers.</li>
       </ul>
     </section>
+
     <footer class="docs-history" aria-label="Page history">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row"><span class="docs-history__date">2026-05-16</span><a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a><span class="docs-history__note">Page now wears <code>has-scene-bg</code> so the live component is visible behind the showcase; added boosted-intensity demo + production-intensity demo for honest visual comparison; brighter preview frame ground.</span></li>
+        <li class="docs-history__row"><span class="docs-history__date">2026-05-16</span><a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a><span class="docs-history__note">Realigned to v2 implementation (<code>body.has-scene-bg</code> + pseudo-elements); added public-portal variant preview; cross-linked aurora-rail companion.</span></li>
         <li class="docs-history__row"><span class="docs-history__date">2026-05-15</span><a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a><span class="docs-history__note">Initial showcase.</span></li>
       </ul>
     </footer>

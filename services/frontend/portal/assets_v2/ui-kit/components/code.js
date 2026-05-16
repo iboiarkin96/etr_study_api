@@ -8,6 +8,8 @@ function injectCopyButton(pre) {
   btn.type = "button";
   btn.className = "docs-code__copy";
   btn.setAttribute("aria-label", "Copy code");
+  btn.setAttribute("data-tooltip", "Copy this snippet to the clipboard.");
+  btn.setAttribute("data-tooltip-placement", "left");
   btn.textContent = "Copy";
   btn.addEventListener("click", async () => {
     const code = pre.querySelector("code");

@@ -105,6 +105,8 @@ function typewrite(target, segments, baseDelay) {
     typeChar();
   }
 
+  // Typewriter cadence — setTimeout is intentional here (lifecycle pacing,
+  // not DOM polling). Each char waits 18–56 ms before the next is appended.
   function typeChar() {
     const seg = segments[segIdx];
     if (!seg) return;

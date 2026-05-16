@@ -14,12 +14,19 @@ import { mountSearch } from "../../ui-kit/components/search.js";
 import { mountCode } from "../../ui-kit/components/code.js";
 import { mountRocket } from "../../ui-kit/components/rocket.js";
 import { mountToast } from "../../ui-kit/components/toast.js";
+import { mountTooltip } from "../../ui-kit/components/tooltip.js";
 import { mountAuthorChip } from "../../ui-kit/components/author-chip.js";
 import { mountHotkeys } from "../../ui-kit/components/hotkeys.js";
+import { mountSiteFooter } from "../../ui-kit/components/site-footer.js";
+import { mountAuroraRail } from "../../ui-kit/components/aurora-rail.js";
 
 function boot() {
   mountToast();
   mountThemeToggle();
+  mountAuroraRail();
+  // Render the footer before bug-report so the footer's
+  // [data-bug-report-open] link gets bound by mountBugReport's first pass.
+  mountSiteFooter();
   mountBugReport();
   mountReadingProgress();
   mountAuthorChip();
@@ -33,6 +40,7 @@ function boot() {
   mountCode();
   mountRocket();
   mountHotkeys();
+  mountTooltip();
 }
 
 if (document.readyState === "loading") {

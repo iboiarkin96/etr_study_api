@@ -1,5 +1,14 @@
 /* ui-kit/components/diagram-lightbox.js — PlantUML zoomable viewer.
-   Click any [data-component="diagram"] img/svg to open. Zoom buttons + drag-pan. */
+
+   Canonical API:
+     import { openLightbox, closeLightbox } from "./diagram-lightbox.js";
+     openLightbox(srcUrl);
+     closeLightbox();
+
+   Showcase / non-module HTML may also use the documented facade
+   `window.docsDiagramLightbox = { open, close }` (deliberate exception to the
+   no-globals rule; kept narrow and read-only). Click any
+   [data-component="diagram"] img/svg to open. Zoom buttons + drag-pan. */
 
 const ZOOM_STEP = 0.25;
 const MIN_ZOOM = 0.4;
@@ -24,10 +33,10 @@ function ensureLightbox() {
     "<div class='docs-diagram-lightbox__head'>" +
     "  <div class='docs-diagram-lightbox__title'>Diagram</div>" +
     "  <div class='docs-diagram-lightbox__controls'>" +
-    "    <button type='button' class='docs-diagram-lightbox__zoom-out' aria-label='Zoom out'>−</button>" +
-    "    <button type='button' class='docs-diagram-lightbox__reset' aria-label='Reset zoom'>1:1</button>" +
-    "    <button type='button' class='docs-diagram-lightbox__zoom-in' aria-label='Zoom in'>+</button>" +
-    "    <button type='button' class='docs-diagram-lightbox__close' aria-label='Close'>×</button>" +
+    "    <button type='button' class='docs-diagram-lightbox__zoom-out' aria-label='Zoom out' data-tooltip='Zoom out' data-tooltip-placement='bottom'>−</button>" +
+    "    <button type='button' class='docs-diagram-lightbox__reset' aria-label='Reset zoom' data-tooltip='Reset zoom to 1:1' data-tooltip-placement='bottom'>1:1</button>" +
+    "    <button type='button' class='docs-diagram-lightbox__zoom-in' aria-label='Zoom in' data-tooltip='Zoom in' data-tooltip-placement='bottom'>+</button>" +
+    "    <button type='button' class='docs-diagram-lightbox__close' aria-label='Close' data-tooltip='Close lightbox (Esc)' data-tooltip-placement='bottom'>×</button>" +
     "  </div>" +
     "</div>" +
     "<div class='docs-diagram-lightbox__stage'>" +
@@ -99,6 +108,14 @@ function close() {
   lightbox.setAttribute("aria-hidden", "true");
 }
 
+export function openLightbox(src) {
+  open(src);
+}
+
+export function closeLightbox() {
+  close();
+}
+
 export function mountDiagramLightbox(root = document) {
   const diagrams = root.querySelectorAll('[data-component="diagram"] img, [data-component="diagram"] svg, .docs-diagram img');
   diagrams.forEach((node) => {
@@ -108,5 +125,6 @@ export function mountDiagramLightbox(root = document) {
       if (src) open(src);
     });
   });
+  // Showcase / non-module HTML facade. Documented public API.
   window.docsDiagramLightbox = { open, close };
 }

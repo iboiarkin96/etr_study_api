@@ -121,8 +121,8 @@ function activeTarget(relPath) {
   if (relPath.startsWith("internal/handbook/qa/")) {
     return "internal/handbook/qa/index.html";
   }
-  if (relPath.startsWith("internal/governance/audit/")) {
-    return "internal/governance/audit/index.html";
+  if (relPath.startsWith("internal/governance/audits/")) {
+    return "internal/governance/audits/index.html";
   }
   if (relPath === "internal/analysis/system-design.html") {
     return "internal/analysis/system-design.html";
@@ -720,9 +720,9 @@ function docsHubHrefForPrefix(prefix) {
     adr: "internal/governance/adr/index.html",
     pdoc: "internal/catalog/api/code-reference/index.html",
     openapi: "public/reference/api/index.html",
-    audit: "internal/governance/audit/index.html",
-    "internal/governance/audit/docs": "internal/governance/audit/docs/index.html",
-    "internal/governance/audit/api": "internal/governance/audit/api/index.html",
+    audit: "internal/governance/audits/index.html",
+    "internal/governance/audits/docs": "internal/governance/audits/docs/index.html",
+    "internal/governance/audits/api": "internal/governance/audits/api/index.html",
     backlog: "internal/governance/backlog/index.html",
     developer: "internal/handbook/developer/index.html",
     howto: "internal/handbook/howto/index.html",
@@ -746,8 +746,8 @@ function docsBreadcrumbLabelForPrefix(prefix) {
     pdoc: "Python API (pdoc)",
     openapi: "OpenAPI",
     audit: "Assessments",
-    "internal/governance/audit/docs": "DX assessments",
-    "internal/governance/audit/api": "API assessments",
+    "internal/governance/audits/docs": "DX assessments",
+    "internal/governance/audits/api": "API assessments",
     backlog: "Backlog",
     developer: "Developer guides",
     howto: "How-to guides",
@@ -1081,7 +1081,7 @@ function ensureInternalLayoutForInternalSections() {
     "runbooks/",
     "internal/handbook/howto/",
     "internal/handbook/developer/",
-    "internal/governance/audit/",
+    "internal/governance/audits/",
     "internal/governance/backlog/",
     "internal/handbook/qa/",
     "internal/",
@@ -1327,7 +1327,7 @@ function renderAdrStatusLogAfter(anchor, globalMax) {
   callout.innerHTML = `💡 Set <code>data-adr-weight</code> on <code>&lt;main&gt;</code> to a value from −1 to 7. See
     <a href="${docsLifecycleHelpHref("internal/governance/adr/0018-adr-lifecycle-ratification-and-badges.html")}">ADR 0018</a> for
     milestone meanings, and the
-    <a href="${docsLifecycleHelpHref("internal/governance/adr/0000-template.html")}">ADR template</a> for the full milestone table.`;
+    <a href="${docsLifecycleHelpHref("internal/reference/templates/adr.html")}">ADR template</a> for the full milestone table.`;
 
   const row = document.createElement("div");
   row.className = "adr-status-log__row";
@@ -3556,7 +3556,7 @@ function buildDocsPageActions(fromDir, relPath) {
   const homeHref = relHref(fromDir, "index.html");
   const internalHref = relHref(fromDir, "internal/index.html");
   const qaHref = relHref(fromDir, "internal/handbook/qa/index.html");
-  const auditHref = relHref(fromDir, "internal/governance/audit/index.html");
+  const auditHref = relHref(fromDir, "internal/governance/audits/index.html");
   const backlogHref = relHref(fromDir, "internal/governance/backlog/index.html");
   const runbooksHref = relHref(fromDir, "internal/sre/runbooks/index.html");
   const howtoHref = relHref(fromDir, "internal/handbook/howto/index.html");

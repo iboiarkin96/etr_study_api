@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>monitoring · Runbooks</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">monitoring · Runbooks</h1>
+
+        <section class="card">
+          <p>
+            Operational guidance for the monitoring service. Both pipelines (metrics, logs) are optional; "incidents"
+            are mostly about <em>monitoring being broken while the api is fine</em> — distinguishing those cases
+            quickly is the main job. Authoritative procedures live in
+            <a href="../../how-to/runbooks/index.html">internal/sre/runbooks/</a>.
+          </p>
+        </section>
+
+        <section class="card" id="symptom-runbook-index">
+          <h2>Symptom-keyed runbook index</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Symptom to runbook">
+            <table>
+              <thead><tr><th>Symptom</th><th>Runbook</th></tr></thead>
+              <tbody>
+                <tr><td>Prometheus shows no samples for the api</td><td><a href="../../how-to/runbooks/0008-observability-scrape-failing.html">0008 · observability scrape failing</a></td></tr>
+                <tr><td>Filebeat / Kibana stop showing api logs</td><td><a href="../../how-to/runbooks/0003-logging-failing.html">0003 · logging failing</a></td></tr>
+                <tr><td>Burn-rate alert fires</td><td><a href="../../how-to/runbooks/0009-error-budget-exhaustion.html">0009 · error budget exhaustion</a></td></tr>
+                <tr><td>Grafana dashboard panel says "no data" but Prometheus has data</td><td>Variable / data-source mismatch — check the dashboard's data source UID and template variables. Reload from the committed JSON if available.</td></tr>
+                <tr><td>Recording rule produces unexpected values</td><td>Re-evaluate the expression in the Prometheus UI; compare to <a href="api-reference.html#recording-rules">recording rules table</a>; commit any change to the rule file.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" id="distinguishing-failures">
+          <h2>Is the api broken or is monitoring broken?</h2>
+          <p>The single most useful triage step. Run these checks in order:</p>
+          <ol>
+            <li><code>curl -s :8000/ready</code> on the api host. If 200 → the api is up; the issue is in monitoring.</li>
+            <li><code>curl -s :8000/metrics | head</code>. If you see the expected metric names → exposition is fine; check Prometheus targets page (<code>:9090/targets</code>) for a scrape error (TLS, DNS, firewall).</li>
+            <li>Prometheus targets page shows the scrape error code. Map to <a href="../../how-to/runbooks/0008-observability-scrape-failing.html">0008</a>.</li>
+            <li>If <code>/ready</code> returns 503 → the api itself is degraded. Switch context to <a href="../api/runbooks.html">api · Runbooks</a>.</li>
+          </ol>
+        </section>
+
+        <section class="card" id="dashboard-recovery">
+          <h2>Dashboard / rule recovery</h2>
+          <p>
+            Dashboards and alert rules should live as JSON in version control so a wipe is a re-import, not a
+            redesign. If a dashboard disappears or is corrupted in Grafana:
+          </p>
+          <ol>
+            <li>Find the JSON in the repo (typically under a <code>dashboards/</code> directory adjacent to the Compose file).</li>
+            <li>Import via Grafana UI: Dashboards → New → Import → paste JSON, select the Prometheus data source.</li>
+            <li>If JSON is missing, mark this as a backlog item — the canonical copy must live in Git.</li>
+          </ol>
+        </section>
+
+        <section class="card" id="see-also">
+          <h2>See also</h2>
+          <ul>
+            <li><a href="architecture.html">monitoring · Architecture</a> — pipelines and alerting model</li>
+            <li><a href="api-reference.html">monitoring · API reference</a> — recording rules and operator UIs</li>
+            <li><a href="on-call.html">monitoring · On-call</a></li>
+            <li><a href="../api/runbooks.html">api · Runbooks</a> — when the issue turns out to be the api itself</li>
+          </ul>
+        </section>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-10">2026-05-10</time></td>
+                  <td>Filled symptom index, "is the api broken?" triage, dashboard recovery.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+                <tr>
+                  <td><time datetime="2026-05-08">2026-05-08</time></td>
+                  <td>Initial skeleton stub.</td>
+                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+</body></html>

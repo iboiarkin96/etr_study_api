@@ -28,6 +28,13 @@ export function mountTocFab(root = document) {
   const fab = root.querySelector('[data-component="toc-fab"]');
   if (!fab) return;
   fab.classList.add("docs-toc-fab");
+  if (!fab.hasAttribute("aria-label")) {
+    fab.setAttribute("aria-label", "Open table of contents");
+  }
+  if (!fab.hasAttribute("data-tooltip")) {
+    fab.setAttribute("data-tooltip", "Open the table of contents for this page.");
+    fab.setAttribute("data-tooltip-placement", "left");
+  }
   if (!fab.innerHTML.trim()) {
     fab.innerHTML =
       "<svg class='docs-toc-fab__icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' aria-hidden='true'><path d='M4 6h16M4 12h16M4 18h10' stroke-linecap='round'/></svg>";

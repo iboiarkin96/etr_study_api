@@ -121,7 +121,7 @@ def main() -> int:
         if (
             rel.startswith("assets/")
             or rel.startswith("pdoc/")
-            or rel.startswith("internal/catalog/api/code-reference/")
+            or rel.startswith("internal/services/api/code-reference/")
         ):
             continue
         if re.match(r"internal/team/people/[^/]+/index\.html$", rel):

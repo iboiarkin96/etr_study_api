@@ -279,6 +279,18 @@ const BLOCK_REGISTRY = [
     comp: 'cockpit-timeline' }
 ];
 
+/* ── Palette ──────────────────────────────────────────────────────────────
+   The overlay reads live theme tokens via `getComputedStyle(documentElement)`
+   so it stays theme-aware. These hex literals are *fallbacks only* — used
+   when the page has not loaded the design-token sheet (e.g. annotator
+   running on a bare HTML test page). Centralised here so all overlay
+   colour literals live in one block. */
+const PALETTE = {
+  accentFallback:    '#4f8ef7',  /* tok('--accent') fallback   */
+  bgFallback:        '#ffffff',  /* tok('--bg') fallback       */
+  numberTextOnAccent:'#fff'      /* SVG callout number fill    */
+};
+
 /* ── Layout constants ─────────────────────────────────────────────────── */
 const BOX_W         = 244; /* wide enough for 24-char labels at 10.5px semibold */
 const BOX_H_COMPACT = 30;
@@ -398,8 +410,8 @@ function layout() {
   svg.setAttribute('width', bw);
   svg.setAttribute('height', bh);
 
-  const accent = tok('--accent', '#4f8ef7');
-  const bg     = tok('--bg',     '#ffffff');
+  const accent = tok('--accent', PALETTE.accentFallback);
+  const bg     = tok('--bg',     PALETTE.bgFallback);
 
   const items = discoverItems();
 
@@ -480,7 +492,7 @@ function layout() {
         'font-size':   ann.num >= 10 ? '7' : '8',
         'font-weight': '700',
         'font-family': 'system-ui, sans-serif',
-        fill:    '#fff',
+        fill:    PALETTE.numberTextOnAccent,
         opacity: isDimmed ? '0' : '1'
       });
       nt.textContent = ann.num;

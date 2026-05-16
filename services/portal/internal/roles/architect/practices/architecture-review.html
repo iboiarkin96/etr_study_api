@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture Review — Practice 13 · Architect</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">13</span>
+          <span class="pa-eyebrow__group">Group C · Communication &amp; governance</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">3.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Architecture Review — structured change governance</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">A lightweight, async-first review of significant changes that catches global problems while preserving team autonomy.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Architecture Review is a lightweight governance process — an Architecture Review Board (ARB) or design review forum — that evaluates significant changes before they reach production. It is not a heavyweight gate but an async-first review with a defined scope (changes crossing service boundaries, new dependencies, data model changes), a checklist, and a 48-hour SLA. The goal is to catch global problems (security gaps, cross-team coupling, data model conflicts) while preserving team autonomy for local decisions. Done well, the review catches issues in the design phase when they cost minutes to fix.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Architecture review flow">
+          <svg viewBox="0 0 720 175" role="img" aria-label="Architecture review process from trigger to decision">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box" x="20" y="55" width="125" height="65" rx="8"/>
+              <text class="pa-svg-text" x="82" y="82" text-anchor="middle" font-size="11" font-weight="700">Trigger</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="82" y="100" text-anchor="middle" font-size="10">scope checklist</text>
+
+              <rect class="pa-svg-box pa-svg-box--accent" x="185" y="55" width="135" height="65" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="252" y="82" text-anchor="middle" font-size="11" font-weight="700">Design Doc</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="252" y="100" text-anchor="middle" font-size="10">2-page proposal</text>
+
+              <rect class="pa-svg-box pa-svg-box--accent" x="360" y="55" width="135" height="65" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="427" y="82" text-anchor="middle" font-size="11" font-weight="700">Async Review</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="427" y="100" text-anchor="middle" font-size="10">48-hour SLA</text>
+
+              <rect class="pa-svg-box pa-svg-box--good" x="535" y="55" width="170" height="65" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--good" x="620" y="82" text-anchor="middle" font-size="11" font-weight="700">Approve / Revise</text>
+              <text class="pa-svg-text pa-svg-text--good" x="620" y="100" text-anchor="middle" font-size="10">5-day decision SLA</text>
+
+              <path class="pa-svg-arrow" d="M145 87 L182 87 L175 83 M182 87 L175 91"/>
+              <path class="pa-svg-arrow" d="M320 87 L357 87 L350 83 M357 87 L350 91"/>
+              <path class="pa-svg-arrow" d="M495 87 L532 87 L525 83 M532 87 L525 91"/>
+
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="165" text-anchor="middle" font-size="10" font-style="italic">"async-first; sync meeting only when async cannot resolve"</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">The review is async-first with defined SLAs (48 hours for feedback, 5 days for decision). A sync meeting is only convened when async commentary cannot resolve the question.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>Architecture Review is a structured forum for evaluating significant design changes before they reach production. Three components define a working review process:</p>
+          <ul>
+            <li><strong>Scope checklist</strong> — defines when a review is required. Typical triggers: introduces a new shared dependency, changes a service-to-service contract, modifies the data model in a way that affects another team, introduces a new programming language or runtime, or has expected operational cost above $1k/month.</li>
+            <li><strong>Reviewer group</strong> — a rotating group of 3–5 senior engineers and the architect. For high-impact changes, security and SRE representatives are included. The reviewer pool is published; engineers know who to expect feedback from.</li>
+            <li><strong>SLA</strong> — published response times. Typical: 48 hours for first feedback, 5 days for a decision. Without an SLA the review becomes a black hole that engineers learn to avoid.</li>
+          </ul>
+          <p>The review input is a 2-page design doc plus a checklist (security, observability, data privacy, cost, NFRs). The output is either Approve, Approve-with-changes, or Revise. Reject is rare and reserved for proposals that fail a non-negotiable constraint.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Without a review process, teams make autonomous decisions that look locally correct but create global problems. Two teams add the same dependency in different versions. Three teams choose different approaches to data partitioning that prevent future migrations. Security gaps that would be obvious to a security reviewer are merged because no security reviewer was involved. These issues are caught months later when the cost to fix is 10–100× higher.</p>
+          <p>A lightweight review process — emphasis on lightweight — catches these global issues at design time. The 48-hour async SLA means engineers do not wait days for feedback. The defined scope means most local decisions skip review entirely. The result is faster decisions for local work and better decisions for cross-cutting work.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Netflix</p>
+              <p class="pa-industry__what">Netflix's approach is "freedom and responsibility" — there is no central architecture board. Instead, principal engineers across the company act as informal reviewers for major decisions in their domain. The Architecture Council reviews only the highest-impact decisions: new platform investments, organisational-scale technology choices, and changes to the developer experience. Netflix's tech blog has documented this approach in multiple posts on "Full Cycle Development" and "Paved Roads."</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Distinguish between team-local decisions (no review needed) and cross-cutting decisions (review required). The reviewer for a service-level change is the team's principal engineer, not a central board.</p>
+              <p class="pa-industry__source">Source: <a href="https://netflixtechblog.com/full-cycle-developers-at-netflix-a08c31f83249" rel="noopener">Netflix Tech Blog — Full Cycle Developers</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Google</p>
+              <p class="pa-industry__what">Google uses "readability" review for code patterns and "design review" for architecture. Design reviews are async-first, conducted on the design doc PR. Reviewers are explicitly named in the doc. For cross-team designs, an "architecture review" with senior staff engineers is convened. Google's process has been documented externally in the SRE book and in talks: review is a quality function, not a gate, and reviewers are accountable for response time.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Name reviewers explicitly in the design doc, not generically ("the team"). Named reviewers respond; unnamed reviewers assume someone else will respond.</p>
+              <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/" rel="noopener">Google SRE Book</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Atlassian</p>
+              <p class="pa-industry__what">Atlassian operates an architecture review process called "Tech Spec Review" with a published 48-hour SLA and a public reviewer roster. Atlassian's blog has documented the process: each Tech Spec has a stated "impact radius" (team / department / company) and is reviewed by reviewers from that scope. For company-scope specs, the Atlassian Engineering Leadership Team reviews. The 48-hour SLA is tracked as a team metric; reviewer responsiveness is part of the senior engineer performance signal.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Make reviewer responsiveness a measurable team metric. SLAs without measurement degrade to "best effort" and lose their value as a forcing function.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.atlassian.com/engineering/" rel="noopener">Atlassian Engineering blog</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Scope Trigger Checklist</p>
+              <p class="pa-anatomy__hint">A checklist that engineers run against their change to determine whether review is needed. Triggers: shared dependency change, cross-team contract change, data model change affecting another team, new language/runtime, &gt; $1k/month operational cost, or security-sensitive change. Below the trigger: no review needed.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Design Doc Input</p>
+              <p class="pa-anatomy__hint">A 2-page document (max) submitted as a PR. Required sections: problem, proposed solution, alternatives, security considerations, operational cost, rollout plan. Reviewers comment inline on the PR. Conversations are public, not in DMs. The review trail is auditable.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Reviewer Roster</p>
+              <p class="pa-anatomy__hint">A published list of 3–5 senior engineers plus rotating subject-matter experts (security, SRE, data). The architect is always a reviewer. Each design doc lists the named reviewers from the roster. Reviewer assignment is transparent — no "I assumed someone else would review."</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">SLA Commitment</p>
+              <p class="pa-anatomy__hint">48 hours for first feedback, 5 days for decision. SLAs are public and tracked. Reviewers who consistently miss the SLA are rotated off the roster. Authors whose proposals consistently fail the checklist get coaching, not blame — the checklist is a learning tool, not a gate.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Decision Outcomes</p>
+              <p class="pa-anatomy__hint">Approve (no changes needed), Approve-with-changes (specific edits required but no second review), Revise (substantive changes, second review needed), Reject (rare — only for proposals violating non-negotiable constraints like security or compliance). The outcome is recorded in the design doc PR.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead>
+                <tr>
+                  <th scope="col">Pitfall</th>
+                  <th scope="col">Why it happens</th>
+                  <th scope="col">What to do instead</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Review process applied to every change ("review theatre")</td>
+                  <td>Teams over-apply the scope. Every change goes through review regardless of impact. The reviewer queue grows, the SLA slips, and engineers route around the process.</td>
+                  <td>Publish the scope checklist explicitly. Most changes should NOT trigger review. If &gt; 30% of changes trigger review, the scope is too broad — narrow it.</td>
+                </tr>
+                <tr>
+                  <td>Review becomes a heavyweight gate (slow decisions)</td>
+                  <td>What started as a 48-hour async review evolves into a weekly committee meeting with 10 attendees. Decisions take 3 weeks instead of 3 days. Engineers learn to avoid the process.</td>
+                  <td>Defend the SLA aggressively. Async-first by default; sync meetings only when async cannot resolve. Cap reviewer count at 5. If a meeting is needed, time-box it to 30 minutes.</td>
+                </tr>
+                <tr>
+                  <td>Reviewers approve everything to be agreeable</td>
+                  <td>Senior engineers feel social pressure to approve their colleagues' proposals. Critical concerns are softened or skipped. The review becomes performative.</td>
+                  <td>Define "non-negotiable" constraints (security, data privacy, compliance) that reviewers must enforce. Train reviewers to give specific, direct feedback. Make it culturally acceptable to ask "have you considered X?" even when the answer might be uncomfortable.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="rfc-process.html">Practice 12 — RFC Process</a></li>
+            <li><a class="docs-next-steps__item" href="stakeholder-mapping.html">Practice 14 — Stakeholder Mapping</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">Architect practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: Architecture Review practice for Architect radar.</td>
+                  <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body>
+</html>

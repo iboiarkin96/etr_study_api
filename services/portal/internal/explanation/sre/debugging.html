@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SRE · Debugging</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">Debugging</h1>
+
+        <section class="card">
+          <h2>Debugging vs incident response</h2>
+          <p><a href="incident-response.html">Incident response</a> is about stopping pain fast. <strong>Debugging</strong> is about understanding the cause well enough to fix it for good. The two often overlap, but the goals differ: in an incident you may roll back without yet knowing why; in debugging you keep digging until you can explain what happened in one or two sentences.</p>
+          <p>This page is a generic playbook. For specific known failures, jump straight to a <a href="../../how-to/runbooks/index.html">runbook</a>.</p>
+        </section>
+
+        <section class="card">
+          <h2>The diagnostic loop</h2>
+          <ol>
+            <li><strong>Reproduce.</strong> A bug you cannot trigger is a bug you cannot fix.</li>
+            <li><strong>Form a hypothesis.</strong> "I think X is happening because Y."</li>
+            <li><strong>Predict.</strong> "If X is true, then I should see Z in the logs / metrics."</li>
+            <li><strong>Test cheaply.</strong> Look at the existing data first. Only add new logging or instrumentation if the existing data cannot answer.</li>
+            <li><strong>Update the hypothesis.</strong> Either the data confirms it, refines it, or kills it. Repeat.</li>
+          </ol>
+          <p>The loop is the same shape as the scientific method. The discipline is to write the hypothesis down before looking at the data, so you do not unconsciously match patterns to whatever you see.</p>
+        </section>
+
+        <section class="card">
+          <h2>What to read first</h2>
+          <p>For a production-ish issue, follow this order. Each step takes seconds and rules out whole categories of cause:</p>
+          <ol>
+            <li><strong>Health endpoints.</strong> <code>GET /healthz</code> and <code>GET /readyz</code>. If <code>readyz</code> is failing, its body tells you which dependency is broken.</li>
+            <li><strong>The dashboard.</strong> Latency, error rate, traffic, saturation. Which of the four is unusual? Since when?</li>
+            <li><strong>Recent deploys / changes.</strong> The last 24 hours. A spike that lines up with a deploy is your prime suspect.</li>
+            <li><strong>Logs (errors only).</strong> Filter Kibana to <code>level : ("error" or "critical")</code> for the last 30 minutes. Look for repeated messages — they cluster better than unique ones.</li>
+            <li><strong>One failing request.</strong> Pick a single failing log line, copy its <code>request_id</code>, and read the full thread. This is where the "aha" usually lives.</li>
+          </ol>
+        </section>
+
+        <section class="card">
+          <h2>Narrowing down — bisection</h2>
+          <p>When you do not know where the problem is, divide the search space in half each step. Examples:</p>
+          <ul>
+            <li><strong>Time bisection.</strong> If today is broken and last week was fine, ask: was Wednesday broken? If yes, check Monday. Keep halving until you find the first bad day. Then look at what changed that day.</li>
+            <li><strong>Endpoint bisection.</strong> If "the API is slow", ask: are <em>all</em> endpoints slow? If only <code>POST /conspectuses</code>, the cause is probably in that handler or its dependencies, not in the framework.</li>
+            <li><strong>User bisection.</strong> If only some users see the bug, find the smallest pattern: a country, a feature flag, a payload shape, an old client version.</li>
+            <li><strong>Code bisection.</strong> <code>git bisect</code> when you know a commit-range is the culprit and you can reproduce locally.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>Cause vs trigger vs root cause</h2>
+          <dl>
+            <dt>Trigger</dt>
+            <dd>The thing that happened just before the symptom. Usually a deploy, a config change, or a traffic spike.</dd>
+
+            <dt>Cause</dt>
+            <dd>The technical mechanism that turned the trigger into a failure. "The new code path read a null field."</dd>
+
+            <dt>Contributing factors (root causes)</dt>
+            <dd>Why the system <em>allowed</em> the cause to ship. Missing test, missing migration, brittle dependency. There is almost always more than one — that is normal.</dd>
+          </dl>
+          <p>Stopping the investigation at "trigger" is too shallow; the same trigger will hit again. Stopping at "cause" is better but still rare to prevent recurrence. The fixes that prevent recurrence usually live in the contributing factors layer.</p>
+        </section>
+
+        <section class="card">
+          <h2>Common patterns and where they hide</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common debugging patterns">
+            <table class="docs-page-history">
+              <thead><tr><th>Symptom</th><th>Look here first</th></tr></thead>
+              <tbody>
+                <tr><td>Sudden 5xx spike right after a deploy</td><td>The diff of the last deploy; rollback first, then read the diff calmly.</td></tr>
+                <tr><td>Slow endpoint, no errors</td><td>Database slow query log, recent index changes, N+1 query patterns.</td></tr>
+                <tr><td>Intermittent 500s, no clear pattern</td><td>External dependency latency, connection pool exhaustion, retry storms.</td></tr>
+                <tr><td>Works locally, fails in another environment</td><td>Environment variables, feature flags, data shape differences, migration drift.</td></tr>
+                <tr><td>Background jobs stuck</td><td>Queue depth, worker liveness, recent code in the consumer, poison messages.</td></tr>
+                <tr><td>"It started happening on the 1st of the month"</td><td>Cron jobs, monthly reports, data growth crossing a threshold.</td></tr>
+                <tr><td>Logs say everything is fine, dashboards say it is not</td><td>Sampling, log shipper down, wrong log level, silent exceptions.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>When to escalate</h2>
+          <p>Escalate before you are exhausted, not after. Triggers:</p>
+          <ul>
+            <li>Two hours have passed and you have no working hypothesis.</li>
+            <li>You are about to take an action that is hard to reverse (drop a table, force a migration, push a hotfix without review).</li>
+            <li>Customer impact is growing and your current attempt is not shrinking it.</li>
+            <li>You are tired enough that you might miss something obvious.</li>
+          </ul>
+          <p>Escalation is not failure — it is a tool. Use it.</p>
+        </section>
+
+        <section class="card">
+          <h2>After you fix it</h2>
+          <ul>
+            <li>Write down the cause and the fix in plain words. Even if it stays in your own notes, it pays back later.</li>
+            <li>If a runbook would have helped you find it faster, add it (or update an existing one).</li>
+            <li>If the fix changes a contract, an ADR, or a test rule, update those too. The fix is not done until the system knows about it.</li>
+            <li>If this was a SEV-1 or SEV-2, write the <a href="../../how-to/postmortems/index.html">postmortem</a>.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>References</h2>
+          <ul>
+            <li><a href="incident-response.html">Incident response</a> — when the bug is also an outage.</li>
+            <li><a href="../../how-to/runbooks/index.html">Runbooks</a> — per-alert recipes.</li>
+            <li><a href="logging.html">Logging</a> and <a href="observability.html">Observability</a> — how the data you read here is produced.</li>
+            <li>SRE Book — <a href="https://sre.google/sre-book/effective-troubleshooting/" rel="external">Effective Troubleshooting</a>.</li>
+          </ul>
+        </section>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-11">2026-05-11</time></td><td>Replaced skeleton stub with full diagnostic playbook: hypothesis loop, reading order, bisection, cause vs trigger, common patterns, escalation rules.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+                <tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Initial skeleton stub per <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase D.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+</body></html>

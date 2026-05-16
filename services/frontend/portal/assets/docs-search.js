@@ -305,7 +305,7 @@
     if (safeUrl.startsWith("internal/")) {
       return "Internal";
     }
-    if (safeUrl.startsWith("internal/governance/audit/")) {
+    if (safeUrl.startsWith("internal/governance/audits/")) {
       return "Audit";
     }
     return "Docs";

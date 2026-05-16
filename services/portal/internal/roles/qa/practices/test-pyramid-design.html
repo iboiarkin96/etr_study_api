@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test Pyramid Design — shape the automation portfolio · Practice 02 · QA Engineer</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">02</span>
+          <span class="pa-eyebrow__group">Group A · Test Strategy &amp; Risk</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">4.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Test Pyramid Design — shape the automation portfolio</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Defines the right ratio of unit, integration, and end-to-end tests so CI stays fast and the feedback loop stays tight.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">The test pyramid (Mike Cohn, 2009) divides automated tests into three layers: many fast unit tests at the base, fewer integration tests in the middle, and a thin layer of slow end-to-end tests at the top. Inverted pyramids — too many E2E, too few unit tests — produce test suites that take 40 minutes to run, flake constantly, and give no signal on which line broke. The pyramid shape is an explicit design decision documented in an ADR and reviewed quarterly.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Test pyramid diagram">
+          <svg viewBox="0 0 720 280" role="img" aria-label="Test pyramid: unit at base, integration in middle, E2E at top">
+            <defs>
+              <style>
+                .tp-label { font-family: ui-sans-serif,system-ui,sans-serif; font-size: 13px; fill: var(--text, #0f172a); }
+                .tp-sub   { font-family: ui-monospace,monospace; font-size: 11px; fill: var(--muted-soft, #6b7280); }
+              </style>
+            </defs>
+            <!-- E2E layer (top, red/narrow) -->
+            <polygon points="360,30 460,110 260,110" fill="rgba(220,38,38,0.13)" stroke="#dc2626" stroke-width="1.5" stroke-linejoin="round"/>
+            <text class="tp-label" x="360" y="80" text-anchor="middle" font-weight="700">E2E / System</text>
+            <text class="tp-sub" x="360" y="98" text-anchor="middle">slow · fragile · few</text>
+            <!-- Integration layer (middle) -->
+            <polygon points="460,110 520,190 200,190 260,110" fill="rgba(8,145,178,0.12)" stroke="#0891b2" stroke-width="1.5" stroke-linejoin="round"/>
+            <text class="tp-label" x="360" y="148" text-anchor="middle" font-weight="700">Integration / Contract</text>
+            <text class="tp-sub" x="360" y="166" text-anchor="middle">medium speed · stable · moderate</text>
+            <!-- Unit layer (base, green/wide) -->
+            <polygon points="520,190 580,270 140,270 200,190" fill="rgba(22,163,74,0.12)" stroke="#16a34a" stroke-width="1.5" stroke-linejoin="round"/>
+            <text class="tp-label" x="360" y="228" text-anchor="middle" font-weight="700">Unit</text>
+            <text class="tp-sub" x="360" y="246" text-anchor="middle">fast · deterministic · many</text>
+            <!-- Ratio annotations -->
+            <text class="tp-sub" x="610" y="80" text-anchor="start">~10%</text>
+            <text class="tp-sub" x="610" y="155" text-anchor="start">~20%</text>
+            <text class="tp-sub" x="610" y="235" text-anchor="start">~70%</text>
+            <!-- Ownership labels -->
+            <text class="tp-sub" x="110" y="80" text-anchor="middle" font-style="italic">QA</text>
+            <text class="tp-sub" x="110" y="155" text-anchor="middle" font-style="italic">QA + Dev</text>
+            <text class="tp-sub" x="110" y="235" text-anchor="middle" font-style="italic">Dev</text>
+          </svg>
+          <figcaption class="pa-figure__caption">The 70/20/10 split (Google's guideline): 70% unit tests, 20% integration/contract, 10% E2E. Ownership moves from QA at the top to developers at the base.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>The test pyramid is a mental model for the composition of an automated test suite, introduced by Mike Cohn in his 2009 book <em>Succeeding with Agile</em>. It divides tests into three layers based on their speed, cost, and granularity:</p>
+          <ul>
+            <li><strong>Unit tests (base):</strong> Test individual functions or classes in isolation. They run in milliseconds, are deterministic, and are authored by developers. The base is the widest — the project should have the most of these.</li>
+            <li><strong>Integration / contract tests (middle):</strong> Test interactions between components or services. They are slower than unit tests but faster than E2E. In our stack, this layer includes contract tests (Pact or OpenAPI-based) and database integration tests.</li>
+            <li><strong>End-to-end / system tests (top):</strong> Test the system from the outside as a user would. They are the slowest and the most prone to flakiness. The top is the narrowest — the project should have the fewest of these.</li>
+          </ul>
+          <p>The pyramid shape is not merely descriptive — it is a design constraint. Teams that allow the pyramid to invert (more E2E than unit tests) systematically accumulate technical debt in their test infrastructure until the suite is slower than manual testing and nobody trusts its results.</p>
+          <p>At Study App, ownership across layers is explicit: developers own the unit and integration layers; QA co-owns the contract layer and owns the system/E2E layer. The split is documented in an ADR and ratios are reviewed in the quarterly quality retrospective.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>An inverted pyramid — a suite dominated by E2E tests — produces a predictable set of problems: a CI run that takes 40 minutes, a flake rate that means every third build fails for no reason, and test failures that point to the wrong layer of the stack. Developers stop trusting the suite and start ignoring failures. When a real defect occurs, it is buried in noise.</p>
+          <p>The pyramid gives the team an explicit target shape for the suite. When a new feature is delivered without unit tests, the pyramid has moved in the wrong direction — that is visible and correctable. When an E2E test is added without an equivalent integration test, the pyramid has moved in the wrong direction — again visible. The shape is the contract.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Mike Cohn (originator)</p>
+              <p class="pa-industry__what">Introduced the three-layer pyramid in <em>Succeeding with Agile</em> (2009). The original formulation used "unit tests / service tests / UI tests." The key insight was that tests at each layer serve a different purpose — unit tests find regression quickly; service tests verify integration; UI tests verify user-visible behaviour. The pyramid was a corrective to the prevailing pattern of test suites dominated by UI automation.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> The three-layer vocabulary and the explicit prohibition on inverting the pyramid. "If you have more UI tests than unit tests, your pyramid is upside-down."</p>
+              <p class="pa-industry__source">Source: <a href="https://martinfowler.com/articles/practical-test-pyramid.html" rel="noopener">Martin Fowler — The Practical Test Pyramid</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Google</p>
+              <p class="pa-industry__what">Google codified the pyramid as the 70/20/10 split in their internal engineering guidelines: 70% small (unit), 20% medium (integration), 10% large (E2E). The Google Testing Blog post "Just Say No to More End-to-End Tests" documents why Google moved away from large E2E suites: they were slow, flaky, and gave poor defect localisation. Test ownership follows the pyramid: small tests are owned by the developer, large tests are owned by a dedicated test engineer.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> The 70/20/10 ratio as a starting target and the ownership model where layer determines who writes the test.</p>
+              <p class="pa-industry__source">Source: <a href="https://testing.googleblog.com/2015/04/just-say-no-to-more-end-to-end-tests.html" rel="noopener">Google Testing Blog — Just Say No to More End-to-End Tests</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Spotify</p>
+              <p class="pa-industry__what">Spotify squads maintain pyramid ownership at squad level: each squad's test inventory shows the current ratio of unit/integration/E2E tests as part of their quality dashboard. Squads with inverted pyramids are flagged in the quality review and given a quarter to correct the shape. The contract layer at Spotify is owned by a dedicated "API quality" function that works across squads.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Tracking the pyramid shape as a metric on the quality dashboard, so drift from the target is visible over time rather than discovered during a postmortem.</p>
+              <p class="pa-industry__source">Source: <a href="https://engineering.atspotify.com/" rel="noopener">Spotify Engineering Blog</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Layer definitions</p>
+              <p class="pa-anatomy__hint">A written definition of what counts as a unit test, an integration test, and an E2E test in this project — shared vocabulary prevents disagreements at code review.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Target ratios</p>
+              <p class="pa-anatomy__hint">Explicit percentage targets for each layer (e.g. 70/20/10). Documented in an ADR. Reviewed quarterly.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Ownership map</p>
+              <p class="pa-anatomy__hint">Who writes and maintains tests at each layer. Developers own unit and integration; QA co-owns contract; QA owns E2E.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Pyramid shape metric</p>
+              <p class="pa-anatomy__hint">A number (or dashboard panel) that shows the current layer ratios. Tracked at least quarterly so drift is visible.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Inversion policy</p>
+              <p class="pa-anatomy__hint">A documented rule: if the pyramid inverts (E2E &gt; integration &gt; unit), a corrective action item is raised and owned by the team lead within one sprint.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Pyramid inversion</td>
+                  <td>E2E tests are easier to write for QA without code access; unit tests require developers to care about testability.</td>
+                  <td>Enforce the ownership model: developers are responsible for the unit and integration layers. QA reviews the ratio quarterly and raises a corrective action when it drifts.</td>
+                </tr>
+                <tr>
+                  <td>Undefined layer boundaries</td>
+                  <td>Teams argue about whether a test is "unit" or "integration" at every code review, wasting time on taxonomy instead of coverage.</td>
+                  <td>Write a one-page layer definition document. Specify exactly what "isolation" means (no database, no network, no file system) for unit tests.</td>
+                </tr>
+                <tr>
+                  <td>Ignoring the contract layer</td>
+                  <td>The middle layer (integration/contract) is the hardest to own — it spans team boundaries and requires coordination.</td>
+                  <td>Assign the contract layer to QA as explicit ownership. Use Pact or OpenAPI-based contract tests rather than integration tests that require both services running.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="risk-based-testing.html">← 01 · Risk-based Testing</a></li>
+            <li><a class="docs-next-steps__item" href="shift-left-testing.html">03 · Shift-left Testing →</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">Back to radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: Test Pyramid Design practice for QA Engineer radar.</td>
+                  <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body></html>

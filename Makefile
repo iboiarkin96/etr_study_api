@@ -463,8 +463,8 @@ docs-fix:
 	@printf "$(ICON_INFO) %s\n" "[7/9] collect docs maintainer pages index"
 	@$(PYTHON) scripts/collect_docs_portal_data.py
 	@printf "$(ICON_INFO) %s\n" "[8/9] Python API reference (pdoc)"
-	@rm -rf services/portal/internal/catalog/api/code-reference
-	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o services/portal/internal/catalog/api/code-reference
+	@rm -rf services/portal/internal/services/api/code-reference
+	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
 	@$(PYTHON) scripts/normalize_pdoc_output.py
 	@printf "$(ICON_INFO) %s\n" "[9/9] build docs search index"
 	@$(PYTHON) scripts/build_docs_search_index.py
@@ -523,7 +523,7 @@ docs-spec-check:
 # Verify docs are already synchronized (no drift allowed).
 # Compare the working tree diff vs HEAD before and after docs-fix. If identical,
 # docs-fix did not change any file—so committed generated artifacts match the pipeline.
-# After ``docs-fix``, restore ``services/portal/internal/catalog/api/code-reference/`` (pdoc) from ``HEAD`` and rebuild the client search index:
+# After ``docs-fix``, restore ``services/portal/internal/services/api/code-reference/`` (pdoc) from ``HEAD`` and rebuild the client search index:
 # pdoc output (HTML + ``search.js``) varies across OS/Python/file order; the committed API ref snapshot
 # is the source of truth for drift. Re-run ``build_docs_search_index.py`` so ``search-index.json`` matches
 # the tree on disk (index was built against the just-generated pdoc before the checkout).
@@ -541,7 +541,7 @@ docs-check:
 	@tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
 	git diff HEAD > "$$tmp_before"; \
 	$(MAKE) docs-fix; \
-	git checkout HEAD -- services/portal/internal/catalog/api/code-reference 2>/dev/null || true; \
+	git checkout HEAD -- services/portal/internal/services/api/code-reference 2>/dev/null || true; \
 	$(PYTHON) scripts/build_docs_search_index.py; \
 	git diff HEAD > "$$tmp_after"; \
 	if cmp -s "$$tmp_before" "$$tmp_after"; then \

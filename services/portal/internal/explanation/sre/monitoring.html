@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SRE · Monitoring</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">Monitoring</h1>
+
+        <section class="card">
+          <h2>What monitoring covers</h2>
+          <p>Monitoring is the part of observability that uses <strong>numbers over time</strong>: how many requests per second, how many errors, how long a query takes, how full a queue is. The numbers are stored in a time-series database and shown on dashboards. Some of them have alerts attached, so they wake somebody up when they go wrong.</p>
+          <p>The wiring (which endpoints expose metrics, what the health probes return) is fixed by <a href="../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009 — health, readiness, and observability</a>. This page explains how we use those metrics in practice.</p>
+        </section>
+
+        <section class="card">
+          <h2>The four golden signals</h2>
+          <p>Borrowed from the <a href="https://sre.google/sre-book/monitoring-distributed-systems/" rel="external">SRE Book — Monitoring Distributed Systems</a>. If you only have time to watch four numbers per service, watch these:</p>
+          <dl>
+            <dt>Latency</dt><dd>How long a successful request takes. Track p50, p95, p99 separately — averages hide outliers.</dd>
+            <dt>Traffic</dt><dd>How much demand the service is handling: requests per second, jobs per minute, etc.</dd>
+            <dt>Errors</dt><dd>The rate of failed requests. Split by HTTP status class (4xx vs 5xx) and by endpoint.</dd>
+            <dt>Saturation</dt><dd>How "full" the system is: CPU, memory, DB connection pool, queue depth. Saturation predicts the next outage.</dd>
+          </dl>
+        </section>
+
+        <section class="card">
+          <h2>Where the metrics come from</h2>
+          <ul>
+            <li><strong>Application metrics</strong> — exposed by the API at <code>/metrics</code> in Prometheus format. Counters (requests, errors), histograms (latency), gauges (in-flight requests, queue depth).</li>
+            <li><strong>Health endpoints</strong> — <code>/healthz</code> (process is alive) and <code>/readyz</code> (process can accept traffic) per ADR 0009. Used by container orchestrators and as a heartbeat.</li>
+            <li><strong>System metrics</strong> — CPU, memory, disk, network — collected by the host or container runtime.</li>
+            <li><strong>Database metrics</strong> — connection count, slow query log, replication lag (when relevant).</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>The collection and display stack</h2>
+          <ol>
+            <li><strong>Prometheus</strong> scrapes <code>/metrics</code> on a fixed interval and stores the samples.</li>
+            <li><strong>Grafana</strong> reads from Prometheus and shows the dashboards.</li>
+            <li><strong>Alertmanager</strong> reads alert rules evaluated by Prometheus and routes notifications.</li>
+          </ol>
+          <p>The full Prometheus scrape config, the Grafana dashboard JSON, and the alert rule files are tracked in <a href="../../governance/backlog/index.html#item-48">backlog item-48</a> — they will land in this page as a copy-pasteable reference once that item completes.</p>
+        </section>
+
+        <section class="card">
+          <h2>Dashboard layout</h2>
+          <p>Each dashboard answers one question and uses the same vertical layout, so reading them feels consistent:</p>
+          <ol>
+            <li><strong>Top — health summary.</strong> One row of single-stat panels: availability over the last hour, p95 latency, error rate, saturation flag.</li>
+            <li><strong>Middle — golden signals.</strong> Four time-series panels (latency, traffic, errors, saturation) for the same window.</li>
+            <li><strong>Bottom — drill-down.</strong> Per-endpoint breakdowns, slow query lists, recent deploys.</li>
+          </ol>
+          <p>Time range and refresh interval are left at the dashboard defaults. Pick the same time range when you compare two dashboards — it makes correlation much easier.</p>
+        </section>
+
+        <section class="card">
+          <h2>Alerting taxonomy</h2>
+          <p>Every alert must answer two questions: <em>"is a user being hurt right now?"</em> and <em>"is there a clear next action?"</em>. We split alerts into three classes:</p>
+          <dl>
+            <dt>Page (wakes you up)</dt>
+            <dd>Active customer pain. Examples: error rate above 5% for more than 5 minutes, fast burn of the SLO budget, the service is not <code>ready</code> for more than 2 minutes. Always has a runbook.</dd>
+
+            <dt>Ticket (handle next working day)</dt>
+            <dd>Slow drift, no immediate user pain. Examples: slow burn of the SLO budget, disk usage trending toward full in days, certificate expiring in two weeks.</dd>
+
+            <dt>Info (dashboard only)</dt>
+            <dd>Useful context but not actionable. Examples: deploy just happened, traffic spike from a known job. Never paged.</dd>
+          </dl>
+          <p>If an alert does not fit a class, redesign it. "Maybe a page" is the same thing as "noise" in three weeks.</p>
+        </section>
+
+        <section class="card">
+          <h2>Good vs bad alerts — short examples</h2>
+          <ul>
+            <li><strong>Good:</strong> "Error rate of <code>POST /conspectuses</code> &gt; 5% for 5 minutes" — symptom, time-bounded, clear runbook (<a href="../../how-to/runbooks/0008-observability-scrape-failing.html">0008</a>).</li>
+            <li><strong>Bad:</strong> "CPU &gt; 80%" — a cause, not a symptom. The service might still be healthy. Pair with latency or saturation instead.</li>
+            <li><strong>Good:</strong> "SLO burn-rate &gt; 14× over 1 hour and &gt; 6× over 6 hours" — multi-window, catches both fast and slow burns.</li>
+            <li><strong>Bad:</strong> "There were any 5xx today" — fires constantly, hides real incidents.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>When monitoring breaks</h2>
+          <p>Two failure modes are easy to miss:</p>
+          <ul>
+            <li><strong>Silent dashboards.</strong> Prometheus stopped scraping. Dashboards still render, but the lines went flat. Follow <a href="../../how-to/runbooks/0008-observability-scrape-failing.html">runbook 0008 — observability scrape failing</a>.</li>
+            <li><strong>Quiet alerts.</strong> Alertmanager stopped delivering notifications. Use a "deadman" rule that fires every 5 minutes; if the on-call person stops receiving the deadman, alerting itself is broken.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>References</h2>
+          <ul>
+            <li><a href="../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009 — health, readiness, and observability</a>.</li>
+            <li><a href="logging.html">Logging</a> — the qualitative half of the story.</li>
+            <li><a href="observability.html">Observability</a> — how monitoring fits with logs, traces, and health checks.</li>
+            <li>SRE Book — <a href="https://sre.google/sre-book/monitoring-distributed-systems/" rel="external">Monitoring Distributed Systems</a>.</li>
+            <li>SRE Book — <a href="https://sre.google/sre-book/practical-alerting/" rel="external">Practical Alerting from Time-Series Data</a>.</li>
+          </ul>
+        </section>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-11">2026-05-11</time></td><td>Replaced skeleton stub with full content: golden signals, collection stack, dashboard layout, alert taxonomy, failure modes.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+                <tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Initial skeleton stub per <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase D.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+</body></html>

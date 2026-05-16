@@ -26,10 +26,12 @@ function applyCollapsed(toc, toggle, collapsed) {
     toc.setAttribute("data-collapsed", "true");
     document.body.setAttribute("data-toc-collapsed", "true");
     toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("data-tooltip", "Expand the on-this-page rail.");
   } else {
     toc.removeAttribute("data-collapsed");
     document.body.removeAttribute("data-toc-collapsed");
     toggle.setAttribute("aria-expanded", "true");
+    toggle.setAttribute("data-tooltip", "Collapse the on-this-page rail.");
   }
 }
 
@@ -96,6 +98,8 @@ function wireCollapse(toc) {
   toggle.type = "button";
   toggle.className = "docs-toc__toggle";
   toggle.setAttribute("aria-label", "Toggle table of contents");
+  toggle.setAttribute("data-tooltip", "Collapse the on-this-page rail.");
+  toggle.setAttribute("data-tooltip-placement", "left");
   toggle.innerHTML =
     "<svg viewBox='0 0 12 12' aria-hidden='true'>" +
     "<path d='M2 4l4 4 4-4' fill='none' stroke='currentColor' stroke-width='1.5' " +

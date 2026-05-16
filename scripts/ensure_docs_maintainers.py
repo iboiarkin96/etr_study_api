@@ -29,7 +29,7 @@ def iter_docs_pages(candidates: list[str] | None = None) -> list[Path]:
             scans all ``services/portal/**/*.html`` files.
 
     Returns:
-        Sorted list of files under ``services/portal/`` excluding ``services/portal/internal/catalog/api/code-reference`` and
+        Sorted list of files under ``services/portal/`` excluding ``services/portal/internal/services/api/code-reference`` and
         ``services/frontend/portal/assets``.
     """
     if candidates:

@@ -125,6 +125,8 @@ function buildBrand(brand) {
   toggle.className = "docs-sidebar__collapse-toggle";
   toggle.setAttribute("aria-label", "Collapse navigation");
   toggle.setAttribute("aria-expanded", "true");
+  toggle.setAttribute("data-tooltip", "Collapse the sidebar to icons.");
+  toggle.setAttribute("data-tooltip-placement", "right");
   toggle.innerHTML = CHEVRON_LEFT;
   header.appendChild(toggle);
 
@@ -147,6 +149,8 @@ function buildNode(node, collapsed) {
     caret.type = "button";
     caret.className = "docs-sidebar__caret";
     caret.setAttribute("aria-label", "Toggle section");
+    caret.setAttribute("data-tooltip", "Expand or collapse this section.");
+    caret.setAttribute("data-tooltip-placement", "right");
     caret.innerHTML = "<svg viewBox='0 0 12 12' aria-hidden='true' width='10' height='10'><path d='M3 4l3 4 3-4' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>";
     row.appendChild(caret);
   }
@@ -232,6 +236,10 @@ function applyShellCollapsed(shell, toggle, collapsed) {
   if (toggle) {
     toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
     toggle.setAttribute("aria-label", collapsed ? "Expand navigation" : "Collapse navigation");
+    toggle.setAttribute(
+      "data-tooltip",
+      collapsed ? "Expand the sidebar to full width." : "Collapse the sidebar to icons."
+    );
   }
 }
 

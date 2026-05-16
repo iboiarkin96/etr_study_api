@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SRE · On-call</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">On-call</h1>
+
+        <section class="card">
+          <h2>What "on-call" means here</h2>
+          <p>On-call is the agreement that one named person reacts within an agreed time when an alert fires. It is not "the person who reads chat sometimes" — it is a defined role with a clear time budget.</p>
+          <p>Today this is a single-maintainer project. The on-call person is <a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a>. The structure on this page describes the roles we will use later, when the team grows or a tool like PagerDuty or OpsGenie is added (queued in <a href="../../governance/backlog/index.html#item-48">backlog item-48</a>).</p>
+        </section>
+
+        <section class="card">
+          <h2>Roles</h2>
+          <dl>
+            <dt>Primary on-call</dt>
+            <dd>Receives the page first. Owns the response: triage, mitigation, communication. If the alert can be silenced because it is a known false positive, the primary still records why.</dd>
+
+            <dt>Secondary on-call</dt>
+            <dd>Backup. Paged automatically if the primary does not acknowledge within a defined time (today: 10 minutes). The secondary also covers planned absences.</dd>
+
+            <dt>Incident commander (during a real incident)</dt>
+            <dd>Coordinates the response when more than one person is involved. May be the primary or someone else if the primary is the one fixing.</dd>
+          </dl>
+          <p>In a one-person project the same human plays all three roles. The labels still matter — they remind you which "hat" you are wearing, and they make it easier to grow the team later.</p>
+        </section>
+
+        <section class="card">
+          <h2>Response targets</h2>
+          <div class="docs-table-scroll" role="region" aria-label="On-call response targets">
+            <table class="docs-page-history">
+              <thead><tr><th>Severity</th><th>Acknowledge by</th><th>Start mitigation by</th><th>Customer comm by</th></tr></thead>
+              <tbody>
+                <tr><td>SEV-1 — major outage</td><td>10 min</td><td>30 min</td><td>30 min and every 30 min</td></tr>
+                <tr><td>SEV-2 — partial outage</td><td>15 min</td><td>1 hour</td><td>1 hour and every 60 min</td></tr>
+                <tr><td>SEV-3 — degraded</td><td>30 min</td><td>Same day</td><td>Status page note</td></tr>
+                <tr><td>SEV-4 — minor</td><td>Next working day</td><td>Triage in backlog</td><td>None unless asked</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>"Mitigate" means the user-visible problem stops, even if the root cause is still being investigated. Restoring service is a separate goal from explaining what happened.</p>
+        </section>
+
+        <section class="card">
+          <h2>Alert routing</h2>
+          <ol>
+            <li>An alert rule in Prometheus fires.</li>
+            <li>Alertmanager groups related alerts and sends one notification to the channel for that severity.</li>
+            <li>The on-call person acknowledges in the channel within the response target.</li>
+            <li>If no acknowledgement within the target, the alert escalates to the secondary.</li>
+            <li>If the alert is a SEV-1 or SEV-2, declare an incident (see <a href="incident-response.html">incident response</a>).</li>
+          </ol>
+          <p>Routing rules live in the Alertmanager config tracked in the repository. PagerDuty/OpsGenie integration will replace the chat-channel hop once there is more than one on-call person.</p>
+        </section>
+
+        <section class="card">
+          <h2>What a shift looks like</h2>
+          <p>A normal week of on-call should be quiet. The shift is not "watch dashboards 24/7"; it is "be reachable when something fires". The expected weekly tasks:</p>
+          <ul>
+            <li><strong>Day 1 of the shift:</strong> open the main dashboard for 5 minutes, confirm there are no silenced alerts you do not understand, review the previous shift's handoff note.</li>
+            <li><strong>During the week:</strong> respond to pages within the targets above. Keep notes; you will need them for the postmortem.</li>
+            <li><strong>End of shift:</strong> write a one-paragraph handoff: what fired, what is still open, anything fragile to watch.</li>
+          </ul>
+          <p>If you fixed a problem permanently, also delete the alert that was firing for the wrong reason. The point of on-call is to reduce future toil, not to prove you can endure it.</p>
+        </section>
+
+        <section class="card">
+          <h2>Handoff template</h2>
+          <p>Copy this into the chat at the end of each shift.</p>
+          <pre><code>On-call handoff — week of YYYY-MM-DD
+Outgoing: &lt;name&gt;
+Incoming: &lt;name&gt;
+
+Alerts that fired this week:
+- YYYY-MM-DD HH:MM &lt;alert&gt; — outcome (resolved / mitigated / open)
+
+Open items:
+- &lt;short description and link to ticket&gt;
+
+Fragile / watch closely:
+- &lt;short description, why fragile, what to do if it breaks&gt;
+
+Silenced alerts (and reason):
+- &lt;alert name&gt; — &lt;reason, until when&gt;</code></pre>
+        </section>
+
+        <section class="card">
+          <h2>Self-care rules</h2>
+          <ul>
+            <li>If you are not in a state to respond (sick, on a plane, asleep after a hard shift), tell the secondary <em>before</em> the alert fires, not after.</li>
+            <li>After a paged night, take time off the next day. Tired engineers cause incidents; that is well documented.</li>
+            <li>If the same alert keeps waking you up, the alert is broken or the system is broken — file a ticket the next morning, do not just snooze.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>References</h2>
+          <ul>
+            <li><a href="incident-response.html">Incident response</a> — what to do once an alert is real.</li>
+            <li><a href="../../how-to/runbooks/index.html">Runbooks</a> — per-alert procedures.</li>
+            <li>SRE Book — <a href="https://sre.google/sre-book/being-on-call/" rel="external">Being On-Call</a>.</li>
+            <li>SRE Book — <a href="https://sre.google/sre-book/eliminating-toil/" rel="external">Eliminating Toil</a>.</li>
+          </ul>
+        </section>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-11">2026-05-11</time></td><td>Replaced skeleton stub with full content: roles, response targets, routing, shift expectations, handoff template, self-care.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+                <tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Initial skeleton stub per <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase D.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+</body></html>

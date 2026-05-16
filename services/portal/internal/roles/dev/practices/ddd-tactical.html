@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DDD tactical patterns — aggregates, value objects, services — Practice 13 · Developer</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">13</span>
+          <span class="pa-eyebrow__group">Group C · Architecture &amp; design</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">2.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">DDD tactical patterns — aggregates, value objects, services</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Concentrate business invariants in aggregate roots; make identifierless things immutable value objects; keep persistence behind repositories.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Tactical Domain-Driven Design is the building-block vocabulary from Eric Evans's 2003 book <em>Domain-Driven Design</em>, refined and made concrete by Vaughn Vernon in <em>Implementing DDD</em> (2013). Every state-changing operation goes through an <strong>Aggregate root</strong>, which owns a small consistency boundary and its invariants. Identifierless concepts (Money, Address, EmailAddress) become immutable <strong>Value Objects</strong>. Cross-cutting domain operations that don't belong to one aggregate become <strong>Domain Services</strong>. Persistence is hidden behind <strong>Repositories</strong>. Done well, the rules of one consistency unit live in one place; done poorly, business logic is sprinkled across controllers, ORMs, and helpers and every change touches all three.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Aggregate boundary with value objects inside">
+          <svg viewBox="0 0 720 200" role="img" aria-label="Aggregate root with entities, value objects, and a domain service outside">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box pa-svg-box--accent" x="80" y="20" width="380" height="160" rx="14" stroke-dasharray="6 4"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="270" y="40" text-anchor="middle" font-size="11" font-style="italic">Aggregate boundary  ·  one transaction, one consistency unit</text>
+
+              <rect class="pa-svg-box pa-svg-box--accent" x="120" y="58" width="140" height="46" rx="8"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="190" y="80" text-anchor="middle" font-size="12" font-weight="700">Order (root)</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="190" y="96" text-anchor="middle" font-size="9">id · status · total</text>
+
+              <rect class="pa-svg-box" x="290" y="58" width="140" height="46" rx="8"/>
+              <text class="pa-svg-text" x="360" y="80" text-anchor="middle" font-size="11" font-weight="700">OrderLine</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="96" text-anchor="middle" font-size="9">entity inside root</text>
+
+              <rect class="pa-svg-box" x="120" y="120" width="140" height="46" rx="8"/>
+              <text class="pa-svg-text" x="190" y="142" text-anchor="middle" font-size="11" font-weight="700">Money</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="190" y="158" text-anchor="middle" font-size="9">value object · immutable</text>
+
+              <rect class="pa-svg-box" x="290" y="120" width="140" height="46" rx="8"/>
+              <text class="pa-svg-text" x="360" y="142" text-anchor="middle" font-size="11" font-weight="700">Address</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="158" text-anchor="middle" font-size="9">value object · immutable</text>
+
+              <rect class="pa-svg-box" x="510" y="58" width="180" height="46" rx="8"/>
+              <text class="pa-svg-text" x="600" y="80" text-anchor="middle" font-size="11" font-weight="700">PricingService</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="600" y="96" text-anchor="middle" font-size="9">domain service</text>
+
+              <rect class="pa-svg-box" x="510" y="120" width="180" height="46" rx="8"/>
+              <text class="pa-svg-text" x="600" y="142" text-anchor="middle" font-size="11" font-weight="700">OrderRepository</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="600" y="158" text-anchor="middle" font-size="9">persistence boundary</text>
+
+              <path class="pa-svg-arrow" d="M510 81 L460 81"/>
+              <path class="pa-svg-arrow" d="M510 143 L460 143"/>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">The aggregate boundary (dashed) is a transactional consistency unit. Value objects live inside it; domain services and repositories live outside and reach in through the root.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>Tactical DDD</strong> is the set of code-level building blocks that Eric Evans introduced in <em>Domain-Driven Design</em> (2003) and that Vaughn Vernon made concrete in <em>Implementing Domain-Driven Design</em> (2013). The patterns most teams use day-to-day:</p>
+          <ul>
+            <li><strong>Entity</strong> — an object with an identity that persists over time (a User, an Order). Two Users with the same fields but different IDs are not equal.</li>
+            <li><strong>Value Object</strong> — an object defined entirely by its attributes (Money, Address, EmailAddress, DateRange). No ID. Two Moneys with the same amount and currency are equal. Always immutable.</li>
+            <li><strong>Aggregate</strong> — a cluster of entities and value objects treated as a single consistency unit. Has exactly one <em>aggregate root</em> entity, and all external access goes through it. The root enforces invariants (an Order's total equals the sum of its lines).</li>
+            <li><strong>Repository</strong> — the persistence boundary for an aggregate. <code>OrderRepository.save(order)</code> persists the whole aggregate; <code>findById(id)</code> reconstitutes it. The domain code never sees SQL or an ORM session.</li>
+            <li><strong>Domain Service</strong> — a piece of domain logic that doesn't naturally belong to one entity. A <code>PricingService</code> that consults a catalog and tax rules to compute a line price.</li>
+            <li><strong>Domain Event</strong> — an immutable record that something meaningful happened (<code>OrderPlaced</code>, <code>PaymentRefunded</code>). Used to communicate between aggregates and bounded contexts without coupling.</li>
+          </ul>
+          <p>The discipline: changes to an aggregate's state happen only through methods on the root, only within a single transaction, and never reach across aggregates synchronously. Cross-aggregate coordination uses domain events (eventually consistent) or domain services that orchestrate but don't own state.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Without tactical DDD, business logic spreads across three layers: a thin controller that "validates input", an ORM with computed columns and triggers, and a pile of helper modules with names like <code>order_utils.py</code>. Any change to an invariant — "an order with status <code>SHIPPED</code> cannot have lines added" — touches all three, and the only way to know whether the invariant actually holds is to run the system and try. The model is anaemic: data lives in one place, behaviour in another, and neither can be reasoned about alone.</p>
+          <p>Aggregates fix this by concentrating the rules of one consistency unit in one place — the root. The invariants are obvious to a reader (they are methods on the root with English names), the test surface is small (a unit test of the root, no database), and accidentally breaking an invariant becomes much harder because there is no other entry point. The cost is upfront design effort; the return is that subsequent changes are local instead of cross-cutting.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Eric Evans / DDD community</p>
+              <p class="pa-industry__what">Eric Evans's <em>Domain-Driven Design</em> (2003) introduced the vocabulary. The DDD Reference at <code>domainlanguage.com/ddd/reference/</code> is the short, free, authoritative summary maintained by Evans himself. DDD Europe and the DDD Crew community (<code>ddd-crew.github.io</code>) keep the practice alive with workshops, free guides, and the EventStorming and Context Mapping facilitation methods that feed strategic DDD into tactical implementation.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Start with strategic DDD (bounded contexts, ubiquitous language) before tactical. Aggregates only make sense inside a bounded context with a clear language; applied to a generic CRUD service they are overhead.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.domainlanguage.com/ddd/reference/" rel="noopener">domainlanguage.com — DDD Reference (Evans)</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Microsoft eShopOnContainers</p>
+              <p class="pa-industry__what">Microsoft's "Architecting Cloud Native .NET Applications" guide and the open-source eShopOnContainers reference application implement tactical DDD inside each microservice: aggregates, value objects, domain events, integration events, and CQRS where reads diverge from writes. The Ordering service is the canonical example — an <code>Order</code> aggregate root with <code>OrderItem</code> entities, <code>Address</code> value objects, and a <code>BuyerRepository</code>. The official docs map every Evans/Vernon concept to a concrete C# pattern.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Reference architectures are most useful as a vocabulary, not a copy-paste. Read eShopOnContainers to see what each pattern looks like in real code; don't import the whole microservice template into a monolith.</p>
+              <p class="pa-industry__source">Source: <a href="https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/" rel="noopener">Microsoft Learn — DDD &amp; CQRS patterns</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">DDD Crew (open community)</p>
+              <p class="pa-industry__what">The DDD Crew, a volunteer community of practitioners, maintains free, version-controlled resources for both strategic and tactical DDD: Context Mapping templates, the Bounded Context Canvas, EventStorming cheat-sheets, and an aggregate design canvas. Teams across industry (ING, Salesforce, Spotify, smaller startups) cite the Crew's materials as their onboarding path into DDD.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Use the Aggregate Design Canvas before writing the first class. Thirty minutes of canvas work — name, invariants, commands, events, throughput — eliminates 80% of the "this aggregate is wrong" rewrites that happen later.</p>
+              <p class="pa-industry__source">Source: <a href="https://github.com/ddd-crew" rel="noopener">github.com/ddd-crew — community resources</a></p>
+            </div>
+          </div>
+          <p class="pa-industry-pattern">The pattern: strategic before tactical, aggregate design before code, and treating the patterns as a vocabulary for thinking — not a checklist of classes to create.</p>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy of a well-formed aggregate</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Single aggregate root</p>
+              <p class="pa-anatomy__hint">Exactly one entity is the root. All external code references the aggregate by the root's ID — never by a child's. The root is the only thing the repository returns. If two roots want to talk, they exchange IDs and events, not object references.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Invariants enforced in the root</p>
+              <p class="pa-anatomy__hint">Every state-changing method on the root checks the rules before committing the change: <code>order.addLine(line)</code> rejects the call if <code>order.status == SHIPPED</code>. Invariants are not a setter + a service validation — they live on the root and cannot be bypassed.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Value objects are immutable</p>
+              <p class="pa-anatomy__hint">A <code>Money</code> has no setters. <code>price.add(tax)</code> returns a new <code>Money</code>. Equality is by value, not by reference. Enforced in code by frozen-dataclass / readonly fields / language constructs (records in Java/C#, dataclasses(frozen=True) in Python, struct in Rust).</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Repository per aggregate</p>
+              <p class="pa-anatomy__hint">One repository per aggregate root, not one per table. <code>OrderRepository</code> persists the Order plus all its OrderLines plus its Addresses as a single transactional unit. The domain layer sees <code>repo.save(order)</code>; the SQL is hidden behind the boundary.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Aggregate size: rule of one transaction</p>
+              <p class="pa-anatomy__hint">If two pieces of state must change atomically, they belong in the same aggregate. If they can be eventually consistent, they belong in different aggregates communicating via events. Target: 1–7 entities per aggregate. A "god aggregate" of 30+ entities is a smell — split it along an event boundary.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Domain events on commit</p>
+              <p class="pa-anatomy__hint">When an aggregate transitions state, it appends a domain event (<code>OrderPlaced</code>) to a list. The repository's <code>save</code> flushes both the state change and the events in one transaction. Downstream aggregates and bounded contexts consume the events asynchronously.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead>
+                <tr>
+                  <th scope="col">Pitfall</th>
+                  <th scope="col">Why it happens</th>
+                  <th scope="col">What to do instead</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Anaemic domain model — all logic lives in services</td>
+                  <td>The entities are data bags (getters, setters, nothing else) and every rule lives in <code>OrderService.shipOrder()</code>. The "domain layer" is in name only — the model is structurally identical to a CRUD app, with an indirection layer added.</td>
+                  <td>Move state-changing logic onto the aggregate root as methods with domain names: <code>order.ship()</code>, not <code>orderService.markAsShipped(order)</code>. Reserve domain services for genuinely cross-cutting operations (pricing across a catalog, transfers between two accounts).</td>
+                </tr>
+                <tr>
+                  <td>Aggregate too big — becomes a "god root"</td>
+                  <td>The team adds every related entity to one aggregate because "they're related". A <code>Customer</code> aggregate ends up owning orders, invoices, support tickets, and preferences. Concurrency conflicts skyrocket; locks are held across operations that have no real consistency requirement.</td>
+                  <td>Re-ask the question "what must change in one transaction?". A Customer's email and address must change atomically — same aggregate. A Customer's order history can be eventually consistent — separate aggregate, linked by <code>customerId</code> and communicating via events.</td>
+                </tr>
+                <tr>
+                  <td>Leaking persistence into the domain</td>
+                  <td>The aggregate root has JPA <code>@OneToMany</code> annotations, SQLAlchemy <code>relationship()</code> calls, or a <code>save()</code> method that calls the database directly. The domain layer and the ORM are now the same object; changes to one ripple into the other, and unit tests need a database.</td>
+                  <td>Keep the aggregate POJO/dataclass/struct. The repository is the only thing that knows about ORM and SQL. Domain code is unit-testable without a database; persistence is integration-tested separately.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="api-contract-first.html">Practice 12 — API Contract-First</a></li>
+            <li><a class="docs-next-steps__item" href="type-safety.html">Practice 14 — Type Safety as Default</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">Developer practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: DDD tactical patterns practice for Developer radar.</td>
+                  <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body>
+</html>

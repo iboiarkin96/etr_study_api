@@ -1,3 +1,5 @@
+import { openModal, closeModal } from "./modal.js";
+
 /* ui-kit/components/hotkeys.js — global keyboard shortcuts for docs.
    Implements the contract documented in
      services/portal/ui-kit/pages/foundations/hotkeys.html
@@ -156,8 +158,8 @@ function closeOpenOverlays() {
   }
   // Modals.
   const modal = document.querySelector(".docs-modal[aria-hidden='false']");
-  if (modal && window.docsModal && typeof window.docsModal.close === "function") {
-    window.docsModal.close(modal);
+  if (modal) {
+    closeModal(modal);
     acted = true;
   }
   // TOC FAB panel.
@@ -248,28 +250,17 @@ function ensureCheatModal() {
   // and missed this node — wire here too so it works lazily).
   const backdrop = modal.querySelector(".docs-modal__backdrop");
   if (backdrop) {
-    backdrop.addEventListener("click", () => {
-      if (window.docsModal) window.docsModal.close(modal);
-      else modal.setAttribute("aria-hidden", "true");
-    });
+    backdrop.addEventListener("click", () => closeModal(modal));
   }
   const closeBtn = modal.querySelector(".docs-modal__close");
   if (closeBtn) {
-    closeBtn.addEventListener("click", () => {
-      if (window.docsModal) window.docsModal.close(modal);
-      else modal.setAttribute("aria-hidden", "true");
-    });
+    closeBtn.addEventListener("click", () => closeModal(modal));
   }
   return modal;
 }
 
 function openCheatSheet() {
-  const modal = ensureCheatModal();
-  if (window.docsModal && typeof window.docsModal.open === "function") {
-    window.docsModal.open(modal);
-  } else {
-    modal.setAttribute("aria-hidden", "false");
-  }
+  openModal(ensureCheatModal());
 }
 
 function handleKeydown(e) {

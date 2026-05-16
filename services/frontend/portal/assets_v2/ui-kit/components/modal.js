@@ -1,5 +1,14 @@
 /* ui-kit/components/modal.js — generic modal controller.
-   Exposes window.docsModal = { open, close }. Focus trap, Esc, backdrop, scroll lock. */
+
+   Canonical API:
+     import { openModal, closeModal } from "./modal.js";
+     openModal(elOrId);    // accepts HTMLElement or id string
+     closeModal(elOrId);
+
+   Showcase / non-module HTML consumers may also use the documented
+   `window.docsModal = { open, close }` facade (deliberate exception to the
+   no-globals rule; kept narrow and read-only). Focus trap, Esc, backdrop,
+   scroll lock all handled internally. */
 
 let activeTrap = null;
 let lastFocused = null;
@@ -59,6 +68,18 @@ function close(modal) {
   }
 }
 
+function resolve(idOrEl) {
+  return typeof idOrEl === "string" ? document.getElementById(idOrEl) : idOrEl;
+}
+
+export function openModal(idOrEl) {
+  open(resolve(idOrEl));
+}
+
+export function closeModal(idOrEl) {
+  close(resolve(idOrEl));
+}
+
 export function mountModal(root = document) {
   const modals = root.querySelectorAll(".docs-modal");
   modals.forEach((modal) => {
@@ -67,14 +88,6 @@ export function mountModal(root = document) {
     const closeBtn = modal.querySelector(".docs-modal__close, [data-modal-close]");
     if (closeBtn) closeBtn.addEventListener("click", () => close(modal));
   });
-  window.docsModal = {
-    open: (idOrEl) => {
-      const m = typeof idOrEl === "string" ? document.getElementById(idOrEl) : idOrEl;
-      open(m);
-    },
-    close: (idOrEl) => {
-      const m = typeof idOrEl === "string" ? document.getElementById(idOrEl) : idOrEl;
-      close(m);
-    },
-  };
+  // Showcase / non-module HTML facade. Documented public API.
+  window.docsModal = { open: openModal, close: closeModal };
 }

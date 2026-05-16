@@ -41,6 +41,13 @@ export function mountThemeToggle(root = document) {
     btn.classList.add("docs-theme-toggle");
     if (!btn.hasAttribute("type")) btn.setAttribute("type", "button");
     btn.setAttribute("aria-label", "Toggle theme");
+    if (!btn.hasAttribute("data-tooltip")) {
+      btn.setAttribute(
+        "data-tooltip",
+        "Switch between light and dark theme. Press T."
+      );
+      btn.setAttribute("data-tooltip-placement", "bottom");
+    }
 
     if (btn.dataset.icon !== "custom") {
       btn.innerHTML = `<span class="docs-theme-toggle__icon">${FLASHLIGHT_SVG}</span>`;

@@ -147,7 +147,7 @@ def main() -> int:
         if (
             rel.startswith("pdoc/")
             or rel.startswith("assets/")
-            or rel.startswith("internal/catalog/api/code-reference/")
+            or rel.startswith("internal/services/api/code-reference/")
             # External developer portal is isolated from the internal docs
             # skeleton — Page history is internal provenance only.
             or rel.startswith("public/")

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SRE · Incident response</title>
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+</head>
+
+<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <h1 class="internal-h1--accent-tail">Incident response</h1>
+
+        <section class="card">
+          <h2>What an incident is</h2>
+          <p>An <strong>incident</strong> is any unplanned event that hurts users or breaks an important promise (an SLO). The point of incident response is to stop the bleeding fast, communicate clearly, and learn afterwards. This page is the playbook; once an incident is over, the story is captured in a <a href="../../how-to/postmortems/index.html">postmortem</a>.</p>
+          <p>The framework below mirrors the <a href="https://sre.google/sre-book/managing-incidents/" rel="external">SRE Book — Managing Incidents</a> and <a href="https://sre.google/sre-book/emergency-response/" rel="external">Emergency Response</a> chapters, scaled down to a small team.</p>
+        </section>
+
+        <section class="card">
+          <h2>The four-step loop</h2>
+          <ol>
+            <li><strong>Declare.</strong> Name the incident, give it a severity, open a chat channel, start a timeline.</li>
+            <li><strong>Mitigate.</strong> Make the user-visible problem stop. Roll back, switch traffic, scale up, disable a feature flag — anything that restores service. Root cause can wait.</li>
+            <li><strong>Communicate.</strong> Tell the affected users what is happening and what to expect next. Update on the cadence the severity requires.</li>
+            <li><strong>Resolve.</strong> Verify the system is healthy with metrics and logs, not with a feeling. Mark the incident closed only after confirmation.</li>
+          </ol>
+          <p>After resolve comes the <a href="../../how-to/postmortems/index.html">postmortem</a>. That is not part of the live loop, but it is mandatory for SEV-1 and SEV-2.</p>
+        </section>
+
+        <section class="card">
+          <h2>Severity matrix</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Severity matrix">
+            <table class="docs-page-history">
+              <thead><tr><th>Severity</th><th>Description</th><th>Examples</th><th>Postmortem required</th></tr></thead>
+              <tbody>
+                <tr><td>SEV-1</td><td>Major outage. The service is unusable for most users, or data is at risk.</td><td>API returns 5xx for &gt; 50% of requests; database is corrupted; auth is broken for everyone.</td><td>Yes</td></tr>
+                <tr><td>SEV-2</td><td>Partial outage. A core feature is down or seriously slow for many users.</td><td>One major endpoint returns 5xx; latency p99 above 5 s; background jobs stuck for an hour.</td><td>Yes</td></tr>
+                <tr><td>SEV-3</td><td>Degraded service. Noticeable but not blocking.</td><td>One non-critical endpoint slow; UI glitch on a non-critical page.</td><td>Recommended</td></tr>
+                <tr><td>SEV-4</td><td>Minor. Annoying, can wait until next working day.</td><td>One typo in an error message; a single edge-case 500.</td><td>No</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Pick a severity quickly and round up if unsure — it is easier to downgrade than to explain why you treated SEV-1 as SEV-3.</p>
+        </section>
+
+        <section class="card">
+          <h2>Roles during a live incident</h2>
+          <dl>
+            <dt>Incident commander (IC)</dt>
+            <dd>Owns the response. Decides what to do next, keeps the timeline, decides when the incident is resolved. Does not fix bugs personally — they coordinate.</dd>
+
+            <dt>Operations lead (Ops)</dt>
+            <dd>Hands on the system. Runs commands, ships rollbacks, edits configs. Reports facts back to the IC.</dd>
+
+            <dt>Communications lead (Comms)</dt>
+            <dd>Writes updates for users (status page, email, in-app banner). Talks to anyone outside the response team so the IC and Ops can focus.</dd>
+          </dl>
+          <p>For a single-person team, one human plays all three roles — but write down which hat you are wearing for each action. It keeps the timeline honest.</p>
+        </section>
+
+        <section class="card">
+          <h2>Step-by-step: the first 15 minutes</h2>
+          <ol>
+            <li><strong>0:00 — Acknowledge the page.</strong> Mute the alert channel only after acknowledging.</li>
+            <li><strong>0:01 — Confirm the symptom.</strong> Open the dashboard. Is it real? Is it global or one endpoint?</li>
+            <li><strong>0:03 — Declare.</strong> Post: "Declaring SEV-X. Symptom: &lt;short&gt;. IC: &lt;name&gt;." Open the timeline doc.</li>
+            <li><strong>0:05 — First user message.</strong> If SEV-1 or SEV-2, post a status update: "We are aware of an issue affecting X. Investigating. Next update in 30 min."</li>
+            <li><strong>0:10 — Identify the latest change.</strong> Last deploy, config change, dependency update. Roll it back if the timing matches; do not wait for a perfect causal proof.</li>
+            <li><strong>0:15 — First mitigation attempt complete.</strong> Confirm with metrics that the symptom is gone. If not, try the next thing.</li>
+          </ol>
+        </section>
+
+        <section class="card">
+          <h2>Communication templates</h2>
+          <p><strong>Initial status update</strong></p>
+          <pre><code>[INVESTIGATING] We are seeing increased errors on &lt;feature&gt; since &lt;HH:MM UTC&gt;.
+Impact: &lt;who and what is affected&gt;.
+We are looking into it now. Next update by &lt;HH:MM UTC&gt;.</code></pre>
+
+          <p><strong>Mitigation in progress</strong></p>
+          <pre><code>[IDENTIFIED] We have identified the cause: &lt;short, plain words&gt;.
+Mitigation in progress: &lt;what we are doing&gt;.
+Next update by &lt;HH:MM UTC&gt;.</code></pre>
+
+          <p><strong>Resolved</strong></p>
+          <pre><code>[RESOLVED] &lt;feature&gt; is back to normal as of &lt;HH:MM UTC&gt;.
+Cause: &lt;one sentence&gt;.
+A postmortem will be published within 5 working days.</code></pre>
+        </section>
+
+        <section class="card">
+          <h2>Timeline — what to write down (and when)</h2>
+          <p>The timeline is the raw material for the postmortem. Capture facts as they happen — not "what we now think happened". Useful entries:</p>
+          <ul>
+            <li>Every alert that fires, with timestamp.</li>
+            <li>Every action taken: command, deploy, rollback, config change.</li>
+            <li>Every external message sent, with link.</li>
+            <li>Every hypothesis you tried and disproved.</li>
+          </ul>
+          <p>Use UTC timestamps. Local times will betray you in a postmortem written a week later.</p>
+        </section>
+
+        <section class="card">
+          <h2>When to call the incident over</h2>
+          <p>Resolve only when all of the following are true:</p>
+          <ul>
+            <li>The user-visible symptom is gone (verified on the dashboard, not assumed).</li>
+            <li>You understand at least the immediate cause; you do not have to know the root cause yet.</li>
+            <li>No fragile workaround is silently still in place. If a workaround stays, file a ticket and link it from the resolved post.</li>
+            <li>A postmortem owner is named (for SEV-1 and SEV-2).</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>References</h2>
+          <ul>
+            <li><a href="../../how-to/postmortems/index.html">Postmortems</a> and the <a href="../../how-to/postmortems/_template.html">postmortem template</a>.</li>
+            <li><a href="on-call.html">On-call</a> — how alerts get to you in the first place.</li>
+            <li><a href="../../how-to/runbooks/index.html">Runbooks</a> — per-alert procedures.</li>
+            <li>SRE Book — <a href="https://sre.google/sre-book/managing-incidents/" rel="external">Managing Incidents</a>.</li>
+            <li>SRE Book — <a href="https://sre.google/sre-book/emergency-response/" rel="external">Emergency Response</a>.</li>
+          </ul>
+        </section>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-11">2026-05-11</time></td><td>Replaced skeleton stub with full incident playbook: four-step loop, severity matrix, roles, first-15-minutes script, comm templates, timeline rules.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+                <tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Initial skeleton stub per <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase D.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+</body></html>

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hexagonal Architecture — Practice 05 · Architect</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">05</span>
+          <span class="pa-eyebrow__group">Group A · System design &amp; patterns</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">2.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Hexagonal Architecture — isolate the domain core</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Separate the pure domain model from all external dependencies so the core is independently testable and technology-agnostic.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Hexagonal Architecture (Ports and Adapters), coined by Alistair Cockburn in 2005, separates the domain core from all external dependencies — databases, HTTP clients, message brokers, frameworks. The domain defines interfaces (ports); technology-specific implementations (adapters) plug into those ports. The result is a domain that can be tested with no infrastructure, migrated to a new database in hours, and understood without reading framework code.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Hexagonal architecture ports and adapters">
+          <svg viewBox="0 0 720 195" role="img" aria-label="Domain core with driving and driven adapters">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <!-- Left (driving) side -->
+              <rect class="pa-svg-box" x="20" y="40" width="120" height="50" rx="8"/>
+              <text class="pa-svg-text" x="80" y="63" text-anchor="middle" font-size="11">REST API</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="80" y="79" text-anchor="middle" font-size="10">driving adapter</text>
+
+              <rect class="pa-svg-box" x="20" y="110" width="120" height="50" rx="8"/>
+              <text class="pa-svg-text" x="80" y="133" text-anchor="middle" font-size="11">CLI / Queue</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="80" y="149" text-anchor="middle" font-size="10">driving adapter</text>
+
+              <!-- Domain core -->
+              <rect class="pa-svg-box pa-svg-box--accent" x="230" y="30" width="260" height="145" rx="14"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="360" y="68" text-anchor="middle" font-size="13" font-weight="700">Domain Core</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="360" y="90" text-anchor="middle" font-size="10">use cases / services</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="360" y="108" text-anchor="middle" font-size="10">aggregates / entities</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="360" y="126" text-anchor="middle" font-size="10">port interfaces</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="360" y="144" text-anchor="middle" font-size="10">zero framework imports</text>
+
+              <!-- Right (driven) side -->
+              <rect class="pa-svg-box" x="580" y="40" width="120" height="50" rx="8"/>
+              <text class="pa-svg-text" x="640" y="63" text-anchor="middle" font-size="11">PostgreSQL</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="640" y="79" text-anchor="middle" font-size="10">driven adapter</text>
+
+              <rect class="pa-svg-box" x="580" y="110" width="120" height="50" rx="8"/>
+              <text class="pa-svg-text" x="640" y="133" text-anchor="middle" font-size="11">Kafka Producer</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="640" y="149" text-anchor="middle" font-size="10">driven adapter</text>
+
+              <path class="pa-svg-arrow" d="M140 65 L225 90 L218 86 M225 90 L219 94"/>
+              <path class="pa-svg-arrow" d="M140 135 L225 110 L218 107 M225 110 L218 114"/>
+              <path class="pa-svg-arrow" d="M490 90 L575 65 L568 63 L569 69 M575 65 L567 69"/>
+              <path class="pa-svg-arrow" d="M490 110 L575 135 L568 131 L569 137 M575 135 L567 137"/>
+
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="185" text-anchor="middle" font-size="10" font-style="italic">"domain has no knowledge of adapters; adapters implement domain ports"</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">Driving adapters call the domain via use-case interfaces; driven adapters implement the domain's repository and messaging ports. The domain core has no imports pointing outward.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>Hexagonal Architecture (also called Ports and Adapters) is a structural pattern introduced by Alistair Cockburn in 2005. Its central rule: the application core (domain model + use cases) has no dependencies on external infrastructure. All dependencies point inward, toward the domain.</p>
+          <p>Two sides of the hexagon:</p>
+          <ul>
+            <li><strong>Driving side (primary)</strong> — the actors that initiate use cases: HTTP controllers, CLI commands, message consumers. They call the domain via use-case interfaces.</li>
+            <li><strong>Driven side (secondary)</strong> — the infrastructure the domain needs: databases, external APIs, message brokers. They implement the domain's repository or notification ports.</li>
+          </ul>
+          <p>The domain defines the ports (interfaces). The adapters implement the ports. The domain never imports an adapter. This inversion of control means the domain can be tested with in-memory fake adapters, and migrating from one database to another requires only writing a new adapter — the domain code does not change.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>When domain logic is entangled with Spring annotations, SQLAlchemy models, or Kafka consumers, every test requires a running database and a running broker. The test suite takes 5 minutes instead of 5 seconds. Database migrations require updating domain code. Framework upgrades touch business logic. The accidental complexity of the infrastructure invades the domain and makes it fragile.</p>
+          <p>Hexagonal Architecture makes the domain a clean, independently deployable unit. A domain test suite with fake adapters runs in under 500 ms with no I/O. The team can swap the database (Postgres to DynamoDB) or the framework (Flask to FastAPI) without rewriting a single use case. At startup speed, this kind of reversibility is worth the initial investment.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Alistair Cockburn (originator)</p>
+              <p class="pa-industry__what">Published the original pattern in 2005 at alistair.cockburn.us. The motivating example: a system that must be driven by both a GUI and a test suite, and that must work with both a real database and an in-memory fake. The hexagonal shape (6 sides) is arbitrary — the pattern has nothing to do with six; it was chosen because a hexagon communicates "many equal ports" better than a rectangle with two sides.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> The most valuable application: making the domain unit-testable without infrastructure. Write domain tests first; the architecture follows from the testing discipline.</p>
+              <p class="pa-industry__source">Source: <a href="https://alistair.cockburn.us/hexagonal-architecture/" rel="noopener">alistair.cockburn.us — Hexagonal Architecture</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Stripe</p>
+              <p class="pa-industry__what">Stripe's payment processing core is designed with clear separation between domain logic and infrastructure adapters. The charge creation logic has no direct dependencies on the database layer — it operates on domain objects and emits events. Infrastructure adapters handle persistence and external API calls. This enables Stripe to test the entire charge lifecycle in under 100 ms per test with no external calls. Their public engineering blog describes the principle as "pure core, effectful shell."</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> "Pure core, effectful shell" — all side effects (I/O, external calls) at the boundary; pure domain logic at the centre. This makes the core trivially testable.</p>
+              <p class="pa-industry__source">Source: <a href="https://stripe.com/blog/engineering-principles" rel="noopener">Stripe Engineering Principles</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Netflix (DGS Framework)</p>
+              <p class="pa-industry__what">Netflix's Domain Graph Service (DGS) framework enforces a ports-and-adapters structure for GraphQL services. The domain layer defines data fetcher interfaces (ports); infrastructure adapters implement them using databases, REST services, or caches. The framework's module structure prevents adapters from importing domain classes — enforced by Maven module boundaries. DGS is open-source at github.com/Netflix/dgs-framework.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Enforce the architecture at the module/package level, not just by convention. Module boundaries that prevent wrong-direction imports make the pattern maintainable as the team grows.</p>
+              <p class="pa-industry__source">Source: <a href="https://netflix.github.io/dgs/" rel="noopener">Netflix DGS Framework</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Domain Model</p>
+              <p class="pa-anatomy__hint">Pure domain classes: aggregates, entities, value objects, domain events. Zero imports from frameworks, ORMs, or HTTP libraries. Measured: the domain module must have zero transitive dependencies on spring-web, sqlalchemy, or kafka-python. Run the module dependency graph in CI.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Use Case (Application Service)</p>
+              <p class="pa-anatomy__hint">Orchestrates domain objects to fulfil one business scenario (PlaceOrder, CancelBooking). Accepts input ports; returns output. No HTTP status codes, no DB queries. Each use case is a class/function with one public method. Max complexity: if the use case exceeds 50 lines, it is probably doing too many things.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Port (Interface)</p>
+              <p class="pa-anatomy__hint">An interface defined in the domain that describes what the domain needs from the outside world. Repository ports (find, save), notification ports (notify), and event ports (publish) are the most common. Named from the domain perspective: <code>OrderRepository</code>, not <code>PostgresOrderDAO</code>.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Adapter (Implementation)</p>
+              <p class="pa-anatomy__hint">The technology-specific implementation of a port. Lives in a separate module/package outside the domain. Examples: <code>PostgresOrderRepository</code> implementing <code>OrderRepository</code>; <code>KafkaEventPublisher</code> implementing <code>DomainEventPublisher</code>. Adapters import the domain; the domain never imports adapters.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Fake Adapter (Test Double)</p>
+              <p class="pa-anatomy__hint">An in-memory implementation of a port used in domain unit tests. <code>InMemoryOrderRepository</code> stores orders in a map. Enables the domain test suite to run in under 500 ms with no I/O. Must implement the full port interface; must not skip validation.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead>
+                <tr>
+                  <th scope="col">Pitfall</th>
+                  <th scope="col">Why it happens</th>
+                  <th scope="col">What to do instead</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Domain model importing ORM models or framework annotations</td>
+                  <td>Developers annotate domain classes with <code>@Entity</code> or <code>@Column</code> for convenience. The domain and the persistence layer become inseparable over time.</td>
+                  <td>Define separate persistence models (mapped separately by the adapter). The domain <code>Order</code> class knows nothing of <code>@Table</code>. The adapter maps between domain objects and persistence models.</td>
+                </tr>
+                <tr>
+                  <td>Use cases that accumulate too many dependencies (god service)</td>
+                  <td>A single use case class is given every port it might ever need. It becomes a 500-line orchestrator that is untestable and hard to reason about.</td>
+                  <td>One use case, one public method, max 3–4 port dependencies. When a use case needs 5+ dependencies, split it into smaller use cases with a coordinator on top.</td>
+                </tr>
+                <tr>
+                  <td>Leaky abstractions in port interfaces (technology bleed)</td>
+                  <td>A repository port's method signature returns <code>QueryResult</code> or a Pandas DataFrame — a type from the adapter layer. The domain now depends on the adapter's technology vocabulary.</td>
+                  <td>All port method signatures use only domain types. <code>List[Order]</code> is valid; <code>QueryResult</code> is not. If you need to name a return type, define it in the domain package.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="fitness-functions.html">Practice 04 — Fitness Functions</a></li>
+            <li><a class="docs-next-steps__item" href="technology-radar.html">Practice 06 — Technology Radar</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">Architect practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: Hexagonal Architecture practice for Architect radar.</td>
+                  <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body>
+</html>

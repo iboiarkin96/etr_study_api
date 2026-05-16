@@ -1,4 +1,4 @@
-"""Post-process pdoc HTML under services/portal/internal/catalog/api/code-reference/.
+"""Post-process pdoc HTML under services/portal/internal/services/api/code-reference/.
 
 Strip unstable memory addresses from HTML and ``search.js`` (function reprs) so
 ``make api-docs`` output is diff-stable across machines and runs. Re-serialize the
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS_API = ROOT / "services" / "portal" / "internal" / "catalog" / "api" / "code-reference"
+DOCS_API = ROOT / "services" / "portal" / "internal" / "services" / "api" / "code-reference"
 DOCS_ASSETS = ROOT / "services" / "portal" / "assets"
 FAVICON_NAME = "favicon.svg"
 
@@ -33,7 +33,7 @@ _SEARCH_JS_MARKER = "/** pdoc search index */const docs = "
 def main() -> int:
     if not DOCS_API.is_dir():
         print(
-            "services/portal/internal/catalog/api/code-reference missing; skip pdoc normalization",
+            "services/portal/internal/services/api/code-reference missing; skip pdoc normalization",
             file=sys.stderr,
         )
         return 0
@@ -54,7 +54,7 @@ def main() -> int:
 
     if changed:
         print(
-            f"Normalized unstable pdoc reprs in {changed} file(s) under services/portal/internal/catalog/api/code-reference/"
+            f"Normalized unstable pdoc reprs in {changed} file(s) under services/portal/internal/services/api/code-reference/"
         )
     return 0
 

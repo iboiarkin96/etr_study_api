@@ -15,6 +15,7 @@ import { mountCode } from "../../ui-kit/components/code.js";
 import { mountRocket } from "../../ui-kit/components/rocket.js";
 import { mountToc } from "../../ui-kit/components/toc.js";
 import { mountToast } from "../../ui-kit/components/toast.js";
+import { mountTooltip } from "../../ui-kit/components/tooltip.js";
 import { mountAuthorChip } from "../../ui-kit/components/author-chip.js";
 import { initStatusTimeline } from "../../ui-kit/components/status-timeline.js";
 import { mountEndpointCards } from "../../ui-kit/components/endpoint-card.js";
@@ -26,10 +27,21 @@ import { mountDesignCanvasCard } from "../../ui-kit/components/design-canvas-car
 import { mountLiveTickers } from "../../ui-kit/components/live-tickers.js";
 import { mountTextDecrypt, mountVariableWeight } from "../../ui-kit/components/text-decrypt.js";
 import { mountHotkeys } from "../../ui-kit/components/hotkeys.js";
+import { mountSiteFooter } from "../../ui-kit/components/site-footer.js";
+import { mountAuroraRail } from "../../ui-kit/components/aurora-rail.js";
 
 function boot() {
   mountToast();
   mountThemeToggle();
+  // Aurora rail mounts BEFORE the footer so the rail's placeRail() can
+  // insert directly before .site-footer (which mountSiteFooter then
+  // creates immediately after). The opposite order also works because
+  // placeRail falls back to appending to .docs-shell, but ordering this
+  // way keeps the DOM clean on first paint.
+  mountAuroraRail();
+  // Render the footer before bug-report so the footer's
+  // [data-bug-report-open] link gets bound by mountBugReport's first pass.
+  mountSiteFooter();
   mountBugReport();
   mountReadingProgress();
   mountAuthorChip();
@@ -57,6 +69,8 @@ function boot() {
   mountRocket();
   // Hotkeys last — they reach into other components via DOM selectors.
   mountHotkeys();
+  // Tooltip after everything else so it sees triggers injected by other mounts.
+  mountTooltip();
 }
 
 if (document.readyState === "loading") {

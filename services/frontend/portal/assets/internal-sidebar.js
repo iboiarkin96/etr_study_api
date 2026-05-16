@@ -5,7 +5,7 @@
  *
  * Conventions enforced across the tree:
  *   - The first child of every group is `label: "Overview"` (B3, 2026-05-11).
- *     See analysis/practices/single-authoring-model.html for the rule.
+ *     See roles/sa/practices/single-authoring-model.html for the rule.
  *   - No decorative emoji in labels (B2, 2026-05-11). Screen readers re-announce
  *     them and they clutter the drawer's tree.
  *   - Top-level entries are grouped by audience under `{ kind: "section" }`
@@ -26,111 +26,174 @@
    * The canonical SSOT is the directory tree on disk; this array is a hand-
    * maintained projection. Adding / renaming / removing a page requires editing
    * BOTH the file AND this array — divergence is silent until a reader hits a
-   * 404. See analysis/practices/ssot.html for the principle and the planned
+   * 404. See roles/sa/practices/ssot.html for the principle and the planned
    * Phase 2 work (generate the nav from a directory walk or a single YAML
    * manifest) that will eliminate the duplication.
    */
   const INTERNAL_SIDEBAR_NAV = [
 
-    /* ─────────────────────────── PROJECT ──────────────────────────────── */
-    { kind: "section", label: "Project" },
-    { label: "Methodology", path: "internal/analysis/methodology.html" },
-    { label: "System design", path: "internal/analysis/system-design.html" },
-    { label: "Backlog", path: "internal/governance/backlog/index.html" },
-
-    /* ────────────────────────── REFERENCE ─────────────────────────────── */
-    { kind: "section", label: "Reference" },
+    /* ────────────────────────── SERVICES ──────────────────────────────── */
+    { kind: "section", label: "Services" },
     {
       label: "Service catalog",
       children: [
-        { label: "Overview", path: "internal/catalog/index.html" },
+        { label: "Overview", path: "internal/services/index.html" },
         {
           label: "api",
           children: [
-            { label: "Overview", path: "internal/catalog/api/index.html" },
-            { label: "Architecture", path: "internal/catalog/api/architecture.html" },
-            { label: "API reference", path: "internal/catalog/api/api-reference.html" },
-            { label: "Runbooks", path: "internal/catalog/api/runbooks.html" },
-            { label: "Dependencies", path: "internal/catalog/api/dependencies.html" },
-            { label: "On-call", path: "internal/catalog/api/on-call.html" },
-            { label: "Code reference (pdoc)", path: "internal/catalog/api/code-reference/index.html" },
+            { label: "Overview", path: "internal/services/api/index.html" },
+            { label: "Architecture", path: "internal/services/api/architecture.html" },
+            { label: "API reference", path: "internal/services/api/api-reference.html" },
+            { label: "Runbooks", path: "internal/services/api/runbooks.html" },
+            { label: "Dependencies", path: "internal/services/api/dependencies.html" },
+            { label: "On-call", path: "internal/services/api/on-call.html" },
+            { label: "Code reference (pdoc)", path: "internal/services/api/code-reference/index.html" },
           ],
         },
         {
           label: "portal",
           children: [
-            { label: "Overview", path: "internal/catalog/portal/index.html" },
-            { label: "Architecture", path: "internal/catalog/portal/architecture.html" },
-            { label: "API reference", path: "internal/catalog/portal/api-reference.html" },
-            { label: "Runbooks", path: "internal/catalog/portal/runbooks.html" },
-            { label: "Dependencies", path: "internal/catalog/portal/dependencies.html" },
-            { label: "On-call", path: "internal/catalog/portal/on-call.html" },
+            { label: "Overview", path: "internal/services/portal/index.html" },
+            { label: "Architecture", path: "internal/services/portal/architecture.html" },
+            { label: "API reference", path: "internal/services/portal/api-reference.html" },
+            { label: "Runbooks", path: "internal/services/portal/runbooks.html" },
+            { label: "Dependencies", path: "internal/services/portal/dependencies.html" },
+            { label: "On-call", path: "internal/services/portal/on-call.html" },
           ],
         },
         {
           label: "monitoring",
           children: [
-            { label: "Overview", path: "internal/catalog/monitoring/index.html" },
-            { label: "Architecture", path: "internal/catalog/monitoring/architecture.html" },
-            { label: "API reference", path: "internal/catalog/monitoring/api-reference.html" },
-            { label: "Runbooks", path: "internal/catalog/monitoring/runbooks.html" },
-            { label: "Dependencies", path: "internal/catalog/monitoring/dependencies.html" },
-            { label: "On-call", path: "internal/catalog/monitoring/on-call.html" },
+            { label: "Overview", path: "internal/services/monitoring/index.html" },
+            { label: "Architecture", path: "internal/services/monitoring/architecture.html" },
+            { label: "API reference", path: "internal/services/monitoring/api-reference.html" },
+            { label: "Runbooks", path: "internal/services/monitoring/runbooks.html" },
+            { label: "Dependencies", path: "internal/services/monitoring/dependencies.html" },
+            { label: "On-call", path: "internal/services/monitoring/on-call.html" },
+          ],
+        },
+        {
+          label: "ui-kit",
+          children: [
+            { label: "Overview", path: "internal/services/ui-kit/index.html" },
+            { label: "Architecture", path: "internal/services/ui-kit/architecture.html" },
+            { label: "Dependencies", path: "internal/services/ui-kit/dependencies.html" },
+          ],
+        },
+      ],
+    },
+
+    /* ────────────────────────── TUTORIALS ─────────────────────────────── */
+    { kind: "section", label: "Tutorials" },
+    { label: "Onboarding from zero to endpoint", path: "internal/tutorials/onboarding-zero-to-endpoint.html" },
+    { label: "QA onboarding", path: "internal/tutorials/qa/onboarding.html" },
+
+    /* ─────────────────────────── HOW-TO ───────────────────────────────── */
+    { kind: "section", label: "How-to" },
+    {
+      label: "How-to guides",
+      children: [
+        { label: "Overview", path: "internal/how-to/index.html" },
+        {
+          label: "Onboarding and implementation",
+          children: [
+            { label: "Onboarding from zero to endpoint and docs", path: "internal/tutorials/onboarding-zero-to-endpoint.html" },
+            { label: "How to add POST /api/v1/contract", path: "internal/how-to/api/add-post-contract.html" },
+          ],
+        },
+        {
+          label: "Documentation operations",
+          children: [
+            { label: "Internal service docs layout and how to add pages", path: "internal/how-to/docs/internal-service-docs-layout.html" },
+            { label: "How to change docs frontend safely", path: "internal/how-to/docs/change-docs-frontend-safely.html" },
+          ],
+        },
+        {
+          label: "Workflow and commands",
+          children: [
+            { label: "Make commands inventory", path: "internal/how-to/docs/make-commands-inventory.html" },
           ],
         },
       ],
     },
     {
+      label: "Runbooks",
+      children: [
+        { label: "Overview", path: "internal/how-to/runbooks/index.html" },
+        { label: "Runbook template", path: "internal/how-to/runbooks/0000-template.html" },
+        { label: "Tests failing", path: "internal/how-to/runbooks/0001-tests-failing.html" },
+        { label: "Migrations failing", path: "internal/how-to/runbooks/0002-migrations-failing.html" },
+        { label: "Logging failing", path: "internal/how-to/runbooks/0003-logging-failing.html" },
+        { label: "Pre-commit failing", path: "internal/how-to/runbooks/0004-pre-commit-failing.html" },
+        { label: "Quality check failing", path: "internal/how-to/runbooks/0005-quality-check-failing.html" },
+        { label: "API security failing", path: "internal/how-to/runbooks/0006-api-security-failing.html" },
+        { label: "OpenAPI contract test failing", path: "internal/how-to/runbooks/0007-openapi-contract-test-failing.html" },
+        { label: "Observability scrape failing", path: "internal/how-to/runbooks/0008-observability-scrape-failing.html" },
+        { label: "Error budget exhaustion", path: "internal/how-to/runbooks/0009-error-budget-exhaustion.html" },
+        { label: "In-page TOC missing", path: "internal/how-to/runbooks/0010-in-page-toc-missing.html" },
+      ],
+    },
+    {
+      label: "Postmortems",
+      children: [
+        { label: "Overview", path: "internal/how-to/postmortems/index.html" },
+        { label: "Postmortem template", path: "internal/how-to/postmortems/_template.html" },
+      ],
+    },
+
+    /* ────────────────────────── REFERENCE ─────────────────────────────── */
+    { kind: "section", label: "Reference" },
+    {
       label: "API endpoints documentation",
       children: [
-        { label: "Overview", path: "internal/api/index.html" },
+        { label: "Overview", path: "internal/reference/api/index.html" },
         {
           label: "Shared (cross-cutting)",
           children: [
-            { label: "Specification template", path: "internal/api/_shared/spec-template.html" },
-            { label: "Definition of Done", path: "internal/api/_shared/spec-definition-of-done.html" },
-            { label: "Idempotency", path: "internal/api/_shared/idempotency.html" },
-            { label: "Error envelope", path: "internal/api/_shared/error-envelope.html" },
-            { label: "Error catalog", path: "internal/api/_shared/error-catalog.html" },
-            { label: "Authentication & authorization", path: "internal/api/_shared/auth.html" },
-            { label: "Pagination", path: "internal/api/_shared/pagination.html" },
-            { label: "Versioning", path: "internal/api/_shared/versioning.html" },
-            { label: "Observability conventions", path: "internal/api/_shared/observability-conventions.html" },
-            { label: "Field conventions", path: "internal/api/_shared/field-conventions.html" },
-            { label: "OpenAPI authoring guide", path: "internal/api/_shared/openapi-authoring-guide.html" },
-            { label: "Error matrix (auto-generated)", path: "internal/api/errors.html" },
+            { label: "Specification template", path: "internal/reference/templates/api-spec.html" },
+            { label: "Definition of Done", path: "internal/explanation/api/dod.html" },
+            { label: "Idempotency", path: "internal/reference/api/_shared/idempotency.html" },
+            { label: "Error envelope", path: "internal/reference/api/_shared/error-envelope.html" },
+            { label: "Error catalog", path: "internal/reference/api/_shared/error-catalog.html" },
+            { label: "Authentication & authorization", path: "internal/reference/api/_shared/auth.html" },
+            { label: "Pagination", path: "internal/reference/api/_shared/pagination.html" },
+            { label: "Versioning", path: "internal/reference/api/_shared/versioning.html" },
+            { label: "Observability conventions", path: "internal/reference/api/_shared/observability-conventions.html" },
+            { label: "Field conventions", path: "internal/reference/api/_shared/field-conventions.html" },
+            { label: "OpenAPI authoring guide", path: "internal/reference/api/_shared/openapi-authoring-guide.html" },
+            { label: "Error matrix (auto-generated)", path: "internal/reference/api/errors.html" },
           ],
         },
         {
           label: "User",
           expand: "on-descendant",
           children: [
-            { label: "Overview", path: "internal/api/user/index.html" },
-            { label: "GET /user/", path: "internal/api/user/operations/get-api-v1-user-system_uuid-system_user_id.html" },
-            { label: "POST /user", path: "internal/api/user/operations/post-api-v1-user.html" },
-            { label: "PUT /user/", path: "internal/api/user/operations/put-api-v1-user-system_uuid-system_user_id.html" },
-            { label: "PATCH /user/", path: "internal/api/user/operations/patch-api-v1-user-system_uuid-system_user_id.html" },
+            { label: "Overview", path: "internal/reference/api/user/index.html" },
+            { label: "GET /user/", path: "internal/reference/api/user/operations/get-api-v1-user-system_uuid-system_user_id.html" },
+            { label: "POST /user", path: "internal/reference/api/user/operations/post-api-v1-user.html" },
+            { label: "PUT /user/", path: "internal/reference/api/user/operations/put-api-v1-user-system_uuid-system_user_id.html" },
+            { label: "PATCH /user/", path: "internal/reference/api/user/operations/patch-api-v1-user-system_uuid-system_user_id.html" },
           ],
         },
         {
           label: "Conspectus",
           expand: "on-descendant",
           children: [
-            { label: "Overview", path: "internal/api/conspectus/index.html" },
-            { label: "GET /conspectuses/due/", path: "internal/api/conspectus/operations/get-api-v1-conspectuses-due.html" },
-            { label: "GET /schedule/summary/", path: "internal/api/conspectus/operations/get-api-v1-schedule-summary.html" },
-            { label: "POST …/actions/review", path: "internal/api/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html" },
-            { label: "POST /conspectuses", path: "internal/api/conspectus/operations/post-api-v1-conspectuses.html" },
-            { label: "PATCH /conspectuses/{id}", path: "internal/api/conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html" },
+            { label: "Overview", path: "internal/reference/api/conspectus/index.html" },
+            { label: "GET /conspectuses/due/", path: "internal/reference/api/conspectus/operations/get-api-v1-conspectuses-due.html" },
+            { label: "GET /schedule/summary/", path: "internal/reference/api/conspectus/operations/get-api-v1-schedule-summary.html" },
+            { label: "POST …/actions/review", path: "internal/reference/api/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html" },
+            { label: "POST /conspectuses", path: "internal/reference/api/conspectus/operations/post-api-v1-conspectuses.html" },
+            { label: "PATCH /conspectuses/{id}", path: "internal/reference/api/conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html" },
           ],
         },
         {
           label: "Error log",
           expand: "on-descendant",
           children: [
-            { label: "Overview", path: "internal/api/error-log/index.html" },
-            { label: "GET /errors/", path: "internal/api/error-log/operations/get-api-v1-errors.html" },
-            { label: "POST /errors", path: "internal/api/error-log/operations/post-api-v1-errors.html" },
+            { label: "Overview", path: "internal/reference/api/error-log/index.html" },
+            { label: "GET /errors/", path: "internal/reference/api/error-log/operations/get-api-v1-errors.html" },
+            { label: "POST /errors", path: "internal/reference/api/error-log/operations/post-api-v1-errors.html" },
           ],
         },
       ],
@@ -138,413 +201,121 @@
     {
       label: "Docs frontend documentation",
       children: [
-        { label: "Overview", path: "internal/front/index.html" },
+        { label: "Overview", path: "internal/reference/front/index.html" },
         {
           label: "Foundations",
           children: [
-            { label: "Style guide", path: "internal/front/_shared/style-guide.html" },
-            { label: "Maintenance process", path: "internal/front/_shared/process.html" },
-            { label: "Frontend glossary", path: "internal/front/_shared/glossary.html" },
-            { label: "Quick entry by role", path: "internal/front/_shared/fast-entry-by-role.html" },
+            { label: "Style guide", path: "internal/reference/front/_shared/style-guide.html" },
+            { label: "Maintenance process", path: "internal/reference/front/_shared/process.html" },
+            { label: "Frontend glossary", path: "internal/reference/front/_shared/glossary.html" },
+            { label: "Quick entry by role", path: "internal/reference/front/_shared/fast-entry-by-role.html" },
           ],
         },
         {
           label: "Spec templates",
           children: [
-            { label: "Component spec template", path: "internal/front/_shared/component-spec-template.html" },
-            { label: "Foundation spec template", path: "internal/front/_shared/foundation-spec-template.html" },
-            { label: "Contract spec template", path: "internal/front/_shared/contract-spec-template.html" },
-            { label: "Definition of Done", path: "internal/front/_shared/spec-definition-of-done.html" },
+            { label: "Component spec template", path: "internal/reference/front/_shared/component-spec-template.html" },
+            { label: "Foundation spec template", path: "internal/reference/front/_shared/foundation-spec-template.html" },
+            { label: "Contract spec template", path: "internal/reference/front/_shared/contract-spec-template.html" },
+            { label: "Definition of Done", path: "internal/reference/front/_shared/spec-definition-of-done.html" },
           ],
         },
         {
           label: "Architecture",
           children: [
-            { label: "Architecture map", path: "internal/front/architecture-map.html" },
+            { label: "Architecture map", path: "internal/reference/front/architecture-map.html" },
           ],
         },
         {
           label: "Screens",
           children: [
-            { label: "Screen spec template", path: "internal/front/screens/docs-screen-template.html" },
-            { label: "Engineering hub home", path: "internal/front/screens/docs-screen-home-landing.html" },
-            { label: "Backlog cockpit", path: "internal/front/screens/docs-screen-backlog-cockpit.html" },
-            { label: "Hall of Contributors", path: "internal/front/screens/docs-screen-portal-hall-of-contributors.html" },
+            { label: "Screen spec template", path: "internal/reference/front/screens/docs-screen-template.html" },
+            { label: "Engineering hub home", path: "internal/reference/front/screens/docs-screen-home-landing.html" },
+            { label: "Backlog cockpit", path: "internal/reference/front/screens/docs-screen-backlog-cockpit.html" },
+            { label: "Hall of Contributors", path: "internal/reference/front/screens/docs-screen-portal-hall-of-contributors.html" },
           ],
         },
         {
           label: "Components",
           children: [
-            { label: "UI kit", path: "internal/front/foundations/ui-kit.html" },
-            { label: "Tooltips and inline hints", path: "internal/front/components/tooltips.html" },
-            { label: "Popup and overlay system", path: "internal/front/components/popups-and-overlays.html" },
-            { label: "Diagrams and lightbox", path: "internal/front/components/diagrams-and-lightbox.html" },
-            { label: "Resume reading and back-to-top", path: "internal/front/components/resume-and-back-to-top.html" },
-            { label: "Rocket launch animation", path: "internal/front/components/rocket-launch-animation.html" },
-            { label: "Report-bug FAB", path: "internal/front/components/report-bug-fab.html" },
-            { label: "Sticky On this page TOC", path: "internal/front/components/sticky-toc.html" },
-            { label: "Hotkeys", path: "internal/front/foundations/hotkeys.html" },
+            { label: "UI kit", path: "internal/reference/front/foundations/ui-kit.html" },
+            { label: "Tooltips and inline hints", path: "internal/reference/front/components/tooltips.html" },
+            { label: "Popup and overlay system", path: "internal/reference/front/components/popups-and-overlays.html" },
+            { label: "Diagrams and lightbox", path: "internal/reference/front/components/diagrams-and-lightbox.html" },
+            { label: "Resume reading and back-to-top", path: "internal/reference/front/components/resume-and-back-to-top.html" },
+            { label: "Rocket launch animation", path: "internal/reference/front/components/rocket-launch-animation.html" },
+            { label: "Report-bug FAB", path: "internal/reference/front/components/report-bug-fab.html" },
+            { label: "Sticky On this page TOC", path: "internal/reference/front/components/sticky-toc.html" },
+            { label: "Hotkeys", path: "internal/reference/front/foundations/hotkeys.html" },
           ],
         },
         {
           label: "Reference",
           children: [
-            { label: "JavaScript modules", path: "internal/front/foundations/js-modules.html" },
-            { label: "CSS architecture", path: "internal/front/foundations/css-architecture.html" },
-            { label: "Token gallery (auto-generated)", path: "internal/front/foundations/tokens.html" },
+            { label: "JavaScript modules", path: "internal/reference/front/foundations/js-modules.html" },
+            { label: "CSS architecture", path: "internal/reference/front/foundations/css-architecture.html" },
+            { label: "Token gallery (auto-generated)", path: "internal/reference/front/foundations/tokens.html" },
           ],
         },
         {
           label: "Cross-cutting systems",
           children: [
-            { label: "Navigation and theme contract", path: "internal/front/contracts/menu-and-theme.html" },
-            { label: "Navigation, search, discovery", path: "internal/front/contracts/navigation-search-and-discovery.html" },
-            { label: "UI, motion, adaptivity", path: "internal/front/foundations/motion-and-adaptivity.html" },
-            { label: "Feedback and editorial workflow", path: "internal/front/contracts/feedback-and-editorial-workflow.html" },
+            { label: "Navigation and theme contract", path: "internal/reference/front/contracts/menu-and-theme.html" },
+            { label: "Navigation, search, discovery", path: "internal/reference/front/contracts/navigation-search-and-discovery.html" },
+            { label: "UI, motion, adaptivity", path: "internal/reference/front/foundations/motion-and-adaptivity.html" },
+            { label: "Feedback and editorial workflow", path: "internal/reference/front/contracts/feedback-and-editorial-workflow.html" },
           ],
         },
         {
           label: "Patterns",
           children: [
-            { label: "Long-form reading aids", path: "internal/front/patterns/long-form-reading-aids.html" },
+            { label: "Long-form reading aids", path: "internal/reference/front/patterns/long-form-reading-aids.html" },
           ],
         },
       ],
     },
 
-    /* ─────────────────────────── BY ROLE ──────────────────────────────── */
-    { kind: "section", label: "By role" },
+    /* ───────────────────────── EXPLANATION ────────────────────────────── */
+    { kind: "section", label: "Explanation" },
+    { label: "Methodology", path: "internal/explanation/methodology.html" },
+    { label: "System design", path: "internal/explanation/system-design.html" },
     {
-      label: "Managers portal",
+      label: "API concepts",
       children: [
-        { label: "Overview", path: "internal/manager/index.html" },
-        { label: "SDLC RACI matrix", path: "internal/manager/sdlc-raci-matrix.html" },
+        { label: "Definition of Done", path: "internal/explanation/api/dod.html" },
       ],
     },
     {
-      label: "Developers portal",
+      label: "Dev concepts",
       children: [
-        { label: "Overview", path: "internal/handbook/developer/index.html" },
-        {
-          label: "Core architecture and contracts",
-          children: [
-            { label: "Requirements guide", path: "internal/handbook/developer/0001-requirements.html" },
-            { label: "Schemas and contracts", path: "internal/handbook/developer/0002-schemas-and-contracts.html" },
-            { label: "Business logic guide", path: "internal/handbook/developer/0003-business-logic.html" },
-            { label: "Error matrix by status", path: "internal/handbook/developer/0005-error-matrix-by-status.html" },
-          ],
-        },
-        {
-          label: "Database tables",
-          children: [
-            { label: "Overview", path: "internal/catalog/api/data/index.html" },
-            { label: "Template", path: "internal/catalog/api/data/_template.html" },
-            {
-              label: "Core",
-              children: [
-                { label: "users", path: "internal/catalog/api/data/users.html" },
-              ],
-            },
-            {
-              label: "Reference",
-              children: [
-                { label: "systems", path: "internal/catalog/api/data/systems.html" },
-                { label: "invalidation_reasons", path: "internal/catalog/api/data/invalidation_reasons.html" },
-                { label: "timezones", path: "internal/catalog/api/data/timezones.html" },
-              ],
-            },
-          ],
-        },
-        {
-          label: "Delivery workflow and operations",
-          children: [
-            { label: "Make commands and workflows", path: "internal/handbook/developer/0010-make-commands-and-workflows.html" },
-            { label: "Local development", path: "internal/handbook/developer/0007-local-development.html" },
-            { label: "Docker image and container", path: "internal/handbook/developer/0009-docker-image-and-container.html" },
-            { label: "API load testing", path: "internal/handbook/developer/0006-api-load-testing.html" },
-            { label: "Documentation pipeline", path: "internal/handbook/developer/0008-docs-pipeline.html" },
-          ],
-        },
-        { label: "See: How-to guides", path: "internal/handbook/howto/index.html" },
+        { label: "Requirements guide", path: "internal/explanation/dev/requirements.html" },
+        { label: "Schemas and contracts", path: "internal/explanation/dev/schemas-and-contracts.html" },
+        { label: "Business logic guide", path: "internal/explanation/dev/business-logic.html" },
       ],
     },
     {
-      label: "SRE portal",
+      label: "QA strategy & process",
       children: [
-        { label: "Overview", path: "internal/sre/index.html" },
-        {
-          label: "Reliability foundations",
-          children: [
-            { label: "SLOs & error budget", path: "internal/sre/slos.html" },
-            { label: "Monitoring", path: "internal/sre/monitoring.html" },
-            { label: "Logging", path: "internal/sre/logging.html" },
-            { label: "Observability", path: "internal/sre/observability.html" },
-          ],
-        },
-        {
-          label: "Operations",
-          children: [
-            { label: "On-call", path: "internal/sre/on-call.html" },
-            { label: "Incident response", path: "internal/sre/incident-response.html" },
-            { label: "Debugging", path: "internal/sre/debugging.html" },
-          ],
-        },
-        {
-          label: "Postmortems",
-          children: [
-            { label: "Overview", path: "internal/sre/postmortems/index.html" },
-            { label: "Postmortem template", path: "internal/sre/postmortems/_template.html" },
-          ],
-        },
-        {
-          label: "Runbooks",
-          children: [
-            { label: "Overview", path: "internal/sre/runbooks/index.html" },
-            {
-              label: "Shared (cross-cutting)",
-              children: [
-                { label: "Runbook template", path: "internal/sre/runbooks/0000-template.html" },
-              ],
-            },
-            {
-              label: "CI and local quality failures",
-              children: [
-                { label: "Tests failing", path: "internal/sre/runbooks/0001-tests-failing.html" },
-                { label: "Pre-commit failing", path: "internal/sre/runbooks/0004-pre-commit-failing.html" },
-                { label: "Quality check failing", path: "internal/sre/runbooks/0005-quality-check-failing.html" },
-                { label: "OpenAPI contract test failing", path: "internal/sre/runbooks/0007-openapi-contract-test-failing.html" },
-              ],
-            },
-            {
-              label: "Data and migration failures",
-              children: [{ label: "Migrations failing", path: "internal/sre/runbooks/0002-migrations-failing.html" }],
-            },
-            {
-              label: "Security and API guardrails",
-              children: [{ label: "API security failing", path: "internal/sre/runbooks/0006-api-security-failing.html" }],
-            },
-            {
-              label: "Observability and reliability incidents",
-              children: [
-                { label: "Logging failing", path: "internal/sre/runbooks/0003-logging-failing.html" },
-                { label: "Observability scrape failing", path: "internal/sre/runbooks/0008-observability-scrape-failing.html" },
-                { label: "Error budget exhaustion", path: "internal/sre/runbooks/0009-error-budget-exhaustion.html" },
-              ],
-            },
-            {
-              label: "Docs frontend incidents",
-              children: [{ label: "In-page TOC missing", path: "internal/sre/runbooks/0010-in-page-toc-missing.html" }],
-            },
-          ],
-        },
+        { label: "Test strategy", path: "internal/explanation/qa/test-strategy.html" },
+        { label: "Test pyramid & layer ownership", path: "internal/explanation/qa/test-pyramid.html" },
+        { label: "QA process & SDLC integration", path: "internal/explanation/qa/qa-process.html" },
       ],
     },
     {
-      label: "QA portal",
+      label: "SRE foundations",
       children: [
-        { label: "Overview", path: "internal/handbook/qa/index.html" },
-        {
-          label: "Foundations",
-          children: [
-            { label: "Test strategy", path: "internal/handbook/qa/test-strategy.html" },
-            { label: "Test pyramid & layer ownership", path: "internal/handbook/qa/test-pyramid.html" },
-            { label: "QA process & SDLC integration", path: "internal/handbook/qa/qa-process.html" },
-            { label: "Tester onboarding", path: "internal/handbook/qa/tester-onboarding.html" },
-            { label: "QA glossary", path: "internal/handbook/qa/glossary.html" },
-          ],
-        },
-        {
-          label: "Templates",
-          children: [
-            { label: "Test case template", path: "internal/handbook/qa/templates/test-case-template.html" },
-            { label: "Bug report template", path: "internal/handbook/qa/templates/bug-report-template.html" },
-            { label: "Test plan template", path: "internal/handbook/qa/templates/test-plan-template.html" },
-          ],
-        },
-        {
-          label: "Playbooks",
-          children: [
-            { label: "API endpoint testing", path: "internal/handbook/qa/playbooks/api-endpoint-testing.html" },
-            { label: "Documentation testing", path: "internal/handbook/qa/playbooks/documentation-testing.html" },
-            { label: "Release smoke testing", path: "internal/handbook/qa/playbooks/release-smoke.html" },
-            { label: "Exploratory testing", path: "internal/handbook/qa/playbooks/exploratory-testing.html" },
-            { label: "Accessibility testing", path: "internal/handbook/qa/playbooks/accessibility-testing.html" },
-          ],
-        },
-        {
-          label: "Checklists",
-          children: [
-            { label: "0001 — Documentation pages visual", path: "internal/handbook/qa/0001-documentation-pages-visual-checklist.html" },
-            { label: "0002 — API endpoint acceptance", path: "internal/handbook/qa/0002-api-endpoint-acceptance-checklist.html" },
-            { label: "0003 — Release smoke", path: "internal/handbook/qa/0003-release-smoke-checklist.html" },
-            { label: "0004 — Regression", path: "internal/handbook/qa/0004-regression-checklist.html" },
-            { label: "0005 — Accessibility (WCAG 2.1 AA)", path: "internal/handbook/qa/0005-accessibility-checklist.html" },
-          ],
-        },
-        {
-          label: "Reference",
-          children: [
-            { label: "Severity & priority matrix", path: "internal/handbook/qa/reference/bug-severity-and-priority.html" },
-            { label: "Defect lifecycle", path: "internal/handbook/qa/reference/defect-lifecycle.html" },
-            { label: "Test environments", path: "internal/handbook/qa/reference/test-environments.html" },
-          ],
-        },
+        { label: "SLOs & error budget", path: "internal/explanation/sre/slos.html" },
+        { label: "Monitoring", path: "internal/explanation/sre/monitoring.html" },
+        { label: "Logging", path: "internal/explanation/sre/logging.html" },
+        { label: "Observability", path: "internal/explanation/sre/observability.html" },
+        { label: "On-call", path: "internal/explanation/sre/on-call.html" },
+        { label: "Incident response", path: "internal/explanation/sre/incident-response.html" },
+        { label: "Debugging", path: "internal/explanation/sre/debugging.html" },
       ],
     },
-    {
-      label: "QA Engineer portal",
-      children: [
-        { label: "Overview",   path: "internal/handbook/qa/index.html" },
-        { label: "Practices radar (25)", path: "internal/handbook/qa/practices.html" },
-        {
-          label: "Practice handbook (25)",
-          children: [
-            { label: "01 · Risk-based Testing",            path: "internal/handbook/qa/practices/risk-based-testing.html" },
-            { label: "02 · Test Pyramid Design",           path: "internal/handbook/qa/practices/test-pyramid-design.html" },
-            { label: "03 · Shift-left Testing",            path: "internal/handbook/qa/practices/shift-left-testing.html" },
-            { label: "04 · Test Oracle Definition",        path: "internal/handbook/qa/practices/test-oracle-definition.html" },
-            { label: "05 · Test Environment Design",       path: "internal/handbook/qa/practices/test-environment-design.html" },
-            { label: "06 · Boundary Value Analysis",       path: "internal/handbook/qa/practices/boundary-value-analysis.html" },
-            { label: "07 · Equivalence Partitioning",      path: "internal/handbook/qa/practices/equivalence-partitioning.html" },
-            { label: "08 · Decision Table Testing",        path: "internal/handbook/qa/practices/decision-table-testing.html" },
-            { label: "09 · Exploratory Charters",          path: "internal/handbook/qa/practices/exploratory-charters.html" },
-            { label: "10 · Scenario-based Testing",        path: "internal/handbook/qa/practices/scenario-based-testing.html" },
-            { label: "11 · Contract Testing",              path: "internal/handbook/qa/practices/contract-testing.html" },
-            { label: "12 · API Acceptance Testing",        path: "internal/handbook/qa/practices/api-acceptance-testing.html" },
-            { label: "13 · Visual Regression Testing",     path: "internal/handbook/qa/practices/visual-regression-testing.html" },
-            { label: "14 · Accessibility Automation",      path: "internal/handbook/qa/practices/accessibility-automation.html" },
-            { label: "15 · CI Quality Gates",              path: "internal/handbook/qa/practices/ci-quality-gates.html" },
-            { label: "16 · Defect Triage",                 path: "internal/handbook/qa/practices/defect-triage.html" },
-            { label: "17 · Escape Rate Tracking",          path: "internal/handbook/qa/practices/escape-rate-tracking.html" },
-            { label: "18 · Root Cause Analysis",           path: "internal/handbook/qa/practices/root-cause-analysis.html" },
-            { label: "19 · Quality Dashboarding",          path: "internal/handbook/qa/practices/quality-dashboarding.html" },
-            { label: "20 · Release Sign-off",              path: "internal/handbook/qa/practices/release-sign-off.html" },
-            { label: "21 · Three Amigos",                  path: "internal/handbook/qa/practices/three-amigos.html" },
-            { label: "22 · Test Plan Authoring",           path: "internal/handbook/qa/practices/test-plan-authoring.html" },
-            { label: "23 · Regression Suite Management",   path: "internal/handbook/qa/practices/regression-suite-management.html" },
-            { label: "24 · QA Retrospective",              path: "internal/handbook/qa/practices/qa-retrospective.html" },
-            { label: "25 · Quality Advocacy",              path: "internal/handbook/qa/practices/quality-advocacy.html" },
-          ],
-        },
-      ],
-    },
-    {
-      label: "Developer Engineer portal",
-      children: [
-        { label: "Overview",   path: "internal/dev/index.html" },
-        { label: "Practices radar (25)", path: "internal/dev/practices.html" },
-        {
-          label: "Practice handbook (25)",
-          children: [
-            { label: "All 25 practices",                  path: "internal/dev/practices/index.html" },
-            { label: "01 · Trunk-Based Development",      path: "internal/dev/practices/trunk-based-development.html" },
-            { label: "02 · Test-Driven Development",      path: "internal/dev/practices/test-driven-development.html" },
-            { label: "03 · Small PRs",                    path: "internal/dev/practices/small-prs.html" },
-            { label: "04 · Pair & Mob Programming",       path: "internal/dev/practices/pair-mob-programming.html" },
-            { label: "05 · Continuous Refactoring",       path: "internal/dev/practices/continuous-refactoring.html" },
-            { label: "06 · CI & green-trunk discipline",  path: "internal/dev/practices/ci-green-trunk.html" },
-            { label: "07 · Feature Flags",                path: "internal/dev/practices/feature-flags.html" },
-            { label: "08 · Pre-commit hooks",             path: "internal/dev/practices/pre-commit-hooks.html" },
-            { label: "09 · Conventional Commits",         path: "internal/dev/practices/conventional-commits.html" },
-            { label: "10 · Progressive Delivery",         path: "internal/dev/practices/progressive-delivery.html" },
-            { label: "11 · Twelve-Factor App",            path: "internal/dev/practices/twelve-factor-app.html" },
-            { label: "12 · API Contract-First",           path: "internal/dev/practices/api-contract-first.html" },
-            { label: "13 · DDD tactical patterns",        path: "internal/dev/practices/ddd-tactical.html" },
-            { label: "14 · Type safety",                  path: "internal/dev/practices/type-safety.html" },
-            { label: "15 · Design Docs & RFCs",           path: "internal/dev/practices/design-docs.html" },
-            { label: "16 · Structured Logging",           path: "internal/dev/practices/structured-logging.html" },
-            { label: "17 · Distributed Tracing",          path: "internal/dev/practices/distributed-tracing.html" },
-            { label: "18 · SLOs in code",                 path: "internal/dev/practices/slos-in-code.html" },
-            { label: "19 · Error monitoring",             path: "internal/dev/practices/error-monitoring.html" },
-            { label: "20 · Performance budgets",          path: "internal/dev/practices/performance-budgets.html" },
-            { label: "21 · Reproducible dev env",         path: "internal/dev/practices/devcontainers.html" },
-            { label: "22 · Docs-as-Code",                 path: "internal/dev/practices/docs-as-code.html" },
-            { label: "23 · Tech-Debt Register",           path: "internal/dev/practices/tech-debt-register.html" },
-            { label: "24 · CODEOWNERS & inner-source",    path: "internal/dev/practices/codeowners.html" },
-            { label: "25 · Continuous Learning",          path: "internal/dev/practices/continuous-learning.html" },
-          ],
-        },
-      ],
-    },
-    {
-      label: "Architect portal",
-      children: [
-        { label: "Practices radar (25)", path: "internal/architect/practices.html" },
-        {
-          label: "Practice handbook (25)",
-          children: [
-            { label: "01 · Domain-Driven Design",       path: "internal/architect/practices/domain-driven-design.html" },
-            { label: "02 · Event-Driven Architecture",  path: "internal/architect/practices/event-driven-architecture.html" },
-            { label: "03 · C4 Model Diagrams",          path: "internal/architect/practices/c4-model.html" },
-            { label: "04 · Fitness Functions",          path: "internal/architect/practices/fitness-functions.html" },
-            { label: "05 · Hexagonal Architecture",     path: "internal/architect/practices/hexagonal-architecture.html" },
-            { label: "06 · Technology Radar",           path: "internal/architect/practices/technology-radar.html" },
-            { label: "07 · Build vs Buy vs OSS",        path: "internal/architect/practices/build-vs-buy.html" },
-            { label: "08 · Technical Roadmapping",      path: "internal/architect/practices/technical-roadmapping.html" },
-            { label: "09 · PoC & Spike",                path: "internal/architect/practices/poc-spike.html" },
-            { label: "10 · API-First Design",           path: "internal/architect/practices/api-first-design.html" },
-            { label: "11 · ADR Process",                path: "internal/architect/practices/adr-process.html" },
-            { label: "12 · RFC Process",                path: "internal/architect/practices/rfc-process.html" },
-            { label: "13 · Architecture Review",        path: "internal/architect/practices/architecture-review.html" },
-            { label: "14 · Stakeholder Mapping",        path: "internal/architect/practices/stakeholder-mapping.html" },
-            { label: "15 · Design Docs",                path: "internal/architect/practices/design-docs.html" },
-            { label: "16 · NFR Definition",             path: "internal/architect/practices/nfr-definition.html" },
-            { label: "17 · SLO & SLA Design",           path: "internal/architect/practices/slo-sla-design.html" },
-            { label: "18 · Chaos Engineering",          path: "internal/architect/practices/chaos-engineering.html" },
-            { label: "19 · Threat Modeling",            path: "internal/architect/practices/threat-modeling.html" },
-            { label: "20 · Capacity & FinOps",          path: "internal/architect/practices/capacity-finops.html" },
-            { label: "21 · Tech Debt Management",       path: "internal/architect/practices/tech-debt-management.html" },
-            { label: "22 · Engineering Principles",     path: "internal/architect/practices/engineering-principles.html" },
-            { label: "23 · Team Topologies",            path: "internal/architect/practices/team-topologies.html" },
-            { label: "24 · Architecture Mentoring",     path: "internal/architect/practices/architecture-mentoring.html" },
-            { label: "25 · Architecture Retrospective", path: "internal/architect/practices/architecture-retrospective.html" },
-          ],
-        },
-      ],
-    },
-    {
-      label: "SA portal",
-      children: [
-        { label: "Overview", path: "internal/analysis/index.html" },
-        { label: "Methodology", path: "internal/analysis/methodology.html" },
-        { label: "System design", path: "internal/analysis/system-design.html" },
-        { label: "Practices radar (25)", path: "internal/analysis/practices.html" },
-        {
-          label: "Practice handbook (25)",
-          children: [
-            { label: "All 25 practices",                path: "internal/analysis/practices/index.html" },
-            { label: "01 · Design Docs",                path: "internal/analysis/practices/design-docs.html" },
-            { label: "02 · ADR · RFC",                  path: "internal/analysis/practices/decision-records.html" },
-            { label: "03 · SSOT",                       path: "internal/analysis/practices/ssot.html" },
-            { label: "04 · Glossary",                   path: "internal/analysis/practices/glossary.html" },
-            { label: "05 · Tech Radar",                 path: "internal/analysis/practices/tech-radar.html" },
-            { label: "06 · C4 + PlantUML",              path: "internal/analysis/practices/c4-plantuml.html" },
-            { label: "07 · ER model",                   path: "internal/analysis/practices/er-model.html" },
-            { label: "08 · OpenAPI contract-first",     path: "internal/analysis/practices/openapi-contract-first.html" },
-            { label: "09 · AsyncAPI",                   path: "internal/analysis/practices/asyncapi.html" },
-            { label: "10 · DDD bounded contexts",       path: "internal/analysis/practices/ddd-bounded-contexts.html" },
-            { label: "11 · Diátaxis",                   path: "internal/analysis/practices/diataxis.html" },
-            { label: "12 · Docs as code",               path: "internal/analysis/practices/docs-as-code.html" },
-            { label: "13 · Template registry",          path: "internal/analysis/practices/single-authoring-model.html" },
-            { label: "14 · Style guide as code",        path: "internal/analysis/practices/style-guide.html" },
-            { label: "15 · Onboarding · a11y",          path: "internal/analysis/practices/onboarding-a11y.html" },
-            { label: "16 · SLO · SLI · error budgets",  path: "internal/analysis/practices/slo-sli-error-budgets.html" },
-            { label: "17 · Runbooks",                   path: "internal/analysis/practices/runbooks.html" },
-            { label: "18 · Blameless postmortems",      path: "internal/analysis/practices/postmortems.html" },
-            { label: "19 · Risk register",              path: "internal/analysis/practices/risk-register.html" },
-            { label: "20 · Capacity · FinOps",          path: "internal/analysis/practices/capacity-finops.html" },
-            { label: "21 · SECURITY · threat model",    path: "internal/analysis/practices/security-threat-modeling.html" },
-            { label: "22 · Service catalog",            path: "internal/analysis/practices/service-catalog.html" },
-            { label: "23 · AI-augmented docs",          path: "internal/analysis/practices/ai-augmented-docs.html" },
-            { label: "24 · Stakeholder map · JTBD",     path: "internal/analysis/practices/stakeholder-map.html" },
-            { label: "25 · RACI · release · review",    path: "internal/analysis/practices/raci-release.html" },
-          ],
-        },
-      ],
-    },
-
     /* ────────────────────────── GOVERNANCE ────────────────────────────── */
-    { kind: "section", label: "Governance" },
+    { kind: "section", label: "Decision log & audits" },
+    { label: "Backlog", path: "internal/governance/backlog/index.html" },
     {
       label: "ADRs",
       children: [
@@ -552,7 +323,7 @@
         {
           label: "Shared (cross-cutting)",
           children: [
-            { label: "ADR template", path: "internal/governance/adr/0000-template.html" },
+            { label: "ADR template", path: "internal/reference/templates/adr.html" },
           ],
         },
         {
@@ -633,7 +404,7 @@
         {
           label: "Shared (cross-cutting)",
           children: [
-            { label: "RFC template", path: "internal/governance/rfc/0000-template.html" },
+            { label: "RFC template", path: "internal/reference/templates/rfc.html" },
           ],
         },
         {
@@ -651,84 +422,439 @@
         },
       ],
     },
-    {
-      label: "How-to guides",
-      children: [
-        { label: "Overview", path: "internal/handbook/howto/index.html" },
         {
-          label: "Onboarding and implementation",
-          children: [
-            { label: "Onboarding from zero to endpoint and docs", path: "internal/handbook/howto/0001-onboarding-from-zero-to-endpoint-docs.html" },
-            { label: "How to add POST /api/v1/contract", path: "internal/handbook/howto/0004-how-to-add-post-contract.html" },
-          ],
-        },
-        {
-          label: "Documentation operations",
-          children: [
-            { label: "Internal service docs layout and how to add pages", path: "internal/handbook/howto/0002-internal-service-docs-layout.html" },
-            { label: "How to change docs frontend safely", path: "internal/handbook/howto/0005-how-to-change-docs-frontend-safely.html" },
-          ],
-        },
-        {
-          label: "Workflow and commands",
-          children: [
-            { label: "Make commands inventory", path: "internal/handbook/howto/0003-make-commands-inventory.html" },
-          ],
-        },
-      ],
-    },
-    {
       label: "Audit",
       children: [
-        { label: "Overview", path: "internal/governance/audit/index.html" },
+        { label: "Overview", path: "internal/governance/audits/index.html" },
         {
           label: "Shared (cross-cutting)",
           children: [
-            { label: "Assessment template", path: "internal/governance/audit/AUDIT_TEMPLATE.html" },
+            { label: "Assessment template", path: "internal/reference/templates/audit.html" },
           ],
         },
         {
           label: "DX audit",
           children: [
-            { label: "DX 2026-04-14", path: "internal/governance/audit/docs/2026-04-14-documentation-experience-assessment.html" },
-            { label: "DX 2026-04-18", path: "internal/governance/audit/docs/2026-04-18-documentation-experience-assessment.html" },
-            { label: "DX 2026-05-01", path: "internal/governance/audit/docs/2026-05-01-documentation-experience-assessment.html" },
+            { label: "DX 2026-04-14", path: "internal/governance/audits/docs/2026-04-14-documentation-experience-assessment.html" },
+            { label: "DX 2026-04-18", path: "internal/governance/audits/docs/2026-04-18-documentation-experience-assessment.html" },
+            { label: "DX 2026-05-01", path: "internal/governance/audits/docs/2026-05-01-documentation-experience-assessment.html" },
           ],
         },
         {
           label: "UI/UX audit",
           children: [
-            { label: "UI/UX 2026-04-23", path: "internal/governance/audit/ui-ux/2026-04-23-ui-ux-assessment.html" },
-            { label: "UI/UX 2026-04-24", path: "internal/governance/audit/ui-ux/2026-04-24-ui-ux-assessment.html" },
-            { label: "UI/UX 2026-05-09", path: "internal/governance/audit/ui-ux/2026-05-09-ui-ux-consistency-assessment.html" },
+            { label: "UI/UX 2026-04-23", path: "internal/governance/audits/ui-ux/2026-04-23-ui-ux-assessment.html" },
+            { label: "UI/UX 2026-04-24", path: "internal/governance/audits/ui-ux/2026-04-24-ui-ux-assessment.html" },
+            { label: "UI/UX 2026-05-09", path: "internal/governance/audits/ui-ux/2026-05-09-ui-ux-consistency-assessment.html" },
           ],
         },
         {
           label: "REST API audit",
           children: [
-            { label: "REST API 2026-04-14", path: "internal/governance/audit/api/2026-04-14-rest-api-assessment.html" },
+            { label: "REST API 2026-04-14", path: "internal/governance/audits/api/2026-04-14-rest-api-assessment.html" },
           ],
         },
         {
           label: "Bug audit",
           children: [
-            { label: "Bug audit 2026-05-07", path: "internal/governance/audit/bugs/2026-05-07-portal-bug-audit.html" },
+            { label: "Bug audit 2026-05-07", path: "internal/governance/audits/bugs/2026-05-07-portal-bug-audit.html" },
           ],
         },
         {
           label: "Project maturity audit",
           children: [
-            { label: "Project Maturity 2026-05-11", path: "internal/governance/audit/maturity/2026-05-10-project-maturity-assessment.html" },
-            { label: "Tech Docs Maturity 2026-05-11", path: "internal/governance/audit/maturity/2026-05-10-tech-docs-maturity-assessment.html" },
-            { label: "Tech Docs Maturity v2 2026-05-11", path: "internal/governance/audit/maturity/2026-05-10-tech-docs-maturity-assessment-v2.html" },
+            { label: "Project Maturity 2026-05-11", path: "internal/governance/audits/maturity/2026-05-10-project-maturity-assessment.html" },
+            { label: "Tech Docs Maturity 2026-05-11", path: "internal/governance/audits/maturity/2026-05-10-tech-docs-maturity-assessment.html" },
+            { label: "Tech Docs Maturity v2 2026-05-11", path: "internal/governance/audits/maturity/2026-05-10-tech-docs-maturity-assessment-v2.html" },
           ],
         },
       ],
     },
 
-    /* ─────────────────────────── PEOPLE ───────────────────────────────── */
-    { kind: "section", label: "People" },
+    /* ──────────────────────────── TEAM ────────────────────────────────── */
+    { kind: "section", label: "Team" },
     { label: "People & maintainers", path: "internal/team/people/index.html" },
+    {
+      label: "Manager",
+      children: [
+        { label: "Overview", path: "internal/roles/manager/index.html" },
+        { label: "SDLC RACI matrix", path: "internal/reference/manager/sdlc-raci-matrix.html" },
+        { label: "Tech radar", path: "internal/roles/manager/radar.html" },
+        {
+          label: "Practice handbook (25)",
+          children: [
+            { label: "01 · Ab Testing", path: "internal/roles/manager/practices/ab-testing.html" },
+            { label: "02 · Continuous Discovery", path: "internal/roles/manager/practices/continuous-discovery.html" },
+            { label: "03 · Customer Journey Map", path: "internal/roles/manager/practices/customer-journey-map.html" },
+            { label: "04 · Decision Raci", path: "internal/roles/manager/practices/decision-raci.html" },
+            { label: "05 · Definition Ready Done", path: "internal/roles/manager/practices/definition-ready-done.html" },
+            { label: "06 · Dual Track Agile", path: "internal/roles/manager/practices/dual-track-agile.html" },
+            { label: "07 · Funnel Cohort Analytics", path: "internal/roles/manager/practices/funnel-cohort-analytics.html" },
+            { label: "08 · Go To Market", path: "internal/roles/manager/practices/go-to-market.html" },
+            { label: "09 · Heart Framework", path: "internal/roles/manager/practices/heart-framework.html" },
+            { label: "10 · Impact Mapping", path: "internal/roles/manager/practices/impact-mapping.html" },
+            { label: "11 · Jtbd", path: "internal/roles/manager/practices/jtbd.html" },
+            { label: "12 · North Star Metric", path: "internal/roles/manager/practices/north-star-metric.html" },
+            { label: "13 · Now Next Later Roadmap", path: "internal/roles/manager/practices/now-next-later-roadmap.html" },
+            { label: "14 · Okrs", path: "internal/roles/manager/practices/okrs.html" },
+            { label: "15 · Opportunity Solution Tree", path: "internal/roles/manager/practices/opportunity-solution-tree.html" },
+            { label: "16 · Product Brief", path: "internal/roles/manager/practices/product-brief.html" },
+            { label: "17 · Product Health Dashboard", path: "internal/roles/manager/practices/product-health-dashboard.html" },
+            { label: "18 · Product Postmortem", path: "internal/roles/manager/practices/product-postmortem.html" },
+            { label: "19 · Product Review Cadence", path: "internal/roles/manager/practices/product-review-cadence.html" },
+            { label: "20 · Product Vision", path: "internal/roles/manager/practices/product-vision.html" },
+            { label: "21 · Rice Prioritisation", path: "internal/roles/manager/practices/rice-prioritisation.html" },
+            { label: "22 · Stakeholder Alignment", path: "internal/roles/manager/practices/stakeholder-alignment.html" },
+            { label: "23 · Story Mapping", path: "internal/roles/manager/practices/story-mapping.html" },
+            { label: "24 · User Research Synthesis", path: "internal/roles/manager/practices/user-research-synthesis.html" },
+            { label: "25 · Working Backwards", path: "internal/roles/manager/practices/working-backwards.html" },
+          ],
+        },
+      ],
+    },
+    {
+      label: "SA",
+      children: [
+        { label: "Overview", path: "internal/roles/sa/index.html" },
+        { label: "Methodology", path: "internal/explanation/methodology.html" },
+        { label: "System design", path: "internal/explanation/system-design.html" },
+        { label: "Tech radar", path: "internal/roles/sa/radar.html" },
+        {
+          label: "Practice handbook (25)",
+          children: [
+            { label: "All 25 practices",                path: "internal/roles/sa/practices/index.html" },
+            { label: "01 · Design Docs",                path: "internal/roles/sa/practices/design-docs.html" },
+            { label: "02 · ADR · RFC",                  path: "internal/roles/sa/practices/decision-records.html" },
+            { label: "03 · SSOT",                       path: "internal/roles/sa/practices/ssot.html" },
+            { label: "04 · Glossary",                   path: "internal/roles/sa/practices/glossary.html" },
+            { label: "05 · Tech Radar",                 path: "internal/roles/sa/practices/tech-radar.html" },
+            { label: "06 · C4 + PlantUML",              path: "internal/roles/sa/practices/c4-plantuml.html" },
+            { label: "07 · ER model",                   path: "internal/roles/sa/practices/er-model.html" },
+            { label: "08 · OpenAPI contract-first",     path: "internal/roles/sa/practices/openapi-contract-first.html" },
+            { label: "09 · AsyncAPI",                   path: "internal/roles/sa/practices/asyncapi.html" },
+            { label: "10 · DDD bounded contexts",       path: "internal/roles/sa/practices/ddd-bounded-contexts.html" },
+            { label: "11 · Diátaxis",                   path: "internal/roles/sa/practices/diataxis.html" },
+            { label: "12 · Docs as code",               path: "internal/roles/sa/practices/docs-as-code.html" },
+            { label: "13 · Template registry",          path: "internal/roles/sa/practices/single-authoring-model.html" },
+            { label: "14 · Style guide as code",        path: "internal/roles/sa/practices/style-guide.html" },
+            { label: "15 · Onboarding · a11y",          path: "internal/roles/sa/practices/onboarding-a11y.html" },
+            { label: "16 · SLO · SLI · error budgets",  path: "internal/roles/sa/practices/slo-sli-error-budgets.html" },
+            { label: "17 · Runbooks",                   path: "internal/roles/sa/practices/runbooks.html" },
+            { label: "18 · Blameless postmortems",      path: "internal/roles/sa/practices/postmortems.html" },
+            { label: "19 · Risk register",              path: "internal/roles/sa/practices/risk-register.html" },
+            { label: "20 · Capacity · FinOps",          path: "internal/roles/sa/practices/capacity-finops.html" },
+            { label: "21 · SECURITY · threat model",    path: "internal/roles/sa/practices/security-threat-modeling.html" },
+            { label: "22 · Service catalog",            path: "internal/roles/sa/practices/service-catalog.html" },
+            { label: "23 · AI-augmented docs",          path: "internal/roles/sa/practices/ai-augmented-docs.html" },
+            { label: "24 · Stakeholder map · JTBD",     path: "internal/roles/sa/practices/stakeholder-map.html" },
+            { label: "25 · RACI · release · review",    path: "internal/roles/sa/practices/raci-release.html" },
+          ],
+        },
+      ],
+    },
+    {
+      label: "Architect",
+      children: [
+        { label: "Overview", path: "internal/roles/architect/index.html" },
+        { label: "Tech radar", path: "internal/roles/architect/radar.html" },
+        {
+          label: "Practice handbook (25)",
+          children: [
+            { label: "01 · Domain-Driven Design",       path: "internal/roles/architect/practices/domain-driven-design.html" },
+            { label: "02 · Event-Driven Architecture",  path: "internal/roles/architect/practices/event-driven-architecture.html" },
+            { label: "03 · C4 Model Diagrams",          path: "internal/roles/architect/practices/c4-model.html" },
+            { label: "04 · Fitness Functions",          path: "internal/roles/architect/practices/fitness-functions.html" },
+            { label: "05 · Hexagonal Architecture",     path: "internal/roles/architect/practices/hexagonal-architecture.html" },
+            { label: "06 · Technology Radar",           path: "internal/roles/architect/practices/technology-radar.html" },
+            { label: "07 · Build vs Buy vs OSS",        path: "internal/roles/architect/practices/build-vs-buy.html" },
+            { label: "08 · Technical Roadmapping",      path: "internal/roles/architect/practices/technical-roadmapping.html" },
+            { label: "09 · PoC & Spike",                path: "internal/roles/architect/practices/poc-spike.html" },
+            { label: "10 · API-First Design",           path: "internal/roles/architect/practices/api-first-design.html" },
+            { label: "11 · ADR Process",                path: "internal/roles/architect/practices/adr-process.html" },
+            { label: "12 · RFC Process",                path: "internal/roles/architect/practices/rfc-process.html" },
+            { label: "13 · Architecture Review",        path: "internal/roles/architect/practices/architecture-review.html" },
+            { label: "14 · Stakeholder Mapping",        path: "internal/roles/architect/practices/stakeholder-mapping.html" },
+            { label: "15 · Design Docs",                path: "internal/roles/architect/practices/design-docs.html" },
+            { label: "16 · NFR Definition",             path: "internal/roles/architect/practices/nfr-definition.html" },
+            { label: "17 · SLO & SLA Design",           path: "internal/roles/architect/practices/slo-sla-design.html" },
+            { label: "18 · Chaos Engineering",          path: "internal/roles/architect/practices/chaos-engineering.html" },
+            { label: "19 · Threat Modeling",            path: "internal/roles/architect/practices/threat-modeling.html" },
+            { label: "20 · Capacity & FinOps",          path: "internal/roles/architect/practices/capacity-finops.html" },
+            { label: "21 · Tech Debt Management",       path: "internal/roles/architect/practices/tech-debt-management.html" },
+            { label: "22 · Engineering Principles",     path: "internal/roles/architect/practices/engineering-principles.html" },
+            { label: "23 · Team Topologies",            path: "internal/roles/architect/practices/team-topologies.html" },
+            { label: "24 · Architecture Mentoring",     path: "internal/roles/architect/practices/architecture-mentoring.html" },
+            { label: "25 · Architecture Retrospective", path: "internal/roles/architect/practices/architecture-retrospective.html" },
+          ],
+        },
+      ],
+    },
+    {
+      label: "Developer",
+      children: [
+        { label: "Overview", path: "internal/roles/dev/index.html" },
+        {
+          label: "Core architecture and contracts",
+          children: [
+            { label: "Requirements guide", path: "internal/explanation/dev/requirements.html" },
+            { label: "Schemas and contracts", path: "internal/explanation/dev/schemas-and-contracts.html" },
+            { label: "Business logic guide", path: "internal/explanation/dev/business-logic.html" },
+            { label: "Error matrix by status", path: "internal/reference/api/error-matrix-by-status.html" },
+          ],
+        },
+        {
+          label: "Database tables",
+          children: [
+            { label: "Overview", path: "internal/services/api/data/index.html" },
+            { label: "Template", path: "internal/services/api/data/_template.html" },
+            {
+              label: "Core",
+              children: [
+                { label: "users", path: "internal/services/api/data/users.html" },
+              ],
+            },
+            {
+              label: "Reference",
+              children: [
+                { label: "systems", path: "internal/services/api/data/systems.html" },
+                { label: "invalidation_reasons", path: "internal/services/api/data/invalidation_reasons.html" },
+                { label: "timezones", path: "internal/services/api/data/timezones.html" },
+              ],
+            },
+          ],
+        },
+        {
+          label: "Delivery workflow and operations",
+          children: [
+            { label: "Make commands and workflows", path: "internal/how-to/dev/make-commands-and-workflows.html" },
+            { label: "Local development", path: "internal/how-to/dev/local-development.html" },
+            { label: "Docker image and container", path: "internal/how-to/dev/docker-image-and-container.html" },
+            { label: "API load testing", path: "internal/how-to/dev/api-load-testing.html" },
+            { label: "Documentation pipeline", path: "internal/how-to/dev/docs-pipeline.html" },
+          ],
+        },
+        { label: "See: How-to guides", path: "internal/how-to/index.html" },
+
+        { label: "Tech radar", path: "internal/roles/dev/radar.html" },
+        {
+          label: "Practice handbook (25)",
+          children: [
+            { label: "All 25 practices",                  path: "internal/roles/dev/practices/index.html" },
+            { label: "01 · Trunk-Based Development",      path: "internal/roles/dev/practices/trunk-based-development.html" },
+            { label: "02 · Test-Driven Development",      path: "internal/roles/dev/practices/test-driven-development.html" },
+            { label: "03 · Small PRs",                    path: "internal/roles/dev/practices/small-prs.html" },
+            { label: "04 · Pair & Mob Programming",       path: "internal/roles/dev/practices/pair-mob-programming.html" },
+            { label: "05 · Continuous Refactoring",       path: "internal/roles/dev/practices/continuous-refactoring.html" },
+            { label: "06 · CI & green-trunk discipline",  path: "internal/roles/dev/practices/ci-green-trunk.html" },
+            { label: "07 · Feature Flags",                path: "internal/roles/dev/practices/feature-flags.html" },
+            { label: "08 · Pre-commit hooks",             path: "internal/roles/dev/practices/pre-commit-hooks.html" },
+            { label: "09 · Conventional Commits",         path: "internal/roles/dev/practices/conventional-commits.html" },
+            { label: "10 · Progressive Delivery",         path: "internal/roles/dev/practices/progressive-delivery.html" },
+            { label: "11 · Twelve-Factor App",            path: "internal/roles/dev/practices/twelve-factor-app.html" },
+            { label: "12 · API Contract-First",           path: "internal/roles/dev/practices/api-contract-first.html" },
+            { label: "13 · DDD tactical patterns",        path: "internal/roles/dev/practices/ddd-tactical.html" },
+            { label: "14 · Type safety",                  path: "internal/roles/dev/practices/type-safety.html" },
+            { label: "15 · Design Docs & RFCs",           path: "internal/roles/dev/practices/design-docs.html" },
+            { label: "16 · Structured Logging",           path: "internal/roles/dev/practices/structured-logging.html" },
+            { label: "17 · Distributed Tracing",          path: "internal/roles/dev/practices/distributed-tracing.html" },
+            { label: "18 · SLOs in code",                 path: "internal/roles/dev/practices/slos-in-code.html" },
+            { label: "19 · Error monitoring",             path: "internal/roles/dev/practices/error-monitoring.html" },
+            { label: "20 · Performance budgets",          path: "internal/roles/dev/practices/performance-budgets.html" },
+            { label: "21 · Reproducible dev env",         path: "internal/roles/dev/practices/devcontainers.html" },
+            { label: "22 · Docs-as-Code",                 path: "internal/roles/dev/practices/docs-as-code.html" },
+            { label: "23 · Tech-Debt Register",           path: "internal/roles/dev/practices/tech-debt-register.html" },
+            { label: "24 · CODEOWNERS & inner-source",    path: "internal/roles/dev/practices/codeowners.html" },
+            { label: "25 · Continuous Learning",          path: "internal/roles/dev/practices/continuous-learning.html" },
+          ],
+        },
+      ],
+    },
+    {
+      label: "QA",
+      children: [
+        { label: "Overview", path: "internal/roles/qa/index.html" },
+        {
+          label: "Foundations",
+          children: [
+            { label: "Test strategy", path: "internal/explanation/qa/test-strategy.html" },
+            { label: "Test pyramid & layer ownership", path: "internal/explanation/qa/test-pyramid.html" },
+            { label: "QA process & SDLC integration", path: "internal/explanation/qa/qa-process.html" },
+            { label: "Tester onboarding", path: "internal/tutorials/qa/onboarding.html" },
+            { label: "QA glossary", path: "internal/reference/qa/glossary.html" },
+          ],
+        },
+        {
+          label: "Templates",
+          children: [
+            { label: "Test case template", path: "internal/reference/qa/templates/test-case-template.html" },
+            { label: "Bug report template", path: "internal/reference/qa/templates/bug-report-template.html" },
+            { label: "Test plan template", path: "internal/reference/qa/templates/test-plan-template.html" },
+          ],
+        },
+        {
+          label: "Playbooks",
+          children: [
+            { label: "API endpoint testing", path: "internal/how-to/qa/api-endpoint-testing.html" },
+            { label: "Documentation testing", path: "internal/how-to/qa/documentation-testing.html" },
+            { label: "Release smoke testing", path: "internal/how-to/qa/release-smoke.html" },
+            { label: "Exploratory testing", path: "internal/how-to/qa/exploratory-testing.html" },
+            { label: "Accessibility testing", path: "internal/how-to/qa/accessibility-testing.html" },
+          ],
+        },
+        {
+          label: "Checklists",
+          children: [
+            { label: "0001 — Documentation pages visual", path: "internal/reference/qa/checklists/0001-documentation-pages-visual-checklist.html" },
+            { label: "0002 — API endpoint acceptance", path: "internal/reference/qa/checklists/0002-api-endpoint-acceptance-checklist.html" },
+            { label: "0003 — Release smoke", path: "internal/reference/qa/checklists/0003-release-smoke-checklist.html" },
+            { label: "0004 — Regression", path: "internal/reference/qa/checklists/0004-regression-checklist.html" },
+            { label: "0005 — Accessibility (WCAG 2.1 AA)", path: "internal/reference/qa/checklists/0005-accessibility-checklist.html" },
+          ],
+        },
+        {
+          label: "Reference",
+          children: [
+            { label: "Severity & priority matrix", path: "internal/reference/qa/bug-severity-and-priority.html" },
+            { label: "Defect lifecycle", path: "internal/reference/qa/defect-lifecycle.html" },
+            { label: "Test environments", path: "internal/reference/qa/test-environments.html" },
+          ],
+        },
+
+        { label: "Tech radar", path: "internal/roles/qa/radar.html" },
+        {
+          label: "Practice handbook (25)",
+          children: [
+            { label: "01 · Risk-based Testing",            path: "internal/roles/qa/practices/risk-based-testing.html" },
+            { label: "02 · Test Pyramid Design",           path: "internal/roles/qa/practices/test-pyramid-design.html" },
+            { label: "03 · Shift-left Testing",            path: "internal/roles/qa/practices/shift-left-testing.html" },
+            { label: "04 · Test Oracle Definition",        path: "internal/roles/qa/practices/test-oracle-definition.html" },
+            { label: "05 · Test Environment Design",       path: "internal/roles/qa/practices/test-environment-design.html" },
+            { label: "06 · Boundary Value Analysis",       path: "internal/roles/qa/practices/boundary-value-analysis.html" },
+            { label: "07 · Equivalence Partitioning",      path: "internal/roles/qa/practices/equivalence-partitioning.html" },
+            { label: "08 · Decision Table Testing",        path: "internal/roles/qa/practices/decision-table-testing.html" },
+            { label: "09 · Exploratory Charters",          path: "internal/roles/qa/practices/exploratory-charters.html" },
+            { label: "10 · Scenario-based Testing",        path: "internal/roles/qa/practices/scenario-based-testing.html" },
+            { label: "11 · Contract Testing",              path: "internal/roles/qa/practices/contract-testing.html" },
+            { label: "12 · API Acceptance Testing",        path: "internal/roles/qa/practices/api-acceptance-testing.html" },
+            { label: "13 · Visual Regression Testing",     path: "internal/roles/qa/practices/visual-regression-testing.html" },
+            { label: "14 · Accessibility Automation",      path: "internal/roles/qa/practices/accessibility-automation.html" },
+            { label: "15 · CI Quality Gates",              path: "internal/roles/qa/practices/ci-quality-gates.html" },
+            { label: "16 · Defect Triage",                 path: "internal/roles/qa/practices/defect-triage.html" },
+            { label: "17 · Escape Rate Tracking",          path: "internal/roles/qa/practices/escape-rate-tracking.html" },
+            { label: "18 · Root Cause Analysis",           path: "internal/roles/qa/practices/root-cause-analysis.html" },
+            { label: "19 · Quality Dashboarding",          path: "internal/roles/qa/practices/quality-dashboarding.html" },
+            { label: "20 · Release Sign-off",              path: "internal/roles/qa/practices/release-sign-off.html" },
+            { label: "21 · Three Amigos",                  path: "internal/roles/qa/practices/three-amigos.html" },
+            { label: "22 · Test Plan Authoring",           path: "internal/roles/qa/practices/test-plan-authoring.html" },
+            { label: "23 · Regression Suite Management",   path: "internal/roles/qa/practices/regression-suite-management.html" },
+            { label: "24 · QA Retrospective",              path: "internal/roles/qa/practices/qa-retrospective.html" },
+            { label: "25 · Quality Advocacy",              path: "internal/roles/qa/practices/quality-advocacy.html" },
+          ],
+        },
+      ],
+    },
+    {
+      label: "SRE",
+      children: [
+        { label: "Overview", path: "internal/roles/sre/index.html" },
+        {
+          label: "Reliability foundations",
+          children: [
+            { label: "SLOs & error budget", path: "internal/explanation/sre/slos.html" },
+            { label: "Monitoring", path: "internal/explanation/sre/monitoring.html" },
+            { label: "Logging", path: "internal/explanation/sre/logging.html" },
+            { label: "Observability", path: "internal/explanation/sre/observability.html" },
+          ],
+        },
+        {
+          label: "Operations",
+          children: [
+            { label: "On-call", path: "internal/explanation/sre/on-call.html" },
+            { label: "Incident response", path: "internal/explanation/sre/incident-response.html" },
+            { label: "Debugging", path: "internal/explanation/sre/debugging.html" },
+          ],
+        },
+        {
+          label: "Postmortems",
+          children: [
+            { label: "Overview", path: "internal/how-to/postmortems/index.html" },
+            { label: "Postmortem template", path: "internal/how-to/postmortems/_template.html" },
+          ],
+        },
+        {
+          label: "Runbooks",
+          children: [
+            { label: "Overview", path: "internal/how-to/runbooks/index.html" },
+            {
+              label: "Shared (cross-cutting)",
+              children: [
+                { label: "Runbook template", path: "internal/how-to/runbooks/0000-template.html" },
+              ],
+            },
+            {
+              label: "CI and local quality failures",
+              children: [
+                { label: "Tests failing", path: "internal/how-to/runbooks/0001-tests-failing.html" },
+                { label: "Pre-commit failing", path: "internal/how-to/runbooks/0004-pre-commit-failing.html" },
+                { label: "Quality check failing", path: "internal/how-to/runbooks/0005-quality-check-failing.html" },
+                { label: "OpenAPI contract test failing", path: "internal/how-to/runbooks/0007-openapi-contract-test-failing.html" },
+              ],
+            },
+            {
+              label: "Data and migration failures",
+              children: [{ label: "Migrations failing", path: "internal/how-to/runbooks/0002-migrations-failing.html" }],
+            },
+            {
+              label: "Security and API guardrails",
+              children: [{ label: "API security failing", path: "internal/how-to/runbooks/0006-api-security-failing.html" }],
+            },
+            {
+              label: "Observability and reliability incidents",
+              children: [
+                { label: "Logging failing", path: "internal/how-to/runbooks/0003-logging-failing.html" },
+                { label: "Observability scrape failing", path: "internal/how-to/runbooks/0008-observability-scrape-failing.html" },
+                { label: "Error budget exhaustion", path: "internal/how-to/runbooks/0009-error-budget-exhaustion.html" },
+              ],
+            },
+            {
+              label: "Docs frontend incidents",
+              children: [{ label: "In-page TOC missing", path: "internal/how-to/runbooks/0010-in-page-toc-missing.html" }],
+            },
+          ],
+        },
+        { label: "Tech radar", path: "internal/roles/sre/radar.html" },
+        {
+          label: "Practice handbook (25)",
+          children: [
+            { label: "01 · Alerting Design", path: "internal/roles/sre/practices/alerting-design.html" },
+            { label: "02 · Blameless Postmortem", path: "internal/roles/sre/practices/blameless-postmortem.html" },
+            { label: "03 · Capacity Planning", path: "internal/roles/sre/practices/capacity-planning.html" },
+            { label: "04 · Chaos Engineering", path: "internal/roles/sre/practices/chaos-engineering.html" },
+            { label: "05 · Cicd Reliability", path: "internal/roles/sre/practices/cicd-reliability.html" },
+            { label: "06 · Compliance Automation", path: "internal/roles/sre/practices/compliance-automation.html" },
+            { label: "07 · Deployment Health", path: "internal/roles/sre/practices/deployment-health.html" },
+            { label: "08 · Distributed Tracing", path: "internal/roles/sre/practices/distributed-tracing.html" },
+            { label: "09 · Game Days", path: "internal/roles/sre/practices/game-days.html" },
+            { label: "10 · Incident Command", path: "internal/roles/sre/practices/incident-command.html" },
+            { label: "11 · Incident Severity", path: "internal/roles/sre/practices/incident-severity.html" },
+            { label: "12 · Metrics Dashboards", path: "internal/roles/sre/practices/metrics-dashboards.html" },
+            { label: "13 · On Call Handbook", path: "internal/roles/sre/practices/on-call-handbook.html" },
+            { label: "14 · Progressive Delivery", path: "internal/roles/sre/practices/progressive-delivery.html" },
+            { label: "15 · Reliability Tiering", path: "internal/roles/sre/practices/reliability-tiering.html" },
+            { label: "16 · Rollback Playbook", path: "internal/roles/sre/practices/rollback-playbook.html" },
+            { label: "17 · Runbooks", path: "internal/roles/sre/practices/runbooks.html" },
+            { label: "18 · Secret Management", path: "internal/roles/sre/practices/secret-management.html" },
+            { label: "19 · Security Posture", path: "internal/roles/sre/practices/security-posture.html" },
+            { label: "20 · Slo Error Budget", path: "internal/roles/sre/practices/slo-error-budget.html" },
+            { label: "21 · Structured Logging", path: "internal/roles/sre/practices/structured-logging.html" },
+            { label: "22 · Supply Chain Security", path: "internal/roles/sre/practices/supply-chain-security.html" },
+            { label: "23 · Synthetic Monitoring", path: "internal/roles/sre/practices/synthetic-monitoring.html" },
+            { label: "24 · Toil Reduction", path: "internal/roles/sre/practices/toil-reduction.html" },
+            { label: "25 · Vulnerability Mgmt", path: "internal/roles/sre/practices/vulnerability-mgmt.html" },
+          ],
+        },
+      ],
+    },
   ];
 
   /* ── Config ───────────────────────────────────────────────────────────── */
@@ -745,28 +871,17 @@
     defaultRelPath: "index.html",
     docsRootFirstSegments: [
       "index.html",
-      "adr",
-      "api",
       "assets",
-      "audit",
-      "backlog",
-      "developer",
       "explanation",
       "governance",
       "how-to",
-      "howto",
       "internal",
-      "openapi",
       "public",
-      "qa",
       "reference",
-      "rfc",
       "roles",
-      "runbooks",
       "services",
       "team",
       "tutorials",
-      "uml",
     ],
     supportsIcons: false,
     supportsLabelHtml: true,

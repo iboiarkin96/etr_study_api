@@ -605,6 +605,8 @@ function mountRocketFab() {
   btn.type      = "button";
   btn.className = "docs-rocket-fab";
   btn.setAttribute("aria-label", "Back to top");
+  btn.setAttribute("data-tooltip", "Back to top — launch the rocket. Press G to scroll instantly.");
+  btn.setAttribute("data-tooltip-placement", "left");
   btn.setAttribute("data-visible", "false");
 
   btn.innerHTML = [

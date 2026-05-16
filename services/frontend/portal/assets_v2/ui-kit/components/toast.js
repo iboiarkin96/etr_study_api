@@ -1,6 +1,14 @@
 /* ui-kit/components/toast.js — transient toast notifications.
-   Exposes window.docsToast.show({ message, variant?, icon?, duration? }).
-   Lazily creates a fixed bottom-right stack with aria-live="polite". */
+
+   Canonical API:
+     import { showToast } from "./toast.js";
+     const t = showToast({ message, variant?, icon?, duration? });
+     t?.dismiss();   // optional, e.g. when an upload completes
+
+   Showcase / non-module HTML may also use the documented facade
+   `window.docsToast.show(...)` (deliberate exception to the no-globals rule;
+   kept narrow and read-only). Lazily creates a fixed bottom-right stack with
+   aria-live="polite". */
 
 const ICONS = {
   sun:
@@ -61,6 +69,10 @@ function show(opts = {}) {
   stack.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add("is-entering"));
 
+  // Lifecycle timers (not DOM polling):
+  //   • EXIT_DURATION timer waits for the leave-animation to finish, then
+  //     removes the node from the DOM.
+  //   • exitTimer auto-dismisses the toast after `duration` ms.
   let exitTimer = null;
   const dismiss = () => {
     if (exitTimer) {
@@ -83,9 +95,14 @@ function show(opts = {}) {
   return { dismiss, el: toast };
 }
 
+export function showToast(opts) {
+  return show(opts);
+}
+
 export function mountToast() {
   if (typeof window === "undefined") return;
   if (!window.docsToast) {
+    // Showcase / non-module HTML facade. Documented public API.
     window.docsToast = { show };
   }
 }

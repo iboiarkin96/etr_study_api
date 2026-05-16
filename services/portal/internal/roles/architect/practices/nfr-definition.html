@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Non-Functional Requirements — Practice 16 · Architect</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">16</span>
+          <span class="pa-eyebrow__group">Group D · Reliability &amp; quality</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">3.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">9.0</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Non-Functional Requirements — make the ilities explicit</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Capture quality attributes as measurable acceptance criteria so "fast enough" and "secure enough" mean the same thing to every engineer.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Non-Functional Requirements (NFRs) are the measurable quality attributes of a system: performance (p99 latency ≤ 200 ms), availability (99.9%), scalability (10k RPM), security (no stored plaintext passwords), and maintainability (MTTR ≤ 1 hour). ISO 25010 codifies the standard categories. NFRs are captured per service, validated where possible in CI, and reviewed in architecture reviews. Without explicit NFRs, "good enough" means whatever the most recent engineer thought it meant.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="NFR categories">
+          <svg viewBox="0 0 720 180" role="img" aria-label="Five NFR categories with example metrics">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box pa-svg-box--accent" x="20" y="35" width="130" height="115" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="85" y="62" text-anchor="middle" font-size="11" font-weight="700">Performance</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="85" y="82" text-anchor="middle" font-size="9">p99 ≤ 200ms</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="85" y="100" text-anchor="middle" font-size="9">10k RPM</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="85" y="118" text-anchor="middle" font-size="9">tested in load CI</text>
+
+              <rect class="pa-svg-box pa-svg-box--accent" x="160" y="35" width="130" height="115" rx="10"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="225" y="62" text-anchor="middle" font-size="11" font-weight="700">Availability</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="225" y="82" text-anchor="middle" font-size="9">99.9% SLO</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="225" y="100" text-anchor="middle" font-size="9">multi-AZ</text>
+              <text class="pa-svg-text pa-svg-text--accent" x="225" y="118" text-anchor="middle" font-size="9">graceful degrade</text>
+
+              <rect class="pa-svg-box" x="300" y="35" width="130" height="115" rx="10"/>
+              <text class="pa-svg-text" x="365" y="62" text-anchor="middle" font-size="11" font-weight="700">Security</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="365" y="82" text-anchor="middle" font-size="9">OWASP top 10</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="365" y="100" text-anchor="middle" font-size="9">data at rest enc.</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="365" y="118" text-anchor="middle" font-size="9">threat model done</text>
+
+              <rect class="pa-svg-box" x="440" y="35" width="130" height="115" rx="10"/>
+              <text class="pa-svg-text" x="505" y="62" text-anchor="middle" font-size="11" font-weight="700">Scalability</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="505" y="82" text-anchor="middle" font-size="9">10× horiz. scale</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="505" y="100" text-anchor="middle" font-size="9">stateless services</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="505" y="118" text-anchor="middle" font-size="9">tested at peak ×2</text>
+
+              <rect class="pa-svg-box" x="580" y="35" width="130" height="115" rx="10"/>
+              <text class="pa-svg-text" x="645" y="62" text-anchor="middle" font-size="11" font-weight="700">Maintainability</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="645" y="82" text-anchor="middle" font-size="9">MTTR ≤ 1h</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="645" y="100" text-anchor="middle" font-size="9">runbook coverage</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="645" y="118" text-anchor="middle" font-size="9">test coverage ≥ 70%</text>
+
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="172" text-anchor="middle" font-size="10" font-style="italic">"each NFR has a measurable target and a verification mechanism"</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">Five canonical NFR categories adapted from ISO 25010. Each NFR has a measurable target and a stated verification mechanism (load test, audit, automated check).</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p>Non-Functional Requirements are the measurable quality attributes a system must satisfy. They are distinct from functional requirements (what the system does) — NFRs describe how well the system must do it. ISO/IEC 25010 (the standard quality model for software) defines eight characteristics; in practice most engineering teams use a reduced set of five:</p>
+          <ul>
+            <li><strong>Performance</strong> — latency (p50, p95, p99), throughput (RPM/RPS), and resource utilisation under load.</li>
+            <li><strong>Availability</strong> — uptime targets (99.9% / 99.99%), recovery time objectives (RTO), recovery point objectives (RPO).</li>
+            <li><strong>Security</strong> — authentication strength, data-at-rest and in-transit encryption, threat model coverage, OWASP Top 10 compliance.</li>
+            <li><strong>Scalability</strong> — ability to handle 10× current load, horizontal scaling boundaries, statelessness requirements.</li>
+            <li><strong>Maintainability</strong> — MTTR (mean time to recovery), test coverage thresholds, runbook coverage, deployment frequency.</li>
+          </ul>
+          <p>Each NFR is captured per service in a YAML or Markdown file alongside the code, with a measurable target and a verification mechanism. Where automation is possible (latency assertions, security scans), NFRs run as fitness functions in CI. Where automation is not possible (threat model coverage), they are reviewed manually during architecture review.</p>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Without explicit NFRs, "fast enough", "secure enough", and "scalable enough" mean different things to every engineer. The team ships a service that works at 100 requests per minute and discovers at 10× load that it falls over — because no one had specified the 10× target. The team builds an authentication system that meets the engineer's intuition for "secure" and discovers in a SOC 2 audit that the standard required something specific.</p>
+          <p>NFRs turn implicit expectations into testable acceptance criteria. They make trade-offs explicit at design time rather than discoverable in production. An NFR document also creates a contract with stakeholders — when an executive asks "can we handle Black Friday traffic?", the answer is a referenced NFR with a verification record, not a guess.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">arc42 quality requirements framework</p>
+              <p class="pa-industry__what">arc42 is an open-source architecture documentation template, maintained by Gernot Starke and Peter Hruschka since 2003. Its quality requirements model uses the "quality tree" — a hierarchical decomposition of quality characteristics into scenarios with stimulus, environment, response, and response measure. Used by thousands of teams globally and aligned with ISO 25010. The format encourages teams to write quality scenarios rather than vague targets — e.g. "If the order rate exceeds 1000 RPM, the order service must continue to accept orders with degraded notifications."</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Capture NFRs as scenarios, not numbers. "p99 ≤ 200ms" becomes "Under 5000 RPM sustained load, 99% of GET /orders requests return within 200ms." Scenarios make the test conditions explicit.</p>
+              <p class="pa-industry__source">Source: <a href="https://quality.arc42.org/" rel="noopener">arc42 quality requirements</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">ISO/IEC 25010</p>
+              <p class="pa-industry__what">ISO 25010 is the international standard for software product quality. It defines 8 characteristics: Functional Suitability, Performance Efficiency, Compatibility, Usability, Reliability, Security, Maintainability, Portability. Each is decomposed into sub-characteristics. The standard is the canonical reference for compliance frameworks (SOC 2, ISO 27001) and is cited by many enterprise procurement contracts.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Use the ISO 25010 vocabulary in NFR docs even if you do not use the full standard. Auditors and enterprise customers recognise the terms and they map cleanly to compliance frameworks.</p>
+              <p class="pa-industry__source">Source: <a href="https://iso25000.com/index.php/en/iso-25000-standards/iso-25010" rel="noopener">ISO 25010 reference</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Google SRE</p>
+              <p class="pa-industry__what">Google's SRE practice operationalises performance and availability NFRs through SLOs (Service Level Objectives) — measurable targets backed by error budgets. The SRE Book documents the approach: every customer-facing service has an SLO, and engineering work is prioritised based on error budget consumption. Google has trained the industry to think of "availability" as a quantitative target rather than a qualitative aspiration.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Convert availability NFRs into SLOs from day one. An SLO with an error budget creates accountability that an NFR alone does not. See Practice 17 on SLO/SLA design.</p>
+              <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/service-level-objectives/" rel="noopener">Google SRE — SLOs chapter</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Per-Service NFR File</p>
+              <p class="pa-anatomy__hint">A YAML or Markdown file stored next to the service code (<code>docs/nfrs.yaml</code>). Captures the agreed NFRs for that service with categories, targets, and verification mechanisms. Updated in the same PR as architectural changes that affect them.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Measurable Target</p>
+              <p class="pa-anatomy__hint">Each NFR has a quantitative target. "Fast" is not measurable; "p99 latency ≤ 200ms at 5k RPM sustained" is. Targets without a load context are incomplete — they invite gaming ("we're at 200ms at 100 RPM").</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Verification Mechanism</p>
+              <p class="pa-anatomy__hint">For each NFR, the method to verify it. Categories: automated (load test in CI, security scan), audited (manual review with named owner), or operational (production metric continuously monitored). NFRs without verification are aspirations, not requirements.</p>
+            </div>
+            <div class="pa-anatomy__part">
+              <p class="pa-anatomy__name">Architecture Review Gate</p>
+              <p class="pa-anatomy__hint">The NFR set is reviewed in every architecture review. The checklist asks: "Have NFRs been defined for this service?" and "Have changes affecting NFRs been re-validated?" A missing NFR document is a review blocker.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead>
+                <tr>
+                  <th scope="col">Pitfall</th>
+                  <th scope="col">Why it happens</th>
+                  <th scope="col">What to do instead</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>NFRs that are aspirational, not measurable</td>
+                  <td>The team writes "the system should be fast and reliable" because writing measurable targets requires committing to specific numbers, which feels risky. Vague NFRs are uncomfortable for nobody and useful to nobody.</td>
+                  <td>Force quantitative targets with load conditions. "p99 latency ≤ 200ms at 5000 RPM sustained" is uncomfortable to commit to but useful. Coach engineers to start with conservative targets and refine over time.</td>
+                </tr>
+                <tr>
+                  <td>NFRs defined once and never re-validated</td>
+                  <td>The NFR document is created at service launch and never updated. Two years later the system has 10× the traffic and the original NFRs are obsolete or unmet — but no one checks.</td>
+                  <td>Re-validate NFRs annually or after any significant architecture change. The architecture retrospective is a natural forcing function. Stale NFRs are a higher risk than missing NFRs.</td>
+                </tr>
+                <tr>
+                  <td>Too many NFRs (paralysis)</td>
+                  <td>The team copies ISO 25010 wholesale and ends up with 40 NFRs per service. None of them are verified. The document becomes a checkbox exercise that nobody reads.</td>
+                  <td>Limit to 5–8 NFRs per service. Cover the categories that matter most to this service. A backend transactional service emphasises performance and availability; a batch pipeline emphasises throughput and resilience.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="design-docs.html">Practice 15 — Design Docs</a></li>
+            <li><a class="docs-next-steps__item" href="slo-sla-design.html">Practice 17 — SLO &amp; SLA Design</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">Architect practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Author</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-05-14">2026-05-14</time></td>
+                  <td>Initial version: Non-Functional Requirements practice for Architect radar.</td>
+                  <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body>
+</html>

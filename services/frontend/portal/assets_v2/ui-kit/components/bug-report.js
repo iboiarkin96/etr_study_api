@@ -112,6 +112,8 @@ function ensureModal() {
   close.type = "button";
   close.className = "docs-bug-report-modal__close";
   close.setAttribute("aria-label", "Close bug-report form");
+  close.setAttribute("data-tooltip", "Close this form (Esc)");
+  close.setAttribute("data-tooltip-placement", "left");
   close.innerHTML = "&times;";
   close.addEventListener("click", closeModal);
 
@@ -262,7 +264,7 @@ function openModal(trigger) {
   // Reset status and focus into the textarea for fast typing.
   statusEl.className = "docs-bug-report-form__status";
   statusEl.textContent = "Your text will be prefilled in the GitHub issue body.";
-  window.setTimeout(() => textareaEl && textareaEl.focus(), 0);
+  requestAnimationFrame(() => { if (textareaEl) textareaEl.focus(); });
 
   keydownHandler = (event) => {
     if (event.key === "Escape") closeModal();
@@ -296,8 +298,12 @@ function upgradeButton(btn) {
     if (!btn.hasAttribute("aria-label")) {
       btn.setAttribute("aria-label", "Report a bug on this page");
     }
-    if (!btn.hasAttribute("title")) {
-      btn.setAttribute("title", "Report a bug");
+    if (!btn.hasAttribute("data-tooltip")) {
+      btn.setAttribute(
+        "data-tooltip",
+        "Report a bug or unclear copy on this page — opens a prefilled GitHub issue."
+      );
+      btn.setAttribute("data-tooltip-placement", "bottom");
     }
   } else {
     btn.classList.add("docs-bug-report-trigger");

@@ -247,7 +247,7 @@ def format_html_file(path: Path) -> bool:
 
 
 def main() -> None:
-    """Walk all ``services/portal/**/*.html`` (except ``services/portal/internal/governance/backlog/**`` and ``services/portal/internal/catalog/api/code-reference/**``) and normalize in place.
+    """Walk all ``services/portal/**/*.html`` (except ``services/portal/internal/governance/backlog/**`` and ``services/portal/internal/services/api/code-reference/**``) and normalize in place.
 
     Prints the count of updated files.
     """

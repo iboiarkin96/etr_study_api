@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en"><head>
+  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { } })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chaos Engineering — Practice 05 · SRE</title>
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/docs-theme.css">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets/practice-article.css">
+  <script defer src="../../../../../frontend/portal/assets/docs-nav.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-portal-data.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <script defer src="../../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+</head>
+<body class="internal-layout practice-article pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <div class="internal-layout__shell">
+    <aside class="internal-layout__sidebar">
+      <p class="internal-layout__sidebar-title">Internal docs</p>
+      <div id="internal-sidebar-mount"></div>
+    </aside>
+    <div class="internal-layout__main">
+      <main class="container">
+        <div id="docs-top-nav"></div>
+        <div id="docs-page-meta-mount" hidden=""></div>
+
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">05</span>
+          <span class="pa-eyebrow__group">Group A · Reliability foundations</span>
+          <span class="pa-scorebar"><span class="pa-scorebar__asis">1.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.5</span><span style="color:var(--muted);font-size:0.7rem;margin-left:6px">AS-IS → TO-BE</span></span>
+        </p>
+        <h1 class="internal-h1--accent-tail">Chaos Engineering — break things on purpose before they break on you</h1>
+        <p style="font-size:1.05rem;color:var(--muted);margin:0 0 8px;line-height:1.55">Intentional failure injection in controlled conditions to verify that redundancy, failover paths, and alert coverage work the way the team assumes — before a real incident proves they don't.</p>
+
+        <div class="pa-tldr">
+          <span class="pa-tldr__label">TL;DR</span>
+          <p class="pa-tldr__text">Chaos engineering runs controlled experiments that inject failures into a production or staging environment to validate system behaviour under stress. Each experiment has a hypothesis ("if we kill one replica, P99 stays below 500 ms and alerts fire within 2 minutes"), a blast radius limit, a defined rollback plan, and a postmortem-style retrospective. Start with manual GameDays before automating. The goal is to find the gap between the system you designed and the system you actually have — in controlled conditions, not at 3 am during a real incident.</p>
+        </div>
+
+        <figure class="pa-figure" aria-label="Chaos experiment structure">
+          <svg viewBox="0 0 720 195" role="img" aria-label="Chaos engineering experiment lifecycle">
+            <g font-family="ui-monospace,Menlo,Consolas,monospace">
+              <rect class="pa-svg-box pa-svg-box--accent" x="20" y="40" width="130" height="80" rx="8"/>
+              <text class="pa-svg-text pa-svg-text--accent" x="85" y="72" text-anchor="middle" font-size="11" font-weight="700">Hypothesis</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="85" y="90" text-anchor="middle" font-size="10">define steady state</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="85" y="106" text-anchor="middle" font-size="10">+ expected outcome</text>
+              <path class="pa-svg-arrow" d="M150 80 L170 80 L164 76 M170 80 L164 84"/>
+              <rect class="pa-svg-box" x="172" y="40" width="130" height="80" rx="8"/>
+              <text class="pa-svg-text" x="237" y="72" text-anchor="middle" font-size="11" font-weight="700">Inject</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="237" y="90" text-anchor="middle" font-size="10">controlled failure</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="237" y="106" text-anchor="middle" font-size="10">limited blast radius</text>
+              <path class="pa-svg-arrow" d="M302 80 L322 80 L316 76 M322 80 L316 84"/>
+              <rect class="pa-svg-box" x="324" y="40" width="130" height="80" rx="8"/>
+              <text class="pa-svg-text" x="389" y="72" text-anchor="middle" font-size="11" font-weight="700">Observe</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="389" y="90" text-anchor="middle" font-size="10">measure vs hypothesis</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="389" y="106" text-anchor="middle" font-size="10">check alerts + recovery</text>
+              <path class="pa-svg-arrow" d="M454 80 L474 80 L468 76 M474 80 L468 84"/>
+              <rect class="pa-svg-box pa-svg-box--good" x="476" y="40" width="220" height="80" rx="8"/>
+              <text class="pa-svg-text pa-svg-text--good" x="586" y="72" text-anchor="middle" font-size="11" font-weight="700">Learn</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="586" y="90" text-anchor="middle" font-size="10">hypothesis confirmed → raise bar</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="586" y="106" text-anchor="middle" font-size="10">hypothesis failed → fix + retest</text>
+              <text class="pa-svg-text pa-svg-text--muted" x="360" y="175" text-anchor="middle" font-size="10" font-style="italic">always in business hours · with rollback ready · never "let's see what happens"</text>
+            </g>
+          </svg>
+          <figcaption class="pa-figure__caption">Hypothesis → Inject → Observe → Learn. Never run without a hypothesis and a blast radius limit.</figcaption>
+        </figure>
+
+        <section id="what" class="card">
+          <h2>What it is</h2>
+          <p><strong>Chaos engineering</strong> is the discipline of running deliberate failure experiments against a production or production-like environment to discover weaknesses before they manifest as real incidents. A chaos experiment has five mandatory components:</p>
+          <ul>
+            <li><strong>Hypothesis:</strong> A specific, measurable prediction of system behaviour under the failure. "If we terminate one of three API replicas, P99 latency stays below 500 ms and at least one alert fires within 2 minutes."</li>
+            <li><strong>Blast radius limit:</strong> A defined maximum scope of the failure — one replica, one AZ, 5% of traffic. Experiments that can cascade uncontrollably are not experiments, they're accidents.</li>
+            <li><strong>Steady-state baseline:</strong> The metric values before the experiment starts, so deviation can be measured objectively.</li>
+            <li><strong>Rollback plan:</strong> The specific steps to stop the experiment and restore normal operation, validated before the experiment begins.</li>
+            <li><strong>Retrospective:</strong> A structured review of what was learned — confirmed hypotheses raise the bar; failed hypotheses generate remediation work.</li>
+          </ul>
+        </section>
+
+        <section id="why" class="card">
+          <h2>Why we need it</h2>
+          <p>Redundancy and failover paths that have never been tested under load are theoretical. DR documentation that has never been exercised is fiction. Chaos engineering converts theoretical reliability into verified reliability by running the failure scenario under controlled conditions — with a team that's alert, rested, and prepared — rather than discovering the gaps at 3 am during a real incident.</p>
+          <p>The most valuable discovery from chaos experiments is typically not the failure itself but the alert gap: "we terminated a replica and no alert fired for 8 minutes." That gap would have been invisible during normal operation and discovered too late during a real incident.</p>
+        </section>
+
+        <section id="industry" class="card">
+          <h2>How others do it</h2>
+          <div class="pa-industry">
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Netflix (Chaos Monkey)</p>
+              <p class="pa-industry__what">Netflix invented the practice with Chaos Monkey (2010) — an automated tool that randomly terminates EC2 instances in production during business hours. The principle: if the system can't survive random instance termination during business hours, it definitely can't survive it at 3 am on a weekend. Netflix later expanded the suite to the "Simian Army" — tools for testing network failures, latency injection, and AZ failures.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Run experiments in production, during business hours. Staging experiments are useful for initial validation; production experiments are what matter for confidence. Engineers available during business hours can respond to unexpected failure modes — they cannot at 3 am.</p>
+              <p class="pa-industry__source">Source: <a href="https://netflix.github.io/chaosmonkey/" rel="noopener">Netflix Chaos Monkey</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Amazon (GameDay)</p>
+              <p class="pa-industry__what">Amazon runs "GameDays" — structured failure injection exercises involving multiple teams, a facilitator (the "GameDay lead"), and a predetermined scenario. Unlike automated chaos, Amazon's GameDays are social events: teams roleplay the incident response, IC rotation, and communication processes as well as the technical failure injection. GameDays are mandatory quarterly for all Tier 0 services.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> GameDays test the human response process, not just the technical failover. Automatic failover that no one knows how to monitor or communicate around produces a different failure mode than the technical one. Test the process, not just the system.</p>
+              <p class="pa-industry__source">Source: <a href="https://aws.amazon.com/gameday/" rel="noopener">AWS GameDay</a></p>
+            </div>
+            <div class="pa-industry__card">
+              <p class="pa-industry__company">Gremlin</p>
+              <p class="pa-industry__what">Gremlin (a chaos engineering platform) publishes the "Chaos Maturity Model" — a four-stage model: no chaos (reactive only), manual GameDays, automated experiments against staging, automated experiments against production with automatic abort triggers. Most organisations should start at stage 2 (manual GameDays) and spend 6–12 months there before moving to automation.</p>
+              <p class="pa-industry__lesson"><strong>What we take:</strong> Automation is the destination, not the starting point. Manual GameDays first — they build the hypothesis discipline, the blast radius thinking, and the retrospective habit that make automated chaos safe.</p>
+              <p class="pa-industry__source">Source: <a href="https://www.gremlin.com/chaos-engineering/" rel="noopener">Gremlin — Chaos Engineering</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="anatomy" class="card">
+          <h2>Anatomy</h2>
+          <div class="pa-anatomy">
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Experiment hypothesis</p><p class="pa-anatomy__hint">Written before the experiment starts: "If [failure], then [outcome] within [time], measured by [metric]." No hypothesis = no experiment = just breaking things. A hypothesis that turns out to be wrong is more valuable than one that is confirmed.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Blast radius control</p><p class="pa-anatomy__hint">Define the maximum scope before the experiment. One replica, one availability zone, 5% of traffic. Have an abort signal — a single command or button that stops the experiment and restores normal state within 60 seconds.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Staging → production progression</p><p class="pa-anatomy__hint">Run in staging first until the experiment is safe and the hypothesis is consistent. Then promote to production. Some failures only manifest in production (traffic patterns, data volumes, external dependencies) — staging experiments are a prerequisite, not a substitute.</p></div>
+            <div class="pa-anatomy__part"><p class="pa-anatomy__name">Experiment retrospective</p><p class="pa-anatomy__hint">30-minute retrospective within 24 hours: what was the hypothesis, what actually happened, what was learned, what changes to make. Write it in the postmortem format. Findings feed directly into runbooks and alert improvements.</p></div>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="card">
+          <h2>Common pitfalls</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+            <table class="pa-pitfalls">
+              <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+              <tbody>
+                <tr><td>Running chaos without a hypothesis</td><td>"Let's see what happens" feels like experimentation.</td><td>Never inject a failure without a written hypothesis. The hypothesis is what makes the result useful — without it, a confirmed failure tells you nothing actionable.</td></tr>
+                <tr><td>Automating before manual GameDays are mature</td><td>Automation looks more impressive than manual exercises.</td><td>Spend at least 2 quarters running manual GameDays before introducing automation. The discipline of hypothesis writing and blast radius limiting must be habitual before automation amplifies it.</td></tr>
+                <tr><td>Findings filed and forgotten</td><td>The GameDay retrospective is treated as closure, not a starting point.</td><td>Every finding from a chaos experiment generates either a runbook update, an alert rule change, or an architectural improvement item in the engineering backlog. No finding without an action item.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav class="docs-next-steps" aria-label="See also">
+          <p class="docs-next-steps__heading">See also</p>
+          <ul class="docs-next-steps__list">
+            <li><a class="docs-next-steps__item" href="game-days.html">Practice 20 — Game days &amp; DR testing</a></li>
+            <li><a class="docs-next-steps__item" href="blameless-postmortem.html">Practice 15 — Blameless postmortem</a></li>
+            <li><a class="docs-next-steps__item" href="../index.html">SRE practices radar</a></li>
+          </ul>
+        </nav>
+
+        <section id="page-history" class="card">
+          <h2>Page history</h2>
+          <div class="docs-table-scroll" role="region" aria-label="Page history">
+            <table class="docs-page-history">
+              <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+              <tbody>
+                <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+                <td>Initial version: Chaos Engineering practice for SRE radar.</td>
+                <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body></html>

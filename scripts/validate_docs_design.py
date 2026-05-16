@@ -2,7 +2,7 @@
 
 This check enforces the shared page skeleton from
 ``services/portal/internal/front/_shared/style-guide.html`` for non-generated docs pages.
-Generated Python API HTML under ``services/portal/internal/catalog/api/code-reference/`` is skipped (same as legacy ``services/portal/api/`` output).
+Generated Python API HTML under ``services/portal/internal/services/api/code-reference/`` is skipped (same as legacy ``services/portal/api/`` output).
 It is intentionally lightweight: fail only on clear structural regressions.
 """
 
@@ -23,16 +23,16 @@ FROZEN_DOCS_REL_PATHS = {
     # top-nav mount, no section.card, no page-history). It picks between the
     # public and internal portals, and is not a docs page itself.
     Path("index.html"),
-    # Standalone 25-practices grid with its own embedded design tokens;
-    # not part of the legacy docs skeleton.
-    Path("internal/analysis/practices.html"),
-    # Role-portal practices hubs — standalone grids with embedded design tokens
-    # (same pattern as internal/analysis/practices.html above).
-    Path("internal/architect/practices.html"),
-    Path("internal/dev/practices.html"),
-    Path("internal/manager/practices.html"),
-    Path("internal/sre/practices.html"),
-    Path("internal/handbook/qa/practices.html"),
+    # Standalone 25-practices grids with their own embedded design tokens;
+    # not part of the legacy docs skeleton. Each role has its radar page under
+    # roles/<role>/radar.html (post-IA-Phase-1) plus a curated landing under
+    # roles/<role>/index.html.
+    Path("internal/roles/sa/radar.html"),
+    Path("internal/roles/architect/radar.html"),
+    Path("internal/roles/dev/radar.html"),
+    Path("internal/roles/manager/radar.html"),
+    Path("internal/roles/sre/radar.html"),
+    Path("internal/roles/qa/radar.html"),
 }
 
 
@@ -62,10 +62,10 @@ def _iter_docs_pages(candidates: list[str] | None = None) -> list[Path]:
         # docs.css + docs-nav.js. Exempt from the legacy design baseline.
         if rel.parts and rel.parts[0] == "ui-kit":
             continue
-        # Generated pdoc tree under internal/catalog/api/code-reference/ is opaque.
+        # Generated pdoc tree under internal/services/api/code-reference/ is opaque.
         if len(rel.parts) >= 4 and rel.parts[0:4] == (
             "internal",
-            "catalog",
+            "services",
             "api",
             "code-reference",
         ):
