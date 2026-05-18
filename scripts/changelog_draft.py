@@ -7,7 +7,7 @@ as scope-only) so output reflects *what changed*, not only insertion counts.
 Assistive only: prints markdown to stdout; humans merge into CHANGELOG.md.
 Use ``-o FILE`` to save the same text to a file; do not append raw stdout to
 CHANGELOG.md (structure must stay under ``###`` headings you already have).
-See docs/adr/0013-changelog-and-release-notes.html.
+See services/portal/internal/governance/adr/0013-changelog-and-release-notes.html.
 
 Uses ``scripts/llm_client.py`` for the API call; see ``env/example``.
 """
@@ -71,7 +71,7 @@ CHANGELOG_SYSTEM_PROMPT = (
     "- Do NOT summarize using diff statistics only (no answers like 'N files changed' or "
     "'X insertions, Y deletions' as the main content).\n"
     "- Derive meaning from commit subjects and bodies, and from which paths changed "
-    "(e.g. docs/, app/, .github/).\n"
+    "(e.g. services/portal/, app/, .github/).\n"
     "- Each bullet should describe an outcome: feature, fix, doc, infra, or API behavior — "
     "not raw git metrics.\n"
     "- Merge related commits into one bullet when it reads better.\n"

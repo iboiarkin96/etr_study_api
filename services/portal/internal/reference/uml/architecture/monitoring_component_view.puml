@@ -1,0 +1,48 @@
+@startuml
+title ETR Study Monitoring — C4 Level 3 (components)
+
+top to bottom direction
+
+actor "Operator\n(maintainer)" as Op
+
+rectangle "ETR Study API\n:8000" as Api
+
+package "Metrics pipeline" as MetricsP {
+  [Prometheus] as Prom
+  [Blackbox exporter] as Bbx
+  [Grafana] as Graf
+}
+
+package "Log pipeline\n(optional)" as LogP {
+  [Filebeat] as FB
+  database "Elasticsearch" as ES
+  [Kibana] as Kib
+}
+
+artifact "NDJSON logs\nfile" as LogFile
+
+Prom ..> Api : scrape\n:8000/metrics
+Bbx ..> Api : probe\n:8000/ready
+
+Api ..> LogFile : structlog\nNDJSON line per event
+LogFile ..> FB : tail
+FB --> ES : index
+Kib --> ES : query
+
+Graf --> Prom : PromQL
+Graf ..> ES : optional\nLucene panels
+
+Op --> Graf : web UI\ndashboards / alerts
+Op --> Kib : web UI\nlog search
+
+note bottom of MetricsP
+  Authority: ADR 0009 (health & observability),
+  ADR 0011 (SLO / SLA / error budget).
+end note
+
+note bottom of LogP
+  Authority: ADR 0023 (structured logging,
+  local Elasticsearch for dev).
+end note
+
+@enduml

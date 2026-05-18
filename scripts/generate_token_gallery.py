@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Auto-generate the docs frontend token gallery page.
 
-Parses CSS custom properties (--vars) from `docs/assets/docs.css`
-(light) and `docs/assets/docs-theme.css` (dark) and renders an HTML
+Parses CSS custom properties (--vars) from `services/frontend/portal/assets/docs.css`
+(light) and `services/frontend/portal/assets/docs-theme.css` (dark) and renders an HTML
 reference page with side-by-side light/dark swatches grouped by family.
 
-Output: `docs/internal/front/docs-frontend-token-gallery.html`.
+Output: `services/portal/internal/front/docs-frontend-token-gallery.html`.
 
 Run from project root:
     python3 scripts/generate_token_gallery.py
@@ -19,8 +19,8 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).resolve()
 ROOT = SCRIPT.parent.parent
-DOCS_ASSETS = ROOT / "docs" / "assets"
-OUT_PATH = ROOT / "docs" / "internal" / "front" / "docs-frontend-token-gallery.html"
+DOCS_ASSETS = ROOT / "services" / "frontend" / "portal" / "assets"
+OUT_PATH = ROOT / "services" / "portal" / "internal" / "front" / "docs-frontend-token-gallery.html"
 
 LIGHT_CSS = DOCS_ASSETS / "docs.css"
 DARK_CSS = DOCS_ASSETS / "docs-theme.css"
@@ -152,13 +152,13 @@ def render() -> str:
         '  <meta charset="utf-8">\n'
         '  <meta name="viewport" content="width=device-width, initial-scale=1">\n'
         "  <title>Docs frontend token gallery</title>\n"
-        '  <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">\n'
-        '  <link rel="stylesheet" href="../../assets/docs.css" />\n'
-        '  <link rel="stylesheet" href="../../assets/docs-theme.css">\n'
-        '  <script defer src="../../assets/internal-sidebar.js"></script>\n'
-        '  <script defer src="../../assets/docs-nav.js"></script>\n'
-        '  <script defer src="../../assets/docs-portal-data.js"></script>\n'
-        '  <script defer src="../../assets/docs-internal-meta.js"></script>\n'
+        '  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">\n'
+        '  <link rel="stylesheet" href="../../../frontend/portal/assets/docs.css" />\n'
+        '  <link rel="stylesheet" href="../../../frontend/portal/assets/docs-theme.css">\n'
+        '  <script defer src="../../../frontend/portal/assets/internal-sidebar.js"></script>\n'
+        '  <script defer src="../../../frontend/portal/assets/docs-nav.js"></script>\n'
+        '  <script defer src="../../../frontend/portal/assets/docs-portal-data.js"></script>\n'
+        '  <script defer src="../../../frontend/portal/assets/docs-internal-meta.js"></script>\n'
         "  <style>\n"
         "    .docs-token-row { display: grid; grid-template-columns: minmax(200px, 1.5fr) 1fr 1fr; gap: 8px 14px; padding: 8px 0; border-bottom: 1px solid var(--line); align-items: center; }\n"
         "    .docs-token-row:last-child { border-bottom: 0; }\n"
@@ -189,15 +189,16 @@ def render() -> str:
         f"          <p>\n"
         f"            Visual lookup for every CSS custom property defined in the docs portal. {rows_count} tokens across\n"
         f"            {len(families)} families, with light and dark values side-by-side. Auto-generated from\n"
-        "            <code>docs/assets/docs.css</code> (light) and <code>docs/assets/docs-theme.css</code> (dark) by\n"
+        "            <code>services/frontend/portal/assets/docs.css</code> (light) and <code>services/frontend/portal/assets/docs-theme.css</code> (dark) by\n"
         "            <code>scripts/generate_token_gallery.py</code> — do not edit this page by hand. Re-run the script\n"
         "            when tokens are added or renamed.\n"
         "          </p>\n"
         '          <p class="small">\n'
         f'            Last regenerated: <time datetime="{today}">{today}</time>.\n'
-        '            Sister pages: <a href="./docs-frontend-css-architecture.html">CSS architecture</a>,\n'
-        '            <a href="./docs-frontend-ui-kit.html">UI kit</a>,\n'
-        '            <a href="./docs-frontend-ui-motion-and-adaptivity.html">UI / motion / adaptivity</a>.\n'
+        '            Sister pages: <a href="./foundations/css-architecture.html">CSS architecture</a>,\n'
+        '            <a href="./foundations/ui-kit.html">UI kit</a>,\n'
+        '            <a href="./foundations/motion-and-adaptivity.html">Motion &amp; adaptivity</a>,\n'
+        '            <a href="./foundations/tokens.html">Tokens (curated)</a>.\n'
         "          </p>\n"
         "        </section>\n"
     )

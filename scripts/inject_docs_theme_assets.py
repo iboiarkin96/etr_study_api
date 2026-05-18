@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ROOT / "docs"
+DOCS = ROOT / "services" / "frontend" / "portal"
 
 THEME_MARKER = "docs-theme.css"
 SCRIPT_MARKER = "docs-theme-preference"
@@ -16,7 +16,7 @@ EARLY_SCRIPT = """  <script>/* no-flash theme bootstrap */(function(){try{var k=
 
 
 def _theme_href(html_path: Path) -> str:
-    """Return the relative href to ``docs-theme.css`` from a file under ``docs/``."""
+    """Return the relative href to ``docs-theme.css`` from a file under ``services/portal/``."""
     rel = html_path.relative_to(DOCS)
     depth = len(rel.parts) - 1
     if depth == 0:
@@ -52,7 +52,7 @@ def _inject_early_script(text: str) -> tuple[str, bool]:
 
 
 def main() -> int:
-    """Walk ``docs/**/*.html``, patch pages that reference ``docs.css``.
+    """Walk ``services/portal/**/*.html``, patch pages that reference ``docs.css``.
 
     Returns:
         Process exit code (always 0).

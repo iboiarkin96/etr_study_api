@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0019 · Python Dependency Security, pip-audit, and Pinning Policy · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0019</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0019</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <h1>Python Dependency Security, pip-audit, and Pinning Policy</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+          Pin exact versions in <code>requirements.txt</code>, scan with <code>pip-audit</code> in Make and CI,
+          and use a documented exception process so dependency regressions cannot merge silently.
+        </p>
+      </header>
+
+      <section aria-labelledby="ratification-h">
+        <h2 id="ratification-h">Ratification</h2>
+        <article class="docs-card">
+          <div class="docs-card__body">
+            <p>Adopted under <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. Link the discussion Issue and merge PR when they exist. If not, use git history as the record.</p>
+            <ul>
+              <li>Discussion Issue: <em>none linked for this merge</em></li>
+              <li>Merge PR: <em>see git history for this file</em></li>
+              <li>Accepted: 2026-04-12</li>
+            </ul>
+          </div>
+        </article>
+      </section>
+
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p><strong>Why this matters:</strong> Applications depend on thousands of lines of other people's code. Unpinned installs mean "works on my machine" might pull a different transitive version tomorrow. Known CVEs in public packages are tracked in advisory databases; scanning turns that signal into a failing check instead of a surprise in production.</p>
+        <p>We pin exact versions in <code>requirements.txt</code>, run <code>pip-audit</code> in Make and CI, and treat severity levels with a written exception path when fixes cannot land immediately—aligned with common supply-chain guidance (for example OWASP and NIST SSDF).</p>
+      </section>
+
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+
+        <h3>Pinning and single source of truth</h3>
+        <ul>
+          <li><strong><code>requirements.txt</code></strong> is the committed install manifest for application and developer tooling installed via <code>make install</code>. It must list <strong>exact versions</strong> (as produced by <code>pip freeze</code>) so Docker, CI, and local environments resolve the same dependency graph.</li>
+          <li>After adding or upgrading packages in a virtualenv, regenerate the file with <code>.venv/bin/pip freeze | LC_ALL=C sort &gt; requirements.txt</code> (see repository <code>README.md</code>) and commit the diff in the same change that introduces the dependency change, unless the upgrade is a dedicated maintenance PR.</li>
+          <li>Do not maintain a second parallel lockfile for Python unless a future ADR introduces a standard (for example <code>uv.lock</code>); until then, <code>requirements.txt</code> remains authoritative.</li>
+        </ul>
+
+        <h3>Vulnerability scanning with pip-audit</h3>
+        <ul>
+          <li>Use <strong>pip-audit</strong> against the environment installed from <code>requirements.txt</code> as the primary OSV-backed scanner for the PyPI ecosystem.</li>
+          <li>Expose a Make target <code>make deps-audit</code> that fails the command with non-zero exit when pip-audit reports vulnerabilities, so developers can run the same check as CI locally.</li>
+          <li>Integrate the same command into continuous integration (for example the existing quality workflow on <code>main</code> / pull requests) so dependency regressions cannot merge silently.</li>
+        </ul>
+
+        <h3>Severity and response expectations</h3>
+        <ul>
+          <li><strong>Critical / High</strong>: resolve before merging the affected change, or document a time-bound exception (see below). Prefer upgrading to a patched release; if none exists, consider removing or replacing the dependency after risk review.</li>
+          <li><strong>Medium</strong>: schedule remediation within the current iteration or the next; do not let findings accumulate without a tracked issue.</li>
+          <li><strong>Low / informational</strong>: triage during routine maintenance; batch upgrades are acceptable.</li>
+        </ul>
+        <p>pip-audit may report vulnerabilities in dev-only tools (linters, test runners). Apply the same severity logic; if a fix would be disruptive, use the exception process instead of ignoring the report silently.</p>
+
+        <h3>Exception process</h3>
+        <ul>
+          <li>When remediation is not immediately possible (no fixed version, breaking upgrade required, or vendor delay), add a short note in the pull request: <strong>affected package</strong>, <strong>CVE/advisory ID</strong>, <strong>risk summary</strong>, <strong>owner</strong>, and <strong>review date</strong> (default: 30 days).</li>
+          <li>Exceptions are not permanent: either upgrade, replace, or re-justify on each review date.</li>
+        </ul>
+
+        <h3>Upgrade cadence</h3>
+        <ul>
+          <li><strong>Reactive:</strong> any PR that touches <code>requirements.txt</code> should prefer pulling in security patches for direct dependencies when pip-audit or release notes indicate fixes.</li>
+          <li><strong>Proactive:</strong> at least one scheduled dependency hygiene pass per month (or each sprint) for non-emergency upgrades and churn reduction—optional but recommended as the team grows.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li>In scope: Python packages installed from PyPI via <code>requirements.txt</code>, pip-audit wiring, Make and CI, and PR/review expectations.</li>
+          <li>Out of scope: base OS and container image CVEs (covered by image rebuild and base-image policy under <a href="0015-container-image.html">ADR 0015</a>), and non-Python supply chains unless separately documented.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Safety / other scanners only</h3></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Pros: historical familiarity in some teams.</li>
+                <li>Cons: pip-audit aligns with PyPA and OSV; fewer surprises for Python-centric workflows.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Poetry or <code>uv</code> lockfiles without migrating the repo</h3></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Pros: richer dependency resolution metadata.</li>
+                <li>Cons: would duplicate or replace the current <code>requirements.txt</code>-centric Makefile and CI; defer until a dedicated migration ADR.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Reproducible installs and a defined path for CVE response.</li>
+                <li>Same command locally and in CI reduces "works on my machine" drift for security checks.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Exact pins require deliberate upgrades; dependabot-style automation may still be added later.</li>
+                <li>pip-audit depends on advisory completeness; false negatives are possible for unreported issues.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="compat-h">
+        <h2 id="compat-h">Compatibility and migration</h2>
+        <ul>
+          <li>Backward-compatibility impact: none for API consumers; dependency upgrades follow normal release notes.</li>
+          <li>Migration plan: add <code>pip-audit</code> to developer/CI install lists, implement <code>make deps-audit</code>, then gate CI.</li>
+          <li>Rollback strategy: revert the failing upgrade commit or temporarily document an exception with expiry.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="plan-h">
+        <h2 id="plan-h">Implementation plan</h2>
+        <ol>
+          <li>Add pip-audit to the project's install surface (for example <code>requirements.txt</code> or a documented CI install step).</li>
+          <li>Implement <code>make deps-audit</code> and document it next to other verify targets.</li>
+          <li>Run pip-audit in CI after <code>pip install -r requirements.txt</code>; fail on unmitigated Critical/High per team policy above.</li>
+          <li>Reference this ADR from contributor or engineering-practices documentation.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li>Technical checks: <code>make deps-audit</code> passes on a clean tree after upgrades; CI job green.</li>
+          <li>Operational checks: maintainers know where to record exceptions (PR description + optional issue).</li>
+          <li>Documentation updates: this ADR, backlog item, and developer docs cross-links.</li>
+        </ul>
+      </section>
+
+      <nav aria-label="Related" class="docs-card-grid" style="margin-top:var(--space-6)">
+        <a class="docs-card" href="index.html"><div class="docs-card__head"><h3 class="docs-card__title">← All ADRs</h3></div><div class="docs-card__body">Back to the ADR index.</div></a>
+        <a class="docs-card" href="0015-container-image.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0015</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Container image policy covering base-OS CVEs.</div></a>
+        <a class="docs-card" href="0014-dead-code-analysis-and-repository-hygiene.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0014</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Sister hygiene policy for unused code.</div></a>
+      </nav>
+
+      <footer class="docs-history" aria-label="Page history">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Migrated to UI Kit v3.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-04-21</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Added Page history section (repository baseline).</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

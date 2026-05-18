@@ -1,0 +1,284 @@
+/* ui-kit/components/template-annotator.css
+   ─────────────────────────────────────────
+   Drop-in template-anatomy overlay. Adds a right-side annotation rail
+   with numbered callout boxes that point at well-known blocks of any
+   docs page (topbar, breadcrumbs, h1, lede, footer history, TOC, …).
+
+   Activation: <html class="annot-mode"> — toggled by template-annotator.js.
+   When inactive, every annotation node is hidden so the page renders normally.
+   ────────────────────────────────────────────────────────────────────────── */
+
+html.annot-mode {
+  --ann-col: 256px; /* BOX_W (244) + BOX_X (6) + 6px slack */
+}
+
+/* 4-column grid: [sidebar] [main] [toc] [ann-right] */
+html.annot-mode body.docs-shell {
+  grid-template-columns:
+    var(--layout-sidebar, 280px)
+    minmax(0, 1fr)
+    auto
+    var(--ann-col);
+  position: relative;
+}
+
+/* Topbar spans sidebar + main + toc (cols 1–3) — leaves the right annotation
+   rail (col 4) free, so callout boxes for topbar items stay visible. */
+html.annot-mode body.docs-shell > header.topbar {
+  grid-column: 1 / -2;
+}
+
+/* Sidebar — stays col 1 */
+html.annot-mode body.docs-shell > aside[data-component="sidebar"],
+html.annot-mode body.docs-shell > .docs-sidebar {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+/* Main — col 2 */
+html.annot-mode body.docs-shell > main {
+  grid-column: 2;
+}
+
+/* TOC — col 3 */
+html.annot-mode body.docs-shell > aside.docs-toc {
+  grid-column: 3;
+}
+
+/* Flatten sticky sidebars so SVG lines stay correct on scroll.
+   Selector specificity (0,3,2) intentionally beats layout.css sticky rules
+   without `!important`. */
+html.annot-mode body.docs-shell .docs-sidebar,
+html.annot-mode body.docs-shell .docs-toc {
+  position: static;
+}
+
+/* Topbar stays in its grid row but is lifted above all annotation boxes,
+   so navigation is never hidden by overlapping callouts. */
+html.annot-mode body.docs-shell .topbar {
+  position: relative;
+  z-index: 1000;
+  background: var(--bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ─── SVG overlay ───────────────────────────────────────────────────────── */
+
+.annot-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 900;
+}
+
+/* ─── Annotation visibility ─────────────────────────────────────────────── */
+
+html:not(.annot-mode) .annot-svg,
+html:not(.annot-mode) .annot-box {
+  display: none;
+}
+
+/* ─── Toggle pill — lives in the topbar, before the theme toggle ───────── */
+
+.annot-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 14px 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: background 200ms var(--ease-out), color 200ms var(--ease-out),
+              border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out),
+              transform 140ms var(--ease-out);
+}
+
+.annot-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg));
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.annot-toggle:active {
+  transform: translateY(0.5px);
+}
+
+.annot-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.annot-toggle__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+  flex-shrink: 0;
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+}
+
+.annot-toggle__label {
+  line-height: 1;
+}
+
+/* OFF: show "Enable annotations" */
+.annot-toggle[aria-pressed="false"] .annot-toggle__label--disable { display: none; }
+/* ON:  show "Disable annotations" */
+.annot-toggle[aria-pressed="true"]  .annot-toggle__label--enable  { display: none; }
+
+/* ON state — filled accent pill */
+.annot-toggle[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 22%, transparent),
+              inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.annot-toggle[aria-pressed="true"] .annot-toggle__dot {
+  opacity: 1;
+  transform: scale(1.05);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.annot-toggle[aria-pressed="true"]:hover {
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg));
+}
+
+/* Fallback floating position when no .topbar__actions slot exists */
+.annot-toggle--floating {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1001;
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Annotation boxes ──────────────────────────────────────────────────── */
+
+.annot-box {
+  position: absolute;
+  width: 244px; /* kept in sync with BOX_W in template-annotator.js */
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  overflow: hidden;
+  z-index: 901;
+  font-family: system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+}
+
+/* Compact row — always visible */
+.annot-box__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 6px;
+}
+
+.annot-box__num {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 8.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.annot-box__what {
+  flex: 1;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 10.5px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.annot-box__chevron {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: var(--muted);
+  transition: transform 200ms var(--ease-out);
+  line-height: 1;
+}
+
+/* Expandable detail — hidden by default */
+.annot-box__detail {
+  display: none;
+  padding: 0 8px 8px;
+  border-top: 1px solid var(--line);
+  margin-top: 0;
+}
+
+.annot-box__desc {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  margin: 6px 0 5px;
+}
+
+.annot-box__comp {
+  display: inline-block;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 9px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+  border-radius: 3px;
+  padding: 2px 5px;
+  word-break: break-all;
+}
+
+/* Expanded state */
+.annot-box.is-open .annot-box__detail { display: block; }
+.annot-box.is-open .annot-box__chevron { transform: rotate(90deg); }
+
+.annot-box:hover {
+  border-color: var(--accent);
+}
+
+/* Dimmed peers when another box is expanded */
+.annot-box.is-dimmed {
+  opacity: 0.25;
+  border-left-color: var(--line);
+}
+
+.annot-box.is-dimmed:hover {
+  opacity: 0.6;
+  border-left-color: var(--accent);
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .annot-toggle,
+  .annot-toggle__dot,
+  .annot-box,
+  .annot-box__chevron {
+    transition: none;
+  }
+}

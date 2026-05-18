@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SRE · Monitoring · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">SRE · Monitoring</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--danger">SRE</span>
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1>Monitoring</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Four golden signals — latency, traffic, errors, saturation — on a Prometheus +
+          Grafana + Alertmanager stack. Symptom-based alerts, not cause-based, with a runbook each.
+        </p>
+      </header>
+
+      <h2 id="scope">What monitoring covers</h2>
+      <p>Monitoring is the part of observability that uses <strong>numbers over time</strong>: how many requests per second, how many errors, how long a query takes, how full a queue is. The numbers are stored in a time-series database and shown on dashboards. Some of them have alerts attached, so they wake somebody up when they go wrong.</p>
+      <p>The wiring (which endpoints expose metrics, what the health probes return) is fixed by <a href="../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009 — health, readiness, and observability</a>. This page explains how we use those metrics in practice.</p>
+
+      <h2 id="golden-signals">The four golden signals</h2>
+      <p>Borrowed from the <a href="https://sre.google/sre-book/monitoring-distributed-systems/" rel="external">SRE Book — Monitoring Distributed Systems</a>. If you only have time to watch four numbers per service, watch these — each glyph mirrors the shape the panel takes on the dashboard.</p>
+
+      <div class="docs-signal-pillars">
+        <ol class="docs-signal-pillars__row docs-signal-pillars__row--four" aria-label="The four golden signals">
+          <li class="docs-signal-pillars__card" data-tone="accent">
+            <div class="docs-signal-pillars__glyph" aria-hidden="true">
+              <svg viewBox="0 0 80 32" fill="currentColor" stroke="none">
+                <rect x="4" y="24" width="6" height="6" rx="1" opacity="0.3"></rect>
+                <rect x="12" y="18" width="6" height="12" rx="1" opacity="0.5"></rect>
+                <rect x="20" y="10" width="6" height="20" rx="1" opacity="0.9"></rect>
+                <rect x="28" y="6" width="6" height="24" rx="1"></rect>
+                <rect x="36" y="12" width="6" height="18" rx="1" opacity="0.75"></rect>
+                <rect x="44" y="18" width="6" height="12" rx="1" opacity="0.55"></rect>
+                <rect x="52" y="22" width="6" height="8" rx="1" opacity="0.4"></rect>
+                <rect x="60" y="24" width="6" height="6" rx="1" opacity="0.3"></rect>
+                <rect x="68" y="26" width="6" height="4" rx="1" opacity="0.2"></rect>
+              </svg>
+            </div>
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--accent">Latency</span>
+              </div>
+              <span class="docs-signal-pillars__link">How long</span>
+            </div>
+            <p class="docs-signal-pillars__lede">How long a successful request takes.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Track</dt><dd>p50, p95, p99 separately.</dd>
+              <dt>Pitfall</dt><dd>Averages hide the long tail.</dd>
+            </dl>
+          </li>
+
+          <li class="docs-signal-pillars__card" data-tone="teal">
+            <div class="docs-signal-pillars__glyph" aria-hidden="true">
+              <svg viewBox="0 0 80 32" fill="currentColor" stroke="none">
+                <rect x="4" y="14" width="5" height="16" rx="1" opacity="0.5"></rect>
+                <rect x="12" y="10" width="5" height="20" rx="1" opacity="0.7"></rect>
+                <rect x="20" y="6" width="5" height="24" rx="1"></rect>
+                <rect x="28" y="12" width="5" height="18" rx="1" opacity="0.8"></rect>
+                <rect x="36" y="8" width="5" height="22" rx="1" opacity="0.9"></rect>
+                <rect x="44" y="14" width="5" height="16" rx="1" opacity="0.6"></rect>
+                <rect x="52" y="10" width="5" height="20" rx="1" opacity="0.75"></rect>
+                <rect x="60" y="6" width="5" height="24" rx="1"></rect>
+                <rect x="68" y="12" width="5" height="18" rx="1" opacity="0.7"></rect>
+              </svg>
+            </div>
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--teal">Traffic</span>
+              </div>
+              <span class="docs-signal-pillars__link">How much</span>
+            </div>
+            <p class="docs-signal-pillars__lede">How much demand the service is handling.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Track</dt><dd>Requests/sec, jobs/min — per endpoint.</dd>
+              <dt>Pitfall</dt><dd>A drop to zero is often a bug, not a quiet day.</dd>
+            </dl>
+          </li>
+
+          <li class="docs-signal-pillars__card" data-tone="danger">
+            <div class="docs-signal-pillars__glyph" aria-hidden="true">
+              <svg viewBox="0 0 80 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="2,26 14,26 22,25 34,26 42,24 50,22 58,4 62,8 68,5 78,26"></polyline>
+                <circle cx="58" cy="4" r="2.5" fill="currentColor" stroke="none"></circle>
+              </svg>
+            </div>
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--danger">Errors</span>
+              </div>
+              <span class="docs-signal-pillars__link">How many failed</span>
+            </div>
+            <p class="docs-signal-pillars__lede">The rate of failed requests.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Track</dt><dd>4xx vs 5xx, split by endpoint.</dd>
+              <dt>Pitfall</dt><dd>Hiding errors behind a friendly status page.</dd>
+            </dl>
+          </li>
+
+          <li class="docs-signal-pillars__card" data-tone="warn">
+            <div class="docs-signal-pillars__glyph" aria-hidden="true">
+              <svg viewBox="0 0 80 32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="10" width="60" height="14" rx="3" stroke="currentColor" stroke-width="2"></rect>
+                <rect x="68" y="14" width="4" height="6" rx="1" fill="currentColor" stroke="none"></rect>
+                <rect x="10" y="14" width="44" height="6" rx="1" fill="currentColor" stroke="none" opacity="0.85"></rect>
+                <line x1="22" y1="11" x2="22" y2="23" stroke="currentColor" stroke-width="0.8" opacity="0.35"></line>
+                <line x1="38" y1="11" x2="38" y2="23" stroke="currentColor" stroke-width="0.8" opacity="0.35"></line>
+                <line x1="54" y1="11" x2="54" y2="23" stroke="currentColor" stroke-width="0.8" opacity="0.35"></line>
+              </svg>
+            </div>
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--warn">Saturation</span>
+              </div>
+              <span class="docs-signal-pillars__link">How full</span>
+            </div>
+            <p class="docs-signal-pillars__lede">How “full” the system is.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Track</dt><dd>CPU, memory, DB pool, queue depth.</dd>
+              <dt>Why</dt><dd><strong>Predicts the next outage.</strong></dd>
+            </dl>
+          </li>
+        </ol>
+      </div>
+
+      <h2 id="sources">Where the metrics come from</h2>
+      <ul>
+        <li><strong>Application metrics</strong> — exposed by the API at <code>/metrics</code> in Prometheus format. Counters (requests, errors), histograms (latency), gauges (in-flight requests, queue depth).</li>
+        <li><strong>Health endpoints</strong> — <code>/healthz</code> (process is alive) and <code>/readyz</code> (process can accept traffic) per ADR 0009. Used by container orchestrators and as a heartbeat.</li>
+        <li><strong>System metrics</strong> — CPU, memory, disk, network — collected by the host or container runtime.</li>
+        <li><strong>Database metrics</strong> — connection count, slow query log, replication lag (when relevant).</li>
+      </ul>
+
+      <h2 id="stack">The collection and display stack</h2>
+      <ol>
+        <li><strong>Prometheus</strong> scrapes <code>/metrics</code> on a fixed interval and stores the samples.</li>
+        <li><strong>Grafana</strong> reads from Prometheus and shows the dashboards.</li>
+        <li><strong>Alertmanager</strong> reads alert rules evaluated by Prometheus and routes notifications.</li>
+      </ol>
+      <p>The full Prometheus scrape config, the Grafana dashboard JSON, and the alert rule files are tracked in <a href="../../governance/backlog/index.html#item-48">backlog item-48</a> — they will land in this page as a copy-pasteable reference once that item completes.</p>
+
+      <h2 id="dashboard">Dashboard layout</h2>
+      <p>Each dashboard answers one question and uses the same vertical layout, so reading them feels consistent:</p>
+      <ol>
+        <li><strong>Top — health summary.</strong> One row of single-stat panels: availability over the last hour, p95 latency, error rate, saturation flag.</li>
+        <li><strong>Middle — golden signals.</strong> Four time-series panels (latency, traffic, errors, saturation) for the same window.</li>
+        <li><strong>Bottom — drill-down.</strong> Per-endpoint breakdowns, slow query lists, recent deploys.</li>
+      </ol>
+      <p>Time range and refresh interval are left at the dashboard defaults. Pick the same time range when you compare two dashboards — it makes correlation much easier.</p>
+
+      <h2 id="taxonomy">Alerting taxonomy</h2>
+      <p>Every alert must answer two questions: <em>“is a user being hurt right now?”</em> and <em>“is there a clear next action?”</em>. We split alerts into three classes:</p>
+      <dl>
+        <dt>Page (wakes you up)</dt>
+        <dd>Active customer pain. Examples: error rate above 5% for more than 5 minutes, fast burn of the SLO budget, the service is not <code>ready</code> for more than 2 minutes. Always has a runbook.</dd>
+        <dt>Ticket (handle next working day)</dt>
+        <dd>Slow drift, no immediate user pain. Examples: slow burn of the SLO budget, disk usage trending toward full in days, certificate expiring in two weeks.</dd>
+        <dt>Info (dashboard only)</dt>
+        <dd>Useful context but not actionable. Examples: deploy just happened, traffic spike from a known job. Never paged.</dd>
+      </dl>
+      <p>If an alert does not fit a class, redesign it. “Maybe a page” is the same thing as “noise” in three weeks.</p>
+
+      <h2 id="good-bad">Good vs bad alerts — short examples</h2>
+      <ul>
+        <li><strong>Good:</strong> “Error rate of <code>POST /conspectuses</code> &gt; 5% for 5 minutes” — symptom, time-bounded, clear runbook (<a href="../../how-to/incidents/runbooks/0008-observability-scrape-failing.html">0008</a>).</li>
+        <li><strong>Bad:</strong> “CPU &gt; 80%” — a cause, not a symptom. The service might still be healthy. Pair with latency or saturation instead.</li>
+        <li><strong>Good:</strong> “SLO burn-rate &gt; 14× over 1 hour and &gt; 6× over 6 hours” — multi-window, catches both fast and slow burns.</li>
+        <li><strong>Bad:</strong> “There were any 5xx today” — fires constantly, hides real incidents.</li>
+      </ul>
+
+      <h2 id="failure">When monitoring breaks</h2>
+      <p>Two failure modes are easy to miss:</p>
+      <ul>
+        <li><strong>Silent dashboards.</strong> Prometheus stopped scraping. Dashboards still render, but the lines went flat. Follow <a href="../../how-to/incidents/runbooks/0008-observability-scrape-failing.html">runbook 0008 — observability scrape failing</a>.</li>
+        <li><strong>Quiet alerts.</strong> Alertmanager stopped delivering notifications. Use a “deadman” rule that fires every 5 minutes; if the on-call person stops receiving the deadman, alerting itself is broken.</li>
+      </ul>
+
+      <h2 id="references">References</h2>
+      <ul>
+        <li><a href="../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009 — health, readiness, and observability</a>.</li>
+        <li><a href="logging.html">Logging</a> — the qualitative half of the story.</li>
+        <li><a href="observability.html">Observability</a> — how monitoring fits with logs, traces, and health checks.</li>
+        <li>SRE Book — <a href="https://sre.google/sre-book/monitoring-distributed-systems/" rel="external">Monitoring Distributed Systems</a>.</li>
+        <li>SRE Book — <a href="https://sre.google/sre-book/practical-alerting/" rel="external">Practical Alerting from Time-Series Data</a>.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; signals + alerting taxonomy now ride the prose definition lists.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-11</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Replaced skeleton stub with full content: golden signals, collection stack, dashboard layout, alert taxonomy, failure modes.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-08</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial skeleton stub per RFC 0004 Phase D.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scope">What monitoring covers</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#golden-signals">The four golden signals</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#sources">Where the metrics come from</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#stack">The collection &amp; display stack</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#dashboard">Dashboard layout</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#taxonomy">Alerting taxonomy</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#good-bad">Good vs bad alerts</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#failure">When monitoring breaks</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#references">References</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How-to · Add POST /api/v1/contract · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">API · Add <code>POST /api/v1/contract</code></li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--warn">API</span>
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+        </div>
+        <h1>Add a write endpoint (worked example: <code>POST /api/v1/contract</code>)</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Production-grade recipe for adding a write endpoint that follows project
+          conventions: layering rules, error-code naming, OpenAPI examples, idempotency,
+          tests, and the quality gates. The worked example is
+          <code>POST /api/v1/contract</code>; the steps generalise to any new write
+          resource.
+        </p>
+        <div class="docs-card docs-card--ghost docs-card--mt-3">
+          <p>
+            <strong>Audience.</strong> You already know how the project boots and how a
+            change flows from code to docs to <code>make verify</code>. If not, run through
+            the
+            <a href="../../tutorials/dev/onboarding-zero-to-endpoint.html">onboarding tutorial</a>
+            first — it teaches the dev loop on a trivial read endpoint and takes 30–45 minutes.
+          </p>
+        </div>
+      </header>
+
+      <h2 id="goal">Goal and scope</h2>
+      <p>Target endpoint: <code>POST /api/v1/contract</code>.</p>
+      <p>Done means:</p>
+      <ul>
+        <li>The route is registered and visible in Swagger.</li>
+        <li>Schemas and OpenAPI examples cover request, business errors, and validation errors.</li>
+        <li>Business logic lives in the service layer; the repository handles persistence only.</li>
+        <li>Validation mapping uses stable, entity-prefixed codes and keys.</li>
+        <li>Tests, docs, and quality gates all pass.</li>
+      </ul>
+
+      <h2 id="domain">Prepare the domain model and the database</h2>
+      <p>Skip this section if the endpoint does not need new tables or columns.</p>
+      <ol>
+        <li>Add or update the ORM model in <code>app/models/core/</code> (for example <code>contract.py</code>).</li>
+        <li>The project relies on package-level imports (<code>from app.models.core import *</code>). Register the new model in <code>app/models/core/__init__.py</code> so Alembic discovers it.</li>
+        <li>Generate a migration:
+          <pre class="docs-code"><code class="language-bash">.venv/bin/python -m alembic revision --autogenerate -m add_contract_table</code></pre>
+        </li>
+        <li>Apply the migration:
+          <pre class="docs-code"><code class="language-bash">make migrate</code></pre>
+        </li>
+      </ol>
+
+      <h2 id="repository">Add the repository layer</h2>
+      <p>File: <code>app/repositories/contract_repository.py</code>.</p>
+      <p>Typical methods:</p>
+      <ul>
+        <li><code>create(...)</code></li>
+        <li><code>get_by_...(...)</code> when deduplication or business checks need a lookup</li>
+      </ul>
+      <p>Repository rules:</p>
+      <ul>
+        <li>Data access only.</li>
+        <li>No HTTP exceptions.</li>
+        <li>No FastAPI imports.</li>
+      </ul>
+
+      <h2 id="service">Add the service layer (business logic)</h2>
+      <p>File: <code>app/services/contract_service.py</code>.</p>
+      <p>The service is responsible for:</p>
+      <ul>
+        <li>Applying business rules.</li>
+        <li>Calling the repository.</li>
+        <li>Raising business errors with a stable <code>code</code> and <code>key</code>.</li>
+      </ul>
+      <p>Naming convention for error codes on this entity:</p>
+      <ul>
+        <li>Keys carry the entity prefix, for example <code>CONTRACT_CREATE_*</code>.</li>
+        <li>Codes follow the entity prefix plus a number, for example <code>CONTRACT_101</code>.</li>
+      </ul>
+
+      <h2 id="schemas">Add request and response schemas</h2>
+      <p>File: <code>app/schemas/contract.py</code>.</p>
+      <p>Define:</p>
+      <ul>
+        <li><code>ContractCreateRequest</code></li>
+        <li><code>ContractCreateResponse</code></li>
+      </ul>
+      <p>Schema rules:</p>
+      <ul>
+        <li>Validation lives at the API boundary.</li>
+        <li>Every field has a clear description.</li>
+        <li>Names are stable; OpenAPI consumers depend on them.</li>
+      </ul>
+
+      <h2 id="validation">Add validation mapping for the entity</h2>
+      <p>File: <code>app/validation/contract.py</code>.</p>
+      <p>The mapper covers:</p>
+      <ul>
+        <li>Field- and type-specific mapping to stable validation codes.</li>
+        <li>A fallback rule for validation errors that have no explicit mapping.</li>
+      </ul>
+      <p>Naming examples:</p>
+      <ul>
+        <li>Codes: <code>CONTRACT_001</code>, <code>CONTRACT_002</code>, …</li>
+        <li>Keys: <code>CONTRACT_CREATE_FIELD_REQUIRED</code></li>
+      </ul>
+      <p>Wire the mapper into the central validation entry point. The project supports two wiring styles; pick whichever exists today:</p>
+      <ul>
+        <li>Route-based dispatch inside the validation builder, or</li>
+        <li>A small registry (<code>endpoint -&gt; mapper</code>) in <code>app/validation/__init__.py</code>.</li>
+      </ul>
+
+      <h2 id="openapi-examples">Add OpenAPI examples</h2>
+      <p>Files:</p>
+      <ul>
+        <li><code>app/openapi/examples/contracts.py</code> (new)</li>
+        <li><code>app/openapi/examples/__init__.py</code> — add the new exports</li>
+      </ul>
+      <p>Cover:</p>
+      <ul>
+        <li>Request body examples.</li>
+        <li>Business error examples.</li>
+        <li>Validation error examples.</li>
+      </ul>
+
+      <h2 id="router">Add the API router</h2>
+      <p>File: <code>app/api/v1/contract.py</code>.</p>
+      <p>The router:</p>
+      <ul>
+        <li>Declares <code>APIRouter(prefix="/contract", tags=["Contract"])</code>.</li>
+        <li>Adds <code>@router.post("")</code>.</li>
+        <li>Uses the request and response schemas above.</li>
+        <li>References the OpenAPI examples.</li>
+        <li>Declares an explicit <code>responses</code> map for error codes.</li>
+        <li>Documents and enforces <code>Idempotency-Key</code> behavior, since this is a write endpoint.</li>
+      </ul>
+      <p>Register the router in the app: update <code>app/main.py</code> with <code>app.include_router(..., prefix="/api/v1")</code>.</p>
+
+      <h2 id="tests">Add tests</h2>
+      <p>File: <code>tests/api/v1/test_contract_create.py</code>.</p>
+      <p>Minimum scenarios:</p>
+      <ol>
+        <li>Success: <code>201</code>.</li>
+        <li>Business failure: <code>400</code>.</li>
+        <li>Validation failure: <code>422</code> with the entity-prefixed <code>code</code> and <code>key</code>.</li>
+        <li>Idempotent replay: same key plus same payload returns the same success response.</li>
+        <li>Idempotency conflict: same key plus a different payload returns a conflict.</li>
+      </ol>
+      <p>Update <code>tests/conftest.py</code> when fixtures need new tables or seed data.</p>
+
+      <h2 id="docs">Update the docs</h2>
+      <p>Sync every doc artifact:</p>
+      <pre class="docs-code"><code class="language-bash">make docs-fix</code></pre>
+
+      <h2 id="gates">Run quality gates</h2>
+      <p>Before each commit:</p>
+      <ol>
+        <li><code>make format-fix</code></li>
+        <li><code>make lint-check</code></li>
+        <li><code>make type-check</code></li>
+        <li><code>make test</code></li>
+        <li><code>make pre-commit-check</code></li>
+      </ol>
+      <p>Before opening the PR or deploying:</p>
+      <ol>
+        <li><code>make verify</code></li>
+        <li><code>make release-check</code></li>
+      </ol>
+
+      <h2 id="checklist">Final checklist</h2>
+      <ul class="docs-checklist">
+        <li><input type="checkbox" disabled> The endpoint is registered and appears in Swagger.</li>
+        <li><input type="checkbox" disabled> Schemas and OpenAPI examples are complete.</li>
+        <li><input type="checkbox" disabled> Business logic is isolated in the service layer.</li>
+        <li><input type="checkbox" disabled> The repository handles persistence only.</li>
+        <li><input type="checkbox" disabled> Validation mapping exists for <code>contract</code>.</li>
+        <li><input type="checkbox" disabled> Error keys and codes use the <code>CONTRACT_*</code> prefix.</li>
+        <li><input type="checkbox" disabled> Tests cover success, business failure, and validation failure.</li>
+        <li><input type="checkbox" disabled> Idempotency scenarios are covered for the write endpoint.</li>
+        <li><input type="checkbox" disabled> Docs are synced.</li>
+        <li><input type="checkbox" disabled> Quality gates pass.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis cleanup: dropped "Beginner walkthrough" framing; positioned as production-grade recipe with explicit audience note pointing to the onboarding tutorial as prerequisite.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; bash snippets as <code>docs-code</code>; right-rail TOC; final checklist preserved with disabled checkboxes.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-02</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Rewrote prose at C1 level; replaced bullet fragments with full sentences; clarified the validation-mapper wiring options.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#goal">Goal and scope</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#domain">Domain model and database</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#repository">Repository layer</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#service">Service layer</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#schemas">Schemas</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#validation">Validation mapping</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#openapi-examples">OpenAPI examples</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#router">Router</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tests">Tests</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#docs">Update docs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#gates">Quality gates</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#checklist">Final checklist</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

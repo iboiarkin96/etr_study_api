@@ -1,6 +1,6 @@
 # <abbr title="Extract–Transform–Retrieve">ETR</abbr> Study App API
 
-FastAPI service for the Study App domain. Longer reads: [System design](docs/internal/analysis/system-design.html), [Developers](docs/developer/README.html), [Architecture & quality assessments](docs/audit/README.html).
+FastAPI service for the Study App domain. Longer reads: [System design](services/portal/internal/analysis/system-design.html), [Developers](services/portal/internal/handbook/developer/index.html), [Architecture & quality assessments](services/portal/internal/governance/audit/index.html).
 
 ## Contents
 
@@ -12,7 +12,7 @@ FastAPI service for the Study App domain. Longer reads: [System design](docs/int
 | [Observability (local)](#observability-local) | Prometheus, Grafana, metrics, optional Elasticsearch/Kibana |
 | [Container image (optional)](#container-image-optional) | Docker image, `docker run` |
 | [Repository layout](#repository-layout) | Top-level tree |
-| [HTTP endpoints](#http-endpoints) | OpenAPI (`docs/openapi/`: baseline JSON + static Swagger UI), Python API (`docs/pdoc/`) |
+| [HTTP endpoints](#http-endpoints) | OpenAPI (`services/portal/public/reference/api/`: baseline JSON + static Swagger UI), Python API (`services/portal/internal/catalog/api/code-reference/`) |
 | [License](#license) | MIT |
 
 ---
@@ -50,7 +50,7 @@ Helpful: `make env-check`, `curl -s http://127.0.0.1:8000/live | jq`.
 
 ## Documentation and workflows
 
-The main documentation site is **`docs/index.html`**.
+The main documentation site is **`services/portal/index.html`**.
 
 **Daily work:** use **`make`** targets (`make help` lists them).
 
@@ -81,7 +81,7 @@ For docs and smoke checks you can override host/port labels: `OBS_API_*`, `OBS_P
 3. Check `/live`, `/ready`, and `/metrics` (e.g. `curl -s http://127.0.0.1:8000/live`).
 4. When you are done: `docker compose -f docker-compose.observability.yml down`.
 
-More detail: [Local development](docs/developer/0007-local-development.html). Design notes: [ADR 0009](docs/adr/0009-health-readiness-and-observability.html), [ADR 0011](docs/adr/0011-slo-sla-error-budget.html).
+More detail: [Local development](services/portal/internal/handbook/developer/0007-local-development.html). Design notes: [ADR 0009](services/portal/internal/governance/adr/0009-health-readiness-and-observability.html), [ADR 0011](services/portal/internal/governance/adr/0011-slo-sla-error-budget.html).
 
 ### Structured logs and Elasticsearch (optional)
 
@@ -92,7 +92,7 @@ For **NDJSON** logs and local **search**, set `LOG_FORMAT=json` and `LOG_SERVICE
 | Elasticsearch | [http://127.0.0.1:9200](http://127.0.0.1:9200) | REST API; indices `study-app-logs-*` |
 | Kibana | [http://127.0.0.1:5601](http://127.0.0.1:5601) | Data view: pattern **`*study-app-logs*`** (wildcards on both sides). Not only `study-app-logs-*`, or Discover may miss `.ds-study-app-logs-*` streams |
 
-**Steps:** start `docker-compose.logging.yml` manually (`docker compose -f docker-compose.logging.yml up -d`). Run the API on the host with `LOG_FORMAT=json` writing to `./logs` (mounted read-only into Filebeat). **~2 GiB RAM** helps for ES+Kibana. Stop with `docker compose -f docker-compose.logging.yml down`. Details: [ADR 0023](docs/adr/0023-structured-logging-and-local-elasticsearch.html).
+**Steps:** start `docker-compose.logging.yml` manually (`docker compose -f docker-compose.logging.yml up -d`). Run the API on the host with `LOG_FORMAT=json` writing to `./logs` (mounted read-only into Filebeat). **~2 GiB RAM** helps for ES+Kibana. Stop with `docker compose -f docker-compose.logging.yml down`. Details: [ADR 0023](services/portal/internal/governance/adr/0023-structured-logging-and-local-elasticsearch.html).
 
 ### Metrics in Prometheus / Grafana
 
@@ -108,7 +108,7 @@ You do **not** need Docker for day-to-day coding: use **`make run`**, tests, and
 
 - **Prerequisites:** [Docker](https://docs.docker.com/get-docker/) if you build or run the image locally.
 - **Build and run:** `docker build -t study-app-api:local .` builds image `study-app-api:local` (see `Dockerfile`). The container runs `scripts/container_entrypoint.sh` (Alembic, then Uvicorn, no `--reload`). Dependencies match pinned `requirements.txt` from `make install`. Pass configuration with `-e` or your platform’s env mechanism (see `env/example`).
-- **Guide:** [Docker image and container](docs/developer/0009-docker-image-and-container.html). **ADRs:** [0015](docs/adr/0015-container-image.html) (image), [0021](docs/adr/0021-continuous-delivery-github-actions-and-ghcr.html) (CI → GHCR).
+- **Guide:** [Docker image and container](services/portal/internal/handbook/developer/0009-docker-image-and-container.html). **ADRs:** [0015](services/portal/internal/governance/adr/0015-container-image.html) (image), [0021](services/portal/internal/governance/adr/0021-continuous-delivery-github-actions-and-ghcr.html) (CI → GHCR).
 
 ---
 
@@ -136,37 +136,13 @@ study_app/
 │   └── validation/
 ├── alembic/  # Migration environment
 │   └── versions/  # Migration scripts
-├── docs/  # HTML docs & UML sources
-│   ├── adr/
-│   ├── assets/
-│   ├── audit/
-│   │   ├── api/
-│   │   ├── bugs/
-│   │   └── docs/
-│   ├── backlog/
-│   ├── developer/  # Developer guides and onboarding
-│   ├── howto/
-│   ├── internal/
-│   │   ├── analysis/
-│   │   ├── api/
-│   │   ├── front/
-│   │   ├── manager/
-│   │   └── portal/
-│   ├── openapi/
-│   ├── pdoc/
-│   │   └── app/
-│   ├── qa/
-│   │   ├── playbooks/
-│   │   ├── reference/
-│   │   └── templates/
-│   ├── rfc/
-│   ├── runbooks/  # Operational troubleshooting guides
-│   └── uml/  # PlantUML diagrams
-│       ├── architecture/
-│       ├── include/  # Shared PlantUML skin (merged at Kroki render)
-│       ├── make/
-│       ├── rendered/  # Rendered SVGs
-│       └── sequences/  # Sequence diagram sources
+├── services/  # Service-rooted layout per ADR 0028
+│   ├── frontend/  # Frontend artifacts (portal, future admin / dashboard)
+│   │   └── portal/  # Static documentation portal — public + internal IA
+│   └── portal/
+│       ├── internal/
+│       ├── public/
+│       └── ui-kit/
 ├── ops/  # Prometheus, Grafana, Filebeat configs
 │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
 │   ├── grafana/  # Dashboards and provisioning
@@ -179,7 +155,7 @@ study_app/
 
 ## HTTP endpoints
 
-The HTTP API (endpoints, schemas, examples) is documented with OpenAPI. In `docs/openapi/`, the committed contract is [`openapi-baseline.json`](docs/openapi/openapi-baseline.json) and the static browse-only Swagger UI is [`index.html`](docs/openapi/index.html). Python modules (pdoc): [`docs/pdoc/index.html`](docs/pdoc/index.html).
+The HTTP API (endpoints, schemas, examples) is documented with OpenAPI. In `services/portal/public/reference/api/`, the committed contract is [`openapi-baseline.json`](services/portal/public/reference/api/openapi-baseline.json) and the static browse-only Swagger UI is [`index.html`](services/portal/public/reference/api/index.html). Python modules (pdoc): [`services/portal/internal/catalog/api/code-reference/index.html`](services/portal/internal/catalog/api/code-reference/index.html).
 
 ---
 

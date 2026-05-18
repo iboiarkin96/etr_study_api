@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check
+.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check minify-css minify-css-check catalog-render catalog-render-check
 
 # ──────────────────────────────────────────────
 # Help
@@ -73,7 +73,7 @@ help:
 	@echo ""
 	@echo "  # OpenAPI Contract Governance"
 	@echo "  make openapi-check        Lint (operationId, summary, write+422 examples) + breaking-change"
-	@echo "                            guard vs docs/openapi/openapi-baseline.json (semantic: catches"
+	@echo "                            guard vs services/portal/public/reference/api/openapi-baseline.json (semantic: catches"
 	@echo "                            removals and new required bits; additive compatible changes may pass)"
 	@echo "  make contract-test        Stricter: generated OpenAPI must equal baseline JSON exactly"
 	@echo "                            (any drift fails; use openapi-accept-changes after review)"
@@ -101,6 +101,14 @@ help:
 	@echo "  make docs-a11y-check      Baseline accessibility checks (headings, landmarks, contrast, keyboard)"
 	@echo "  make docs-feedback-check  Smoke-check page-level feedback wiring for key docs pages"
 	@echo "  make docs-check           Verify docs are already in sync (fails on drift)"
+	@echo ""
+	@echo "  # Frontend assets"
+	@echo "  make minify-css           Minify portal CSS in place (paren-aware, idempotent)"
+	@echo "  make minify-css-check     Verify portal CSS is already minified (fails on drift)"
+	@echo ""
+	@echo "  # Service catalog (YAML → HTML)"
+	@echo "  make catalog-render       Regenerate service entity cards + hub + nav-tree from catalog-info.yaml"
+	@echo "  make catalog-render-check Verify catalog HTML is in sync with YAML (fails on drift)"
 	@echo ""
 	@echo "  # Pre-commit Hooks"
 	@echo "  make pre-commit-install   Install git pre-commit hooks"
@@ -353,6 +361,24 @@ pre-commit-check:
 	@$(PYTHON) -m pre_commit run --all-files
 	@printf "$(ICON_OK) %s\n" "pre-commit checks passed"
 
+# Deep pre-commit validation: static refactor-straggler checks + full verify.
+# Use this BEFORE `git commit` on non-trivial changes. Pairs with the
+# `/pre-commit-validate` slash command which adds a manual diff review pass.
+pre-commit-validate:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(COLOR_CYAN)== PRE-COMMIT-VALIDATE: START ==$(COLOR_RESET)\n"
+	@printf "$(ICON_INFO) %s\n" "[1/4] check_css_vars"
+	@$(PYTHON) scripts/check_css_vars.py
+	@printf "$(ICON_INFO) %s\n" "[2/4] check_asset_refs"
+	@$(PYTHON) scripts/check_asset_refs.py
+	@printf "$(ICON_INFO) %s\n" "[3/4] check_path_literals"
+	@$(PYTHON) scripts/check_path_literals.py
+	@printf "$(ICON_INFO) %s\n" "[4/4] verify"
+	@$(MAKE) verify
+	@printf "$(COLOR_GREEN)== PRE-COMMIT-VALIDATE: SUCCESS ==$(COLOR_RESET)\n"
+
 # ──────────────────────────────────────────────
 # Tests
 # ──────────────────────────────────────────────
@@ -441,8 +467,8 @@ docs-fix:
 	@printf "$(ICON_INFO) %s\n" "[7/9] collect docs maintainer pages index"
 	@$(PYTHON) scripts/collect_docs_portal_data.py
 	@printf "$(ICON_INFO) %s\n" "[8/9] Python API reference (pdoc)"
-	@rm -rf docs/pdoc
-	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o docs/pdoc
+	@rm -rf services/portal/internal/services/api/code-reference
+	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
 	@$(PYTHON) scripts/normalize_pdoc_output.py
 	@printf "$(ICON_INFO) %s\n" "[9/9] build docs search index"
 	@$(PYTHON) scripts/build_docs_search_index.py
@@ -501,7 +527,7 @@ docs-spec-check:
 # Verify docs are already synchronized (no drift allowed).
 # Compare the working tree diff vs HEAD before and after docs-fix. If identical,
 # docs-fix did not change any file—so committed generated artifacts match the pipeline.
-# After ``docs-fix``, restore ``docs/pdoc/`` from ``HEAD`` and rebuild the client search index:
+# After ``docs-fix``, restore ``services/portal/internal/services/api/code-reference/`` (pdoc) from ``HEAD`` and rebuild the client search index:
 # pdoc output (HTML + ``search.js``) varies across OS/Python/file order; the committed API ref snapshot
 # is the source of truth for drift. Re-run ``build_docs_search_index.py`` so ``search-index.json`` matches
 # the tree on disk (index was built against the just-generated pdoc before the checkout).
@@ -519,7 +545,7 @@ docs-check:
 	@tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
 	git diff HEAD > "$$tmp_before"; \
 	$(MAKE) docs-fix; \
-	git checkout HEAD -- docs/pdoc 2>/dev/null || true; \
+	git checkout HEAD -- services/portal/internal/services/api/code-reference 2>/dev/null || true; \
 	$(PYTHON) scripts/build_docs_search_index.py; \
 	git diff HEAD > "$$tmp_after"; \
 	if cmp -s "$$tmp_before" "$$tmp_after"; then \
@@ -536,6 +562,52 @@ docs-check:
 		rm -f "$$tmp_before" "$$tmp_after"; \
 		exit 1; \
 	fi
+
+# ──────────────────────────────────────────────
+# Frontend assets
+# ──────────────────────────────────────────────
+# Minify all CSS under services/frontend/portal/assets/ in place.
+# Paren-aware (preserves calc/var arithmetic), idempotent — safe to re-run.
+minify-css:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Minifying portal CSS…"
+	@$(PYTHON) scripts/minify_portal_css.py
+	@printf "$(ICON_OK) %s\n" "Portal CSS minified"
+
+# Verify portal CSS is already minified — fails if any file would shrink.
+minify-css-check:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Checking portal CSS minification…"
+	@$(PYTHON) scripts/minify_portal_css.py --check
+	@printf "$(ICON_OK) %s\n" "Portal CSS minification check passed"
+
+# ──────────────────────────────────────────────
+# Service catalog (YAML → HTML)
+# ──────────────────────────────────────────────
+# Regenerate per-service entity-card HTML, the services hub tile-grid + lifecycle
+# tickers, and the internal nav-tree subtree from each service's
+# catalog-info.yaml (single source of truth). Idempotent — safe to re-run.
+catalog-render:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Rendering service descriptors…"
+	@$(PYTHON) scripts/render_service_descriptors.py
+	@printf "$(ICON_OK) %s\n" "Service descriptors rendered"
+
+# Verify service descriptor HTML is already in sync with catalog-info.yaml.
+# Fails (non-zero) if any file would change — used by pre-commit.
+catalog-render-check:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Checking service descriptors are up to date…"
+	@$(PYTHON) scripts/render_service_descriptors.py --check
+	@printf "$(ICON_OK) %s\n" "Service descriptor check passed"
 
 # ──────────────────────────────────────────────
 # Health check

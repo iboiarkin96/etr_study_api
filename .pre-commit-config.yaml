@@ -6,13 +6,18 @@ repos:
       - id: check-json
       - id: check-toml
       - id: end-of-file-fixer
-        exclude: ^docs/pdoc/
+        exclude: ^services/portal/internal/services/api/code-reference/
       - id: trailing-whitespace
-        exclude: ^docs/pdoc/
+        exclude: ^services/portal/internal/services/api/code-reference/
       - id: mixed-line-ending
       - id: check-merge-conflict
       - id: detect-private-key
       - id: check-added-large-files
+        exclude: |
+          (?x)^(
+            services/frontend/portal/assets/search-index(?:-public)?\.json
+            |services/frontend/portal/assets_v2/ui-kit/mocks/search-index-(?:internal|public)\.json
+          )$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.9
@@ -49,25 +54,47 @@ repos:
         name: docs maintainers autofix
         entry: .venv/bin/python scripts/ensure_docs_maintainers.py
         language: system
-        files: ^docs/.*\.html$
-        exclude: ^docs/(api|assets)/|^docs/index\.html$
+        files: ^services/portal/.*\.html$
+        exclude: ^services/portal/(api|assets)/|^services/portal/index\.html$
       - id: docs-design-maintainers
         name: docs design/maintainers check
         entry: .venv/bin/python scripts/validate_docs_design.py
         language: system
-        files: ^docs/.*\.html$
-        exclude: ^docs/(api|assets)/|^docs/index\.html$
-      - id: audit-front-docs-links
-        name: audit front docs (broken links, sidebar, prose mentions)
-        entry: .venv/bin/python scripts/audit_front_docs_links.py --quiet
-        language: system
-        files: ^docs/(internal/front/|assets/internal-sidebar\.js)
-        pass_filenames: false
+        files: ^services/portal/.*\.html$
+        exclude: ^services/portal/(api|assets)/|^services/portal/index\.html$
+      # audit-front-docs-links retired: services/portal/internal/front/ was
+      # absorbed into the Diataxis tree (explanation/, how-to/, reference/,
+      # tutorials/) during IA Phase 1. Equivalent link coverage now comes from
+      # check-asset-refs below.
       - id: check-adr-rfc-links
         name: check ADR/RFC cross-references and anchors
         entry: .venv/bin/python scripts/check_adr_rfc_links.py --quiet
         language: system
-        files: ^docs/(adr|rfc)/.*\.html$
+        files: ^services/portal/internal/governance/(adr|rfc)/.*\.html$
+        pass_filenames: false
+      - id: check-asset-refs
+        name: check broken asset/href references in HTML and CSS
+        entry: .venv/bin/python scripts/check_asset_refs.py
+        language: system
+        files: ^services/(portal|frontend/portal)/.*\.(html|css)$
+        pass_filenames: false
+      - id: check-h1-structure
+        name: check pages have exactly one <h1>
+        entry: .venv/bin/python scripts/check_h1_structure.py
+        language: system
+        files: ^services/portal/.*\.html$
+        pass_filenames: false
+      - id: check-search-index-subset
+        name: assert public search index ⊆ internal search index
+        entry: .venv/bin/python scripts/check_search_index_subset.py
+        language: system
+        files: ^services/frontend/portal/assets/search-index.*\.json$
+        pass_filenames: false
+      - id: catalog-render-check
+        name: service catalog YAML → HTML drift check
+        entry: .venv/bin/python scripts/render_service_descriptors.py --check
+        language: system
+        files: ^(services/portal/internal/services/[^/]+/catalog-info\.yaml|services/portal/internal/services/[^/]+/index\.html|services/portal/internal/services/index\.html|services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal\.json)$
         pass_filenames: false
       - id: sync-pr-body-on-push
         name: sync PR body to GitHub

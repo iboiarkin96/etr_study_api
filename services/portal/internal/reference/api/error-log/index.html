@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Error log resource · API · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-spec-page="hub" data-spec-status="draft" data-spec-owner="ivan-boyarkin">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">API</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Error log</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Reference</span>
+          <span class="docs-pill docs-pill--warn">API</span>
+          <span class="docs-pill docs-pill--neutral" data-spec-status-mount="">Draft</span>
+          <span class="docs-pill docs-pill--neutral">v1 · Internal</span>
+        </div>
+        <h1>Error log resource</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Learning-error resource hub: what it stores, the data contract, and the two operations. Resource: <code>/api/v1/errors</code>. Owner: <a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a>. Last reviewed <time datetime="2026-04-29">2026-04-29</time>.</p>
+      </header>
+
+      <h2 id="overview">Overview</h2>
+      <p><strong>Single entry point</strong> for the <em>learning errors</em> resource: what it stores, how it ties to the methodology, the data contract for clients, and the two HTTP operations that read and write it. Per-operation analyst specs are linked in the <a href="#operations">operations table</a> below.</p>
+
+      <h2 id="business-context">Business context</h2>
+      <p>Error log captures one short learner-typed note per mistake or weak cue. It is the bridge between a failed retrieve and the next Transform pass: the learner sees the queue when planning their next session, and the in-conspectus error sidebar shows only entries tied to that specific note.</p>
+      <p>Methodology anchor: <a href="../../../explanation/methodology.html#retrieve-system">methodology · retrieve → error log</a>. System-design anchor: <a href="../../../explanation/system-design.html#persistence-model">persistence model — <code>learning_errors</code></a> and decision D5 (errors stay distinct from review-tag outcomes).</p>
+
+      <h2 id="domain-model">Domain model</h2>
+      <p>Storage table: <code>learning_errors</code>. One row per error. Append-only — rows are never updated, only inserted. Optional foreign keys connect each error to the conspectus and the review log it was captured against.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Error log fields">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Field</th><th>Type</th><th>DB column</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>error_uuid</code></td>
+              <td>string · uuid</td>
+              <td><code>error_uuid</code> (PK)</td>
+              <td>Stable identity; UUIDv4 stamped server-side at insert.</td>
+            </tr>
+            <tr>
+              <td><code>owner_client_uuid</code></td>
+              <td>string · uuid</td>
+              <td><code>owner_client_uuid</code> (FK → <code>users</code>)</td>
+              <td>Resolved from the request's <code>(system_user_id, system_uuid)</code>; never client-supplied.</td>
+            </tr>
+            <tr>
+              <td><code>message</code></td>
+              <td>string</td>
+              <td><code>message</code></td>
+              <td>Free-text description (1–2000 chars). PII <strong>high</strong>.</td>
+            </tr>
+            <tr>
+              <td><code>conspectus_uuid</code></td>
+              <td>string · uuid · nullable</td>
+              <td><code>conspectus_uuid</code> (FK, ON DELETE SET NULL)</td>
+              <td>Optional link; conspectus must be owned by the same learner.</td>
+            </tr>
+            <tr>
+              <td><code>review_log_id</code></td>
+              <td>integer · int64 · nullable</td>
+              <td><code>review_log_id</code> (FK)</td>
+              <td>Optional link to the specific review row that surfaced the error.</td>
+            </tr>
+            <tr>
+              <td><code>created_at</code></td>
+              <td>string · date-time (UTC)</td>
+              <td><code>created_at</code></td>
+              <td>Server stamp at insert.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="lifecycle">Lifecycle</h2>
+      <p>Error log is <strong>append-only</strong>: once written, an error row is read-only for the rest of its life.</p>
+      <ul>
+        <li><strong>Insert.</strong> <a href="operations/post-api-v1-errors.html"><code>POST /api/v1/errors</code></a> writes one row in a single transaction.</li>
+        <li><strong>Read.</strong> <a href="operations/get-api-v1-errors.html"><code>GET /api/v1/errors</code></a> lists the learner's errors, optionally filtered by conspectus.</li>
+        <li><strong>Edit / delete.</strong> Out of scope in v1 — see the per-operation <em>Out of scope</em> sections.</li>
+        <li><strong>Cascade behaviour.</strong> Deleting a conspectus uses <code>ON DELETE SET NULL</code> on <code>learning_errors.conspectus_uuid</code> — the error survives, the link clears.</li>
+      </ul>
+
+      <h2 id="operations">Operations</h2>
+      <p>Canonical HTTP surface for the resource. Each method links to its analyst spec (Phase 5 production-grade); the status pill mirrors <code>data-spec-status</code> on that page.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Error log operations">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Method &amp; path</th><th>operationId</th><th>Status</th><th>Idempotency</th><th>Success</th><th>Spec page</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="docs-pill docs-pill--info">POST</span> <code>/api/v1/errors</code></td>
+              <td><code>createErrorLog</code></td>
+              <td><span class="docs-pill docs-pill--neutral">Draft</span></td>
+              <td>Required <code>Idempotency-Key</code></td>
+              <td><code>201 Created</code></td>
+              <td><a href="operations/post-api-v1-errors.html">Open spec →</a></td>
+            </tr>
+            <tr>
+              <td><span class="docs-pill docs-pill--success">GET</span> <code>/api/v1/errors</code></td>
+              <td><code>listErrorLogs</code></td>
+              <td><span class="docs-pill docs-pill--neutral">Draft</span></td>
+              <td>Not used (read)</td>
+              <td><code>200 OK</code></td>
+              <td><a href="operations/get-api-v1-errors.html">Open spec →</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="cross-cutting">Cross-cutting concerns</h2>
+      <p>Each operation page links to these shared pages for the global rules; this hub collects them in one place for quick navigation.</p>
+      <ul>
+        <li><a href="../_shared/idempotency.html">Idempotency</a> — required for <code>POST /api/v1/errors</code>.</li>
+        <li><a href="../_shared/error-envelope.html">Error envelope</a> — the <code>{code, key, message, source, details}</code> shape.</li>
+        <li><a href="../_shared/error-catalog.html#error-log">Error catalog (ERR section)</a> — registers <code>ERR_404</code> and the field-validation series.</li>
+        <li><a href="../_shared/auth.html">Authentication &amp; authorization</a> — API key, ownership rule.</li>
+        <li><a href="../_shared/pagination.html">Pagination</a> — bounded list, ≤ 100 items.</li>
+        <li><a href="../_shared/observability-conventions.html">Observability</a> — log events, metrics, alerts.</li>
+        <li><a href="../_shared/field-conventions.html">Field conventions</a> — naming, UTC, PII classes.</li>
+        <li><a href="../_shared/openapi-authoring-guide.html">OpenAPI authoring guide</a> — internal-spec → external contract translation.</li>
+      </ul>
+
+      <h2 id="technical-overview">Technical overview</h2>
+      <p>Planned implementation follows the internal API layering: middleware in <code>app/main.py</code> (auth, rate limit, observability), resource router, service validation, and repository persistence. Writes require idempotency (<code>POST /api/v1/errors</code>); the list endpoint is read-only.</p>
+      <p><strong>Specification only:</strong> behavior is documented first; application code and OpenAPI for this resource will be authored after the analyst specs are <em>Approved</em>. Until then status stays <em>Draft</em> on the operation pages.</p>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: spec-meta → chip-row; status pills via <code>docs-pill</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-04-29</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Phase 6: unified hub layout — domain model, lifecycle, status pills in operations table, cross-cutting links.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-04-21</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Added Page history section (repository baseline).</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#overview">Overview</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#business-context">Business context</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#domain-model">Domain model</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lifecycle">Lifecycle</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#operations">Operations</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#cross-cutting">Cross-cutting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#technical-overview">Technical overview</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

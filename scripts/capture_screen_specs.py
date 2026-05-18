@@ -4,8 +4,8 @@
 Usage:
     python scripts/capture_screen_specs.py [home]
 
-Captures all screenshots referenced by docs/internal/front/screens/docs-screen-*.html
-into docs/internal/front/screens/assets/. Designed to be re-run on every change to a
+Captures all screenshots referenced by services/portal/internal/front/screens/docs-screen-*.html
+into services/portal/internal/front/screens/assets/. Designed to be re-run on every change to a
 screen so the gallery stays current.
 
 Requirements:
@@ -21,7 +21,7 @@ Conventions:
     - Output files: <screen-id>-<variant>.png, kebab-case.
     - Variants: desktop-light, desktop-dark, tablet, mobile, intro-phase-N, full.
     - Always 2x device pixel ratio (mobile uses 3x to match common phone DPRs).
-    - The local docs/ folder is served via http.server on a random localhost port
+    - The local services/portal/ folder is served via http.server on a random localhost port
       so file:// quirks (relative imports, theme storage) don't apply.
 """
 
@@ -36,7 +36,7 @@ import threading
 import time
 from pathlib import Path
 
-DOCS_ROOT = Path(__file__).resolve().parent.parent / "docs"
+DOCS_ROOT = Path(__file__).resolve().parent.parent / "services" / "frontend" / "portal"
 ASSETS_DIR = DOCS_ROOT / "internal/front/screens/assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -208,7 +208,7 @@ def capture_portal_hall_of_contributors(base_url: str):
     """Capture all variants required by the Hall of Contributors screen spec."""
     from playwright.sync_api import sync_playwright
 
-    url = f"{base_url}/internal/portal/people/index.html"
+    url = f"{base_url}/internal/team/people/index.html"
     print(f"Capturing Hall of Contributors from {url}")
 
     def shoot(page, fname, full_page=False, clip=None):

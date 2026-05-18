@@ -1,7 +1,7 @@
 """Structural lint for internal analyst-spec pages.
 
-Operation specs under ``docs/internal/api/<resource>/operations/*.html`` follow the template at
-``docs/internal/api/_shared/spec-template.html``. The template marks every required section with
+Operation specs under ``services/portal/internal/api/<resource>/operations/*.html`` follow the template at
+``services/portal/internal/api/_shared/spec-template.html``. The template marks every required section with
 ``data-spec-section="<id>"`` and ``data-spec-required="true"``; this script verifies that each
 real operation spec carries the same section IDs, that none is empty (only ``TODO`` content),
 and that the body-level metadata is present and consistent with the metadata strip.
@@ -25,7 +25,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OPERATIONS_GLOB = "docs/internal/api/*/operations/*.html"
+OPERATIONS_GLOB = "services/portal/internal/api/*/operations/*.html"
 
 REQUIRED_SECTIONS: tuple[str, ...] = (
     "business-context",

@@ -7,8 +7,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-DX_PATH = ROOT / "docs/audit/docs/2026-04-14-documentation-experience-assessment.html"
-API_PATH = ROOT / "docs/audit/api/2026-04-14-rest-api-assessment.html"
+DX_PATH = (
+    ROOT
+    / "services/portal/internal/governance/audit/docs/2026-04-14-documentation-experience-assessment.html"
+)
+API_PATH = (
+    ROOT / "services/portal/internal/governance/audit/api/2026-04-14-rest-api-assessment.html"
+)
 
 # One line per Table 2 row (25 DX rows)
 DX_JUSTIFICATIONS = [
@@ -35,7 +40,7 @@ DX_JUSTIFICATIONS = [
     "Env templates and placeholder discipline match good practice.",
     "Issues/PR path exists; in-page thumbs not required.",
     "No default first-party docs analytics pipeline.",
-    "Runbooks under docs/runbooks; on-call roster outside repo.",
+    "Runbooks under services/portal/runbooks; on-call roster outside repo.",
     "PET-appropriate: docs site, not a billing portal.",
 ]
 

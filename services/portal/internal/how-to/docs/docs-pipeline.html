@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How-to · Documentation pipeline · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Docs · Documentation pipeline</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Docs</span>
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+        </div>
+        <h1>Documentation pipeline (docs-as-code)</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">What <code>make docs-fix</code> generates, which paths are machine-owned, and how <code>make docs-check</code> catches drift. Policy: <a href="../../governance/adr/0001-docs-as-code.html">ADR 0001</a>.</p>
+      </header>
+
+      <h2 id="docs-fix">make docs-fix stages</h2>
+      <p>Each stage runs in order. All steps are idempotent — running twice produces the same result.</p>
+      <ol>
+        <li><strong>UML rendering</strong> — <code>scripts/regenerate_docs.py</code> sends <code>services/portal/internal/uml/**/*.puml</code> to Kroki and writes SVGs under <code>services/portal/internal/uml/rendered/</code>. Requires network. Commit the SVGs after running.</li>
+        <li><strong>Marker sync</strong> — <code>scripts/sync_docs.py</code> overwrites marker blocks in: <code>README.md</code>, <code>services/portal/internal/analysis/system-design.html</code>, <code>services/portal/internal/handbook/howto/0003-make-commands-inventory.html</code>, and <code>services/portal/internal/api/errors.html</code>. Source data: Makefile targets and FastAPI routes. Prose outside markers is never touched. Environment variables are documented in <code>env/example</code> only — not injected into README.</li>
+        <li><strong>Markdown → HTML (optional)</strong> — <code>scripts/render_docs_html.py</code> rewrites the <code>.html</code> file next to any <code>.md</code> in <code>services/portal/internal/governance/adr/</code>, <code>services/portal/internal/handbook/developer/</code>, or <code>services/portal/internal/sre/runbooks/</code>. Only runs when companion <code>.md</code> files exist.</li>
+        <li><strong>HTML normalization</strong> — <code>scripts/format_docs_html.py</code> normalizes all <code>services/portal/**/*.html</code> except <code>services/portal/internal/governance/backlog/</code> and <code>services/portal/pdoc/</code>.</li>
+        <li><strong>Python API reference</strong> — <code>pdoc</code> runs on the <code>app</code> package and writes HTML under <code>services/portal/pdoc/</code>. Commit this tree so GitHub Pages serves <code>pdoc/index.html</code> alongside the rest of <code>services/portal/</code>.</li>
+        <li><strong>Search index</strong> — <code>scripts/build_docs_search_index.py</code> writes <code>services/frontend/portal/assets/search-index.json</code> for client-side search.</li>
+      </ol>
+
+      <h2 id="managed">Generated and managed paths</h2>
+      <p>Paths below are either fully generated (do not hand-edit) or partially managed (markers only). Everything else is hand-edited HTML.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Path / pattern</th><th scope="col">Owner</th><th scope="col">Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>services/portal/internal/uml/rendered/*.svg</code></td><td>Generated — <code>regenerate_docs.py</code></td><td>Edit the <code>.puml</code> source; commit SVGs after <code>docs-fix</code>.</td></tr>
+            <tr><td>Marker blocks in <code>README.md</code>, <code>system-design.html</code>, <code>0003-make-commands-inventory.html</code>, <code>errors.html</code></td><td>Partially managed — <code>sync_docs.py</code></td><td>Inside markers: auto-overwritten. Outside: hand-edited prose.</td></tr>
+            <tr><td><code>env/example</code></td><td>Hand-maintained</td><td>Authoritative env reference. Copied to <code>.env</code> via <code>make env-init</code>; not injected into README.</td></tr>
+            <tr><td><code>services/portal/**/*.html</code> (except backlog, pdoc)</td><td>Hand-edited, normalized</td><td>Prose for ADRs, runbooks, developer guides. Normalized by <code>format_docs_html.py</code> on each <code>docs-fix</code> run.</td></tr>
+            <tr><td><code>services/portal/pdoc/</code></td><td>Generated — <code>pdoc</code></td><td>From Python docstrings on <code>app</code>. Commit the tree after <code>docs-fix</code>.</td></tr>
+            <tr><td><code>services/portal/public/reference/api/openapi-baseline.json</code></td><td>Managed — OpenAPI governance</td><td>Updated via <code>make openapi-accept-changes</code>, not <code>docs-fix</code>.</td></tr>
+            <tr><td><code>services/portal/public/reference/api/index.html</code></td><td>Hand-maintained</td><td>Static Swagger UI (browse-only). Legacy <code>openapi-explorer.html</code> redirects here.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="docs-check">make docs-check (CI gate)</h2>
+      <p><code>docs-check</code> saves <code>git diff HEAD</code>, runs <code>docs-fix</code>, then compares the two diffs. If they differ, <code>docs-fix</code> changed something — commit the result before pushing.</p>
+      <p>Files that <code>docs-fix</code> never touches are unaffected. If generated output already matches <code>HEAD</code>, the two diffs are identical and the check passes.</p>
+
+      <h2 id="pdoc">Python API reference (pdoc)</h2>
+      <p>HTTP contracts are covered by OpenAPI and developer guides. Internal Python modules — packages, classes, functions — are documented from docstrings via <a href="https://pdoc.dev/">pdoc</a>, similar in spirit to Rust's <code>cargo doc</code>.</p>
+      <p>Use Google-style docstrings; template and checklist: <a href="../../governance/adr/0016-python-docstrings-google-style-and-pdoc.html">ADR 0016</a>. Run <code>make install</code> then <code>make docs-fix</code> to refresh. Output goes to <code>services/portal/pdoc/</code>; commit it with other doc updates.</p>
+
+      <h2 id="inpage-toc">In-page "On this page" sidebar</h2>
+      <p>Pages that load <code>docs-nav.js</code> automatically render a sticky outline beside the article — no HTML mount is required. The script builds anchor links from all <code>h2</code> / <code>h3</code> headings (generating an <code>id</code> where missing). Headings inside <code>figure.sys-diagram</code> and <code>p.lead</code> are excluded.</p>
+      <p>To opt a single page out of the auto-TOC, mark its <code>&lt;main&gt;</code> with <code>data-inpage-toc="off"</code>.</p>
+      <p>Do not write a manual "Contents" block on pages that use this script — it will duplicate the generated sidebar. If the sidebar is missing, see <a href="../runbooks/0010-in-page-toc-missing.html">Runbook: In-page sidebar missing or empty</a>.</p>
+
+      <h2 id="versioning">Versioning and optional publishing</h2>
+      <p><strong>Default:</strong> docs live in git alongside code. After a feature merges to <code>main</code>, <code>services/portal/</code> reflects the current state. Release history uses <a href="../../governance/adr/0013-changelog-and-release-notes.html">ADR 0013</a> and git tags.</p>
+      <p><strong>GitHub Pages</strong> from the <code>services/portal/</code> folder: Settings → Pages → Deploy from branch → <code>/docs</code>. Add <code>services/portal/.nojekyll</code> so GitHub skips Jekyll. Project-site URLs use <code>/{repo}/…</code> without a <code>/docs/</code> segment — the top nav script handles this layout automatically.</p>
+      <p><strong>Versioned prose site</strong> (optional): add MkDocs or Docusaurus, publish from CI on version tags, keep <code>docs-fix</code> for UML and marker sync until you migrate those steps. Docs-only PRs may merge before implementation lands; follow-up PRs carry code.</p>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; managed-paths table on <code>docs-table--sticky-head --zebra</code>; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-04-28</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Restructured: fixed broken section markup, added hero, condensed versioning section.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#docs-fix">make docs-fix stages</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#managed">Managed paths</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#docs-check">make docs-check (CI)</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#pdoc">Python API (pdoc)</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#inpage-toc">In-page TOC sidebar</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#versioning">Versioning &amp; publishing</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

@@ -21,9 +21,9 @@
 
 ### For `docs-only`
 
-- [ ] Document type and structure validated against `docs/internal/front/documentation-style-guide.html`.
+- [ ] Document type and structure validated against `services/portal/internal/front/documentation-style-guide.html`.
 - [ ] Related hubs/indexes/cross-links updated where needed.
-- [ ] Internal docs layout/sidebar consistency verified (when `docs/internal/` changed).
+- [ ] Internal docs layout/sidebar consistency verified (when `services/portal/internal/` changed).
 - [ ] Docs normalization passed: `make docs-fix`.
 - [ ] Docs drift/validation passed: `make docs-check`.
 
@@ -31,7 +31,7 @@
 
 - [ ] I validated terminology consistency and naming conventions across affected pages.
 - [ ] I checked links/navigation for changed or new docs pages.
-- [ ] I reviewed this PR against `docs/internal/front/documentation-style-guide.html`.
+- [ ] I reviewed this PR against `services/portal/internal/front/documentation-style-guide.html`.
 - [ ] If policy/process changed, I updated related ADR/RFC/docs references in this PR.
 
 ## Testing notes
@@ -44,5 +44,5 @@
 ## Changelog
 
 - [ ] Updated `CHANGELOG.md` (user-facing changes).
-- [ ] Updated `docs/CHANGELOG.md` (documentation-facing changes).
+- [ ] Updated `services/portal/CHANGELOG.md` (documentation-facing changes).
 - [ ] No changelog update needed (`[skip changelog]` rationale is explicit).

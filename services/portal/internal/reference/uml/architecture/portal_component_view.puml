@@ -1,0 +1,58 @@
+@startuml
+title ETR Study Portal — C4 Level 3 (components)
+
+top to bottom direction
+
+actor "Integrator\n(public reader)" as Integrator
+actor "Maintainer\n(internal reader)" as Maintainer
+
+package "Authored sources" as Sources {
+  [HTML pages\n(ADRs, RFCs, handbook,\nspecs, audits, analysis)] as HTML
+  [PlantUML\n.puml] as PUML
+  [Python modules\n(docstrings)] as PySrc
+  [CSS / JS\nassets] as CSS
+}
+
+package "Build pipeline\n(scripts/regenerate_docs.py)" as Build {
+  [PlantUML render\nvia Kroki] as KrokiRender
+  [pdoc\nAPI code reference] as Pdoc
+  [Docs search indexer\nbuild_docs_search_index.py] as Indexer
+  [Asset copy /\nfingerprint] as Assets
+}
+
+package "Static portal\n(services/portal/)" as Output {
+  [public/\nintegrator-facing] as Public
+  [internal/\nmaintainer-facing] as Internal
+  [rendered/*.svg] as RenderedSvg
+  [search-index.json] as SearchIdx
+}
+
+rectangle "nginx-alpine\nimage (per ADR 0028)" as Nginx
+
+PUML --> KrokiRender
+PySrc --> Pdoc
+HTML --> Indexer
+CSS --> Assets
+
+KrokiRender --> RenderedSvg
+Pdoc --> Internal
+Indexer --> SearchIdx
+Assets --> Public
+Assets --> Internal
+HTML --> Public
+HTML --> Internal
+RenderedSvg --> Public
+RenderedSvg --> Internal
+
+Public ..> Nginx
+Internal ..> Nginx
+
+Nginx --> Integrator : HTTPS · static
+Nginx --> Maintainer : HTTPS · static
+
+note bottom of Output
+  Build is offline-friendly: Kroki is invoked only when
+  PUML sources change (input-hashes.json fingerprint cache).
+end note
+
+@enduml

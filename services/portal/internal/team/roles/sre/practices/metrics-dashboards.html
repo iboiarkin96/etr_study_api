@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metrics &amp; Dashboards — Practice 07 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Metrics &amp; Dashboards</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <p class="pa-eyebrow">
+      <span class="pa-eyebrow__num">07</span>
+      <span class="pa-eyebrow__group">Group B · Observability</span>
+      <span class="pa-scorebar"><span class="pa-scorebar__asis">4.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span class="pa-scorebar__hint">AS-IS → TO-BE</span></span>
+    </p>
+    <h1 class="pa-title">Metrics &amp; Dashboards — four golden signals, versioned as code</h1>
+    <div id="docs-top-nav"></div>
+    <p class="pa-lead">Every service exposes the four golden signals. Every dashboard is stored in git, reviewed before merge, and linked from the runbook. A service without a canonical dashboard is a service without observability.</p>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">The four golden signals (latency, traffic, errors, saturation) are the minimum viable metric set for any user-facing service. Every service exposes them via a standard Prometheus/StatsD library. Dashboards are versioned as Grafana JSON in git, reviewed by at least one other engineer before merge, and linked from the service's runbook. A dashboard built during an incident is too late; a dashboard reviewed before production is what enables fast diagnosis when it matters.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Four golden signals">
+      <svg viewBox="0 0 720 175" role="img" aria-label="The four golden signals of monitoring">
+        <g font-family="ui-monospace,Menlo,Consolas,monospace">
+          <rect class="pa-svg-box pa-svg-box--accent" x="20" y="30" width="155" height="110" rx="8"></rect>
+          <text class="pa-svg-text pa-svg-text--accent" x="97" y="58" text-anchor="middle" font-size="12" font-weight="700">Latency</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="97" y="76" text-anchor="middle" font-size="10">P50 / P99 / P999</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="97" y="94" text-anchor="middle" font-size="10">success vs error</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="97" y="112" text-anchor="middle" font-size="10">latency separately</text>
+          <rect class="pa-svg-box" x="190" y="30" width="155" height="110" rx="8"></rect>
+          <text class="pa-svg-text" x="267" y="58" text-anchor="middle" font-size="12" font-weight="700">Traffic</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="267" y="76" text-anchor="middle" font-size="10">requests/sec</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="267" y="94" text-anchor="middle" font-size="10">or messages/sec</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="267" y="112" text-anchor="middle" font-size="10">demand on system</text>
+          <rect class="pa-svg-box pa-svg-box--good" x="360" y="30" width="155" height="110" rx="8"></rect>
+          <text class="pa-svg-text pa-svg-text--good" x="437" y="58" text-anchor="middle" font-size="12" font-weight="700">Errors</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="437" y="76" text-anchor="middle" font-size="10">rate of failed</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="437" y="94" text-anchor="middle" font-size="10">requests (explicit</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="437" y="112" text-anchor="middle" font-size="10">+ implicit)</text>
+          <rect class="pa-svg-box" x="530" y="30" width="170" height="110" rx="8"></rect>
+          <text class="pa-svg-text" x="615" y="58" text-anchor="middle" font-size="12" font-weight="700">Saturation</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="615" y="76" text-anchor="middle" font-size="10">how full is the</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="615" y="94" text-anchor="middle" font-size="10">most constrained</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="615" y="112" text-anchor="middle" font-size="10">resource</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="360" y="162" text-anchor="middle" font-size="10" font-style="italic">if all four look normal, the service is almost certainly healthy</text>
+        </g>
+      </svg>
+      <figcaption class="pa-figure__caption">The four golden signals from Google SRE. If any one is degraded, investigate. If all four are normal, the service is healthy.</figcaption>
+    </figure>
+
+    <section id="what" class="pa-section">
+      <h2>What it is</h2>
+      <p>Google SRE identified <strong>four golden signals</strong> as the minimum viable metric set for any service:</p>
+      <ul>
+        <li><strong>Latency:</strong> Time to serve a request. Measure P50, P99, and P999 separately. Crucially, measure success and error latency separately — a spike in error latency that looks normal in the aggregate may be masking a serious failure mode.</li>
+        <li><strong>Traffic:</strong> The volume of demand on the system — requests per second, messages per second, transactions per second.</li>
+        <li><strong>Errors:</strong> The rate of requests that fail — both explicit failures (5xx responses) and implicit failures (200 responses with an error payload, or responses missing required data).</li>
+        <li><strong>Saturation:</strong> How full the most constrained resource is. For CPU-bound services, CPU utilisation. For memory-bound services, memory utilisation. For I/O-bound services, queue depth. Saturation often predicts latency degradation before it becomes visible in the latency signal.</li>
+      </ul>
+      <p>Dashboards-as-code: every Grafana dashboard is stored as JSON in a git repository, reviewed before merge (the same as application code), and deployed via a pipeline — not through the Grafana UI directly.</p>
+    </section>
+
+    <section id="why" class="pa-section">
+      <h2>Why we need it</h2>
+      <p>Ad hoc dashboards built during an incident are too late. They're built under stress, by an engineer who is simultaneously diagnosing the problem, and they're never maintained after the incident. Dashboards-as-code enforce a different discipline: the dashboard is reviewed before the service reaches production, by engineers who are not in crisis mode, and it's reproducible across environments.</p>
+      <p>The four golden signals give the minimum viable signal set. If all four look normal, the service is almost certainly healthy. If any one is degraded, it's a signal that something requires investigation. This simplicity is a feature — on-call engineers during an incident need fast answers, not 40-panel dashboards that take 5 minutes to interpret.</p>
+    </section>
+
+    <section id="industry" class="pa-section">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Google SRE</p>
+          <p class="pa-industry__what">Google codified the four golden signals in the SRE Book and builds their internal monitoring infrastructure around them. Every Google service has a canonical monitoring dashboard that shows the four signals plus SLO burn rate. The dashboard is linked from the service's on-call runbook and is the first thing an on-call engineer opens when paged.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Link the canonical dashboard from the runbook. When an on-call engineer is paged, they should not have to search for the right dashboard — it should be one click from the alert that fired. The runbook and the dashboard are the same artifact in two views.</p>
+          <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/monitoring-distributed-systems/" rel="noopener">Google SRE Book — Monitoring</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Grafana Labs</p>
+          <p class="pa-industry__what">Grafana Labs ships "Mixin" — a pattern for packaging Grafana dashboards as code alongside the Prometheus alerts and recording rules for a specific service or library. Mixins are published as npm/Go modules. Teams import the mixin for a third-party service (PostgreSQL, Redis, NGINX) and get the dashboards, alerts, and recording rules pre-configured, without having to build them from scratch.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Adopt mixins for the infrastructure services. Grafana's postgres-mixin, redis-mixin, and nginx-mixin are production-quality dashboards built by experts for those specific systems. Spending 3 days building a custom Postgres dashboard when the mixin already exists is wasted engineering time.</p>
+          <p class="pa-industry__source">Source: <a href="https://grafana.com/docs/grafana/latest/dashboards/" rel="noopener">Grafana Dashboard Documentation</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy" class="pa-section">
+      <h2>Anatomy</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Shared instrumentation library</p><p class="pa-anatomy__hint">One Prometheus client library per language, pre-configured to expose the four golden signals with consistent metric names and label schemas. Services import it; they don't configure Prometheus by hand.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Dashboard-as-code</p><p class="pa-anatomy__hint">Grafana JSON stored in a dashboards/ git repo. Reviewed by at least one other engineer before merge. Deployed via a CI pipeline that pushes to Grafana via the API. Editing the Grafana UI directly is forbidden — changes must go through the git workflow.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Runbook link</p><p class="pa-anatomy__hint">Every canonical dashboard is linked from the service's runbook. Every alert rule includes a link to the dashboard panel showing the alerting signal. No hunting for the right dashboard during an incident.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Quarterly dashboard review</p><p class="pa-anatomy__hint">Stale panels are removed, new signals added, panel thresholds recalibrated. A dashboard with 40% stale panels is worse than no dashboard — it creates noise and erodes trust in the signals that are accurate.</p></div>
+      </div>
+    </section>
+
+    <section id="pitfalls" class="pa-section">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+        <table class="pa-pitfalls">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr><td>40-panel dashboards no one understands</td><td>"More data is better."</td><td>The canonical dashboard for a service should have 8–12 panels: the four golden signals + SLO burn rate + 2–3 service-specific signals. Additional detail lives in sub-dashboards linked from annotations, not on the main dashboard.</td></tr>
+            <tr><td>Dashboards built in the UI, never in code</td><td>Grafana's UI is easy to use; git is friction.</td><td>Lock down direct UI edits for the canonical dashboards (Grafana RBAC). Engineers who need to explore use temporary dashboards in a sandbox folder; those dashboards are not linked from runbooks or alerts.</td></tr>
+            <tr><td>Separate metric namespaces per service</td><td>Teams pick their own label names without coordination.</td><td>Enforce a canonical label schema: <code>service</code>, <code>environment</code>, <code>region</code>, <code>version</code>. Without it, cross-service queries are impossible and SLO calculations break when you try to aggregate across services.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <nav class="docs-next-steps" aria-label="See also">
+      <p class="docs-next-steps__heading">See also</p>
+      <ul class="docs-next-steps__list">
+        <li><a class="docs-next-steps__item" href="slo-error-budget.html">Practice 01 — SLO &amp; Error Budget</a></li>
+        <li><a class="docs-next-steps__item" href="alerting-design.html">Practice 09 — Alerting design</a></li>
+        <li><a class="docs-next-steps__item" href="../radar.html">SRE practices radar</a></li>
+      </ul>
+    </nav>
+
+    <section id="page-history" class="pa-section">
+      <h2>Page history</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Page history">
+        <table class="docs-page-history">
+          <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+          <tbody>
+            <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+              <td>Initial version: Metrics &amp; Dashboards practice for SRE radar.</td>
+              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+    <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+    <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

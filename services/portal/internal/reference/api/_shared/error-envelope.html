@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Error envelope · API · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">API</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Error envelope</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Reference</span>
+          <span class="docs-pill docs-pill--warn">API</span>
+          <span class="docs-pill docs-pill--neutral">Shared</span>
+        </div>
+        <h1>Error envelope — shared contract</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Every non-2xx HTTP response from <code>/api/v1/**</code> carries a uniform JSON envelope. The envelope shape is governed by <a href="../../../governance/adr/0003-error-contract-governance.html">ADR 0003</a>; this page is the operational summary linked from per-operation Error catalog tables.</p>
+      </header>
+
+      <h2 id="schema">Schema</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Error envelope schema">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>code</code></td><td>string</td><td>Yes</td>
+              <td>Stable, machine-readable error code grouped by domain: <code>COMMON_…</code>, <code>USER_…</code>, <code>CONS_…</code>, <code>ERR_…</code>. Pattern <code>^[A-Z]+_(?:[0-9]{3}|[0-9]{1,4})$</code>. Append-only; renames forbidden.</td>
+            </tr>
+            <tr>
+              <td><code>key</code></td><td>string</td><td>Yes</td>
+              <td>Symbolic key suitable for i18n / log search: <code>SCREAMING_SNAKE_CASE</code>. Pairs 1:1 with <code>code</code>. Append-only.</td>
+            </tr>
+            <tr>
+              <td><code>message</code></td><td>string</td><td>Yes</td>
+              <td>Human-readable English message. <strong>Not</strong> for end-user display — clients translate <code>key</code>. 1–256 chars. Wording may change without ADR; the key/code stays.</td>
+            </tr>
+            <tr>
+              <td><code>source</code></td><td>string</td><td>Yes</td>
+              <td>Logical originator: <code>{resource}.{action}</code> or middleware identifier. Pattern <code>^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$</code>.</td>
+            </tr>
+            <tr>
+              <td><code>details</code></td><td>object | array</td><td>Optional</td>
+              <td>Operation-specific structured payload. Validation: array of <code>{loc, msg, type}</code>. Business conflicts: object with relevant identifiers. No PII, no secrets, no stack traces.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="examples">Examples</h2>
+      <h3>Simple — missing idempotency header</h3>
+      <pre class="docs-code"><code class="language-http">HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+"code": "COMMON_400",
+"key": "IDEMPOTENCY_KEY_REQUIRED",
+"message": "Missing required `Idempotency-Key` header for write operation.",
+"source": "middleware.idempotency"
+}
+      </code></pre>
+
+      <h3>With <code>details</code> — validation error</h3>
+      <pre class="docs-code"><code class="language-http">HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/json
+
+{
+"code": "COMMON_000",
+"key": "COMMON_VALIDATION_ERROR",
+"message": "Request validation failed.",
+"source": "conspectus.review",
+"details": [
+{
+"loc": ["body", "tag"],
+"msg": "value is not a valid enumeration member; permitted: 'easy', 'hard', 'forgot'",
+"type": "type_error.enum"
+}
+]
+}
+      </code></pre>
+
+      <h3>With <code>details</code> — business conflict</h3>
+      <pre class="docs-code"><code class="language-http">HTTP/1.1 409 Conflict
+Content-Type: application/json
+
+{
+"code": "CONS_409",
+"key": "CONSPECTUS_REVIEW_REVISION_CONFLICT",
+"message": "Schedule revision changed since you read it; re-fetch and retry.",
+"source": "conspectus.review",
+"details": {
+"expected_schedule_revision": 7,
+"actual_schedule_revision": 9
+}
+}
+      </code></pre>
+
+      <h2 id="rules">Authoring rules for new errors</h2>
+      <ol>
+        <li>Pick the right domain prefix (<code>COMMON_</code> / <code>USER_</code> / <code>CONS_</code> / <code>ERR_</code>).</li>
+        <li>Allocate the next free numeric suffix per <a href="error-catalog.html">error catalog</a>. <strong>Never</strong> reuse a retired number.</li>
+        <li>Define <code>code</code>, <code>key</code>, English <code>message</code> in <code>app/errors/&lt;domain&gt;.py</code>.</li>
+        <li>Pick a <code>source</code> that already exists, or extend the convention only by ADR.</li>
+        <li>Document the new error on the operation spec page (Section 12 — Error catalog) and run the consistency lint.</li>
+        <li><code>details</code> shape is operation-local — describe it in the spec, attach an OpenAPI example.</li>
+      </ol>
+
+      <h2 id="anti-patterns">Anti-patterns</h2>
+      <ul>
+        <li><strong>Branching on HTTP status alone.</strong> Always read <code>code</code> / <code>key</code>; HTTP status loses information (e.g. four different <code>404</code>s).</li>
+        <li><strong>PII or secrets in <code>message</code> or <code>details</code>.</strong> The error envelope is logged and emailed to integrators — keep it sterile.</li>
+        <li><strong>Stack traces or stack frames.</strong> Forbidden in production responses. Include the <code>X-Request-Id</code> instead so support can find the trace server-side.</li>
+        <li><strong>Localised <code>message</code>.</strong> Always English; localisation is the client's job using <code>key</code>.</li>
+        <li><strong>Renaming an existing <code>code</code> or <code>key</code>.</strong> Forbidden — clients build dashboards and alerting on these strings.</li>
+        <li><strong>Free-form <code>details</code> per call.</strong> Define the shape per error key and stick to it; otherwise dashboards break.</li>
+      </ul>
+
+      <h2 id="traceability">Traceability</h2>
+      <ul>
+        <li><strong>ADR:</strong> <a href="../../../governance/adr/0003-error-contract-governance.html">0003 — error contract governance</a>.</li>
+        <li><strong>Catalog:</strong> <a href="error-catalog.html">error-catalog</a> — every <code>code/key</code> registered there.</li>
+        <li><strong>Code home:</strong> <code>app/errors/common.py</code>, <code>app/errors/user.py</code>, <code>app/errors/conspectus.py</code>, …</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; envelope schema on <code>docs-table--sticky-head</code>, examples on <code>docs-code language-http</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-04-29</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Phase 3: created shared error-envelope overlay aligned with ADR 0003.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#schema">Schema</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#examples">Examples</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rules">Authoring rules</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Anti-patterns</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#traceability">Traceability</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

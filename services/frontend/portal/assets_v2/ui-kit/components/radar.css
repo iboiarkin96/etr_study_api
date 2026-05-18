@@ -1,0 +1,345 @@
+/* ui-kit/components/radar.css
+   Skills / maturity radar — two-polygon "now vs. target" plot on N axes.
+
+   Mount via [data-component="radar"]. The component renders a self-contained
+   SVG plus an axis legend grid; both share the same axis index so each card
+   underneath the chart hover-syncs with the matching SVG vertex.
+
+   Tokens consumed:
+     --bg-elev, --bg-mute, --line, --line-soft, --text, --text-strong, --muted
+     --accent, --accent-2 (axis labels, dots-now)
+     --rose, --teal       (now / target polygon tones)
+     --space-*, --radius-*, --shadow-*, --ease-out
+
+   Markup outline (post-mount):
+     <figure class="docs-radar" data-component="radar"
+             data-axes='[{"label":"…","now":3,"target":5,"group":"A"}]'
+             data-scale="5">
+       <svg class="docs-radar__svg" …>…</svg>
+       <figcaption class="docs-radar__caption">…</figcaption>
+       <ol class="docs-radar__legend">…</ol>
+     </figure>
+*/
+
+.docs-radar {
+  --radar-now-stroke: var(--rose);
+  --radar-now-fill:   color-mix(in srgb, var(--rose) 14%, transparent);
+  --radar-to-stroke:  var(--teal);
+  --radar-to-fill:    color-mix(in srgb, var(--teal) 16%, transparent);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+  margin: var(--space-5) 0;
+  padding: var(--space-5);
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─── Chart side ─────────────────────────────────────────────────────── */
+
+.docs-radar__chart {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.docs-radar__svg {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  overflow: visible;
+}
+
+/* Concentric scale rings (1..N polygons) */
+.docs-radar__ring {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.docs-radar__ring--outer {
+  stroke: color-mix(in srgb, var(--line) 60%, var(--text));
+}
+
+/* Axis spokes from center → outer label */
+.docs-radar__axis-line {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+/* Scale numbers along the first axis (1..N) */
+.docs-radar__scale-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--muted);
+  paint-order: stroke;
+  stroke: var(--bg-elev);
+  stroke-width: 3px;
+}
+
+/* Axis label outside the outer ring */
+.docs-radar__axis-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: var(--fw-semibold, 600);
+  fill: var(--text-strong);
+}
+.docs-radar__axis-label-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+/* Polygons */
+.docs-radar__poly--now {
+  fill: var(--radar-now-fill);
+  stroke: var(--radar-now-stroke);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  transition: fill 200ms var(--ease-out), stroke-opacity 200ms var(--ease-out);
+}
+.docs-radar__poly--target {
+  fill: var(--radar-to-fill);
+  stroke: var(--radar-to-stroke);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 3;
+  stroke-linejoin: round;
+  transition: fill 200ms var(--ease-out), stroke-opacity 200ms var(--ease-out);
+}
+
+/* Vertex dots */
+.docs-radar__dot {
+  stroke: var(--bg-elev);
+  stroke-width: 2;
+  transition: r 160ms var(--ease-out);
+}
+.docs-radar__dot--now    { fill: var(--radar-now-stroke); }
+.docs-radar__dot--target { fill: var(--radar-to-stroke); }
+
+/* Hot-spot per axis — invisible quad that captures hover for both dots
+   plus the legend row. */
+.docs-radar__axis-hot {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.docs-radar__axis[data-active="true"] .docs-radar__dot,
+.docs-radar:not(:hover) .docs-radar__axis:focus-within .docs-radar__dot {
+  r: 6;
+}
+.docs-radar__axis[data-active="true"] .docs-radar__axis-label {
+  fill: var(--accent);
+}
+
+/* Optional caption below the SVG (e.g. "Self-assessment · 2026-05-17"). */
+.docs-radar__caption {
+  font-size: var(--fs-200);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ─── Legend side ───────────────────────────────────────────────────── */
+
+.docs-radar__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.docs-radar__title {
+  margin: 0;
+  font-size: var(--fs-500);
+  font-weight: var(--fw-semibold, 600);
+  color: var(--text-strong);
+  letter-spacing: -0.005em;
+}
+
+.docs-radar__subtitle {
+  margin: 0;
+  font-size: var(--fs-300);
+  color: var(--muted);
+  line-height: var(--lh-base, 1.55);
+}
+
+.docs-radar__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+.docs-radar__key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-200);
+  color: var(--muted);
+}
+
+.docs-radar__swatch {
+  width: 16px;
+  height: 10px;
+  border-radius: var(--radius-xs);
+  display: inline-block;
+}
+.docs-radar__swatch--now {
+  background: var(--radar-now-fill);
+  border: 1.5px solid var(--radar-now-stroke);
+}
+.docs-radar__swatch--target {
+  background: var(--radar-to-fill);
+  border: 1.5px dashed var(--radar-to-stroke);
+}
+
+/* Axis legend list — one row per axis, syncs with the SVG. */
+.docs-radar__legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  border-top: 1px solid var(--line-soft, var(--line));
+  padding-top: var(--space-3);
+}
+
+.docs-radar__legend > li {
+  margin: 0;
+}
+
+.docs-radar__row {
+  display: grid;
+  grid-template-columns:
+    minmax(20px, auto)        /* badge */
+    minmax(0, 1fr)            /* label */
+    minmax(0, max-content)    /* scores */
+    minmax(64px, max-content);/* delta */
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 160ms var(--ease-out),
+    border-color 160ms var(--ease-out);
+}
+
+.docs-radar__row:hover,
+.docs-radar__row:focus-visible,
+.docs-radar__row[data-active="true"] {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-mute));
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
+  outline: none;
+}
+
+.docs-radar__badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--fw-semibold, 600);
+  color: var(--text-on-accent, #fff);
+  background: var(--accent);
+}
+.docs-radar__badge[data-group="A"] { background: var(--accent); }
+.docs-radar__badge[data-group="B"] { background: var(--info, var(--accent)); }
+.docs-radar__badge[data-group="C"] { background: var(--teal, var(--accent)); }
+.docs-radar__badge[data-group="D"] { background: var(--warn, var(--accent)); }
+.docs-radar__badge[data-group="E"] { background: var(--rose, var(--accent)); }
+.docs-radar__badge[data-group="F"] { background: var(--success, var(--accent)); }
+
+.docs-radar__label {
+  font-size: var(--fs-300);
+  color: var(--text-strong);
+  line-height: var(--lh-snug, 1.35);
+  font-weight: var(--fw-medium, 500);
+  min-width: 0;
+}
+
+.docs-radar__scores {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.docs-radar__score {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-mute);
+}
+.docs-radar__score-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.docs-radar__score-dot--now    { background: var(--radar-now-stroke); }
+.docs-radar__score-dot--target { background: var(--radar-to-stroke); }
+
+.docs-radar__delta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.docs-radar__delta[data-tone="up"]   { color: var(--success, var(--teal)); }
+.docs-radar__delta[data-tone="flat"] { color: var(--muted); }
+.docs-radar__delta[data-tone="down"] { color: var(--rose); }
+
+/* ─── Layouts ────────────────────────────────────────────────────────── */
+
+/* Stack on tablet — chart over legend. */
+@media (max-width: 1024px) {
+  .docs-radar {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 760px) {
+  .docs-radar {
+    padding: var(--space-4);
+  }
+  .docs-radar__svg {
+    max-width: 100%;
+  }
+  .docs-radar__row {
+    grid-template-columns:
+      minmax(20px, auto)
+      minmax(0, 1fr)
+      minmax(0, max-content);
+    row-gap: var(--space-1);
+  }
+  .docs-radar__delta {
+    grid-column: 2 / -1;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-radar__poly--now,
+  .docs-radar__poly--target,
+  .docs-radar__dot,
+  .docs-radar__row {
+    transition: none;
+  }
+}

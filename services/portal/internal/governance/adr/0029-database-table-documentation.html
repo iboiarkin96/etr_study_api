@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0029 · Database table documentation conventions · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0029</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0029</span> <span class="docs-pill docs-pill--warn">Proposed</span></p>
+        <h1>Database table documentation conventions and template</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+          Normative naming and column conventions for every table in <code>app/models/</code>, plus a fixed-shape per-table documentation template under <code>services/portal/internal/catalog/api/data/</code>.
+        </p>
+      </header>
+
+      <section aria-labelledby="ratification-h">
+        <h2 id="ratification-h">Ratification</h2>
+        <article class="docs-card">
+          <div class="docs-card__body">
+            <p>Proposed on 2026-05-08. Discussion follows the lifecycle defined in <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a> — open a GitHub Issue titled <code>[ADR] Database table documentation conventions</code>, link the merge PR, record the acceptance date once ratified.</p>
+            <ul>
+              <li>Discussion Issue: <em>pending</em></li>
+              <li>Merge PR: <em>pending</em></li>
+              <li>Accepted: <em>pending</em></li>
+            </ul>
+          </div>
+        </article>
+      </section>
+
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p>The application persists state in a relational store (SQLite today per <a href="0015-container-image.html">ADR 0015</a>; the schema is portable to PostgreSQL). Twenty-plus columns across the existing ORM models (<code>app/models/core/</code>, <code>app/models/reference/</code>) already follow consistent — but unwritten — conventions: UUID primary keys, timezone-aware audit timestamps, soft-delete flags, indexed foreign keys, snake_case plural table names. Until now, that convention lived only in code review and in maintainers' heads.</p>
+        <p>New collaborators have no normative reference for "what does a well-formed table look like in this repo?" — and there is no canonical place where each table's <em>business meaning</em>, <em>lifecycle</em>, and the <em>HTTP endpoints that write or read it</em> are documented. The OpenAPI baseline describes the wire shape; the ORM source describes the column layout; nothing in <code>services/portal/</code> joins those two views into a single authoritative table-level narrative.</p>
+        <p>We need (a) a normative naming and structural convention for tables and columns, and (b) a fixed-shape documentation template for each table, with the table specs reachable from both the internal API hub and the catalog entity for the <code>api</code> service.</p>
+      </section>
+
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+
+        <h3>1. Naming conventions</h3>
+        <ul>
+          <li>Table names are <strong>snake_case, plural</strong> (e.g. <code>users</code>, <code>systems</code>, <code>invalidation_reasons</code>, <code>timezones</code>, <code>idempotency_keys</code>). The plural form makes the cardinality unambiguous in joins.</li>
+          <li>Column names are <strong>snake_case, singular</strong>, and describe the value, not its representation (e.g. <code>created_at</code>, not <code>created_dt</code>; <code>full_name</code>, not <code>name_str</code>).</li>
+          <li>Primary keys for <strong>core business tables</strong> are UUID strings stored as <code>String(36)</code>, named <code>&lt;entity_singular&gt;_uuid</code> (e.g. <code>client_uuid</code> for <code>users</code>, <code>system_uuid</code> for <code>systems</code>). Stable across systems; never expose autoincrement integers in API surfaces.</li>
+          <li>Primary keys for <strong>reference tables</strong> may be a short stable <code>code</code> string (e.g. <code>timezones.code</code> = <code>"Europe/Moscow"</code>) when the value is itself the canonical identifier in an external dictionary (IANA, ISO).</li>
+          <li>Foreign-key columns mirror the referenced PK and end with <code>_uuid</code> (or the referenced PK name for <code>code</code>-keyed tables). Example: <code>users.system_uuid</code> → <code>systems.system_uuid</code>; <code>users.timezone</code> → <code>timezones.code</code>.</li>
+          <li>Index names follow SQLAlchemy defaults; explicit unique-constraint names use the prefix <code>uq_&lt;table&gt;_&lt;cols&gt;</code> (e.g. <code>uq_users_system_user_id_system_uuid</code>).</li>
+        </ul>
+
+        <h3>2. Mandatory column set per table category</h3>
+        <p>Every model in <code>app/models/</code> belongs to one of three categories. Each category has a mandatory column set:</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Category</th>
+                <th scope="col">Examples</th>
+                <th scope="col">Mandatory columns</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Core business</strong></td>
+                <td><code>users</code>, future <code>conspectuses</code>, <code>review_slots</code></td>
+                <td><code>&lt;entity&gt;_uuid</code> PK · <code>created_at</code> (TZ-aware UTC, <code>DateTime(timezone=True)</code>) · <code>updated_at</code> (TZ-aware UTC, with <code>onupdate</code>) · <code>is_row_invalid</code> (Integer 0/1, default 0) · nullable <code>invalidation_reason_uuid</code> FK to <code>invalidation_reasons</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Reference / lookup</strong></td>
+                <td><code>systems</code>, <code>invalidation_reasons</code>, <code>timezones</code></td>
+                <td>A stable identifier PK (<code>&lt;entity&gt;_uuid</code> or <code>code</code>) · a human label column (<code>name</code> / <code>description</code>) · no audit columns required (rows are seeded and rarely change).</td>
+              </tr>
+              <tr>
+                <td><strong>Operational / infrastructure</strong></td>
+                <td><code>idempotency_keys</code>, future <code>request_audit_log</code></td>
+                <td>A stable identifier PK · TTL or expiry column when applicable · indexed columns matching the lookup pattern (e.g. by route + key hash).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Soft-delete contract.</strong> Core tables MUST use the <code>is_row_invalid</code> + <code>invalidation_reason_uuid</code> pair instead of <code>DELETE FROM</code>. The flag is <code>0</code> = valid, <code>1</code> = invalid. <code>invalidation_reason_uuid</code> is non-null exactly when <code>is_row_invalid = 1</code>; the reason FK points at <code>invalidation_reasons</code> for an explainable audit trail.</p>
+        <p><strong>Timezone-aware timestamps.</strong> All <code>created_at</code> / <code>updated_at</code> columns use <code>DateTime(timezone=True)</code> with a Python default of <code>datetime.now(UTC)</code> (a tzinfo-aware value) — never naive datetimes, never local time.</p>
+        <p><strong>Foreign keys are indexed.</strong> Any column that is a FK MUST carry <code>index=True</code> in its <code>mapped_column(...)</code> declaration so that joins and lookups remain cheap as the table grows. (SQLAlchemy does not auto-index FKs.)</p>
+
+        <h3>3. Per-table documentation requirements</h3>
+        <p>Every table has a documentation page under <a href="../../reference/data/index.html"><code>services/portal/internal/reference/data/</code></a> (amended 2026-05-17; see §4 for rationale). The page is reachable from:</p>
+        <ul>
+          <li>The data hub <a href="../../reference/data/index.html"><code>services/portal/internal/reference/data/index.html</code></a>.</li>
+          <li>The <code>api</code> service catalog entity card at <a href="../../services/api/index.html"><code>services/portal/internal/services/api/index.html</code></a> (Links section) — cross-links to the data hub.</li>
+          <li>Every internal API operation page (<code>services/portal/internal/reference/api/&lt;resource&gt;/operations/&lt;method&gt;-…html</code>) that reads or writes the table — via a "Tables touched" cross-reference.</li>
+          <li>The internal sidebar (<code>services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json</code>) under <strong>Reference → Data</strong>.</li>
+        </ul>
+        <p>The table-spec page MUST contain the following sections, in this order:</p>
+        <ol>
+          <li><strong>Metadata block</strong> — name, category (<em>core / reference / operational</em>), source ORM module path under <code>app/models/</code>, owner, last reviewed.</li>
+          <li><strong>Summary</strong> — one short paragraph describing the table's business purpose. This is the answer to "why does this table exist?".</li>
+          <li><strong>Schema</strong> — a column-by-column table with: <em>column name · type · nullable · default · FK target · index · description</em>.</li>
+          <li><strong>Constraints</strong> — primary key, unique constraints, check constraints, indexes (other than FK indexes).</li>
+          <li><strong>Relationships</strong> — 1-N / N-1 / N-N relationships to other tables, with bullet points stating direction, FK column, and the business meaning of the relation.</li>
+          <li><strong>Lifecycle</strong> — who creates rows (which HTTP endpoint or seed script), who updates, who reads, retention / soft-delete policy.</li>
+          <li><strong>Cross-references</strong> — a list of: ORM source path, related HTTP endpoints (per-method internal spec pages), related ADRs (e.g. <a href="0006-idempotency-write-operations.html">ADR 0006</a> for <code>idempotency_keys</code>), and seed migrations if any.</li>
+          <li><strong>Page history</strong> — the standard table per <a href="../../../internal/governance/rfc/0003-documentation-authoring-model.html">RFC 0003</a>.</li>
+        </ol>
+        <p>The copy-paste shell lives at <a href="../../handbook/templates/data-table.html"><code>services/portal/internal/reference/templates/data-table.html</code></a>.</p>
+
+        <h3>4. Placement</h3>
+        <p><strong>Original decision (2026-05-08):</strong> per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a>, the <code>api</code> service catalog entity was at <code>services/portal/internal/catalog/api/</code> and table specs lived one level deeper at <code>services/portal/internal/catalog/api/data/</code>, to avoid inventing a new top-level branch and to keep the per-service spine intact.</p>
+        <p><strong>Amendment (2026-05-17):</strong> after the Diataxis reorganisation, the Reference layer became the canonical home for "what is" content. DB-table specs are exactly that — schema descriptions, not service operations — so they were relocated to <code>services/portal/internal/reference/data/</code> (sibling to <code>reference/api/</code>). The <code>api</code> service entity card keeps a cross-link to the new location; the per-service spine is unchanged.</p>
+        <p>Template moved from <code>services/api/data/_template.html</code> to <code>services/portal/internal/reference/templates/data-table.html</code> (joins ADR / RFC / API-spec / audit templates under <code>reference/templates/</code>).</p>
+      </section>
+
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li>In scope: naming and column conventions for every table in <code>app/models/</code>, the per-table documentation template, the placement of table specs under <code>services/portal/internal/reference/data/</code> (amended 2026-05-17), and the cross-reference contract between table specs and HTTP-operation spec pages.</li>
+          <li>Out of scope: choosing the storage engine (<a href="0015-container-image.html">ADR 0015</a>), migration tooling, query-performance tuning, replication topology, multi-tenant data partitioning, full-text-search indexes (these need their own ADRs).</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Document tables only in ORM docstrings (pdoc)</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> zero duplication, source-of-truth is code.</p>
+              <p><strong>Cons:</strong> pdoc shows class shape and column types but cannot describe business lifecycle, related HTTP endpoints, or cross-table invariants in a structured, indexable form. Reviewers and analysts would have to read Python source to answer "which endpoint writes this column?".</p>
+            </div>
+          </article>
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Embed table descriptions inline in each HTTP-operation spec page</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> single page tells the whole story per endpoint.</p>
+              <p><strong>Cons:</strong> every endpoint that touches a shared table re-states the schema; updates drift; the "what is the canonical description of <code>users</code>?" question has no answer.</p>
+            </div>
+          </article>
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Top-level <code>services/portal/internal/data/</code> branch</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> easy to find.</p>
+              <p><strong>Cons:</strong> violates the per-service spine RFC 0004 just established; if a future service ships its own database, two parallel locations would compete. Keeping data under the owning service's catalog node scales better.</p>
+            </div>
+          </article>
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Auto-generate table docs from SQLAlchemy metadata</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> zero hand-authored drift on column types.</p>
+              <p><strong>Cons:</strong> business meaning, lifecycle, and HTTP cross-refs are not derivable from metadata; the auto-generated output would still need a hand-authored prose layer. For a one-engineer scope, the cost of a generator outweighs the cost of typing a column table by hand.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li><strong>Single authoritative description per table.</strong> Reviewers, analysts, and future engineers have one page to read for any table.</li>
+                <li><strong>Forced cross-references.</strong> Operation pages that touch a table cite the table page; the table page cites the operations. The corpus stays internally consistent.</li>
+                <li><strong>Defensible at Senior-SA bar.</strong> Naming and column conventions match the patterns reviewers expect (UUID PKs, audit timestamps, soft-delete pair, indexed FKs); the doc template matches the Backstage IDP discipline of always documenting an owned resource.</li>
+                <li><strong>Forward-compatible with Postgres migration.</strong> The conventions hold regardless of storage engine.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Hand-authored column tables drift if the ORM changes without a doc update — mitigated by listing the ORM source path in every spec and by making "tables-touched" a required field on operation specs.</li>
+                <li>Per-table pages add ~5 new HTML files for the current schema; on PostgreSQL migration these double if a separate read-replica view is documented.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="compat-h">
+        <h2 id="compat-h">Compatibility and migration</h2>
+        <ul>
+          <li>Backward-compatibility impact: <strong>none</strong>. Documentation-only ADR; no runtime, schema, or wire-format change.</li>
+          <li>Migration plan:
+            <ol>
+              <li>This ADR ratifies the conventions.</li>
+              <li>Initial spec pages land for the four user-touching tables (<code>users</code>, <code>systems</code>, <code>invalidation_reasons</code>, <code>timezones</code>) plus <code>idempotency_keys</code>.</li>
+              <li>Subsequent backlog items add specs for any future tables (<code>conspectuses</code>, <code>review_slots</code>, etc.) before merging the ORM model.</li>
+              <li>Operation-spec pages under <code>services/portal/internal/api/</code> gain a "Tables touched" cross-reference list.</li>
+            </ol>
+          </li>
+          <li>Rollback: revert the offending PR; conventions and template can be removed without runtime impact.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="impl-h">
+        <h2 id="impl-h">Implementation plan</h2>
+        <ol>
+          <li>Land this ADR.</li>
+          <li>Create the data hub at <a href="../../reference/data/index.html"><code>services/portal/internal/catalog/api/data/index.html</code></a> and the template at <a href="../../handbook/templates/data-table.html"><code>_template.html</code></a>.</li>
+          <li>Author the four user-related table specs: <a href="../../reference/data/users.html"><code>users.html</code></a>, <a href="../../reference/data/systems.html"><code>systems.html</code></a>, <a href="../../reference/data/invalidation_reasons.html"><code>invalidation_reasons.html</code></a>, <a href="../../reference/data/timezones.html"><code>timezones.html</code></a>.</li>
+          <li>Cross-link from <code>services/portal/internal/api/user/index.html</code> and per-method pages under <code>services/portal/internal/api/user/operations/</code> ("Tables touched" cross-reference).</li>
+          <li>Add a "Database tables" group to the internal sidebar (<code>services/frontend/portal/assets/internal-sidebar.js</code> <code>INTERNAL_SIDEBAR_NAV</code>).</li>
+          <li>Update the <code>api</code> catalog entity card (<code>services/portal/internal/catalog/api/index.html</code>) Links list to include the data hub.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li>Technical checks: <code>make verify</code> green; <code>scripts/check_adr_rfc_links.py</code> resolves every cross-reference; <code>make docs-check</code> drift gate green.</li>
+          <li>Operational checks: every table page renders with the standard portal chrome; the data hub is reachable in two clicks from <code>services/portal/internal/index.html → Reference → Data</code>.</li>
+          <li>Documentation updates: this ADR is linked from <a href="index.html"><code>services/portal/internal/governance/adr/index.html</code></a>; the data hub is linked from the <code>api</code> entity card; <a href="../../../../../CHANGELOG.md"><code>services/portal/CHANGELOG.md</code></a> records the addition.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="refs-h">
+        <h2 id="refs-h">References</h2>
+        <ul>
+          <li>Related ADRs: <a href="0006-idempotency-write-operations.html">ADR 0006</a> (idempotency), <a href="0015-container-image.html">ADR 0015</a> (container image / SQLite), <a href="0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a> (internal docs as source of truth), <a href="0028-monorepo-with-service-boundaries.html">ADR 0028</a> (service boundaries).</li>
+          <li>Related RFCs: <a href="../../../internal/governance/rfc/0003-documentation-authoring-model.html">RFC 0003</a> (authoring model), <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> (portal IA).</li>
+          <li>External: SQLAlchemy ORM docs — <a href="https://docs.sqlalchemy.org/" rel="external">https://docs.sqlalchemy.org/</a>; PostgreSQL naming conventions reference — <a href="https://wiki.postgresql.org/wiki/Don%27t_Do_This" rel="external">PostgreSQL Wiki: Don't Do This</a>.</li>
+        </ul>
+      </section>
+
+      <nav aria-label="Related" class="docs-card-grid" style="margin-top:var(--space-6)">
+        <a class="docs-card" href="index.html"><div class="docs-card__head"><h3 class="docs-card__title">← All ADRs</h3></div><div class="docs-card__body">Back to the ADR index.</div></a>
+        <a class="docs-card" href="0026-internal-service-documentation-as-source-of-truth.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0026</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Internal service documentation as source of truth.</div></a>
+        <a class="docs-card" href="0028-monorepo-with-service-boundaries.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0028</h3><span class="docs-pill docs-pill--warn">Proposed</span></div><div class="docs-card__body">Monorepo with service boundaries — where the data hub lives.</div></a>
+      </nav>
+
+      <footer class="docs-history" aria-label="Page history">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Placement amended: table specs relocated from <code>services/api/data/</code> to <code>reference/data/</code>; template to <code>reference/templates/data-table.html</code>. Rationale in §4.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Migrated to UI Kit v3.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-08</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Proposed: database table documentation conventions and template; data hub under <code>services/portal/internal/catalog/api/data/</code> per RFC 0004; initial table specs for the user entity.</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

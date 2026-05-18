@@ -1,10 +1,10 @@
 """Scan docs HTML and emit a combined JS bundle for the employee portal.
 
-1. ``data-maintainer-ids`` on any page under ``docs/`` → pages maintained per person id.
-2. Profile pages ``docs/internal/portal/people/*/index.html`` with ``data-person-*`` on ``<body>`` →
+1. ``data-maintainer-ids`` on any page under ``services/portal/`` → pages maintained per person id.
+2. Profile pages ``services/portal/internal/team/people/*/index.html`` with ``data-person-*`` on ``<body>`` →
    people list for the portal index and editor avatars.
 
-Output: ``docs/assets/docs-portal-data.js`` (``window.__DOCS_PORTAL_DATA__``).
+Output: ``services/frontend/portal/assets/docs-portal-data.js`` (``window.__DOCS_PORTAL_DATA__``).
 Run via ``make docs-fix`` or: ``python scripts/collect_docs_portal_data.py``
 """
 
@@ -18,8 +18,8 @@ from collections import defaultdict
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DOCS_ROOT = PROJECT_ROOT / "docs"
-OUT_FILE = PROJECT_ROOT / "docs" / "assets" / "docs-portal-data.js"
+DOCS_ROOT = PROJECT_ROOT / "services" / "portal"
+OUT_FILE = PROJECT_ROOT / "services" / "frontend" / "portal" / "assets" / "docs-portal-data.js"
 
 MAINTAINER_ATTR_RE = re.compile(
     r"""data-maintainer-ids\s*=\s*["']([^"']*)["']""",
@@ -50,7 +50,7 @@ def _tracked_html_paths() -> set[Path] | None:
     """
     try:
         output = subprocess.check_output(
-            ["git", "ls-files", "-z", "--", "docs"],
+            ["git", "ls-files", "-z", "--", "services/portal"],
             cwd=PROJECT_ROOT,
             stderr=subprocess.DEVNULL,
         )
@@ -60,7 +60,7 @@ def _tracked_html_paths() -> set[Path] | None:
 
 
 def collect_maintainer_pages() -> dict[str, list[dict[str, str]]]:
-    """Build person_id -> list of {path, title} from HTML under docs/."""
+    """Build person_id -> list of {path, title} from HTML under services/portal/."""
     by_person: dict[str, list[dict[str, str]]] = defaultdict(list)
     if not DOCS_ROOT.is_dir():
         return dict(by_person)
@@ -123,7 +123,7 @@ def collect_people_from_profiles() -> list[dict[str, str | list[str]]]:
         groups = [x for x in groups_raw.split() if x]
         if not display_name or not github:
             continue
-        photo_from_docs = f"internal/portal/people/{slug}/{photo_file}"
+        photo_from_docs = f"internal/team/people/{slug}/{photo_file}"
         people.append(
             {
                 "personId": person_id,

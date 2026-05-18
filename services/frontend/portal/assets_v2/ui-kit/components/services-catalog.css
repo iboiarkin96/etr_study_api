@@ -1,0 +1,896 @@
+/* ui-kit/components/services-catalog.css — service catalog primitives.
+   Composed on top of `lp-pillar` for the per-service tile (hover halo, tone
+   ramps), and adds the spine sub-nav + entity meta-list. Used by
+   /services/portal/internal/services/*. */
+
+/* ── Service tile (article variant of lp-pillar) ──────────────────────
+   Same visual chrome as a `lp-pillar` anchor, but renders as an <article>
+   so a heading + sub-nav can live inside without nesting interactive
+   elements inside a single link. */
+.svc-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px dashed color-mix(in srgb, var(--svc-tone, var(--accent)) 38%, var(--line));
+  background: var(--bg-elev);
+  overflow: hidden;
+  isolation: isolate;
+  height: 100%;
+  transition:
+    transform 280ms var(--ease-out),
+    border-color 200ms var(--ease-out),
+    box-shadow 240ms var(--ease-out);
+}
+
+.svc-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    65% 65% at 100% 0%,
+    color-mix(in srgb, var(--svc-tone, var(--accent)) 18%, transparent) 0%,
+    transparent 70%
+  );
+  opacity: 0.55;
+  transition: opacity 320ms var(--ease-out);
+  pointer-events: none;
+}
+
+.svc-tile:hover,
+.svc-tile:focus-within {
+  transform: translateY(-3px);
+  border-color: color-mix(
+    in srgb,
+    var(--svc-tone, var(--accent)) 50%,
+    var(--line)
+  );
+  box-shadow: 0 18px 44px -18px
+    color-mix(in srgb, var(--svc-tone, var(--accent)) 45%, transparent);
+}
+
+.svc-tile:hover::before,
+.svc-tile:focus-within::before {
+  opacity: 1;
+}
+
+/* Tone modifiers — feed `--svc-tone` only. */
+.svc-tile--api { --svc-tone: var(--info, var(--accent)); }
+.svc-tile--portal { --svc-tone: var(--accent); }
+.svc-tile--monitoring { --svc-tone: var(--warn); }
+.svc-tile--uikit { --svc-tone: var(--success); }
+
+.svc-tile__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.svc-tile__icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--svc-tone, var(--accent)) 14%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--svc-tone, var(--accent)) 26%, transparent);
+  color: var(--svc-tone, var(--accent));
+  flex-shrink: 0;
+}
+
+.svc-tile__name {
+  margin: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-500);
+  font-weight: var(--fw-semibold, 600);
+  letter-spacing: -0.005em;
+  color: var(--text-strong, var(--text));
+}
+
+.svc-tile__name a {
+  color: inherit;
+  text-decoration: none;
+  background-image: linear-gradient(
+    currentColor,
+    currentColor
+  );
+  background-size: 0 1px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  transition: background-size 220ms var(--ease-out);
+}
+
+.svc-tile__name a:hover,
+.svc-tile__name a:focus-visible {
+  background-size: 100% 1px;
+}
+
+.svc-tile__name a:focus-visible {
+  outline: 2px solid var(--svc-tone, var(--accent));
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.svc-tile__lede {
+  margin: 0;
+  color: var(--muted);
+  line-height: var(--lh-base, 1.55);
+  font-size: var(--fs-300);
+  /* Pin the lede box to exactly 4 lines so the `svc-meta` row below
+     (Owner / Stack) starts at the same y-offset across every tile,
+     regardless of how long the individual lede actually is. Longer
+     ledes are clipped with an ellipsis — full text lives on the
+     entity page. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  min-height: calc(var(--fs-300) * var(--lh-base, 1.55) * 4);
+}
+
+.svc-tile__lede code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.92em;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--svc-tone, var(--accent)) 10%, transparent);
+  color: var(--text-strong, var(--text));
+}
+
+/* ── Entity meta-list ────────────────────────────────────────────────
+   Reusable "owner / stack / lifecycle" dl that fits inside svc-tile
+   and the entity-card page. Built from two-column auto rows. */
+.svc-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--space-3);
+  row-gap: 6px;
+  margin: 0;
+  font-size: var(--fs-200);
+}
+
+.svc-meta dt {
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-soft);
+  font-size: 11px;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.svc-meta dd {
+  margin: 0;
+  color: var(--text);
+  line-height: var(--lh-snug, 1.4);
+}
+
+.svc-meta dd code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.88em;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg-mute);
+  color: var(--text-strong, var(--text));
+}
+
+.svc-meta a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--svc-tone, var(--accent)) 35%, transparent);
+  text-underline-offset: 3px;
+}
+
+.svc-meta a:hover {
+  text-decoration-color: var(--svc-tone, var(--accent));
+}
+
+/* ── Spine sub-nav (chip row of links inside a service tile) ───────── */
+.svc-spine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: auto 0 0;
+  padding: var(--space-3) 0 0;
+  border-top: 1px dashed color-mix(in srgb, var(--svc-tone, var(--accent)) 28%, var(--line));
+  list-style: none;
+}
+
+.svc-spine__title {
+  width: 100%;
+  margin: 0 0 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-soft);
+}
+
+.svc-spine a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: var(--fw-medium, 500);
+  text-decoration: none;
+  letter-spacing: 0.01em;
+  transition: background 140ms var(--ease-out),
+    color 140ms var(--ease-out),
+    border-color 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+.svc-spine a::before {
+  content: "›";
+  color: color-mix(in srgb, var(--svc-tone, var(--accent)) 70%, var(--muted));
+  font-weight: var(--fw-semibold, 600);
+  transition: transform 160ms var(--ease-out);
+}
+
+.svc-spine a:hover,
+.svc-spine a:focus-visible {
+  background: color-mix(in srgb, var(--svc-tone, var(--accent)) 10%, var(--card));
+  color: var(--text-strong, var(--text));
+  border-color: color-mix(in srgb, var(--svc-tone, var(--accent)) 40%, var(--line));
+}
+
+.svc-spine a:hover::before,
+.svc-spine a:focus-visible::before {
+  transform: translateX(2px);
+}
+
+.svc-spine a:focus-visible {
+  outline: 2px solid var(--svc-tone, var(--accent));
+  outline-offset: 2px;
+}
+
+/* Missing-page placeholder — paired with `[data-tooltip]` to explain why
+   the link is disabled. Reuses the chip frame but renders as a dashed,
+   muted span (no underline / no arrow). */
+.svc-spine__missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px dashed color-mix(in srgb, var(--muted-soft) 60%, var(--line));
+  background: transparent;
+  color: var(--muted-soft);
+  font-size: 11.5px;
+  font-weight: var(--fw-medium, 500);
+  letter-spacing: 0.01em;
+  cursor: help;
+  user-select: none;
+}
+
+.svc-spine__missing::before {
+  content: "·";
+  color: color-mix(in srgb, var(--muted-soft) 80%, transparent);
+  font-weight: var(--fw-semibold, 600);
+}
+
+.svc-spine__missing:focus-visible {
+  outline: 2px dashed var(--muted-soft);
+  outline-offset: 2px;
+}
+
+/* ── Spine structure (6-step tiles for /services/index hero band) ─────
+   Always 3 columns per row by design (the spine has exactly 6 steps
+   split across two ordered lists). Using auto-fill here would leave
+   phantom empty tracks at wide widths and squeeze the cards. */
+.svc-spine-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Modal-friendly variant: 2 columns at modal widths (≤720 px panel).
+   Keeps the same step tiles, but lets descriptions breathe a bit more. */
+.svc-spine-grid--detail {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .svc-spine-grid,
+  .svc-spine-grid--detail { grid-template-columns: 1fr; }
+}
+
+.svc-spine-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--card);
+  overflow: hidden;
+}
+
+.svc-spine-step::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0%,
+    color-mix(in srgb, var(--accent) 30%, transparent) 100%
+  );
+}
+
+.svc-spine-step__num {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--muted-soft);
+}
+
+.svc-spine-step__name {
+  margin: 0;
+  font-size: var(--fs-400);
+  font-weight: var(--fw-semibold, 600);
+  color: var(--text-strong, var(--text));
+  letter-spacing: -0.005em;
+}
+
+.svc-spine-step__desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-200);
+  line-height: var(--lh-snug, 1.4);
+}
+
+/* ── Filter chips bar ────────────────────────────────────────────────
+   Uses .docs-chip / .docs-chip--filter primitives; layout-only addition.
+*/
+.svc-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.svc-filter__count {
+  margin-inline-start: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--muted-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── Inline info trigger inside the hero <h1> ──────────────────────────
+   Small round icon-button that opens the "what is the six-page spine?"
+   modal. Sits at the baseline of the title so it doesn't fight the
+   gradient accent span next to it. */
+.home-hero__title-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-inline-start: var(--space-2);
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
+  color: color-mix(in srgb, var(--accent) 75%, var(--text-strong, var(--text)));
+  cursor: help;
+  vertical-align: middle;
+  transform: translateY(-0.18em);
+  transition:
+    background 160ms var(--ease-out),
+    border-color 160ms var(--ease-out),
+    color 160ms var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+.home-hero__title-info:hover,
+.home-hero__title-info:focus-visible {
+  background: color-mix(in srgb, var(--accent) 16%, var(--card));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  color: var(--accent);
+  transform: translateY(-0.22em);
+}
+
+.home-hero__title-info:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.home-hero__title-info svg { display: block; }
+
+/* ── Reduced motion ──────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .svc-tile,
+  .svc-tile:hover,
+  .svc-spine a,
+  .svc-spine a::before,
+  .home-hero__title-info,
+  .home-hero__title-info:hover {
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .home-hero__title-info {
+    transform: translateY(-0.18em) !important;
+  }
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .svc-meta { grid-template-columns: 1fr; row-gap: 2px; }
+  .svc-meta dt { margin-top: var(--space-2); }
+  .svc-meta dt:first-child { margin-top: 0; }
+}
+
+/* ── Architecture overview band ────────────────────────────────────────
+   The cross-service C4 picture that lives at the top of the catalog.
+   Prose flows like docs-prose (left-aligned, normal measure); the
+   diagram itself is the only element that gets centered. Used by
+   /services/portal/internal/services/index.html. */
+.arch-prose {
+  margin-block-start: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.arch-prose__lede {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-300);
+  line-height: var(--lh-base, 1.55);
+}
+
+.arch-prose__deeper {
+  max-width: 72ch;
+  margin: 0;
+  font-size: var(--fs-200);
+  color: var(--muted);
+}
+
+.arch-prose__deeper strong {
+  color: var(--text-strong, var(--text));
+  letter-spacing: 0.01em;
+}
+
+.arch-prose__deeper a {
+  color: var(--text-strong, var(--text));
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  text-underline-offset: 3px;
+  margin: 0 2px;
+}
+
+.arch-prose__deeper a:hover,
+.arch-prose__deeper a:focus-visible {
+  text-decoration-color: var(--accent);
+}
+
+/* The figure wraps the hand-drawn diagram + the collapsible PUML source.
+   Centered as a block; chips and caption are centered, the diagram lives
+   in a soft halo stage; prose around it stays left-aligned. */
+.arch-figure {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.arch-figure__chips {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.arch-figure__chips strong {
+  color: var(--text-strong, var(--text));
+  letter-spacing: 0.02em;
+  font-weight: var(--fw-semibold, 600);
+}
+
+.arch-figure__caption {
+  max-width: 72ch;
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-200);
+  color: var(--muted-soft);
+  line-height: var(--lh-snug, 1.4);
+}
+
+.arch-figure__caption code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg-mute);
+  color: var(--text);
+}
+
+/* ── Hand-drawn C4 L1 diagram ───────────────────────────────────────────
+   Pure HTML + CSS layout with inline SVG arrow rails. Nodes are colored
+   to match the PUML style tokens (emerald actor, amber DB, accent system,
+   gray orbits). The "system" tile is the visual focal point. */
+.arch-diagram {
+  --rail-color: color-mix(in srgb, var(--accent) 45%, var(--muted) 55%);
+  width: 100%;
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(
+      120% 90% at 50% 0%,
+      color-mix(in srgb, var(--accent) 7%, transparent) 0%,
+      transparent 65%
+    ),
+    var(--bg-elev);
+  box-shadow: 0 20px 50px -30px color-mix(in srgb, var(--accent) 32%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  position: relative;
+  isolation: isolate;
+}
+
+.arch-diagram__row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+}
+
+.arch-diagram__row--mid {
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.arch-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--bg-elev);
+  text-align: left;
+  min-width: 180px;
+  max-width: 260px;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+}
+
+.arch-node__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: var(--fw-semibold, 600);
+}
+
+.arch-node__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+.arch-node__name {
+  font-weight: var(--fw-semibold, 600);
+  font-size: 14.5px;
+  color: var(--text-strong, var(--text));
+  line-height: 1.25;
+}
+
+.arch-node__name--xl {
+  font-size: 17px;
+}
+
+.arch-node__meta {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.arch-node__meta code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.92em;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg-mute);
+  color: var(--text);
+}
+
+.arch-node__pills,
+.arch-node__chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.arch-node__pills li,
+.arch-node__chips li {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--bg-mute);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  margin: 0;
+}
+
+.arch-node__pills li {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-elev));
+  color: color-mix(in srgb, var(--accent) 80%, var(--text));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+
+.arch-node--actor {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, #10b981 10%, var(--bg-elev)),
+    var(--bg-elev) 70%);
+  border-color: color-mix(in srgb, #10b981 38%, var(--line));
+}
+.arch-node--actor .arch-node__eyebrow { color: #047857; }
+
+.arch-node--store {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, #f97316 10%, var(--bg-elev)),
+    var(--bg-elev) 70%);
+  border-color: color-mix(in srgb, #f97316 38%, var(--line));
+}
+.arch-node--store .arch-node__eyebrow { color: #c2410c; }
+
+.arch-node--system {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 12%, var(--bg-elev)),
+    var(--bg-elev) 75%);
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  border-width: 1.5px;
+  padding: 16px 18px;
+  min-width: 290px;
+  max-width: 320px;
+  box-shadow: 0 18px 40px -22px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.arch-node--system .arch-node__eyebrow { color: var(--accent); }
+
+.arch-node--orbit {
+  background: var(--bg-mute);
+  border-style: dashed;
+  padding: 12px 12px;
+  flex: 0 0 260px;
+  min-width: 260px;
+  max-width: 260px;
+}
+.arch-node--orbit .arch-node__eyebrow { color: var(--muted); }
+
+/* arrow rails — small inline SVGs with currentColor stroke */
+.arch-rail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rail-color);
+}
+
+.arch-rail--vert {
+  flex-direction: row;
+  height: 56px;
+  gap: 0;
+  padding: 4px 0;
+}
+
+.arch-rail--vert .arch-rail__svg {
+  width: 14px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.arch-rail--vert .arch-rail__label {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.arch-rail--horiz {
+  flex-direction: column;
+  width: 144px;
+  padding: 0;
+  gap: 0;
+  align-self: center;
+  position: relative;
+}
+
+.arch-rail--horiz .arch-rail__svg {
+  width: 100%;
+  height: 14px;
+  display: block;
+}
+
+.arch-rail--horiz .arch-rail__label {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.arch-rail__label {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── Collapsible source diagram (original PUML render) ─────────────────
+   Lives directly under the hand-drawn diagram inside the figure. */
+.arch-source {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev);
+  overflow: hidden;
+}
+
+.arch-source__summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  user-select: none;
+}
+
+.arch-source__summary::-webkit-details-marker { display: none; }
+.arch-source__summary::marker { content: ""; }
+
+.arch-source__summary::before {
+  content: "▸";
+  display: inline-block;
+  transition: transform 0.18s ease;
+  color: var(--accent);
+}
+
+.arch-source[open] .arch-source__summary::before {
+  transform: rotate(90deg);
+}
+
+.arch-source__summary strong {
+  color: var(--text-strong, var(--text));
+  font-weight: var(--fw-semibold, 600);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.arch-source__summary-hint {
+  margin-left: auto;
+  color: var(--muted-soft);
+}
+
+.arch-source__stage {
+  padding: var(--space-4);
+  border-top: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(
+      120% 90% at 50% 0%,
+      color-mix(in srgb, var(--accent) 5%, transparent) 0%,
+      transparent 70%
+    ),
+    var(--bg-elev);
+}
+
+.arch-source__img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  cursor: zoom-in;
+}
+
+.arch-source__caption {
+  margin: 0;
+  padding: 10px 14px 12px;
+  font-size: var(--fs-200, 12px);
+  color: var(--muted-soft);
+  line-height: 1.45;
+  border-top: 1px solid var(--line);
+}
+
+.arch-source__caption code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg-mute);
+  color: var(--text);
+}
+
+@media (max-width: 880px) {
+  .arch-diagram__row--mid {
+    flex-direction: column;
+    align-items: center;
+  }
+  .arch-rail--horiz {
+    width: auto;
+    flex-direction: row;
+    height: 48px;
+    padding: 4px 0;
+    gap: 10px;
+  }
+  .arch-rail--horiz .arch-rail__svg {
+    width: 14px;
+    height: 100%;
+    transform: rotate(90deg);
+  }
+  .arch-rail--horiz.arch-rail--out .arch-rail__svg {
+    transform: rotate(90deg);
+  }
+  .arch-rail--horiz .arch-rail__label {
+    position: static;
+    transform: none;
+    left: auto;
+  }
+  .arch-node {
+    max-width: 320px;
+    width: 100%;
+  }
+  .arch-node--orbit {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 320px;
+  }
+}
+
+@media (max-width: 560px) {
+  .arch-diagram {
+    padding: var(--space-3) var(--space-2);
+  }
+  .arch-rail--vert { height: 44px; }
+}

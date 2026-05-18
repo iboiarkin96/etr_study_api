@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feature Flags — Practice 07 · Developer</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Developer</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Feature Flags</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <p class="pa-eyebrow">
+      <span class="pa-eyebrow__num">07</span>
+      <span class="pa-eyebrow__group">Group B · Delivery &amp; automation</span>
+      <span class="pa-scorebar"><span class="pa-scorebar__asis">3.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.0</span><span class="pa-scorebar__hint">AS-IS → TO-BE</span></span>
+    </p>
+    <h1 class="pa-title">Feature Flags — decouple deploy from release</h1>
+    <div id="docs-top-nav"></div>
+    <p class="pa-lead">The deploy installs the code; the release flips the flag. Two different decisions, two different rollback paths, two different signals.</p>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">A feature flag is a runtime switch that gates a code path. The pattern was popularised at Facebook (Gatekeeper) and Flickr in the 2000s and commercialised by LaunchDarkly from 2014 onward; Pete Hodgson's 2017 essay on martinfowler.com is the canonical reference. With flags, "deploy" stops meaning "release to users." Code ships dark, then is enabled for an internal cohort, then a percentage of users, then everyone — each step independently reversible by a config flip rather than a redeploy. Large engineering orgs typically run with hundreds of active flags plus an explicit lifecycle process so flags don't accumulate forever.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Deploy vs release split">
+      <svg viewBox="0 0 720 200" role="img" aria-label="Single timeline with separate deploy and release markers">
+        <g font-family="ui-monospace,Menlo,Consolas,monospace">
+          <line class="pa-svg-arrow" x1="40" y1="110" x2="690" y2="110"></line>
+          <line class="pa-svg-arrow" x1="120" y1="95" x2="120" y2="125"></line>
+          <text class="pa-svg-text pa-svg-text--muted" x="120" y="85" text-anchor="middle" font-size="11">deploy</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="120" y="148" text-anchor="middle" font-size="10">code ships dark</text>
+          <line class="pa-svg-arrow" x1="260" y1="95" x2="260" y2="125"></line>
+          <text class="pa-svg-text pa-svg-text--muted" x="260" y="85" text-anchor="middle" font-size="11">internal</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="260" y="148" text-anchor="middle" font-size="10">staff only</text>
+          <line class="pa-svg-arrow" x1="400" y1="95" x2="400" y2="125"></line>
+          <text class="pa-svg-text pa-svg-text--muted" x="400" y="85" text-anchor="middle" font-size="11">5%</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="400" y="148" text-anchor="middle" font-size="10">canary cohort</text>
+          <line class="pa-svg-arrow" x1="540" y1="95" x2="540" y2="125"></line>
+          <text class="pa-svg-text pa-svg-text--muted" x="540" y="85" text-anchor="middle" font-size="11">50%</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="540" y="148" text-anchor="middle" font-size="10">A/B vs control</text>
+          <line class="pa-svg-arrow" x1="660" y1="95" x2="660" y2="125"></line>
+          <text class="pa-svg-text pa-svg-text--accent" x="660" y="85" text-anchor="middle" font-size="11">release</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="660" y="148" text-anchor="middle" font-size="10">100% on</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="360" y="40" text-anchor="middle" font-size="11" font-style="italic">one timeline · five rollback points · each one a config flip, not a redeploy</text>
+          <text class="pa-svg-text pa-svg-text--accent" x="360" y="185" text-anchor="middle" font-size="11" font-style="italic">"deploy is a technical act · release is a product decision"</text>
+        </g>
+      </svg>
+      <figcaption class="pa-figure__caption">Code lands in production cold (flag off). The release is a sequence of config changes; any step can be reverted in seconds.</figcaption>
+    </figure>
+
+    <section id="what" class="pa-section">
+      <h2>What it is</h2>
+      <p>A <strong>feature flag</strong> (or feature toggle) is a runtime conditional that selects between an old and a new code path based on an external decision: a config file, a flag-service lookup, a user attribute, or a percentage rollout. Pete Hodgson's taxonomy distinguishes four types: release toggles (decouple deploy from release), experiment toggles (A/B tests), ops toggles (kill-switches for expensive features), and permission toggles (entitlements per plan).</p>
+      <p>Operationally, a flag platform — LaunchDarkly, Statsig, GrowthBook, Unleash, or an in-house service — stores the current flag state and pushes changes to running processes within seconds. Application code asks <code>if (flags.isEnabled("new-checkout", user)) { ... }</code> and the platform decides per-call. The platform also stores targeting rules (by user ID, by plan, by region) and rollout percentages.</p>
+      <p>The discipline part is the <strong>flag lifecycle</strong>: every flag has an owner, a default-on date, and a removal date. After the removal date, CI fails if both branches still exist in code. This prevents the dominant failure mode where flags accumulate into permanent forks of the codebase.</p>
+    </section>
+
+    <section id="why" class="pa-section">
+      <h2>Why we need it</h2>
+      <p>Without flags, "rollback" means revert-and-redeploy. On a large monorepo with a multi-stage build, a multi-region rollout, and post-deploy migrations, that is a 20–40 minute operation — enough time during an active incident to triple the user impact. Flags collapse rollback to a single config flip applied in seconds.</p>
+      <p>Flags also let you separate two questions that genuinely deserve two different tests: "Is this code safe?" (verified by canary metrics and progressive rollout) and "Is this change a good idea?" (verified by an A/B test against an outcome metric). Without flags those two get tangled together, and a product decision masquerades as an engineering decision or vice versa. With flags, both can be answered independently — and a feature that is technically safe but commercially neutral can be turned off without reverting the code.</p>
+    </section>
+
+    <section id="industry" class="pa-section">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Facebook — Gatekeeper</p>
+          <p class="pa-industry__what">Facebook built Gatekeeper in 2007 as the original large-scale feature-flag system. Every product ships behind a Gatekeeper rule that can target by employee, country, region, friend graph, or random percentage. Releases happen via gatekeeper changes, not via deploys; deploys themselves are continuous and decoupled from product launches.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> The targeting model is as important as the on/off switch. "Only employees" → "only employees and friends-of-employees" → "1% of US users" gives many cheap detection points before the change reaches everyone. Build targeting in from day one rather than retrofitting it.</p>
+          <p class="pa-industry__source">Source: <a href="https://martinfowler.com/articles/feature-toggles.html" rel="noopener">Pete Hodgson — Feature Toggles (martinfowler.com)</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Etsy — gradual rollouts</p>
+          <p class="pa-industry__what">Etsy's engineering blog (Code as Craft) has documented their use of feature flags since around 2011: every significant change ships behind a "config flag," initially set to 0%. The flag is ramped over hours or days with explicit dashboards comparing the new and old cohorts on conversion, error rate, and latency. Reverting a bad release is one curl call.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Pair every release flag with a dashboard that compares the new cohort to the control on the metric the change was supposed to move. Without the dashboard, "we rolled it out" is unmeasured and "rollback" is opinion-driven.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.etsy.com/codeascraft/" rel="noopener">Code as Craft — Etsy engineering</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">LaunchDarkly customers (GitHub, Atlassian)</p>
+          <p class="pa-industry__what">LaunchDarkly's published case studies (with GitHub, Atlassian, IBM) describe production usage in the hundreds to low thousands of active flags per org. Both GitHub and Atlassian operate explicit "flag debt" reviews where stale flags are surfaced and either promoted to permanent config, deleted, or assigned an owner with a deadline.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Flags are operational debt with a half-life. Without a quarterly cleanup, the count grows monotonically and the code becomes a labyrinth. Build the cleanup process before you have 100 flags, not after you have 500.</p>
+          <p class="pa-industry__source">Source: <a href="https://launchdarkly.com/blog/" rel="noopener">launchdarkly.com/blog</a></p>
+        </div>
+      </div>
+      <p class="pa-industry-pattern">The repeating pattern: targeted rollouts (not on/off), paired metrics dashboards, and an explicit lifecycle policy. Teams that adopt flags without a lifecycle accumulate them into a worse codebase than they would have had without flags at all.</p>
+    </section>
+
+    <section id="anatomy" class="pa-section">
+      <h2>Anatomy of a feature flag</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Flag key + owner</p><p class="pa-anatomy__hint">Every flag has a unique key, a named owner, and a one-line description. Anonymous flags are forbidden — no owner means no cleanup.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Targeting rules</p><p class="pa-anatomy__hint">Rules evaluated in order: internal users, beta cohort, percentage rollout (1% / 5% / 25% / 50% / 100%), default. Each rule is a runtime config change.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Default-on date</p><p class="pa-anatomy__hint">A target date when the flag should be at 100% and removable. Set when the flag is created; visible in the dashboard if missed.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Paired dashboard</p><p class="pa-anatomy__hint">For every release flag, one Grafana panel comparing new vs. control cohorts on the metric the change is supposed to move (and on error rate + p99 latency).</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Kill-switch path</p><p class="pa-anatomy__hint">A documented "how to revert in 60 seconds" runbook: which flag, which UI, who has permission. Linked from the PR that introduced the flag.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Cleanup gate</p><p class="pa-anatomy__hint">CI check that fails if a flag is past its default-on date and still has both branches in code. Forces deletion to be a real task, not a Wishlist item.</p></div>
+      </div>
+    </section>
+
+    <section id="pitfalls" class="pa-section">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+        <table class="pa-pitfalls">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr><td>Flag became a permanent fork in code</td><td>The "old path" was never deleted after the flag reached 100%, because there's always something more urgent. Six months later, both branches must be maintained forever and nobody remembers which one is the truth.</td><td>Every flag gets a default-on date at creation. CI fails after that date if both branches still exist. Removing a flag is a 30-minute task that lands on the owner's plate automatically.</td></tr>
+            <tr><td>Flags accumulate without cleanup</td><td>Adding a flag is one line; deleting it is a real refactor. So the count grows monotonically. Eventually, evaluating a single user requires hundreds of flag checks and the codebase has dozens of stale forks.</td><td>Quarterly "flag debt" review on the team calendar. Surface the oldest 10% of flags and either promote them to permanent config or assign a deletion ticket with an explicit owner.</td></tr>
+            <tr><td>Flag flip causes regression because no metric</td><td>The flag was treated as a deploy switch, not as an experiment. Nobody is watching the dashboard while it ramps. The 10% rollout damages 10% of users for hours before someone notices.</td><td>Every release flag must have a paired dashboard linked from the flag definition. Ramping to a new percentage requires checking the dashboard. No dashboard, no ramp; the flag stays at the current step.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <nav class="docs-next-steps" aria-label="See also">
+      <p class="docs-next-steps__heading">See also</p>
+      <ul class="docs-next-steps__list">
+        <li><a class="docs-next-steps__item" href="ci-green-trunk.html">Practice 06 — CI &amp; green-trunk discipline</a></li>
+        <li><a class="docs-next-steps__item" href="pre-commit-hooks.html">Practice 08 — Pre-commit hooks</a></li>
+        <li><a class="docs-next-steps__item" href="../radar.html">Developer practices radar</a></li>
+      </ul>
+    </nav>
+
+    <section id="page-history" class="pa-section">
+      <h2>Page history</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Page history">
+        <table class="docs-page-history">
+          <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+          <tbody>
+            <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+              <td>Initial version: Feature Flags practice for Developer radar.</td>
+              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+    <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+    <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>
