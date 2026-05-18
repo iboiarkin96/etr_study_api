@@ -1,153 +1,170 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>monitoring · Architecture</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
-  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <title>monitoring · Architecture · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
-  <div class="internal-layout__shell">
-    <aside class="internal-layout__sidebar">
-      <p class="internal-layout__sidebar-title">Internal docs</p>
-      <div id="internal-sidebar-mount"></div>
-    </aside>
-    <div class="internal-layout__main">
-      <main class="container">
-        <div id="docs-top-nav"></div>
-        <h1 class="internal-h1--accent-tail">monitoring · Architecture</h1>
-
-        <section class="card">
-          <p>
-            Component-level architecture of the <a href="index.html">monitoring</a> service: a metrics pipeline
-            (Prometheus, Blackbox, Grafana) and an optional log pipeline (Filebeat, Elasticsearch, Kibana). The
-            service consumes the <a href="../api/index.html">api</a> at three surfaces — <code>/metrics</code>
-            (Prometheus exposition), <code>/ready</code> (Blackbox HTTP probe), NDJSON log file (Filebeat tail).
-          </p>
-          <p class="small">
-            Authority: <a href="../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009</a>
-            (health and observability), <a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a>
-            (SLO / SLA / error budget), <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>
-            (structured logging, local Elasticsearch).
-          </p>
-        </section>
-
-        <section class="card card--diagram" id="component-view">
-          <h2>C4 Level 3 — components</h2>
-          <p>
-            Two pipelines, both optional, both local-only by default. Operators read Grafana for dashboards / alerts and
-            Kibana for log search. There is no ingest from systems other than the api.
-          </p>
-          <figure class="sys-diagram">
-            <div class="sys-diagram__head">
-              <span class="sys-diagram__badge">C4 · L3</span>
-              <div class="sys-diagram__titles">
-                <h3>Components inside monitoring</h3>
-                <p class="sys-diagram__sub">Metrics pipeline · log pipeline · operator UIs.</p>
-              </div>
-            </div>
-            <div class="sys-diagram__canvas">
-              <img alt="C4 L3 component view of the monitoring service" class="diagram diagram--uml" loading="lazy" src="../../reference/uml/rendered/architecture__monitoring_component_view.svg">
-            </div>
-            <figcaption class="sys-diagram__foot"><strong>Source:</strong>
-              <code>services/portal/internal/uml/architecture/monitoring_component_view.puml</code>
-            </figcaption>
-          </figure>
-        </section>
-
-        <section class="card" id="metrics-pipeline">
-          <h2>Metrics pipeline</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Metrics pipeline">
-            <table>
-              <thead><tr><th>Component</th><th>Role</th><th>Reads from / writes to</th></tr></thead>
-              <tbody>
-                <tr><td>Prometheus</td><td>Time-series database, scraper, recording / alerting rule engine.</td><td>Scrapes <code>:8000/metrics</code> on the api on a fixed interval; stores series locally; serves PromQL.</td></tr>
-                <tr><td>Blackbox exporter</td><td>External HTTP probe — turns the <code>/ready</code> endpoint into a Prometheus-compatible series.</td><td>Probes <code>:8000/ready</code>; exposes results on its own <code>/probe</code> endpoint that Prometheus scrapes.</td></tr>
-                <tr><td>Grafana</td><td>Dashboards, alert rendering, notification routing.</td><td>Reads PromQL from Prometheus; reads Lucene from Elasticsearch (when log pipeline is on).</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="card" id="log-pipeline">
-          <h2>Log pipeline (optional)</h2>
-          <p>
-            Per <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>,
-            the log pipeline is local-only and dev-focused. Production-grade log shipping is out of scope at this stage.
-          </p>
-          <div class="docs-table-scroll" role="region" aria-label="Log pipeline">
-            <table>
-              <thead><tr><th>Component</th><th>Role</th><th>Reads from / writes to</th></tr></thead>
-              <tbody>
-                <tr><td>Filebeat</td><td>Tails the api's NDJSON log file and ships records.</td><td>Tails the file; writes to Elasticsearch over HTTP.</td></tr>
-                <tr><td>Elasticsearch</td><td>Inverted-index store for log records.</td><td>Indexed by Filebeat; queried by Kibana.</td></tr>
-                <tr><td>Kibana</td><td>Operator UI for log search and discovery.</td><td>Queries Elasticsearch via Lucene.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="card" id="alerting">
-          <h2>Alerting model</h2>
-          <p>
-            Per <a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a>, alerts are
-            error-budget-driven: alerts fire on burn rate, not on individual failed requests. Recording rules pre-compute
-            the relevant ratios (<code>error_rate</code>, <code>latency_p95</code>, <code>availability_30d</code>) so that
-            alerting rules stay short and inspectable.
-          </p>
-          <ul>
-            <li><strong>Fast burn:</strong> page when 14.4× burn over 1 h would exhaust the 30-day budget — actionable signals only.</li>
-            <li><strong>Slow burn:</strong> ticket when 6× burn over 6 h sustains — schedule, don't page.</li>
-            <li><strong>Probe failure:</strong> Blackbox <code>/ready</code> down for 2 consecutive scrape intervals — page.</li>
-          </ul>
-          <p class="small">
-            Concrete PromQL is owned by <a href="api-reference.html">monitoring · API reference</a>; it is the contract
-            this service publishes for operators.
-          </p>
-        </section>
-
-        <section class="card" id="see-also">
-          <h2>See also</h2>
-          <ul>
-            <li><a href="api-reference.html">monitoring · API reference</a> — scrape / probe contracts, recording rules, dashboard names</li>
-            <li><a href="runbooks.html">monitoring · Runbooks</a> — symptom index, recovery</li>
-            <li><a href="../api/architecture.html">api · Architecture</a> — what monitoring is observing</li>
-            <li><a href="../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009</a></li>
-            <li><a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a></li>
-            <li><a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a></li>
-          </ul>
-        </section>
-
-        <section id="page-history" class="card">
-          <h2>Page history</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Page history">
-            <table class="docs-page-history">
-              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><time datetime="2026-05-10">2026-05-10</time></td>
-                  <td>Filled C4 L3, metrics + log pipelines, alerting model. New PlantUML source <code>monitoring_component_view.puml</code>.</td>
-                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-                </tr>
-                <tr>
-                  <td><time datetime="2026-05-08">2026-05-08</time></td>
-                  <td>Initial skeleton stub.</td>
-                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">monitoring</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Architecture</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
     </div>
-  </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Reference</span>
+          <span class="docs-pill docs-pill--info">C4 · L3</span>
+          <span class="docs-pill docs-pill--neutral">Metrics + log pipelines</span>
+        </div>
+        <h1>monitoring · Architecture</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Component-level architecture of the <a href="index.html">monitoring</a> service: a metrics pipeline
+          (Prometheus, Blackbox, Grafana) and an optional log pipeline (Filebeat, Elasticsearch, Kibana). The
+          service consumes the <a href="../api/index.html">api</a> at three surfaces — <code>/metrics</code>
+          (Prometheus exposition), <code>/ready</code> (Blackbox HTTP probe), NDJSON log file (Filebeat tail).
+        </p>
+        <p class="small">
+          Authority: <a href="../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009</a>
+          (health and observability), <a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a>
+          (SLO / SLA / error budget), <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>
+          (structured logging, local Elasticsearch).
+        </p>
+      </header>
+
+      <h2 id="component-view">C4 Level 3 — components</h2>
+      <p>
+        Two pipelines, both optional, both local-only by default. Operators read Grafana for dashboards / alerts and
+        Kibana for log search. There is no ingest from systems other than the api.
+      </p>
+      <figure class="docs-diagram">
+        <div class="docs-diagram__head">
+          <span class="docs-pill docs-pill--accent">C4 · L3</span>
+          <div class="docs-diagram__titles">
+            <h3>Components inside monitoring</h3>
+            <p class="docs-diagram__sub">Metrics pipeline · log pipeline · operator UIs.</p>
+          </div>
+        </div>
+        <div class="docs-diagram__canvas">
+          <img alt="C4 L3 component view of the monitoring service" loading="lazy" src="../../reference/uml/rendered/architecture__monitoring_component_view.svg">
+        </div>
+        <figcaption class="docs-diagram__foot"><strong>Source:</strong>
+          <code>services/portal/internal/uml/architecture/monitoring_component_view.puml</code>
+        </figcaption>
+      </figure>
+
+      <h2 id="metrics-pipeline">Metrics pipeline</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Component</th><th>Role</th><th>Reads from / writes to</th></tr></thead>
+          <tbody>
+            <tr><td>Prometheus</td><td>Time-series database, scraper, recording / alerting rule engine.</td><td>Scrapes <code>:8000/metrics</code> on the api on a fixed interval; stores series locally; serves PromQL.</td></tr>
+            <tr><td>Blackbox exporter</td><td>External HTTP probe — turns the <code>/ready</code> endpoint into a Prometheus-compatible series.</td><td>Probes <code>:8000/ready</code>; exposes results on its own <code>/probe</code> endpoint that Prometheus scrapes.</td></tr>
+            <tr><td>Grafana</td><td>Dashboards, alert rendering, notification routing.</td><td>Reads PromQL from Prometheus; reads Lucene from Elasticsearch (when log pipeline is on).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="log-pipeline">Log pipeline (optional)</h2>
+      <p>
+        Per <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>,
+        the log pipeline is local-only and dev-focused. Production-grade log shipping is out of scope at this stage.
+      </p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Component</th><th>Role</th><th>Reads from / writes to</th></tr></thead>
+          <tbody>
+            <tr><td>Filebeat</td><td>Tails the api's NDJSON log file and ships records.</td><td>Tails the file; writes to Elasticsearch over HTTP.</td></tr>
+            <tr><td>Elasticsearch</td><td>Inverted-index store for log records.</td><td>Indexed by Filebeat; queried by Kibana.</td></tr>
+            <tr><td>Kibana</td><td>Operator UI for log search and discovery.</td><td>Queries Elasticsearch via Lucene.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="alerting">Alerting model</h2>
+      <p>
+        Per <a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a>, alerts are
+        error-budget-driven: alerts fire on burn rate, not on individual failed requests. Recording rules pre-compute
+        the relevant ratios (<code>error_rate</code>, <code>latency_p95</code>, <code>availability_30d</code>) so that
+        alerting rules stay short and inspectable.
+      </p>
+      <ul>
+        <li><strong>Fast burn:</strong> page when 14.4× burn over 1 h would exhaust the 30-day budget — actionable signals only.</li>
+        <li><strong>Slow burn:</strong> ticket when 6× burn over 6 h sustains — schedule, don't page.</li>
+        <li><strong>Probe failure:</strong> Blackbox <code>/ready</code> down for 2 consecutive scrape intervals — page.</li>
+      </ul>
+      <p class="small">
+        Concrete PromQL is owned by <a href="api-reference.html">monitoring · API reference</a>; it is the contract
+        this service publishes for operators.
+      </p>
+
+      <h2 id="see-also">See also</h2>
+      <ul>
+        <li><a href="api-reference.html">monitoring · API reference</a> — scrape / probe contracts, recording rules, dashboard names</li>
+        <li><a href="runbooks.html">monitoring · Runbooks</a> — symptom index, recovery</li>
+        <li><a href="../api/architecture.html">api · Architecture</a> — what monitoring is observing</li>
+        <li><a href="../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009</a></li>
+        <li><a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a></li>
+        <li><a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a></li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>docs-diagram</code> + <code>docs-table--zebra --sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-10</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Filled C4 L3, metrics + log pipelines, alerting model.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-08</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial skeleton stub.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#component-view">Component view</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metrics-pipeline">Metrics pipeline</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#log-pipeline">Log pipeline</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#alerting">Alerting model</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#see-also">See also</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
 </body></html>

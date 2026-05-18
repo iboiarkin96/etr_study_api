@@ -1,218 +1,171 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ADR 0013: Changelog and Release Notes</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
-
+  <title>ADR 0013 · Changelog and Release Notes · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-<body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
-  <main class="container" data-adr-weight="7">
-    <h1 class="internal-h1--accent-tail">ADR 0013: Changelog and Release Notes</h1>
-    <div id="docs-top-nav"></div>
-    <div id="docs-page-meta-mount" hidden=""></div>
-    <section class="card">
-      <h2>Ratification</h2>
-      <p>
-        Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate
-        ratification process. Git history for this file on <code>main</code> is the record.
-      </p>
-      <ul>
-        <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
-        <li>Merge PR: <em>see git history for this file</em></li>
-        <li>Accepted: <em>as merged to <code>main</code></em></li>
-      </ul>
-
-    </section>
-    <section class="card">
-      <h2>Context</h2>
-      <p>
-        <strong>Why this matters.</strong> When something breaks in production, the first question is “what changed?”
-        A changelog in the repo answers that without combing through dozens of commits. It is also the surface
-        integrators read: they should not need access to internal tickets to learn about API or security changes.
-      </p>
-      <p>
-        Ad-hoc notes in chat do not scale. We keep <a href="https://keepachangelog.com/">Keep a Changelog</a> at the
-        repository root, aligned with <a href="0001-docs-as-code.html">Docs as Code</a>, and enforce updates when
-        user-facing paths change.
-      </p>
-
-    </section>
-    <section class="card">
-      <h2>Decision</h2>
-      <h3>Where and how</h3>
-      <ul>
-        <li>
-          The repository maintains a root <code>CHANGELOG.md</code> following
-          <a href="https://keepachangelog.com/">Keep a Changelog</a>, with an <code>[Unreleased]</code> section for
-          ongoing work and dated sections when versions are released.
-        </li>
-        <li>
-          <strong>User-facing</strong> changes (behavior, API contract, security, notable fixes) belong under
-          <code>### Added</code>, <code>### Changed</code>, <code>### Fixed</code>, <code>### Deprecated</code>,
-          <code>### Removed</code>, <code>### Security</code> as appropriate. Purely internal refactors, test-only
-          edits, or mechanical CI updates that do not affect consumers may be omitted when they do not match the
-          trigger paths in Validation (below).
-        </li>
-      </ul>
-
-      <h3>Merge and PR conventions</h3>
-      <ul>
-        <li>
-          <strong>Prefer squash merge</strong> into <code>main</code> (or <code>master</code>) so one commit per
-          change carries a clear summary; that message is a good place for a changelog-related pointer when useful.
-        </li>
-        <li>
-          When a pull request touches user-facing areas (see Validation), it must also update
-          <code>[Unreleased]</code> in <code>CHANGELOG.md</code> in the same PR, unless an escape hatch applies.
-        </li>
-        <li>
-          <strong>Escape hatches</strong> (documented for automation and humans):
-          <ul>
-            <li>
-              Include <code>[skip changelog]</code> or <code>skip-changelog</code> in the <strong>PR title</strong>
-              (for pull-request checks) or in <strong>commit messages</strong> in the pushed range (for post-merge
-              push checks) when the change is mechanical and needs no release note.
-            </li>
-            <li>
-              Optional GitHub label <code>skip changelog</code> may be used where enabled; teams should mirror the same
-              intent as the text tokens above.
-            </li>
-          </ul>
-        </li>
-      </ul>
-
-      <h3>Automation (LLM)</h3>
-      <p>
-        An optional script may call an HTTP API (OpenAI-compatible or similar) using keys from the developer or CI
-        environment to <strong>draft</strong> bullet points from <code>git log</code>. The output is assistive only:
-        humans review and edit before merge. Nothing automatically overwrites <code>CHANGELOG.md</code> on
-        <code>main</code> without a normal PR.
-      </p>
-
-      <h3 id="llm-draft-workflow">Local workflow: <code>scripts/changelog_draft.py</code></h3>
-      <p>
-        The script never writes <code>CHANGELOG.md</code>. It prints a draft to stdout; you copy or adapt the result
-        into <code>[Unreleased]</code> in a normal commit/PR.
-      </p>
-
-      <h4>How the git range works</h4>
-      <p>
-        The script reads commits in the range <code>--since..--head</code>: commits reachable from
-        <code>--head</code> that are not in <code>--since</code>. Defaults are <code>--since main --head HEAD</code>,
-        i.e. the new commits on your current branch. Point <code>--head</code> at a branch name to draft for that
-        branch from elsewhere.
-      </p>
-      <p>
-        Staged changes are <strong>not</strong> in the git history. If you have only run <code>git add</code>, the
-        range may be empty and the script will print <code>_No changes in this range._</code> Either commit first, or
-        pass <code>--include-working-tree</code> (see below).
-      </p>
-
-      <h4>Common runs</h4>
-      <ol>
-        <li>
-          <strong>Before any commits exist on the branch.</strong>
-          <code>python scripts/changelog_draft.py --since main --head HEAD --include-working-tree</code>. This adds
-          <code>git diff --cached --stat</code> (staged) and <code>git diff --stat</code> (unstaged) to the prompt, so
-          the model can summarise uncommitted work.
-        </li>
-        <li>
-          <strong>After one or more commits.</strong>
-          <code>python scripts/changelog_draft.py --since main --head feature/my-feature</code>. Add
-          <code>--include-working-tree</code> if local edits should also be considered.
-        </li>
-        <li>
-          <strong>Inspect the prompt without calling the API.</strong>
-          <code>python scripts/changelog_draft.py --print-log</code> (add the same flags you would use for a real run).
-        </li>
-        <li>
-          <strong>Save the draft to a file.</strong>
-          <code>python scripts/changelog_draft.py ... -o /tmp/changelog-llm-draft.md</code> writes UTF-8 alongside
-          stdout. Still merge into <code>CHANGELOG.md</code> by hand under the right <code>###</code> headings —
-          never raw-append stdout to the changelog file.
-        </li>
-        <li>
-          <strong>One-step convenience.</strong>
-          <code>python scripts/changelog_draft.py</code> with no flags uses <code>main..HEAD</code>, includes working
-          tree stats, and writes <code>changelog-llm-draft.md</code>. Override with
-          <code>CHANGELOG_HEAD=feature/x</code>, <code>CHANGELOG_SINCE=main</code>, or
-          <code>CHANGELOG_DRAFT_FLAGS=</code> for commits-only.
-        </li>
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0013</li>
       </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
 
-      <h4>Secrets and smoke test</h4>
-      <p>
-        Set <code>OPENROUTER_API_KEY</code> or <code>OPENAI_API_KEY</code> in the repository root <code>.env</code>
-        file (see <code>env/example</code>). Optional variables: <code>OPENAI_BASE_URL</code>,
-        <code>OPENAI_MODEL</code>, and the OpenRouter attribution headers described there. Smoke-test the key with
-        <code>python scripts/llm_ping.py</code>.
-      </p>
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
-    </section>
-    <section class="card">
-      <h2>Validation</h2>
-      <ul>
-        <li>
-          <strong>Pull requests</strong> targeting <code>main</code> or <code>master</code>: if the diff changes any
-          path under <code>app/</code>, <code>services/portal/public/reference/api/</code>, or the root
-          <code>README.md</code>, then <code>CHANGELOG.md</code> must appear in the same diff unless a skip hatch
-          applies.
-        </li>
-        <li>
-          <strong>Pushes</strong> to <code>main</code> or <code>master</code>: the same path rule applies to the
-          range <code>before..after</code> from GitHub Actions. Commit messages in that range may satisfy the skip
-          hatch. If <code>before</code> is all zeros (e.g. new branch pointer), the gate does not apply to that push.
-        </li>
-      </ul>
+  <main class="container">
+    <article class="docs-prose">
 
-    </section>
+      <header class="page-head">
+        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0013</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <h1>Changelog and Release Notes</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+          Keep a Keep-a-Changelog file in the repository root and enforce updates when user-facing paths change,
+          so consumers and contributors share one obvious place for "what changed".
+        </p>
+      </header>
 
-    <section class="card">
-      <h2>Consequences</h2>
-      <h3>Positive</h3>
-      <ul>
-        <li>Consumers and contributors share one obvious place for “what changed.”</li>
-        <li>CI enforces the habit without parsing every intermediate commit in a multi-commit branch.</li>
-      </ul>
-      <h3>Trade-offs</h3>
-      <ul>
-        <li>Path filters may need tuning; false positives are mitigated by skip tokens and documented exemptions.</li>
-        <li>Optional LLM usage requires secrets hygiene and is never required for the core app runtime.</li>
-      </ul>
+      <section aria-labelledby="ratification-h">
+        <h2 id="ratification-h">Ratification</h2>
+        <article class="docs-card">
+          <div class="docs-card__body">
+            <p>Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate ratification process. Git history for this file on <code>main</code> is the record.</p>
+            <ul>
+              <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
+              <li>Merge PR: <em>see git history for this file</em></li>
+              <li>Accepted: <em>as merged to <code>main</code></em></li>
+            </ul>
+          </div>
+        </article>
+      </section>
 
-    </section>
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p><strong>Why this matters.</strong> When something breaks in production, the first question is "what changed?" A changelog in the repo answers that without combing through dozens of commits. It is also the surface integrators read: they should not need access to internal tickets to learn about API or security changes.</p>
+        <p>Ad-hoc notes in chat do not scale. We keep <a href="https://keepachangelog.com/">Keep a Changelog</a> at the repository root, aligned with <a href="0001-docs-as-code.html">Docs as Code</a>, and enforce updates when user-facing paths change.</p>
+      </section>
 
-    <section id="page-history" class="card">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead>
-            <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Change</th>
-              <th scope="col">Author</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><time datetime="2026-04-21">2026-04-21</time></td>
-              <td>Added Page history section (repository baseline).</td>
-              <td><a href="../../../internal/team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <h3>Where and how</h3>
+        <ul>
+          <li>The repository maintains a root <code>CHANGELOG.md</code> following <a href="https://keepachangelog.com/">Keep a Changelog</a>, with an <code>[Unreleased]</code> section for ongoing work and dated sections when versions are released.</li>
+          <li><strong>User-facing</strong> changes (behavior, API contract, security, notable fixes) belong under <code>### Added</code>, <code>### Changed</code>, <code>### Fixed</code>, <code>### Deprecated</code>, <code>### Removed</code>, <code>### Security</code> as appropriate. Purely internal refactors, test-only edits, or mechanical CI updates that do not affect consumers may be omitted when they do not match the trigger paths in Validation (below).</li>
+        </ul>
 
+        <h3>Merge and PR conventions</h3>
+        <ul>
+          <li><strong>Prefer squash merge</strong> into <code>main</code> (or <code>master</code>) so one commit per change carries a clear summary; that message is a good place for a changelog-related pointer when useful.</li>
+          <li>When a pull request touches user-facing areas (see Validation), it must also update <code>[Unreleased]</code> in <code>CHANGELOG.md</code> in the same PR, unless an escape hatch applies.</li>
+          <li><strong>Escape hatches</strong> (documented for automation and humans):
+            <ul>
+              <li>Include <code>[skip changelog]</code> or <code>skip-changelog</code> in the <strong>PR title</strong> (for pull-request checks) or in <strong>commit messages</strong> in the pushed range (for post-merge push checks) when the change is mechanical and needs no release note.</li>
+              <li>Optional GitHub label <code>skip changelog</code> may be used where enabled; teams should mirror the same intent as the text tokens above.</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h3>Automation (LLM)</h3>
+        <p>An optional script may call an HTTP API (OpenAI-compatible or similar) using keys from the developer or CI environment to <strong>draft</strong> bullet points from <code>git log</code>. The output is assistive only: humans review and edit before merge. Nothing automatically overwrites <code>CHANGELOG.md</code> on <code>main</code> without a normal PR.</p>
+
+        <h3 id="llm-draft-workflow">Local workflow: <code>scripts/changelog_draft.py</code></h3>
+        <p>The script never writes <code>CHANGELOG.md</code>. It prints a draft to stdout; you copy or adapt the result into <code>[Unreleased]</code> in a normal commit/PR.</p>
+
+        <h4>How the git range works</h4>
+        <p>The script reads commits in the range <code>--since..--head</code>: commits reachable from <code>--head</code> that are not in <code>--since</code>. Defaults are <code>--since main --head HEAD</code>, i.e. the new commits on your current branch. Point <code>--head</code> at a branch name to draft for that branch from elsewhere.</p>
+        <p>Staged changes are <strong>not</strong> in the git history. If you have only run <code>git add</code>, the range may be empty and the script will print <code>_No changes in this range._</code> Either commit first, or pass <code>--include-working-tree</code> (see below).</p>
+
+        <h4>Common runs</h4>
+        <ol>
+          <li><strong>Before any commits exist on the branch.</strong> <code>python scripts/changelog_draft.py --since main --head HEAD --include-working-tree</code>. This adds <code>git diff --cached --stat</code> (staged) and <code>git diff --stat</code> (unstaged) to the prompt, so the model can summarise uncommitted work.</li>
+          <li><strong>After one or more commits.</strong> <code>python scripts/changelog_draft.py --since main --head feature/my-feature</code>. Add <code>--include-working-tree</code> if local edits should also be considered.</li>
+          <li><strong>Inspect the prompt without calling the API.</strong> <code>python scripts/changelog_draft.py --print-log</code> (add the same flags you would use for a real run).</li>
+          <li><strong>Save the draft to a file.</strong> <code>python scripts/changelog_draft.py ... -o /tmp/changelog-llm-draft.md</code> writes UTF-8 alongside stdout. Still merge into <code>CHANGELOG.md</code> by hand under the right <code>###</code> headings — never raw-append stdout to the changelog file.</li>
+          <li><strong>One-step convenience.</strong> <code>python scripts/changelog_draft.py</code> with no flags uses <code>main..HEAD</code>, includes working tree stats, and writes <code>changelog-llm-draft.md</code>. Override with <code>CHANGELOG_HEAD=feature/x</code>, <code>CHANGELOG_SINCE=main</code>, or <code>CHANGELOG_DRAFT_FLAGS=</code> for commits-only.</li>
+        </ol>
+
+        <h4>Secrets and smoke test</h4>
+        <p>Set <code>OPENROUTER_API_KEY</code> or <code>OPENAI_API_KEY</code> in the repository root <code>.env</code> file (see <code>env/example</code>). Optional variables: <code>OPENAI_BASE_URL</code>, <code>OPENAI_MODEL</code>, and the OpenRouter attribution headers described there. Smoke-test the key with <code>python scripts/llm_ping.py</code>.</p>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li><strong>Pull requests</strong> targeting <code>main</code> or <code>master</code>: if the diff changes any path under <code>app/</code>, <code>services/portal/public/reference/api/</code>, or the root <code>README.md</code>, then <code>CHANGELOG.md</code> must appear in the same diff unless a skip hatch applies.</li>
+          <li><strong>Pushes</strong> to <code>main</code> or <code>master</code>: the same path rule applies to the range <code>before..after</code> from GitHub Actions. Commit messages in that range may satisfy the skip hatch. If <code>before</code> is all zeros (e.g. new branch pointer), the gate does not apply to that push.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Consumers and contributors share one obvious place for "what changed."</li>
+                <li>CI enforces the habit without parsing every intermediate commit in a multi-commit branch.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Path filters may need tuning; false positives are mitigated by skip tokens and documented exemptions.</li>
+                <li>Optional LLM usage requires secrets hygiene and is never required for the core app runtime.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <nav aria-label="Related" class="docs-card-grid" style="margin-top:var(--space-6)">
+        <a class="docs-card" href="index.html"><div class="docs-card__head"><h3 class="docs-card__title">← All ADRs</h3></div><div class="docs-card__body">Back to the ADR index.</div></a>
+        <a class="docs-card" href="0001-docs-as-code.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0001</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Docs as Code foundation aligned with this changelog policy.</div></a>
+        <a class="docs-card" href="0017-branch-naming-and-repository-workflow.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0017</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Branch naming and release tags companion to the changelog.</div></a>
+      </nav>
+
+      <footer class="docs-history" aria-label="Page history">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Migrated to UI Kit v3.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-04-21</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Added Page history section (repository baseline).</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
   </main>
+
+  <aside class="docs-toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
 </body></html>

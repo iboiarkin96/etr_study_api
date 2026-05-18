@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How-to · Make commands and workflows · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Service · Make commands and workflows</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Service</span>
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+        </div>
+        <h1>Make commands and workflows (onboarding)</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Targets grouped by job, diagrams for the composite pipelines, and an
+          <strong>if → then</strong> table for common tasks. The full target list lives in
+          <code>make help</code>. Governing policy:
+          <a href="../../governance/adr/0008-make-command-taxonomy-and-workflow-entrypoints.html">ADR 0008</a>.
+        </p>
+      </header>
+
+      <h2 id="entry-points">Recommended entry points (start here)</h2>
+      <p>Most days you only need one of these. Each one wraps the same atomic targets (format, lint, tests, OpenAPI, docs); they differ in the order and in how the docs are handled at the end.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Command</th><th scope="col">Use when</th><th scope="col">Outcome</th></tr></thead>
+          <tbody>
+            <tr><td><code>make fix</code></td><td>You want quick auto-fixes before committing.</td><td><code>format-fix</code> → <code>lint-fix</code> → <code>docs-fix</code></td></tr>
+            <tr><td><code>make verify</code></td><td>Single strict gate for local and CI.</td><td><code>deps-audit</code> → <code>lint-check</code> → <code>type-check</code> → <code>openapi-check</code> → <code>contract-test</code> → <code>test</code> → <code>docs-check</code> → <code>docs-a11y-check</code></td></tr>
+            <tr><td><code>make release-check</code></td><td>Pre-release or deploy rehearsal.</td><td><code>env-check</code> → <code>make verify</code></td></tr>
+            <tr><td><code>make release DEPLOY_CMD='…'</code></td><td>Deploy only after the full gate.</td><td><code>release-check</code> → your shell command</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="composite">Composite pipelines (diagram)</h2>
+      <p>The diagram below shows how the composite targets depend on each other. Arrows mark the order.</p>
+      <figure>
+        <img data-component="diagram-lightbox" src="../../reference/uml/rendered/make__composite_pipelines.svg" alt="PlantUML: Makefile composite targets — fix, verify, release-check, release" decoding="async" loading="lazy">
+      </figure>
+
+      <h2 id="run-observability">Run and observability (diagram)</h2>
+      <p>For day-to-day development, use <code>make run</code>. Use <code>run-project</code> when you need Compose plus the API in one flow (Docker required).</p>
+      <figure>
+        <img data-component="diagram-lightbox" src="../../reference/uml/rendered/make__run_and_observability.svg" alt="PlantUML: local run and optional observability stack via Docker Compose" decoding="async" loading="lazy">
+      </figure>
+      <p>Details and ports: <a href="local-development.html">Local development</a>. Load testing: <a href="api-load-testing.html">API load testing</a>.</p>
+
+      <h2 id="by-theme">Commands by theme (reference)</h2>
+      <p>Atomic targets you can run on their own. Composite targets live in <a href="#composite">Composite pipelines</a>.</p>
+
+      <h3 id="env-deps">Environment and dependencies</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>venv</code>, <code>install</code>, <code>requirements</code></td><td>Create env, install pins, or freeze <code>requirements.txt</code> from <code>.venv</code>.</td></tr>
+            <tr><td><code>env-init</code></td><td>Copy <code>env/example</code> to <code>.env</code> once.</td></tr>
+            <tr><td><code>env-check</code></td><td>Quick sanity: venv, <code>.env</code>, config load, DB path.</td></tr>
+            <tr><td><code>deps-audit</code></td><td>OSV scan of pinned requirements (see <a href="../../governance/adr/0019-python-dependency-security-pip-audit-and-pinning-policy.html">ADR 0019</a>).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="app-db">Application and database</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>run</code></td><td>Uvicorn with reload, reads <code>.env</code>.</td></tr>
+            <tr><td><code>container-start</code></td><td>Same entrypoint as the image: migrate, then Uvicorn (no reload).</td></tr>
+            <tr><td><code>migrate</code>, <code>migration name=…</code></td><td>Apply or generate Alembic revisions.</td></tr>
+            <tr><td><code>run-loadtest-api</code>, <code>run-loadtest-api-serve</code></td><td>Load-test helper (scripted run vs long-running server for a second terminal).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="quality">Code quality and contracts</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>format-fix</code> / <code>format-check</code></td><td>Ruff format.</td></tr>
+            <tr><td><code>lint-fix</code> / <code>lint-check</code></td><td>Ruff lint.</td></tr>
+            <tr><td><code>type-check</code></td><td>mypy on <code>app</code>, <code>tests</code>, <code>scripts</code>.</td></tr>
+            <tr><td><code>dead-code-check</code></td><td>Vulture (optional; not in default PR gate; see <a href="../../governance/adr/0014-dead-code-analysis-and-repository-hygiene.html">ADR 0014</a>).</td></tr>
+            <tr><td><code>openapi-check</code></td><td>Governance lint + breaking-change guard vs baseline.</td></tr>
+            <tr><td><code>contract-test</code></td><td>Full JSON equality of generated OpenAPI vs <code>openapi-baseline.json</code>.</td></tr>
+            <tr><td><code>openapi-accept-changes</code></td><td>Refresh baseline after intentional API changes (commit the file).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="tests">Tests</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>test</code></td><td>Full pytest run (coverage per <code>pyproject.toml</code>).</td></tr>
+            <tr><td><code>test-one path=…</code></td><td>Single file or node.</td></tr>
+            <tr><td><code>test-warnings</code></td><td>Pytest with warning summary for investigation.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="docs-helpers">Documentation and changelog helpers</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>docs-fix</code>, <code>docs-check</code>, <code>uml-check</code>, <code>api-docs</code></td><td>Docs pipeline, drift check, UML-only check, pdoc-only refresh (see <a href="docs-pipeline.html">Documentation pipeline</a>).</td></tr>
+            <tr><td><code>changelog-draft</code>, <code>llm-ping</code></td><td>Optional LLM draft and API key smoke test (<a href="../../governance/adr/0013-changelog-and-release-notes.html">ADR 0013</a>).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="observability">Observability, logging, container</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>observability-up</code>, <code>observability-down</code>, <code>observability-smoke</code></td><td>Prometheus/Grafana stack and link checks.</td></tr>
+            <tr><td><code>logging-up</code>, <code>logging-down</code>, <code>logging-reset</code>, <code>logging-smoke</code>, <code>logging-es-query</code></td><td>Optional Elasticsearch + Kibana + Filebeat for local NDJSON search (<code>docker-compose.logging.yml</code>); <code>QUERY=&lt;uuid&gt;</code> for CLI search. See <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.</td></tr>
+            <tr><td><code>docker-build</code></td><td>Build <code>study-app-api:local</code> (see <a href="docker-image-and-container.html">Docker image and container</a>).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="git-hooks">Git hooks</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>pre-commit-install</code>, <code>pre-commit-check</code></td><td>Install or run all hooks on the tree.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="scenarios">If → then (scenarios)</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">If you…</th><th scope="col">Then…</th></tr></thead>
+          <tbody>
+            <tr><td>Just cloned the repo</td><td><code>make venv &amp;&amp; make install &amp;&amp; make env-init</code>, edit <code>.env</code>, <code>make migrate</code>, <code>make run</code></td></tr>
+            <tr><td>Want auto-fixes before commit</td><td><code>make fix</code></td></tr>
+            <tr><td>Want full local gate and regenerated docs</td><td><code>make verify</code></td></tr>
+            <tr><td>Changed the API intentionally</td><td>Review, <code>make openapi-accept-changes</code>, commit baseline, <code>make verify</code></td></tr>
+            <tr><td>Debug one test</td><td><code>make test-one path=tests/…</code></td></tr>
+            <tr><td>Run like production Docker entrypoint locally</td><td><code>docker run … study-app-api:local</code> (see Docker guide)</td></tr>
+            <tr><td>Need metrics dashboards locally</td><td><code>docker compose -f docker-compose.observability.yml up -d</code> plus <code>make run</code></td></tr>
+            <tr><td>Want logs in Kibana / Elasticsearch locally</td><td><code>docker compose -f docker-compose.logging.yml up -d</code>, run the API with NDJSON to <code>./logs</code> (default <code>LOG_FORMAT</code> is <code>json</code>), create Kibana data view <code>*study-app-logs*</code> — see <a href="local-development.html">Local development</a>.</td></tr>
+            <tr><td>Prepare a release</td><td><code>make release-check</code>; deploy with <code>make release DEPLOY_CMD='…'</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; all tables on <code>docs-table--sticky-head --zebra</code>; PlantUML diagrams via <code>diagram-lightbox</code>; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-03</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Tightened Overview, entry-points intro, and diagram captions; replaced "Daily dev is usually make run" with a complete sentence.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#entry-points">Entry points</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#composite">Composite pipelines</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#run-observability">Run and observability</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#by-theme">Commands by theme</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scenarios">If → then</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

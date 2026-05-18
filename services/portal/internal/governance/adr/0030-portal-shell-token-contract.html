@@ -1,272 +1,336 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ADR 0030: Portal shell token contract</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
+  <title>ADR 0030 · Portal shell token contract · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-<body data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
-  <main class="container" data-adr-weight="0">
-    <h1 class="internal-h1--accent-tail">ADR 0030: Portal shell token contract</h1>
-    <div id="docs-top-nav"></div>
-    <div id="docs-page-meta-mount" hidden=""></div>
-
-    <section class="card">
-      <h2>Ratification</h2>
-      <p>Proposed on 2026-05-09. Discussion follows the lifecycle defined in <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a> — open a GitHub Issue titled <code>[ADR] Portal shell token contract</code>, link the merge PR, record the acceptance date once ratified.</p>
-      <ul>
-        <li>Discussion Issue: <em>pending</em></li>
-        <li>Merge PR: <em>pending</em></li>
-        <li>Accepted: <em>pending</em></li>
-      </ul>
-    </section>
-
-    <section class="card">
-      <h2>Context</h2>
-      <p>
-        The repository ships two HTML portals from a single codebase: the public documentation portal (<code>body class="public-layout"</code>, audience-facing tutorials and references) and the internal portal (<code>body class="internal-layout"</code>, ADRs / RFCs / runbooks / catalog). Per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> the two portals share an information architecture spine but differ in identity and density: the public layout is wider and lighter; the internal layout is denser, sticky-sidebar-driven, with audit chrome.
-      </p>
-      <p>
-        Until 2026-05-09 each portal carried its own copy of the same shell geometry rules — the grid template, sidebar stickiness and scrollbar contract, mobile flatten breakpoint, container max-width and gutters. Two near-identical blocks of CSS lived in <code>public-layout.css</code> and <code>internal-layout.css</code>; whenever a viewport tier changed (e.g. the 2026-05-01 mobile-contract pass at <a href="../../../ui-kit/pages/foundations/motion.html"><code>#mobile-contract</code></a>), both files had to be edited in lockstep, and any drift between them silently broke the visual alignment between the two portals.
-      </p>
-      <p>
-        We need a single normative source for shell geometry that (a) keeps the two portals in lockstep on the breakpoint canon, (b) preserves each portal's distinct identity (sidebar width, density, container width, padding), and (c) makes adding a third portal (e.g. a future <em>partners</em> branch) a question of declaring a token override rather than copying ~120 lines of geometry.
-      </p>
-    </section>
-
-    <section class="card">
-      <h2>Decision</h2>
-
-      <h3>1. Single source for shell geometry</h3>
-      <p>
-        All shell geometry — the grid template, the sticky-sidebar contract, the mobile flatten rule, the collapsed-sidebar rule, and the per-portal container box — lives in one file: <code>services/frontend/portal/assets/docs-shell.css</code>. Both portals load it via the <code>@import</code> chain in <code>docs.css</code>. Per-portal differences are encoded as <strong>CSS custom properties (tokens)</strong> on the body class, never as duplicated geometry rules.
-      </p>
-      <p>
-        Identity-only styles (sidebar nav internals, drawer chrome, hero / spotlight / backlog widgets, page-title row, color tokens) remain in <code>public-layout.css</code> and <code>internal-layout.css</code>. The split is structural: <em>shell</em> = grid + container box; <em>identity</em> = everything that fills the container.
-      </p>
-
-      <h3>2. The fourteen-token contract</h3>
-      <p>The shell exposes fourteen tokens. Both portals must define values for all of them at the base scope; per-portal and per-breakpoint overrides update specific tokens without restating geometry.</p>
-      <div class="docs-table-scroll" role="region" aria-label="docs-shell.css token contract">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Token</th>
-              <th scope="col">Public default</th>
-              <th scope="col">Internal override (≥1025)</th>
-              <th scope="col">Purpose</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>--shell-max-width</code></td>
-              <td><code>min(1520px, 100vw)</code></td>
-              <td><code>min(1680px, calc(100vw - 24px))</code></td>
-              <td>Outer max-width of the shell grid (sidebar + main).</td>
-            </tr>
-            <tr>
-              <td><code>--shell-pad</code></td>
-              <td><code>0 0 72px</code></td>
-              <td><code>24px 12px</code></td>
-              <td>Padding on the shell at desktop tiers.</td>
-            </tr>
-            <tr>
-              <td><code>--shell-pad-mobile</code></td>
-              <td>safe-area-inset gutters + 56 px bottom</td>
-              <td>12 px top + safe-area-inset gutters</td>
-              <td>Padding on the shell at ≤1024 (mobile + tablet flatten).</td>
-            </tr>
-            <tr>
-              <td><code>--sidebar-width</code></td>
-              <td><code>264px</code></td>
-              <td><code>300px</code></td>
-              <td>Grid track 1 width at ≥1025.</td>
-            </tr>
-            <tr>
-              <td><code>--sidebar-collapsed-width</code></td>
-              <td><code>56px</code></td>
-              <td><code>56px</code></td>
-              <td>Grid track 1 width when <code>.is-sidebar-collapsed</code>.</td>
-            </tr>
-            <tr>
-              <td><code>--sidebar-bg</code></td>
-              <td><code>var(--bg)</code></td>
-              <td><code>transparent</code></td>
-              <td>Sidebar background; transparent for the internal portal so the page chrome shows through.</td>
-            </tr>
-            <tr>
-              <td><code>--sidebar-pad</code></td>
-              <td><code>0</code></td>
-              <td><code>4px 16px 20px 0</code></td>
-              <td>Sidebar inner padding (≥1025).</td>
-            </tr>
-            <tr>
-              <td><code>--sidebar-mobile-pad</code></td>
-              <td><code>0</code></td>
-              <td><code>0 0 16px</code></td>
-              <td>Sidebar inner padding at ≤1024.</td>
-            </tr>
-            <tr>
-              <td><code>--sidebar-mobile-display</code></td>
-              <td><code>none</code></td>
-              <td><code>block</code></td>
-              <td>Public portal hides the sidebar on mobile (drawer-only); internal portal flattens it inline.</td>
-            </tr>
-            <tr>
-              <td><code>--sidebar-z</code></td>
-              <td><code>10</code></td>
-              <td><code>2</code></td>
-              <td>z-index of the sticky sidebar; public sits above topbar, internal stays below the page-title row.</td>
-            </tr>
-            <tr>
-              <td><code>--main-pad-left</code></td>
-              <td><code>0</code></td>
-              <td><code>20px</code></td>
-              <td>Padding-left of the main column at ≥1025.</td>
-            </tr>
-            <tr>
-              <td><code>--container-max-width</code></td>
-              <td><code>960px</code> at ≥1025</td>
-              <td><code>960px</code> at ≥1025</td>
-              <td>Prose-column max-width. Unified across both portals so a tutorial and an ADR have identical line length.</td>
-            </tr>
-            <tr>
-              <td><code>--container-margin-inline</code></td>
-              <td><code>0</code> at ≥1025</td>
-              <td><code>0</code> at ≥1025</td>
-              <td>Container horizontal margin; <code>0</code> = left-aligned to the main column.</td>
-            </tr>
-            <tr>
-              <td><code>--container-pad</code></td>
-              <td><code>12px 24px 0 32px</code> at ≥1025</td>
-              <td><code>12px 24px 0 32px</code> at ≥1025</td>
-              <td>Container padding; identical between portals so prose blocks line up.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3>3. Authoring rules</h3>
-      <ul>
-        <li><strong>Geometry rules live once.</strong> The selectors <code>.public-layout__shell, .internal-layout__shell</code>, <code>.public-layout__sidebar, .internal-layout__sidebar</code>, <code>.public-layout__main, .internal-layout__main</code>, and the <code>.container</code> inside each main, are declared <em>only</em> in <code>docs-shell.css</code>. Adding the same selector to <code>public-layout.css</code> or <code>internal-layout.css</code> is a review-blocker.</li>
-        <li><strong>Breakpoint canon.</strong> Geometry rules use the <a href="../../../ui-kit/pages/foundations/motion.html">mobile-contract</a> tiers: ≥1025 (desktop), 761–1024 (tablet flatten), ≤760 (phone). No new breakpoints inside <code>docs-shell.css</code> without updating the mobile contract first.</li>
-        <li><strong>Per-portal differences are tokens.</strong> When the portals must differ, override the token on the body selector — never branch geometry by selector.</li>
-        <li><strong>Wide widgets opt out at the widget, not the container.</strong> When a single widget needs the full main column (HTTP tablet, layer tables, hero blocks), it sets its own width on the widget selector. The container stays the prose column.</li>
-        <li><strong>Identity-only files don't repeat geometry.</strong> When editing <code>public-layout.css</code> or <code>internal-layout.css</code>, the file should grow content rules (typography, color, decorative chrome) only — never grid, never sticky positioning.</li>
-      </ul>
-
-      <h3>4. Adding a new portal</h3>
-      <p>To add a third portal (e.g. <code>body class="partners-layout"</code>), the workflow is:</p>
-      <ol>
-        <li>Add the new body selector to the shared selector list in <code>docs-shell.css</code> for each geometry rule.</li>
-        <li>Add a token block <code>body.partners-layout { ... }</code> overriding only the tokens that differ from the public default.</li>
-        <li>Create <code>partners-layout.css</code> for identity-only styles and add it to the <code>@import</code> chain in <code>docs.css</code>.</li>
-        <li>Update this ADR's token table with any new portal-specific values.</li>
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0030</li>
       </ol>
-    </section>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
 
-    <section class="card">
-      <h2>Scope</h2>
-      <ul>
-        <li>In scope: shell grid geometry, sidebar stickiness / scrollbar / collapse, mobile flatten contract, container box (max-width, margin, padding), the fourteen-token contract, and the authoring rules above.</li>
-        <li>Out of scope: typography (<a href="../../reference/front/foundations/tokens.html">font ladder</a>), color tokens, sidebar nav contents (<code>internal-sidebar.js</code>), drawer chrome, hero / spotlight / backlog widgets, syntax highlighter, table-of-contents FAB. These remain in identity files.</li>
-      </ul>
-    </section>
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
-    <section class="card">
-      <h2>Alternatives considered</h2>
-      <ol>
-        <li><strong>Keep duplicated geometry in each layout file.</strong> Pros: each file is self-contained; reading one portal's CSS gives the full picture. Cons: every breakpoint pass must edit both files; drift is silent; the cost of adding a third portal scales linearly with shell complexity.</li>
-        <li><strong>Branch geometry by selector instead of tokens.</strong> Pros: classic CSS pattern, no custom properties. Cons: the shared rule list explodes (<code>.public-layout__shell { … } .internal-layout__shell { … }</code> per breakpoint × per property); reviewers must mentally diff parallel rule blocks instead of comparing one token line.</li>
-        <li><strong>Move the shell into a CSS-in-JS framework.</strong> Pros: type-safe tokens, theme objects. Cons: the portals are static HTML loaded directly; introducing a JS-only build step for shell CSS would couple every page to a bundler and contradict <a href="0001-docs-as-code.html">ADR 0001</a>'s "docs render statically with file:// open" baseline.</li>
-        <li><strong>Use Sass mixins or a build-time preprocessor.</strong> Pros: terser source. Cons: adds a build step, splits the source-of-truth between <code>.scss</code> and <code>.css</code>, and obscures cascade behavior (browsers see custom properties live; Sass values are baked at build time).</li>
-      </ol>
-    </section>
+  <main class="container">
+    <article class="docs-prose">
 
-    <section class="card">
-      <h2>Consequences</h2>
-      <h3>Positive</h3>
-      <ul>
-        <li><strong>One file owns geometry.</strong> Breakpoint passes touch one file; portal drift becomes mechanical to spot in review.</li>
-        <li><strong>Adding a portal is declarative.</strong> A new audience needs a token block, not a copy of the shell.</li>
-        <li><strong>Cascade is observable.</strong> Custom properties show in DevTools per-element; debugging a layout regression means inspecting one variable list, not grepping two CSS files.</li>
-        <li><strong>Width unification falls out for free.</strong> The 2026-05-09 prose-column unification (<code>--container-max-width: 960px</code> on both portals) is a one-line override; the same change in the duplicated regime would have required parallel edits.</li>
-      </ul>
-      <h3>Trade-offs</h3>
-      <ul>
-        <li>The token contract is a public API across portal files. Renaming or removing a token without updating every portal's overrides breaks the shell silently. Mitigated by the up-front list in this ADR's token table and by the rule that geometry selectors live in only one file.</li>
-        <li>Reading any one portal's CSS no longer tells the full geometric story; reviewers must read <code>docs-shell.css</code> + the portal's identity file. Mitigated by the file header in <code>docs-shell.css</code> that names every token.</li>
-      </ul>
-    </section>
+      <header class="page-head">
+        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0030</span> <span class="docs-pill docs-pill--warn">Proposed</span></p>
+        <h1>Portal shell token contract</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+          One file owns shell geometry (<code>docs-shell.css</code>); per-portal differences are expressed as a fourteen-token CSS custom-property contract, never duplicated grid rules.
+        </p>
+      </header>
 
-    <section class="card">
-      <h2>Compatibility and migration</h2>
-      <ul>
-        <li>Backward-compatibility impact: <strong>none for end-users</strong>. The 2026-05-09 extraction is a no-visual-drift refactor; tokens were initialized to the values that the duplicated geometry was already producing.</li>
-        <li>Migration plan:
-          <ol>
-            <li>Land <code>docs-shell.css</code> with both portals' geometry expressed via tokens (done 2026-05-09, commit <code>450f456</code>).</li>
-            <li>Strip the duplicated geometry from <code>public-layout.css</code> and <code>internal-layout.css</code>, leaving identity rules (done 2026-05-09).</li>
-            <li>Unify the prose-column width across portals at ≥1025 via the <code>--container-max-width</code> / <code>--container-margin-inline</code> / <code>--container-pad</code> tokens (done 2026-05-09, commit <code>0ffe127</code>).</li>
-            <li>Future portals declare a body class and a token block; no further migration work.</li>
-          </ol>
-        </li>
-        <li>Rollback: revert the offending PR. Both portals fall back to their previous duplicated geometry without runtime impact.</li>
-      </ul>
-    </section>
+      <section aria-labelledby="ratification-h">
+        <h2 id="ratification-h">Ratification</h2>
+        <article class="docs-card">
+          <div class="docs-card__body">
+            <p>Proposed on 2026-05-09. Discussion follows the lifecycle defined in <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a> — open a GitHub Issue titled <code>[ADR] Portal shell token contract</code>, link the merge PR, record the acceptance date once ratified.</p>
+            <ul>
+              <li>Discussion Issue: <em>pending</em></li>
+              <li>Merge PR: <em>pending</em></li>
+              <li>Accepted: <em>pending</em></li>
+            </ul>
+          </div>
+        </article>
+      </section>
 
-    <section class="card">
-      <h2>Implementation plan</h2>
-      <ol>
-        <li>Land this ADR.</li>
-        <li>Cross-link from the documentation section of <a href="index.html">ADR Index</a>.</li>
-        <li>Reference this ADR from any future portal-shell change in <a href="../../../CHANGELOG.md"><code>services/portal/CHANGELOG.md</code></a> (entry under 2026-05-09 already records the extraction and width unification).</li>
-        <li>When a third portal is proposed, update this ADR's token table with the new portal's column.</li>
-      </ol>
-    </section>
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p>The repository ships two HTML portals from a single codebase: the public documentation portal (<code>body class="public-layout"</code>, audience-facing tutorials and references) and the internal portal (<code>body class="internal-layout"</code>, ADRs / RFCs / runbooks / catalog). Per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> the two portals share an information architecture spine but differ in identity and density: the public layout is wider and lighter; the internal layout is denser, sticky-sidebar-driven, with audit chrome.</p>
+        <p>Until 2026-05-09 each portal carried its own copy of the same shell geometry rules — the grid template, sidebar stickiness and scrollbar contract, mobile flatten breakpoint, container max-width and gutters. Two near-identical blocks of CSS lived in <code>public-layout.css</code> and <code>internal-layout.css</code>; whenever a viewport tier changed (e.g. the 2026-05-01 mobile-contract pass at <a href="../../../ui-kit/pages/foundations/motion.html"><code>#mobile-contract</code></a>), both files had to be edited in lockstep, and any drift between them silently broke the visual alignment between the two portals.</p>
+        <p>We need a single normative source for shell geometry that (a) keeps the two portals in lockstep on the breakpoint canon, (b) preserves each portal's distinct identity (sidebar width, density, container width, padding), and (c) makes adding a third portal (e.g. a future <em>partners</em> branch) a question of declaring a token override rather than copying ~120 lines of geometry.</p>
+      </section>
 
-    <section class="card">
-      <h2>Validation</h2>
-      <ul>
-        <li>Technical checks: <code>make verify</code> green; <code>scripts/check_adr_rfc_links.py</code> resolves every cross-reference; <code>make docs-check</code> drift gate green.</li>
-        <li>Visual checks: at each breakpoint tier (≥1025, 761–1024, ≤760) the public and internal portals render with the geometry their token sets describe; the shared prose container has identical line length on both portals at ≥1025.</li>
-        <li>Documentation updates: this ADR is linked from <a href="index.html"><code>services/portal/internal/governance/adr/index.html</code></a>; <a href="../../../CHANGELOG.md"><code>services/portal/CHANGELOG.md</code></a> records the addition.</li>
-      </ul>
-    </section>
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
 
-    <section class="card">
-      <h2>References</h2>
-      <ul>
-        <li>Related ADRs: <a href="0001-docs-as-code.html">ADR 0001</a> (docs as code), <a href="0025-external-and-internal-api-documentation.html">ADR 0025</a> (external/internal split), <a href="0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a> (internal docs as source of truth).</li>
-        <li>Related RFCs: <a href="../../../internal/governance/rfc/0003-documentation-authoring-model.html">RFC 0003</a> (authoring model), <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> (public/internal portal IA).</li>
-        <li>Source: <code>services/frontend/portal/assets/docs-shell.css</code>, <code>services/frontend/portal/assets/public-layout.css</code>, <code>services/frontend/portal/assets/internal-layout.css</code>, <code>services/frontend/portal/assets/docs.css</code> (<code>@import</code> chain).</li>
-        <li>External: MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties" rel="external">Using CSS custom properties</a>; CSS Working Group <a href="https://www.w3.org/TR/css-variables-1/" rel="external">css-variables-1</a>.</li>
-      </ul>
-    </section>
+        <h3>1. Single source for shell geometry</h3>
+        <p>All shell geometry — the grid template, the sticky-sidebar contract, the mobile flatten rule, the collapsed-sidebar rule, and the per-portal container box — lives in one file: <code>services/frontend/portal/assets/docs-shell.css</code>. Both portals load it via the <code>@import</code> chain in <code>docs.css</code>. Per-portal differences are encoded as <strong>CSS custom properties (tokens)</strong> on the body class, never as duplicated geometry rules.</p>
+        <p>Identity-only styles (sidebar nav internals, drawer chrome, hero / spotlight / backlog widgets, page-title row, color tokens) remain in <code>public-layout.css</code> and <code>internal-layout.css</code>. The split is structural: <em>shell</em> = grid + container box; <em>identity</em> = everything that fills the container.</p>
 
-    <section id="page-history" class="card">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><time datetime="2026-05-09">2026-05-09</time></td>
-              <td>Proposed: portal shell token contract; <code>docs-shell.css</code> as single source of shell geometry; fourteen-token contract for the public and internal portals; prose-column width unified at ≥1025.</td>
-              <td><a href="../../../internal/team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+        <h3>2. The fourteen-token contract</h3>
+        <p>The shell exposes fourteen tokens. Both portals must define values for all of them at the base scope; per-portal and per-breakpoint overrides update specific tokens without restating geometry.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Token</th>
+                <th scope="col">Public default</th>
+                <th scope="col">Internal override (≥1025)</th>
+                <th scope="col">Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>--shell-max-width</code></td>
+                <td><code>min(1520px, 100vw)</code></td>
+                <td><code>min(1680px, calc(100vw - 24px))</code></td>
+                <td>Outer max-width of the shell grid (sidebar + main).</td>
+              </tr>
+              <tr>
+                <td><code>--shell-pad</code></td>
+                <td><code>0 0 72px</code></td>
+                <td><code>24px 12px</code></td>
+                <td>Padding on the shell at desktop tiers.</td>
+              </tr>
+              <tr>
+                <td><code>--shell-pad-mobile</code></td>
+                <td>safe-area-inset gutters + 56 px bottom</td>
+                <td>12 px top + safe-area-inset gutters</td>
+                <td>Padding on the shell at ≤1024 (mobile + tablet flatten).</td>
+              </tr>
+              <tr>
+                <td><code>--sidebar-width</code></td>
+                <td><code>264px</code></td>
+                <td><code>300px</code></td>
+                <td>Grid track 1 width at ≥1025.</td>
+              </tr>
+              <tr>
+                <td><code>--sidebar-collapsed-width</code></td>
+                <td><code>56px</code></td>
+                <td><code>56px</code></td>
+                <td>Grid track 1 width when <code>.is-sidebar-collapsed</code>.</td>
+              </tr>
+              <tr>
+                <td><code>--sidebar-bg</code></td>
+                <td><code>var(--bg)</code></td>
+                <td><code>transparent</code></td>
+                <td>Sidebar background; transparent for the internal portal so the page chrome shows through.</td>
+              </tr>
+              <tr>
+                <td><code>--sidebar-pad</code></td>
+                <td><code>0</code></td>
+                <td><code>4px 16px 20px 0</code></td>
+                <td>Sidebar inner padding (≥1025).</td>
+              </tr>
+              <tr>
+                <td><code>--sidebar-mobile-pad</code></td>
+                <td><code>0</code></td>
+                <td><code>0 0 16px</code></td>
+                <td>Sidebar inner padding at ≤1024.</td>
+              </tr>
+              <tr>
+                <td><code>--sidebar-mobile-display</code></td>
+                <td><code>none</code></td>
+                <td><code>block</code></td>
+                <td>Public portal hides the sidebar on mobile (drawer-only); internal portal flattens it inline.</td>
+              </tr>
+              <tr>
+                <td><code>--sidebar-z</code></td>
+                <td><code>10</code></td>
+                <td><code>2</code></td>
+                <td>z-index of the sticky sidebar; public sits above topbar, internal stays below the page-title row.</td>
+              </tr>
+              <tr>
+                <td><code>--main-pad-left</code></td>
+                <td><code>0</code></td>
+                <td><code>20px</code></td>
+                <td>Padding-left of the main column at ≥1025.</td>
+              </tr>
+              <tr>
+                <td><code>--container-max-width</code></td>
+                <td><code>960px</code> at ≥1025</td>
+                <td><code>960px</code> at ≥1025</td>
+                <td>Prose-column max-width. Unified across both portals so a tutorial and an ADR have identical line length.</td>
+              </tr>
+              <tr>
+                <td><code>--container-margin-inline</code></td>
+                <td><code>0</code> at ≥1025</td>
+                <td><code>0</code> at ≥1025</td>
+                <td>Container horizontal margin; <code>0</code> = left-aligned to the main column.</td>
+              </tr>
+              <tr>
+                <td><code>--container-pad</code></td>
+                <td><code>12px 24px 0 32px</code> at ≥1025</td>
+                <td><code>12px 24px 0 32px</code> at ≥1025</td>
+                <td>Container padding; identical between portals so prose blocks line up.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>3. Authoring rules</h3>
+        <ul>
+          <li><strong>Geometry rules live once.</strong> The selectors <code>.public-layout__shell, .internal-layout__shell</code>, <code>.public-layout__sidebar, .internal-layout__sidebar</code>, <code>.public-layout__main, .internal-layout__main</code>, and the <code>.container</code> inside each main, are declared <em>only</em> in <code>docs-shell.css</code>. Adding the same selector to <code>public-layout.css</code> or <code>internal-layout.css</code> is a review-blocker.</li>
+          <li><strong>Breakpoint canon.</strong> Geometry rules use the <a href="../../../ui-kit/pages/foundations/motion.html">mobile-contract</a> tiers: ≥1025 (desktop), 761–1024 (tablet flatten), ≤760 (phone). No new breakpoints inside <code>docs-shell.css</code> without updating the mobile contract first.</li>
+          <li><strong>Per-portal differences are tokens.</strong> When the portals must differ, override the token on the body selector — never branch geometry by selector.</li>
+          <li><strong>Wide widgets opt out at the widget, not the container.</strong> When a single widget needs the full main column (HTTP tablet, layer tables, hero blocks), it sets its own width on the widget selector. The container stays the prose column.</li>
+          <li><strong>Identity-only files don't repeat geometry.</strong> When editing <code>public-layout.css</code> or <code>internal-layout.css</code>, the file should grow content rules (typography, color, decorative chrome) only — never grid, never sticky positioning.</li>
+        </ul>
+
+        <h3>4. Adding a new portal</h3>
+        <p>To add a third portal (e.g. <code>body class="partners-layout"</code>), the workflow is:</p>
+        <ol>
+          <li>Add the new body selector to the shared selector list in <code>docs-shell.css</code> for each geometry rule.</li>
+          <li>Add a token block <code>body.partners-layout { ... }</code> overriding only the tokens that differ from the public default.</li>
+          <li>Create <code>partners-layout.css</code> for identity-only styles and add it to the <code>@import</code> chain in <code>docs.css</code>.</li>
+          <li>Update this ADR's token table with any new portal-specific values.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li>In scope: shell grid geometry, sidebar stickiness / scrollbar / collapse, mobile flatten contract, container box (max-width, margin, padding), the fourteen-token contract, and the authoring rules above.</li>
+          <li>Out of scope: typography (<a href="../../reference/front/foundations/tokens.html">font ladder</a>), color tokens, sidebar nav contents (<code>internal-sidebar.js</code>), drawer chrome, hero / spotlight / backlog widgets, syntax highlighter, table-of-contents FAB. These remain in identity files.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Keep duplicated geometry in each layout file</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> each file is self-contained; reading one portal's CSS gives the full picture.</p>
+              <p><strong>Cons:</strong> every breakpoint pass must edit both files; drift is silent; the cost of adding a third portal scales linearly with shell complexity.</p>
+            </div>
+          </article>
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Branch geometry by selector instead of tokens</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> classic CSS pattern, no custom properties.</p>
+              <p><strong>Cons:</strong> the shared rule list explodes (<code>.public-layout__shell { … } .internal-layout__shell { … }</code> per breakpoint × per property); reviewers must mentally diff parallel rule blocks instead of comparing one token line.</p>
+            </div>
+          </article>
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Move the shell into a CSS-in-JS framework</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> type-safe tokens, theme objects.</p>
+              <p><strong>Cons:</strong> the portals are static HTML loaded directly; introducing a JS-only build step for shell CSS would couple every page to a bundler and contradict <a href="0001-docs-as-code.html">ADR 0001</a>'s "docs render statically with file:// open" baseline.</p>
+            </div>
+          </article>
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Sass mixins or build-time preprocessor</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> terser source.</p>
+              <p><strong>Cons:</strong> adds a build step, splits the source-of-truth between <code>.scss</code> and <code>.css</code>, and obscures cascade behavior (browsers see custom properties live; Sass values are baked at build time).</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li><strong>One file owns geometry.</strong> Breakpoint passes touch one file; portal drift becomes mechanical to spot in review.</li>
+                <li><strong>Adding a portal is declarative.</strong> A new audience needs a token block, not a copy of the shell.</li>
+                <li><strong>Cascade is observable.</strong> Custom properties show in DevTools per-element; debugging a layout regression means inspecting one variable list, not grepping two CSS files.</li>
+                <li><strong>Width unification falls out for free.</strong> The 2026-05-09 prose-column unification (<code>--container-max-width: 960px</code> on both portals) is a one-line override; the same change in the duplicated regime would have required parallel edits.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>The token contract is a public API across portal files. Renaming or removing a token without updating every portal's overrides breaks the shell silently. Mitigated by the up-front list in this ADR's token table and by the rule that geometry selectors live in only one file.</li>
+                <li>Reading any one portal's CSS no longer tells the full geometric story; reviewers must read <code>docs-shell.css</code> + the portal's identity file. Mitigated by the file header in <code>docs-shell.css</code> that names every token.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="compat-h">
+        <h2 id="compat-h">Compatibility and migration</h2>
+        <ul>
+          <li>Backward-compatibility impact: <strong>none for end-users</strong>. The 2026-05-09 extraction is a no-visual-drift refactor; tokens were initialized to the values that the duplicated geometry was already producing.</li>
+          <li>Migration plan:
+            <ol>
+              <li>Land <code>docs-shell.css</code> with both portals' geometry expressed via tokens (done 2026-05-09, commit <code>450f456</code>).</li>
+              <li>Strip the duplicated geometry from <code>public-layout.css</code> and <code>internal-layout.css</code>, leaving identity rules (done 2026-05-09).</li>
+              <li>Unify the prose-column width across portals at ≥1025 via the <code>--container-max-width</code> / <code>--container-margin-inline</code> / <code>--container-pad</code> tokens (done 2026-05-09, commit <code>0ffe127</code>).</li>
+              <li>Future portals declare a body class and a token block; no further migration work.</li>
+            </ol>
+          </li>
+          <li>Rollback: revert the offending PR. Both portals fall back to their previous duplicated geometry without runtime impact.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="impl-h">
+        <h2 id="impl-h">Implementation plan</h2>
+        <ol>
+          <li>Land this ADR.</li>
+          <li>Cross-link from the documentation section of <a href="index.html">ADR Index</a>.</li>
+          <li>Reference this ADR from any future portal-shell change in <a href="../../../CHANGELOG.md"><code>services/portal/CHANGELOG.md</code></a> (entry under 2026-05-09 already records the extraction and width unification).</li>
+          <li>When a third portal is proposed, update this ADR's token table with the new portal's column.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li>Technical checks: <code>make verify</code> green; <code>scripts/check_adr_rfc_links.py</code> resolves every cross-reference; <code>make docs-check</code> drift gate green.</li>
+          <li>Visual checks: at each breakpoint tier (≥1025, 761–1024, ≤760) the public and internal portals render with the geometry their token sets describe; the shared prose container has identical line length on both portals at ≥1025.</li>
+          <li>Documentation updates: this ADR is linked from <a href="index.html"><code>services/portal/internal/governance/adr/index.html</code></a>; <a href="../../../CHANGELOG.md"><code>services/portal/CHANGELOG.md</code></a> records the addition.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="refs-h">
+        <h2 id="refs-h">References</h2>
+        <ul>
+          <li>Related ADRs: <a href="0001-docs-as-code.html">ADR 0001</a> (docs as code), <a href="0025-external-and-internal-api-documentation.html">ADR 0025</a> (external/internal split), <a href="0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a> (internal docs as source of truth).</li>
+          <li>Related RFCs: <a href="../../../internal/governance/rfc/0003-documentation-authoring-model.html">RFC 0003</a> (authoring model), <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> (public/internal portal IA).</li>
+          <li>Source: <code>services/frontend/portal/assets/docs-shell.css</code>, <code>services/frontend/portal/assets/public-layout.css</code>, <code>services/frontend/portal/assets/internal-layout.css</code>, <code>services/frontend/portal/assets/docs.css</code> (<code>@import</code> chain).</li>
+          <li>External: MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties" rel="external">Using CSS custom properties</a>; CSS Working Group <a href="https://www.w3.org/TR/css-variables-1/" rel="external">css-variables-1</a>.</li>
+        </ul>
+      </section>
+
+      <nav aria-label="Related" class="docs-card-grid" style="margin-top:var(--space-6)">
+        <a class="docs-card" href="index.html"><div class="docs-card__head"><h3 class="docs-card__title">← All ADRs</h3></div><div class="docs-card__body">Back to the ADR index.</div></a>
+        <a class="docs-card" href="0001-docs-as-code.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0001</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Docs as Code — the static-render baseline this shell respects.</div></a>
+        <a class="docs-card" href="0026-internal-service-documentation-as-source-of-truth.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0026</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Internal docs as source of truth — uses the internal portal shell.</div></a>
+      </nav>
+
+      <footer class="docs-history" aria-label="Page history">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Migrated to UI Kit v3.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-09</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Proposed: portal shell token contract; <code>docs-shell.css</code> as single source of shell geometry; fourteen-token contract for the public and internal portals; prose-column width unified at ≥1025.</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
   </main>
+
+  <aside class="docs-toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
 </body></html>

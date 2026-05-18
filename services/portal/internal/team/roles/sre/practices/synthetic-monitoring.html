@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synthetic Monitoring — Practice 10 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Synthetic Monitoring</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <p class="pa-eyebrow">
+      <span class="pa-eyebrow__num">10</span>
+      <span class="pa-eyebrow__group">Group B · Observability</span>
+      <span class="pa-scorebar"><span class="pa-scorebar__asis">2.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.5</span><span class="pa-scorebar__hint">AS-IS → TO-BE</span></span>
+    </p>
+    <h1 class="pa-title">Synthetic Monitoring — detect outages before users do</h1>
+    <div id="docs-top-nav"></div>
+    <p class="pa-lead">Scheduled scripts that simulate real user journeys from multiple geographic locations, reporting availability and latency as metrics — detecting outages before users generate enough error volume to breach alert thresholds.</p>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">Synthetic monitoring runs scheduled Playwright or k6 scripts that simulate the 3 most critical user journeys (login → search → checkout) from multiple geographic regions, every 2 minutes. Unlike passive monitoring (which fires only when users hit errors), synthetics detect availability problems before users encounter them — including degradation in low-traffic regions that never generate enough error volume to breach a threshold alert. Synthetic test failures route to PagerDuty at P2 severity and contribute to the service SLO calculation.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Synthetic monitoring coverage map">
+      <svg viewBox="0 0 720 185" role="img" aria-label="Synthetic monitoring geographic coverage and gap detection">
+        <g font-family="ui-monospace,Menlo,Consolas,monospace">
+          <rect class="pa-svg-box pa-svg-box--accent" x="20" y="20" width="210" height="140" rx="8"></rect>
+          <text class="pa-svg-text pa-svg-text--accent" x="125" y="48" text-anchor="middle" font-size="11" font-weight="700">Passive monitoring</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="125" y="68" text-anchor="middle" font-size="10">fires when users hit errors</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="125" y="86" text-anchor="middle" font-size="10">requires traffic volume</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="125" y="104" text-anchor="middle" font-size="10">blind to low-traffic regions</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="125" y="122" text-anchor="middle" font-size="10">can't test critical paths</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="125" y="140" text-anchor="middle" font-size="10">end-to-end</text>
+          <rect class="pa-svg-box pa-svg-box--good" x="255" y="20" width="445" height="140" rx="8"></rect>
+          <text class="pa-svg-text pa-svg-text--good" x="477" y="48" text-anchor="middle" font-size="11" font-weight="700">Synthetic monitoring (adds)</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="477" y="68" text-anchor="middle" font-size="10">fires before users hit errors (proactive)</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="477" y="86" text-anchor="middle" font-size="10">runs every 2 min regardless of traffic</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="477" y="104" text-anchor="middle" font-size="10">covers all geographic regions equally</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="477" y="122" text-anchor="middle" font-size="10">validates full user journey, not just API responses</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="477" y="140" text-anchor="middle" font-size="10">detects CDN, DNS, and TLS failures passive monitoring misses</text>
+          <text class="pa-svg-text pa-svg-text--muted" x="360" y="172" text-anchor="middle" font-size="10" font-style="italic">synthetic and passive monitoring are complementary — neither replaces the other</text>
+        </g>
+      </svg>
+      <figcaption class="pa-figure__caption">Synthetics catch what passive monitoring misses: proactive detection, geographic dark spots, and end-to-end journey validation.</figcaption>
+    </figure>
+
+    <section id="what" class="pa-section">
+      <h2>What it is</h2>
+      <p><strong>Synthetic monitoring</strong> runs scripted test scenarios against the production system on a schedule, from multiple geographic locations. Unlike passive monitoring (which observes real user traffic), synthetic monitoring generates artificial traffic to test the system in the absence of real users.</p>
+      <p>A synthetic test typically:</p>
+      <ul>
+        <li>Simulates a complete user journey — login, search, add to cart, checkout — not just a single API endpoint.</li>
+        <li>Runs every 1–2 minutes from 3+ geographic locations.</li>
+        <li>Reports success/failure and per-step latency as metrics.</li>
+        <li>Fires an alert when the journey fails or exceeds a latency threshold.</li>
+        <li>Contributes to the service's SLO calculation as a synthetic SLI.</li>
+      </ul>
+      <p>Implementation options: Playwright (browser-based, tests the full frontend stack), k6 (HTTP-based, tests the API layer), or Grafana Synthetic Monitoring (hosted probe network, no infrastructure to manage).</p>
+    </section>
+
+    <section id="why" class="pa-section">
+      <h2>Why we need it</h2>
+      <p>Passive monitoring has a fundamental limitation: it requires real user traffic to detect failures. In low-traffic regions, a complete service outage may never generate enough error volume to breach an alert threshold. The first time the team learns about the outage is when a customer in that region reports it on social media — which is too late.</p>
+      <p>Synthetics also catch a class of failures that passive monitoring is structurally blind to: CDN misconfigurations, DNS failures, and TLS certificate expiration. These failures prevent users from reaching the service at all — so they generate zero events in the application monitoring stack, but they're immediately visible to a synthetic monitor that can't complete its test run.</p>
+    </section>
+
+    <section id="industry" class="pa-section">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Cloudflare</p>
+          <p class="pa-industry__what">Cloudflare runs synthetic tests from their global PoP network — 300+ locations. This lets them detect geographic degradation with a granularity that a 3-region setup cannot. Their synthetic tests include DNS resolution time, TLS handshake time, and time-to-first-byte as separate metrics — enabling precise diagnosis of where in the network stack degradation is occurring.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Break the synthetic test into phases (DNS, TCP connect, TLS, first byte, full page load) and report each phase as a separate metric. When the test fails, the phase breakdown tells you where to look without additional investigation.</p>
+          <p class="pa-industry__source">Source: <a href="https://developers.cloudflare.com/cloudflare-one/insights/dex/" rel="noopener">Cloudflare DEX Monitoring</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">New Relic</p>
+          <p class="pa-industry__what">New Relic's synthetic monitoring includes "scripted browser" tests (full Selenium/Playwright journeys that render JavaScript and interact with the DOM) and "API test" probes (lightweight HTTP checks). Their recommendation: one scripted browser test per critical user journey; API probes for every health check endpoint. The browser tests are the SLO input; the API probes are the fast-feedback alerting layer.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Two levels of synthetics: lightweight API probes that run every minute with fast alert times (2-minute failure before alerting), and heavier browser journey tests that run every 5 minutes with a higher alert threshold (10 minutes of failure). Don't page on a single failure — wait for 2–3 consecutive failures to avoid flaky test noise.</p>
+          <p class="pa-industry__source">Source: <a href="https://docs.newrelic.com/docs/synthetics/" rel="noopener">New Relic Synthetic Monitoring</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy" class="pa-section">
+      <h2>Anatomy</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Journey identification</p><p class="pa-anatomy__hint">Identify the 3 most business-critical user journeys. These are the journeys that, if broken, produce the most customer impact and support tickets. Not all endpoints — complete journeys from the user's perspective.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Multi-region probe network</p><p class="pa-anatomy__hint">Run synthetics from at least 3 geographic locations that represent the actual user distribution. If 30% of users are in APAC, one probe must be in APAC. A failure in APAC that's invisible in EU probes is a real outage for 30% of users.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Alert threshold</p><p class="pa-anatomy__hint">Alert on 2 consecutive failures from the same region. A single failure from one probe is often a network blip at the probe location. Two consecutive failures from the same region is a genuine signal. Never alert on single failures.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">SLO contribution</p><p class="pa-anatomy__hint">Synthetic test results are SLI events — every successful test run is a "good event" in the SLO calculation. A 5-minute outage that produces 5 failing test runs from 3 regions is 15 bad events against the SLO budget. This makes synthetic failures budget-visible, not just alert-visible.</p></div>
+      </div>
+    </section>
+
+    <section id="pitfalls" class="pa-section">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+        <table class="pa-pitfalls">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr><td>Synthetic tests that use test accounts</td><td>The test must have valid credentials to log in.</td><td>Use dedicated synthetic test accounts with synthetic-specific email addresses and tokens. Never share test accounts with developer logins — a password change breaks all synthetics simultaneously. Rotate synthetic credentials on a separate schedule.</td></tr>
+            <tr><td>Alerting on single failures</td><td>"One failure means it's down."</td><td>Alert on 2 consecutive failures from the same region. Probe-level network issues cause single failures constantly — alerting on them creates noise that degrades on-call effectiveness.</td></tr>
+            <tr><td>Synthetic tests not maintained</td><td>The login flow changes; the synthetic test still uses the old UI.</td><td>Assign a named owner for each synthetic test. Require synthetic test update as part of the DoD for any user-facing feature that changes the critical journey flow. Synthetics that always fail because the UI changed are worse than no synthetics.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <nav class="docs-next-steps" aria-label="See also">
+      <p class="docs-next-steps__heading">See also</p>
+      <ul class="docs-next-steps__list">
+        <li><a class="docs-next-steps__item" href="alerting-design.html">Practice 09 — Alerting design</a></li>
+        <li><a class="docs-next-steps__item" href="slo-error-budget.html">Practice 01 — SLO &amp; Error Budget</a></li>
+        <li><a class="docs-next-steps__item" href="../radar.html">SRE practices radar</a></li>
+      </ul>
+    </nav>
+
+    <section id="page-history" class="pa-section">
+      <h2>Page history</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Page history">
+        <table class="docs-page-history">
+          <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
+          <tbody>
+            <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
+              <td>Initial version: Synthetic Monitoring practice for SRE radar.</td>
+              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+    <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+    <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

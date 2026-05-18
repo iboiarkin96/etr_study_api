@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="en" data-portal="internal" data-theme="light">
-<head>
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>JS modules · Portal UI Kit</title>
   <script>/* no-flash theme bootstrap */(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../../../../../services/frontend/portal/assets_v2/runtime/internal/entry.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
   <link rel="icon" type="image/svg+xml" href="../../../../../services/frontend/portal/assets/favicon.svg">
+  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
 </head>
 <body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
@@ -26,15 +26,14 @@
     <div class="topbar__actions"><button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button></div>
   </header>
 
-  <aside data-component="sidebar"
-         data-nav-src="../../../../../services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-uikit.json"
-         aria-label="UI Kit navigation"></aside>
+  <aside data-component="sidebar" data-nav-src="../../../../../services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-uikit.json" aria-label="UI Kit navigation"></aside>
 
-  <main>
+  <main class="container">
     <article class="docs-prose">
       <header class="page-head">
         <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">Foundations</span></p>
         <h1>JS modules</h1>
+        <div id="docs-top-nav"></div>
         <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">Small, framework-free ES modules. One file per component, one mount function, idempotent. The runtime is a six-line <code>boot()</code> — no router, no virtual DOM, no build step.</p>
       </header>
 
@@ -42,13 +41,13 @@
       <p>Every JS component exposes a single <code>mount&lt;Name&gt;(root = document)</code>. It finds its slot via <code>[data-component="&lt;name&gt;"]</code>, attaches behaviour, and exits.</p>
       <pre class="docs-code"><code class="language-js">/* ui-kit/components/theme-toggle.js */
 export function mountThemeToggle(root = document) {
-  const buttons = root.querySelectorAll('[data-component="theme-toggle"], .docs-theme-toggle');
-  buttons.forEach((btn) =&gt; {
-    if (btn.dataset.themeToggleBound === "true") return;   // idempotent
-    btn.dataset.themeToggleBound = "true";
-    btn.addEventListener("click", () =&gt; toggle());
-  });
-}</code></pre>
+const buttons = root.querySelectorAll('[data-component="theme-toggle"], .docs-theme-toggle');
+buttons.forEach((btn) =&gt; {
+if (btn.dataset.themeToggleBound === "true") return;   // idempotent
+btn.dataset.themeToggleBound = "true";
+btn.addEventListener("click", () =&gt; toggle());
+});
+      }</code></pre>
 
       <h2 id="discovery">Discovery via data-component</h2>
       <p>Components find their hosts by attribute, not class. Class is for styling, attribute is for behaviour. This separation means CSS can render a static visual without booting JS, and JS can find its slot regardless of the visual.</p>
@@ -78,20 +77,20 @@ import { mountRocket }      from "../../ui-kit/components/rocket.js";
 /* …others… */
 
 function boot() {
-  mountThemeToggle();
-  mountBreadcrumbs();
-  mountDrawer();   // may auto-create a sidebar slot
-  mountSidebar();  // renders both the main aside and the drawer's copy
-  mountTocFab();
-  mountToc();
-  mountRocket();
+mountThemeToggle();
+mountBreadcrumbs();
+mountDrawer();   // may auto-create a sidebar slot
+mountSidebar();  // renders both the main aside and the drawer's copy
+mountTocFab();
+mountToc();
+mountRocket();
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", boot);
+document.addEventListener("DOMContentLoaded", boot);
 } else {
-  boot();
-}</code></pre>
+boot();
+      }</code></pre>
 
       <h2 id="contract">Module contract</h2>
       <ol>
@@ -116,45 +115,68 @@ if (document.readyState === "loading") {
       </div>
       <p>All access wrapped in <code>try/catch</code> — Safari private mode and iframes will throw.</p>
 
-      <h2 id="anti">Anti-patterns</h2>
+      <h2 id="legacy-bootstrap">Legacy bootstraps (syntax highlighting)</h2>
+      <p>
+        Two utilities still live under <code>assets/</code> rather than the v3 tree: the
+        zero-dep token highlighter (<code>docs-syntax.js</code>) and its theme
+        (<code>docs-syntax-theme.css</code>). They predate the v3 entry; rewriting them
+        in v3 is a future task. Until then, v3 wires them in two places:
+      </p>
       <ul>
-        <li>Reaching into another component's DOM. If A needs B, B should expose an export, not a CSS selector.</li>
-        <li><code>setTimeout</code> waiting for the DOM. Use <code>DOMContentLoaded</code> or <code>MutationObserver</code>.</li>
-        <li>Re-querying the same selector inside an event handler. Cache it on mount.</li>
-        <li>Async without <code>await</code>. If a mount returns a promise, the caller should be ready.</li>
-      </ul>
+        <li><code>ui-kit/components/syntax-highlight.js</code> exports
+          <code>mountSyntaxHighlight()</code>, which injects
+          <code>assets/docs-syntax.js</code> once as a <code>&lt;script defer&gt;</code>.
+          It is called from <code>entry.js</code> right after <code>mountCode</code>.</li>
+          <li><code>runtime/internal/entry.css</code> <code>@import</code>s
+            <code>assets/docs-syntax-theme.css</code> so the <code>st-*</code> token
+            classes pick up their colours from the same light/dark variables that the
+            rest of the kit uses.</li>
+          </ul>
+          <p>
+            Mount-once is guarded by a <code>data-docs-syntax-bootstrap</code> marker on the
+            injected script tag. Don't add a second copy of the script in any page; the
+            entry handles it.
+          </p>
 
-      <h2 id="further">Further reading</h2>
-      <ul>
-        <li><a href="./philosophy.html">Design philosophy</a></li>
-        <li><a href="./css-architecture.html">CSS architecture</a></li>
-        <li><a href="../components/sidebar.html">Sidebar component</a></li>
-      </ul>
-    </article>
+          <h2 id="anti">Anti-patterns</h2>
+          <ul>
+            <li>Reaching into another component's DOM. If A needs B, B should expose an export, not a CSS selector.</li>
+            <li><code>setTimeout</code> waiting for the DOM. Use <code>DOMContentLoaded</code> or <code>MutationObserver</code>.</li>
+            <li>Re-querying the same selector inside an event handler. Cache it on mount.</li>
+            <li>Async without <code>await</code>. If a mount returns a promise, the caller should be ready.</li>
+          </ul>
 
-    <footer class="docs-history" aria-label="Page history">
-      <h2 class="docs-history__title">History</h2>
-      <ul class="docs-history__list">
-        <li class="docs-history__row"><span class="docs-history__date">2026-05-13</span><a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a><span class="docs-history__note">JS modules guide relocated to UI Kit Foundations.</span></li>
-      </ul>
-    </footer>
-  </main>
+          <h2 id="further">Further reading</h2>
+          <ul>
+            <li><a href="./philosophy.html">Design philosophy</a></li>
+            <li><a href="./css-architecture.html">CSS architecture</a></li>
+            <li><a href="../components/sidebar.html">Sidebar component</a></li>
+          </ul>
+        </article>
 
-  <aside class="docs-toc" aria-label="On this page">
-    <p class="docs-toc__title">On this page</p>
-    <ol class="docs-toc__list">
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#shape">Module shape</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#discovery">Discovery</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#boot">Runtime entry</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#contract">Module contract</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#state">State storage</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti">Anti-patterns</a></li>
-    </ol>
-  </aside>
+        <footer class="docs-history" aria-label="Page history">
+          <h2 class="docs-history__title">History</h2>
+          <ul class="docs-history__list">
+            <li class="docs-history__row"><span class="docs-history__date">2026-05-13</span><a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a><span class="docs-history__note">JS modules guide relocated to UI Kit Foundations.</span></li>
+          </ul>
+        </footer>
+      </main>
 
-  <button data-component="toc-fab" type="button" aria-label="Open on this page" aria-expanded="false"></button>
-  <div data-component="rocket" aria-hidden="true"></div>
+      <aside class="docs-toc" aria-label="On this page">
+        <p class="docs-toc__title">On this page</p>
+        <ol class="docs-toc__list">
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#shape">Module shape</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#discovery">Discovery</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#boot">Runtime entry</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#contract">Module contract</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#state">State storage</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#anti">Anti-patterns</a></li>
+        </ol>
+      </aside>
 
-  <script type="module" src="../../../../../services/frontend/portal/assets_v2/runtime/internal/entry.js"></script>
-</body>
-</html>
+      <button data-component="toc-fab" type="button" aria-label="Open on this page" aria-expanded="false"></button>
+      <div data-component="rocket" aria-hidden="true"></div>
+
+      <script type="module" src="../../../../../services/frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+    </body></html>

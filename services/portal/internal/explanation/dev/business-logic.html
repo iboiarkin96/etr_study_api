@@ -1,233 +1,158 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Business Logic Guide</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
-
+  <title>Dev · Business Logic · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-<body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Dev · Business Logic</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
   <main class="container">
-    <h1 class="internal-h1--accent-tail">Business Logic Guide</h1>
-    <div id="docs-top-nav"></div>
-    <div id="docs-page-meta-mount" hidden=""></div>
-    <section class="docs-page-hero" id="overview" aria-labelledby="overview">
-      <h2>Overview</h2>
-      <p>How HTTP, services, repositories, and models split responsibility.</p>
-    </section>
-
-    <section class="card">
-      <h2>Layering model</h2>
-      <ul>
-        <li>API layer: <code>app/api/v1/</code> (transport only).</li>
-        <li>Service layer: <code>app/services/</code> (business rules).</li>
-        <li>Repository layer: <code>app/repositories/</code> (database access).</li>
-        <li>Models: <code>app/models/</code> (ORM entities).</li>
-      </ul>
-      <p>Rules:</p>
-      <ul>
-        <li>The router does not implement business rules.</li>
-        <li>The service does not depend on FastAPI request primitives.</li>
-        <li>The repository does not return HTTP-shaped structures.</li>
-      </ul>
-
-      <h3>Theoretical background</h3>
-      <details class="docs-theory-help" id="layered-architecture-theory">
-        <summary>Layered architecture — theoretical background</summary>
-        <div class="small">
-          <p>
-            <strong>Layered architecture</strong> stacks the system in horizontal layers,
-            and each layer talks only to the layer below. Inner layers (rules, persistence)
-            never import HTTP or transport details, so they stay testable and the adapters
-            stay swappable.
-          </p>
-          <p>
-            The shape is close to <strong>ports and adapters</strong>: the core defines
-            behavior, while HTTP and SQL are adapters that plug into stable ports.
-          </p>
-          <p>
-            <strong>Contract-first</strong> means the OpenAPI spec describes the HTTP
-            surface and the implementation must match it. The outer adapter stays bound to
-            a stable contract.
-          </p>
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Dev</span>
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
         </div>
-      </details>
+        <h1>Where business logic lives</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Why the codebase is split into transport, application, and persistence
+          layers — and why each one must remain ignorant of the others.
+        </p>
+      </header>
 
-      <h3>Layer responsibilities (reference)</h3>
-      <p>
-        The public API is described first in <strong>OpenAPI</strong> (contract-first):
-        what callers see in the spec is what they rely on. The system-wide diagrams (C4)
-        live in
-        <a href="../system-design.html#architectural-decomposition">System design</a>;
-        a simplified request-path diagram is rendered from
-        <code>services/portal/internal/uml/architecture/internal_readme_layer_boundaries.puml</code>.
-      </p>
-      <div class="docs-table-scroll" role="region" aria-label="Layer responsibilities">
-        <table>
-          <colgroup>
-            <col class="layers-col-layer">
-            <col class="layers-col-packages">
-            <col class="layers-col-text">
-            <col class="layers-col-text">
-          </colgroup>
-          <thead>
-            <tr>
-              <th scope="col">Layer</th>
-              <th scope="col">Packages</th>
-              <th scope="col">Responsibility</th>
-              <th scope="col">Contract and constraints</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">HTTP API</th>
-              <td><code>app/api/</code></td>
-              <td>FastAPI routers declare paths, dependencies, and Pydantic-typed request and response bodies from
-                <code>app/schemas/</code>; they call services. Handlers stay thin and never duplicate field validation.
-              </td>
-              <td>Matches OpenAPI (operations, declared responses, examples). Maps successful outcomes and framework-level HTTP concerns to the right status codes.</td>
-            </tr>
-            <tr>
-              <th scope="row">Schemas &amp; 422 contract</th>
-              <td><code>app/schemas/</code>, <code>app/validation/</code>, handlers in <code>app/main.py</code></td>
-              <td><code>app/schemas/</code> holds Pydantic models and field constraints. <code>app/validation/</code> translates Pydantic and FastAPI validation failures into the canonical <code>422</code> payload for clients. Exception handlers are registered next to the app setup in <code>app/main.py</code>.
-              </td>
-              <td>Error catalog and examples live in OpenAPI. Pydantic error kinds align with the documented <code>code</code> and <code>key</code> values.
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">Application</th>
-              <td><code>app/services/</code></td>
-              <td>Use cases and business invariants (for example, a duplicate composite key) live here. Services raise <code>HTTPException</code> with business error payloads when a rule fails.</td>
-              <td>Business errors match the governed contract. Layering policy:
-                <a href="../../roles/dev/index.html">Developers Docs</a>.
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">Persistence</th>
-              <td><code>app/repositories/</code>, DB session in <code>app/core/</code></td>
-              <td>Loads and persists entities through SQLAlchemy. Schema changes go through Alembic migrations.</td>
-              <td>Storage details stay out of the public HTTP model. DB constraints stay consistent with the API promises.</td>
-            </tr>
-          </tbody>
-        </table>
+      <h2 id="what-business-logic-is">What we mean by business logic</h2>
+      <p>“Business logic” is the part of the code that would still be true if the HTTP protocol disappeared tomorrow. The rule that <em>a conspectus belongs to exactly one user</em>, that <em>a review cannot be scheduled before it was created</em>, that <em>duplicate composite keys are forbidden</em> — these are statements about the domain, not about any particular framework. They would survive a rewrite from FastAPI to gRPC, from PostgreSQL to a key-value store, from a synchronous request to a background job.</p>
+      <p>Everything else — JSON parsing, header validation, SQL dialect, ORM session management — is a delivery detail. The codebase is structured around the difference between these two kinds of code.</p>
+
+      <h2 id="layering">Layered architecture, in one diagram</h2>
+      <p>The system stacks in four horizontal layers, and each layer talks only to the one immediately below it. Reads down the stack are allowed; reads up the stack are not.</p>
+      <div class="docs-concept-layers" aria-label="Layered architecture">
+        <ol class="docs-concept-layers__stack">
+          <li class="docs-concept-layers__layer" data-tone="accent">
+            <span class="docs-concept-layers__name">HTTP / transport</span>
+            <span class="docs-concept-layers__what">Routers, request/response shapes, status codes. Bound to the OpenAPI contract.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="info">
+            <span class="docs-concept-layers__name">Schemas &amp; 422 contract</span>
+            <span class="docs-concept-layers__what">Pydantic models; mapping of validation failures into the canonical error envelope.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="teal">
+            <span class="docs-concept-layers__name">Application / services</span>
+            <span class="docs-concept-layers__what">Use cases and domain invariants. The only layer that knows what a “conspectus” is.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="neutral">
+            <span class="docs-concept-layers__name">Persistence</span>
+            <span class="docs-concept-layers__what">Repositories and the ORM session. Storage details stay local.</span>
+          </li>
+        </ol>
       </div>
+      <p>The system-wide C4 diagrams live in <a href="../system-design.html#architectural-decomposition">system design</a>; this page is about the rationale behind the split, not its precise file paths.</p>
 
-      <h3>Where validation runs</h3>
-      <p>The order of checks:</p>
-      <ol>
-        <li>
-          Field rules for JSON bodies live in <strong>Pydantic</strong> models under
-          <code>app/schemas/</code>: required fields, types, length limits, and so on.
+      <h2 id="theory">Why this shape — ports, adapters, and contract-first</h2>
+      <p>Three ideas converge on this layering.</p>
+      <p><strong>Layered architecture</strong> is the oldest of them: each layer talks only to the one below, and inner layers never import outer concerns. The reward is testability — the application layer can be exercised without spinning up HTTP — and replaceability of the outer adapters.</p>
+      <p><strong>Ports and adapters</strong> (Hexagonal) is the same idea stated differently. The application defines <em>ports</em> in terms of its own vocabulary; FastAPI is one adapter that plugs in at the inbound port, SQLAlchemy is one adapter that plugs in at the outbound port. Either could be swapped without rewriting the domain. We do not adopt the strictest hexagonal vocabulary (we use plain Python interfaces rather than abstract Port classes), but the discipline is the same.</p>
+      <p><strong>Contract-first</strong> means the OpenAPI document defines the HTTP surface before code is written. The router cannot quietly change a field name; the contract is the source of truth, the code is bound to it.</p>
+
+      <h2 id="why-strict-direction">Why the direction of dependency is strict</h2>
+      <p>The rule that <em>the service does not depend on the router</em> is not aesthetic. It is the only way three things stay tractable.</p>
+      <ul>
+        <li><strong>Tests.</strong> A service that imports <code>fastapi.Request</code> can only be tested by spinning up a request. The unit-test base of the <a href="../qa/test-pyramid.html">test pyramid</a> collapses.</li>
+        <li><strong>Reuse.</strong> The same domain rule needs to run from an HTTP handler, a CLI command, and a background worker. If the rule lives in the router, it has to be copied to each caller.</li>
+        <li><strong>Change.</strong> A breaking change to a transport-only concern — say, the error envelope — should not cascade into the domain. The boundary is what isolates it.</li>
+      </ul>
+      <p>The symmetric rule — that the repository does not return HTTP-shaped structures — protects the application from the storage choice. A migration from one SQL dialect to another, or from SQL to a different store, must not require touching service code.</p>
+
+      <h2 id="validation-order">Two kinds of validation, two places they live</h2>
+      <p>A request is checked twice, against two different kinds of rule, and the layering reflects that.</p>
+      <p><strong>Schema-level checks</strong> — “the body has a <code>title</code> field of length 1–200” — are properties of the message format. They depend on nothing but the incoming bytes, so they belong at the transport boundary and run before any application code executes. Pydantic does this; FastAPI returns a 422 if it fails.</p>
+      <p><strong>Domain-level checks</strong> — “no other conspectus with this composite key exists” — are properties of the world. They require database lookups, sometimes cross-aggregate reasoning. They cannot live in a schema model and they must run in the service layer, where the domain is.</p>
+      <p>Confusing the two leads to a recurring failure mode: validation rules that quietly require a database connection, schemas that drift from the OpenAPI contract, error envelopes that differ between Pydantic failures and domain failures. The <a href="../../governance/adr/0003-error-contract-governance.html">error contract governance ADR</a> exists to keep both flavours surfacing the same envelope to clients.</p>
+
+      <h2 id="transactions">Transactions are an application-layer concern</h2>
+      <p>It is tempting to put transaction boundaries in the repository — open a transaction per write, commit on success. This breaks the moment a use case touches two repositories: an order of operations that should atomically succeed or fail together is split across two independent commits, and a crash in the middle leaves the system in a state no rule allows.</p>
+      <p>The transaction boundary therefore belongs at the use case — the service method — because only the service knows what set of writes constitute one business event. The repository receives the session; it does not own it.</p>
+
+      <h2 id="anti-patterns">Common failure modes</h2>
+      <ul>
+        <li><strong>Logic creep into the router.</strong> A request handler grows an <code>if</code> branch that checks a domain rule. A year later, the rule lives in five routers and nowhere else, and a background worker silently breaks it.</li>
+        <li><strong>The anaemic service.</strong> Routers do all the work and services are pass-through. The layering is decorative; the testability benefit is gone.</li>
+        <li><strong>Repositories that know about HTTP.</strong> A query that returns a JSON-ready dict instead of a domain entity ties the persistence layer to the response shape. Changing either now requires changing both.</li>
+        <li><strong>Validation that needs the database.</strong> A Pydantic validator that runs a query. Schemas should not require IO; the moment they do, they cannot be reused, cached, or generated from OpenAPI.</li>
+        <li><strong>Cross-layer exceptions.</strong> Domain code raising <code>HTTPException</code> directly couples it to the transport. We accept this pragmatically today, but the principled boundary is a domain exception translated by a single handler at the edge.</li>
+      </ul>
+
+      <h2 id="references">References</h2>
+      <ul>
+        <li><a href="schemas-and-contracts.html">Schemas and contracts</a> — the shape of data at the transport boundary.</li>
+        <li><a href="../system-design.html#architectural-decomposition">System design — architectural decomposition</a> for the C4 picture.</li>
+        <li><a href="../../governance/adr/0003-error-contract-governance.html">ADR 0003 — error contract governance</a>.</li>
+        <li><a href="../qa/test-pyramid.html">Test pyramid</a> — why the unit base depends on a clean application layer.</li>
+        <li>External: <a href="https://alistair.cockburn.us/hexagonal-architecture/" rel="external">Cockburn — Hexagonal Architecture</a>.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis cleanup: removed package/path reference table, “typical change flow” steps, and bullet-list responsibility recap. Reframed around the conceptual rationale — what business logic is, why the layering direction is strict, why transactions live in the service, common failure modes.</span>
         </li>
-        <li>
-          <strong>FastAPI</strong> runs those checks before any code in
-          <code>app/api/</code> executes. Handlers always receive data that already passed
-          this step.
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; layer-responsibilities table on <code>docs-table--sticky-head --zebra</code>; right-rail TOC.</span>
         </li>
-        <li>
-          When a check fails, <code>app/validation/</code> maps the failure into the
-          canonical <code>422</code> response (<code>code</code>, <code>key</code>,
-          <code>message</code>). It does <strong>not</strong> redefine the rules, only the
-          error shape that clients see. The wiring is registered in <code>app/main.py</code>.
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-03</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Rewrote prose at C1 level: tightened the layered-architecture theory block, replaced em-dashes inside the validation order list with parentheses, and named the make targets in the typical change flow.</span>
         </li>
-        <li>
-          Rules that need the database (for example, “this user already exists”)
-          run in <code>app/services/</code> and surface as business client errors, not as
-          schema-level validation. See
-          <a href="../../governance/adr/0003-error-contract-governance.html">ADR 0003</a>.
-        </li>
-      </ol>
-    </section>
-
-    <section class="card">
-      <h2>Responsibility boundaries</h2>
-      <p>Router:</p>
-      <ul>
-        <li>Parses and validates the request.</li>
-        <li>Calls the service.</li>
-        <li>Shapes the response model.</li>
-        <li>Declares the OpenAPI responses.</li>
       </ul>
-      <p>Service:</p>
-      <ul>
-        <li>Enforces domain rules.</li>
-        <li>Orchestrates repositories.</li>
-        <li>Raises domain and business errors.</li>
-      </ul>
-      <p>Repository:</p>
-      <ul>
-        <li>Isolates query and write mechanics.</li>
-        <li>Keeps persistence details local.</li>
-      </ul>
-    </section>
-
-    <section class="card">
-      <h2>Transactions and consistency</h2>
-      <ul>
-        <li>Write operations are atomic.</li>
-        <li>Duplicate and conflict checks are deterministic.</li>
-        <li>Every failure path returns the stable error contract.</li>
-      </ul>
-    </section>
-
-    <section class="card">
-      <h2>Logging and observability</h2>
-      <ul>
-        <li>Request-level logging: middleware in <code>app/main.py</code>.</li>
-        <li>Business event logs: the service layer.</li>
-        <li>Log format and configuration: <code>app/core/logging.py</code>.</li>
-      </ul>
-    </section>
-
-    <section class="card">
-      <h2>Typical change flow</h2>
-      <ol>
-        <li>Define or adjust the schema.</li>
-        <li>Implement the service rule.</li>
-        <li>Implement the repository operation.</li>
-        <li>Wire the router.</li>
-        <li>Add examples and error mappings.</li>
-        <li>Add tests.</li>
-        <li>Run the make pipeline (<code>make docs-fix</code>, <code>make verify</code>).</li>
-      </ol>
-    </section>
-
-    <section id="page-history" class="card">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead>
-            <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Change</th>
-              <th scope="col">Author</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><time datetime="2026-05-03">2026-05-03</time></td>
-              <td>Rewrote prose at C1 level: tightened the layered-architecture theory block, replaced em-dashes inside the validation order list with parentheses, and named the make targets in the typical change flow.</td>
-              <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-            </tr>
-            <tr>
-              <td><time datetime="2026-04-21">2026-04-21</time></td>
-              <td>Added Page history section (repository baseline).</td>
-              <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
+    </footer>
   </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#what-business-logic-is">What we mean by business logic</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layering">Layered architecture</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#theory">Ports, adapters, contract-first</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why-strict-direction">Why the direction is strict</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#validation-order">Two kinds of validation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#transactions">Transactions belong in services</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Failure modes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#references">References</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
 </body></html>

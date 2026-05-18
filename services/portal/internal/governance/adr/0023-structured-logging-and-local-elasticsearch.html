@@ -1,166 +1,148 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ADR 0023: Structured Logging, Request Correlation, and Local Elasticsearch</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
-
+  <title>ADR 0023 · Structured Logging and Local Elasticsearch · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-<body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
-  <main class="container" data-adr-weight="4">
-    <h1 class="internal-h1--accent-tail">ADR 0023: Structured Logging, Request Correlation, and Local Elasticsearch</h1>
-    <div id="docs-top-nav"></div>
-    <div id="docs-page-meta-mount" hidden=""></div>
-    <section class="card">
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0023</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
 
-      <h2>Ratification</h2>
-      <ul>
-        <li>Discussion: backlog item 18 (structured logging) and operational need for searchable logs.</li>
-        <li>Accepted: as merged to <code>main</code> with this ADR and implementation.</li>
-      </ul>
-    </section>
-    <section class="card">
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
-      <h2>Context</h2>
-      <p>
-        <strong>Why this matters:</strong> Plain text logs are fine for a single terminal but do not scale to
-        centralized
-        search, dashboards, or joining logs with future distributed traces. Large teams standardize on
-        <strong>structured logs</strong> (JSON), <strong>request correlation</strong> (<code>X-Request-Id</code>), and
-        optional <strong>trace/span ids</strong> once OpenTelemetry is adopted.
-      </p>
-      <p>
-        <strong>Elasticsearch and Kibana</strong> are widely used for log search and analytics. Elastic publishes
-        Docker images that are <strong>free to run locally</strong> for development and learning; production licensing
-        and support are separate commercial decisions. This ADR covers <em>local optional</em> Compose only—not a
-        commitment to Elastic Cloud or a paid tier.
-      </p>
-    </section>
-    <section class="card">
+  <main class="container">
+    <article class="docs-prose">
 
-      <h2>Decision</h2>
-      <ul>
-        <li>
-          Support <code>LOG_FORMAT=text</code> and <code>LOG_FORMAT=json</code> (NDJSON: one JSON object per line). When
-          <code>LOG_FORMAT</code> is unset, the process default is <strong><code>json</code></strong> so
-          <code>request_id</code> is a first-class field. Stable JSON fields include <code>@timestamp</code>,
-          <code>level</code>, <code>message</code>, <code>service</code> (<code>LOG_SERVICE_NAME</code>),
-          <code>app_env</code>, <code>request_id</code>, <code>trace_id</code>, <code>span_id</code> (latter two
-          <code>null</code> until tracing is wired).
-        </li>
-        <li>
-          Add HTTP middleware (outermost) that sets <code>X-Request-Id</code> on every response: reuse a valid incoming
-          header or generate a UUID.
-        </li>
-        <li>
-          CORS <code>expose_headers</code> (<code>CORS_EXPOSE_HEADERS</code>) lists <code>X-Request-Id</code> (and
-          rate-limit
-          headers) so browser <code>fetch</code> on another origin can read them; OpenAPI is patched so Swagger UI shows
-          an
-          optional <strong>Parameters → X-Request-Id</strong> field and response headers for each operation.
-        </li>
-        <li>
-          Optional Docker Compose stack: Elasticsearch + Kibana + Filebeat (<code>docker-compose.logging.yml</code>),
-          mounting <code>./logs</code> read-only into Filebeat. Ship NDJSON only: use <code>LOG_FORMAT=json</code> (or
-          rely
-          on the default <code>json</code> when <code>LOG_FORMAT</code> is unset).
-        </li>
-        <li>
-          Full <strong>distributed tracing</strong> in Elasticsearch (Elastic APM or OTLP → Elastic) remains out of
-          scope here; see backlog item 17 (OpenTelemetry).
-        </li>
-      </ul>
-    </section>
-    <section class="card">
+      <header class="page-head">
+        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0023</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <h1>Structured Logging, Request Correlation, and Local Elasticsearch</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+          NDJSON logs with stable fields, an <code>X-Request-Id</code> header on every response, and an optional Compose stack (Elasticsearch + Kibana + Filebeat) for local search.
+        </p>
+      </header>
 
-      <h2>Implementation</h2>
-      <ul>
-        <li><code>app/core/request_context.py</code> — context variables and <code>X-Request-Id</code> validation.</li>
-        <li><code>app/core/logging.py</code> — text vs JSON formatters, <code>RequestContextFilter</code>.</li>
-        <li><code>app/main.py</code> — <code>request_context_middleware</code> registered last (runs first on the wire).
-        </li>
-        <li><code>ops/filebeat/filebeat.yml</code>, <code>docker-compose.logging.yml</code>, logging compose commands /
-          <code>logging-down</code> / <code>logging-smoke</code> / <code>logging-reset</code>.
-        </li>
-        <li><code>scripts/check_logging_links.py</code> — smoke checks for Elasticsearch and Kibana.</li>
-        <li><code>scripts/check_es_request_id.py</code> — optional CLI search in Elasticsearch (no Kibana).</li>
-        <li>
-          Uvicorn is started with <code>--no-access-log</code>; access-style lines without <code>request_id</code> are
-          avoided—use structured <code>app.main</code> <code>request_done</code> entries. Default
-          <code>LOG_FORMAT</code> is
-          <code>json</code> when unset so <code>request_id</code> is a first-class field for Kibana.
-        </li>
-      </ul>
-    </section>
-    <section class="card">
-      <h2>Kibana index pattern (important)</h2>
-      <p>
-        Create the data view with index pattern <strong><code>*study-app-logs*</code></strong>, not only
-        <code>study-app-logs-*</code>. Otherwise Discover may target no indices: Elasticsearch 8 often writes Filebeat
-        output to data stream backing indices named <code>.ds-study-app-logs-…</code>, which do not match a prefix of
-        <code>study-app-logs-</code>. A symptom is “No results” for valid <code>request_id</code> queries even though
-        documents exist in <code>logs/app.log</code>. Filebeat is configured with
-        <code>setup.template.type: legacy</code>
-        so new daily indices align with <code>study-app-logs-*</code>; the broad pattern still matches old and new
-        names.
-      </p>
-      <p>
-        JSON lines must follow ECS shapes where the index template expects objects: use <code>service.name</code>
-        (nested
-        under <code>service</code>), not a string at <code>service</code>. Otherwise bulk indexing can fail with
-        <code>mapper_parsing_exception</code> and indices show <code>docs.count: 0</code> while
-        <code>logs/app.log</code>
-        still grows on disk.
-      </p>
-    </section>
-    <section class="card">
-      <h2>Consequences</h2>
-      <h3>Positive</h3>
-      <ul>
-        <li>Logs can be indexed and searched in Kibana during local debugging.</li>
-        <li>Correlation id is visible to API clients and appears in log lines.</li>
-        <li>No new Python dependency for JSON logging (stdlib only).</li>
-      </ul>
-      <h3>Trade-offs</h3>
-      <ul>
-        <li>Elasticsearch + Kibana are memory-heavy (~2 GiB or more for a comfortable local stack).</li>
-        <li>Filebeat expects JSON lines; rotating text logs with stack traces can break NDJSON—ship with
-          <code>LOG_FORMAT=json</code> (or the default when unset).</li>
-          <li>Security is disabled on the local single-node Elasticsearch profile—never expose that profile to the public
-            internet.</li>
-          </ul>
-        </section>
-
-        <section id="page-history" class="card">
-          <h2>Page history</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Page history">
-            <table class="docs-page-history">
-              <thead>
-                <tr>
-                  <th scope="col">Date</th>
-                  <th scope="col">Change</th>
-                  <th scope="col">Author</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><time datetime="2026-04-21">2026-04-21</time></td>
-                  <td>Added Page history section (repository baseline).</td>
-                  <td><a href="../../../internal/team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-                </tr>
-              </tbody>
-            </table>
+      <section aria-labelledby="ratification-h">
+        <h2 id="ratification-h">Ratification</h2>
+        <article class="docs-card">
+          <div class="docs-card__body">
+            <ul>
+              <li>Discussion: backlog item 18 (structured logging) and operational need for searchable logs.</li>
+              <li>Accepted: as merged to <code>main</code> with this ADR and implementation.</li>
+            </ul>
           </div>
-        </section>
+        </article>
+      </section>
 
-      </main>
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p><strong>Why this matters:</strong> Plain text logs are fine for a single terminal but do not scale to centralized search, dashboards, or joining logs with future distributed traces. Large teams standardize on <strong>structured logs</strong> (JSON), <strong>request correlation</strong> (<code>X-Request-Id</code>), and optional <strong>trace/span ids</strong> once OpenTelemetry is adopted.</p>
+        <p><strong>Elasticsearch and Kibana</strong> are widely used for log search and analytics. Elastic publishes Docker images that are <strong>free to run locally</strong> for development and learning; production licensing and support are separate commercial decisions. This ADR covers <em>local optional</em> Compose only—not a commitment to Elastic Cloud or a paid tier.</p>
+      </section>
 
-    </body></html>
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <ul>
+          <li>Support <code>LOG_FORMAT=text</code> and <code>LOG_FORMAT=json</code> (NDJSON: one JSON object per line). When <code>LOG_FORMAT</code> is unset, the process default is <strong><code>json</code></strong> so <code>request_id</code> is a first-class field. Stable JSON fields include <code>@timestamp</code>, <code>level</code>, <code>message</code>, <code>service</code> (<code>LOG_SERVICE_NAME</code>), <code>app_env</code>, <code>request_id</code>, <code>trace_id</code>, <code>span_id</code> (latter two <code>null</code> until tracing is wired).</li>
+          <li>Add HTTP middleware (outermost) that sets <code>X-Request-Id</code> on every response: reuse a valid incoming header or generate a UUID.</li>
+          <li>CORS <code>expose_headers</code> (<code>CORS_EXPOSE_HEADERS</code>) lists <code>X-Request-Id</code> (and rate-limit headers) so browser <code>fetch</code> on another origin can read them; OpenAPI is patched so Swagger UI shows an optional <strong>Parameters → X-Request-Id</strong> field and response headers for each operation.</li>
+          <li>Optional Docker Compose stack: Elasticsearch + Kibana + Filebeat (<code>docker-compose.logging.yml</code>), mounting <code>./logs</code> read-only into Filebeat. Ship NDJSON only: use <code>LOG_FORMAT=json</code> (or rely on the default <code>json</code> when <code>LOG_FORMAT</code> is unset).</li>
+          <li>Full <strong>distributed tracing</strong> in Elasticsearch (Elastic APM or OTLP → Elastic) remains out of scope here; see backlog item 17 (OpenTelemetry).</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="impl-h">
+        <h2 id="impl-h">Implementation</h2>
+        <ul>
+          <li><code>app/core/request_context.py</code> — context variables and <code>X-Request-Id</code> validation.</li>
+          <li><code>app/core/logging.py</code> — text vs JSON formatters, <code>RequestContextFilter</code>.</li>
+          <li><code>app/main.py</code> — <code>request_context_middleware</code> registered last (runs first on the wire).</li>
+          <li><code>ops/filebeat/filebeat.yml</code>, <code>docker-compose.logging.yml</code>, logging compose commands / <code>logging-down</code> / <code>logging-smoke</code> / <code>logging-reset</code>.</li>
+          <li><code>scripts/check_logging_links.py</code> — smoke checks for Elasticsearch and Kibana.</li>
+          <li><code>scripts/check_es_request_id.py</code> — optional CLI search in Elasticsearch (no Kibana).</li>
+          <li>Uvicorn is started with <code>--no-access-log</code>; access-style lines without <code>request_id</code> are avoided—use structured <code>app.main</code> <code>request_done</code> entries. Default <code>LOG_FORMAT</code> is <code>json</code> when unset so <code>request_id</code> is a first-class field for Kibana.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="kibana-h">
+        <h2 id="kibana-h">Kibana index pattern (important)</h2>
+        <p>Create the data view with index pattern <strong><code>*study-app-logs*</code></strong>, not only <code>study-app-logs-*</code>. Otherwise Discover may target no indices: Elasticsearch 8 often writes Filebeat output to data stream backing indices named <code>.ds-study-app-logs-…</code>, which do not match a prefix of <code>study-app-logs-</code>. A symptom is "No results" for valid <code>request_id</code> queries even though documents exist in <code>logs/app.log</code>. Filebeat is configured with <code>setup.template.type: legacy</code> so new daily indices align with <code>study-app-logs-*</code>; the broad pattern still matches old and new names.</p>
+        <p>JSON lines must follow ECS shapes where the index template expects objects: use <code>service.name</code> (nested under <code>service</code>), not a string at <code>service</code>. Otherwise bulk indexing can fail with <code>mapper_parsing_exception</code> and indices show <code>docs.count: 0</code> while <code>logs/app.log</code> still grows on disk.</p>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Logs can be indexed and searched in Kibana during local debugging.</li>
+                <li>Correlation id is visible to API clients and appears in log lines.</li>
+                <li>No new Python dependency for JSON logging (stdlib only).</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Elasticsearch + Kibana are memory-heavy (~2 GiB or more for a comfortable local stack).</li>
+                <li>Filebeat expects JSON lines; rotating text logs with stack traces can break NDJSON—ship with <code>LOG_FORMAT=json</code> (or the default when unset).</li>
+                <li>Security is disabled on the local single-node Elasticsearch profile—never expose that profile to the public internet.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <nav aria-label="Related" class="docs-card-grid" style="margin-top:var(--space-6)">
+        <a class="docs-card" href="index.html"><div class="docs-card__head"><h3 class="docs-card__title">← All ADRs</h3></div><div class="docs-card__body">Back to the ADR index.</div></a>
+        <a class="docs-card" href="0009-health-readiness-and-observability.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0009</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Health, readiness, and observability — the broader observability contract.</div></a>
+      </nav>
+
+      <footer class="docs-history" aria-label="Page history">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Migrated to UI Kit v3.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-04-21</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Added Page history section (repository baseline).</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

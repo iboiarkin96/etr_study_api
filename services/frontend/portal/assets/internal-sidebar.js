@@ -32,6 +32,42 @@
    */
   const INTERNAL_SIDEBAR_NAV = [
 
+    /* ────────────────────────── HANDBOOK ──────────────────────────────── */
+    { kind: "section", label: "Documentation handbook" },
+    {
+      label: "Handbook",
+      children: [
+        { label: "Overview", path: "internal/handbook/index.html" },
+        { label: "Principles", path: "internal/handbook/principles.html" },
+        { label: "Style guide", path: "internal/handbook/style-guide.html" },
+        { label: "Process", path: "internal/handbook/process.html" },
+        {
+          label: "Authoring workflows",
+          children: [
+            { label: "Add a page", path: "internal/handbook/authoring/add-a-page.html" },
+            { label: "Add an ADR", path: "internal/handbook/authoring/add-an-adr.html" },
+            { label: "Add an RFC", path: "internal/handbook/authoring/add-an-rfc.html" },
+            { label: "Add an API spec", path: "internal/handbook/authoring/add-an-api-spec.html" },
+            { label: "Add a runbook", path: "internal/handbook/authoring/add-a-runbook.html" },
+            { label: "Update sidebar", path: "internal/handbook/authoring/update-sidebar.html" },
+            { label: "Page history format", path: "internal/handbook/authoring/page-history-format.html" },
+          ],
+        },
+        {
+          label: "Templates",
+          children: [
+            { label: "Overview", path: "internal/handbook/templates/index.html" },
+            { label: "ADR", path: "internal/handbook/templates/adr.html" },
+            { label: "RFC", path: "internal/handbook/templates/rfc.html" },
+            { label: "API spec", path: "internal/handbook/templates/api-spec.html" },
+            { label: "Audit", path: "internal/handbook/templates/audit.html" },
+            { label: "Data table", path: "internal/handbook/templates/data-table.html" },
+            { label: "Service descriptor", path: "internal/handbook/templates/service-descriptor.html" },
+          ],
+        },
+      ],
+    },
+
     /* ────────────────────────── SERVICES ──────────────────────────────── */
     { kind: "section", label: "Services" },
     {
@@ -111,7 +147,7 @@
         {
           label: "Workflow and commands",
           children: [
-            { label: "Make commands inventory", path: "internal/how-to/docs/make-commands-inventory.html" },
+            { label: "Make commands (reference)", path: "internal/reference/service/make-commands.html" },
           ],
         },
       ],
@@ -119,25 +155,25 @@
     {
       label: "Runbooks",
       children: [
-        { label: "Overview", path: "internal/how-to/runbooks/index.html" },
-        { label: "Runbook template", path: "internal/how-to/runbooks/0000-template.html" },
-        { label: "Tests failing", path: "internal/how-to/runbooks/0001-tests-failing.html" },
-        { label: "Migrations failing", path: "internal/how-to/runbooks/0002-migrations-failing.html" },
-        { label: "Logging failing", path: "internal/how-to/runbooks/0003-logging-failing.html" },
-        { label: "Pre-commit failing", path: "internal/how-to/runbooks/0004-pre-commit-failing.html" },
-        { label: "Quality check failing", path: "internal/how-to/runbooks/0005-quality-check-failing.html" },
-        { label: "API security failing", path: "internal/how-to/runbooks/0006-api-security-failing.html" },
-        { label: "OpenAPI contract test failing", path: "internal/how-to/runbooks/0007-openapi-contract-test-failing.html" },
-        { label: "Observability scrape failing", path: "internal/how-to/runbooks/0008-observability-scrape-failing.html" },
-        { label: "Error budget exhaustion", path: "internal/how-to/runbooks/0009-error-budget-exhaustion.html" },
-        { label: "In-page TOC missing", path: "internal/how-to/runbooks/0010-in-page-toc-missing.html" },
+        { label: "Overview", path: "internal/how-to/incidents/runbooks/index.html" },
+        { label: "Runbook template", path: "internal/how-to/incidents/runbooks/0000-template.html" },
+        { label: "Tests failing", path: "internal/how-to/incidents/runbooks/0001-tests-failing.html" },
+        { label: "Migrations failing", path: "internal/how-to/incidents/runbooks/0002-migrations-failing.html" },
+        { label: "Logging failing", path: "internal/how-to/incidents/runbooks/0003-logging-failing.html" },
+        { label: "Pre-commit failing", path: "internal/how-to/incidents/runbooks/0004-pre-commit-failing.html" },
+        { label: "Quality check failing", path: "internal/how-to/incidents/runbooks/0005-quality-check-failing.html" },
+        { label: "API security failing", path: "internal/how-to/incidents/runbooks/0006-api-security-failing.html" },
+        { label: "OpenAPI contract test failing", path: "internal/how-to/incidents/runbooks/0007-openapi-contract-test-failing.html" },
+        { label: "Observability scrape failing", path: "internal/how-to/incidents/runbooks/0008-observability-scrape-failing.html" },
+        { label: "Error budget exhaustion", path: "internal/how-to/incidents/runbooks/0009-error-budget-exhaustion.html" },
+        { label: "In-page TOC missing", path: "internal/how-to/incidents/runbooks/0010-in-page-toc-missing.html" },
       ],
     },
     {
       label: "Postmortems",
       children: [
-        { label: "Overview", path: "internal/how-to/postmortems/index.html" },
-        { label: "Postmortem template", path: "internal/how-to/postmortems/_template.html" },
+        { label: "Overview", path: "internal/how-to/incidents/postmortems/index.html" },
+        { label: "Postmortem template", path: "internal/how-to/incidents/postmortems/_template.html" },
       ],
     },
 
@@ -605,20 +641,20 @@
         {
           label: "Database tables",
           children: [
-            { label: "Overview", path: "internal/services/api/data/index.html" },
-            { label: "Template", path: "internal/services/api/data/_template.html" },
+            { label: "Overview", path: "internal/reference/data/index.html" },
+            { label: "Template", path: "internal/reference/templates/data-table.html" },
             {
               label: "Core",
               children: [
-                { label: "users", path: "internal/services/api/data/users.html" },
+                { label: "users", path: "internal/reference/data/users.html" },
               ],
             },
             {
               label: "Reference",
               children: [
-                { label: "systems", path: "internal/services/api/data/systems.html" },
-                { label: "invalidation_reasons", path: "internal/services/api/data/invalidation_reasons.html" },
-                { label: "timezones", path: "internal/services/api/data/timezones.html" },
+                { label: "systems", path: "internal/reference/data/systems.html" },
+                { label: "invalidation_reasons", path: "internal/reference/data/invalidation_reasons.html" },
+                { label: "timezones", path: "internal/reference/data/timezones.html" },
               ],
             },
           ],
@@ -626,11 +662,11 @@
         {
           label: "Delivery workflow and operations",
           children: [
-            { label: "Make commands and workflows", path: "internal/how-to/dev/make-commands-and-workflows.html" },
-            { label: "Local development", path: "internal/how-to/dev/local-development.html" },
-            { label: "Docker image and container", path: "internal/how-to/dev/docker-image-and-container.html" },
-            { label: "API load testing", path: "internal/how-to/dev/api-load-testing.html" },
-            { label: "Documentation pipeline", path: "internal/how-to/dev/docs-pipeline.html" },
+            { label: "Make commands and workflows", path: "internal/how-to/service/make-commands-and-workflows.html" },
+            { label: "Local development", path: "internal/how-to/service/local-development.html" },
+            { label: "Docker image and container", path: "internal/how-to/service/docker-image-and-container.html" },
+            { label: "API load testing", path: "internal/how-to/api/api-load-testing.html" },
+            { label: "Documentation pipeline", path: "internal/how-to/docs/docs-pipeline.html" },
           ],
         },
         { label: "See: How-to guides", path: "internal/how-to/index.html" },
@@ -694,7 +730,7 @@
         {
           label: "Playbooks",
           children: [
-            { label: "API endpoint testing", path: "internal/how-to/qa/api-endpoint-testing.html" },
+            { label: "API endpoint testing", path: "internal/how-to/api/api-endpoint-testing.html" },
             { label: "Documentation testing", path: "internal/how-to/qa/documentation-testing.html" },
             { label: "Release smoke testing", path: "internal/how-to/qa/release-smoke.html" },
             { label: "Exploratory testing", path: "internal/how-to/qa/exploratory-testing.html" },
@@ -777,48 +813,48 @@
         {
           label: "Postmortems",
           children: [
-            { label: "Overview", path: "internal/how-to/postmortems/index.html" },
-            { label: "Postmortem template", path: "internal/how-to/postmortems/_template.html" },
+            { label: "Overview", path: "internal/how-to/incidents/postmortems/index.html" },
+            { label: "Postmortem template", path: "internal/how-to/incidents/postmortems/_template.html" },
           ],
         },
         {
           label: "Runbooks",
           children: [
-            { label: "Overview", path: "internal/how-to/runbooks/index.html" },
+            { label: "Overview", path: "internal/how-to/incidents/runbooks/index.html" },
             {
               label: "Shared (cross-cutting)",
               children: [
-                { label: "Runbook template", path: "internal/how-to/runbooks/0000-template.html" },
+                { label: "Runbook template", path: "internal/how-to/incidents/runbooks/0000-template.html" },
               ],
             },
             {
               label: "CI and local quality failures",
               children: [
-                { label: "Tests failing", path: "internal/how-to/runbooks/0001-tests-failing.html" },
-                { label: "Pre-commit failing", path: "internal/how-to/runbooks/0004-pre-commit-failing.html" },
-                { label: "Quality check failing", path: "internal/how-to/runbooks/0005-quality-check-failing.html" },
-                { label: "OpenAPI contract test failing", path: "internal/how-to/runbooks/0007-openapi-contract-test-failing.html" },
+                { label: "Tests failing", path: "internal/how-to/incidents/runbooks/0001-tests-failing.html" },
+                { label: "Pre-commit failing", path: "internal/how-to/incidents/runbooks/0004-pre-commit-failing.html" },
+                { label: "Quality check failing", path: "internal/how-to/incidents/runbooks/0005-quality-check-failing.html" },
+                { label: "OpenAPI contract test failing", path: "internal/how-to/incidents/runbooks/0007-openapi-contract-test-failing.html" },
               ],
             },
             {
               label: "Data and migration failures",
-              children: [{ label: "Migrations failing", path: "internal/how-to/runbooks/0002-migrations-failing.html" }],
+              children: [{ label: "Migrations failing", path: "internal/how-to/incidents/runbooks/0002-migrations-failing.html" }],
             },
             {
               label: "Security and API guardrails",
-              children: [{ label: "API security failing", path: "internal/how-to/runbooks/0006-api-security-failing.html" }],
+              children: [{ label: "API security failing", path: "internal/how-to/incidents/runbooks/0006-api-security-failing.html" }],
             },
             {
               label: "Observability and reliability incidents",
               children: [
-                { label: "Logging failing", path: "internal/how-to/runbooks/0003-logging-failing.html" },
-                { label: "Observability scrape failing", path: "internal/how-to/runbooks/0008-observability-scrape-failing.html" },
-                { label: "Error budget exhaustion", path: "internal/how-to/runbooks/0009-error-budget-exhaustion.html" },
+                { label: "Logging failing", path: "internal/how-to/incidents/runbooks/0003-logging-failing.html" },
+                { label: "Observability scrape failing", path: "internal/how-to/incidents/runbooks/0008-observability-scrape-failing.html" },
+                { label: "Error budget exhaustion", path: "internal/how-to/incidents/runbooks/0009-error-budget-exhaustion.html" },
               ],
             },
             {
               label: "Docs frontend incidents",
-              children: [{ label: "In-page TOC missing", path: "internal/how-to/runbooks/0010-in-page-toc-missing.html" }],
+              children: [{ label: "In-page TOC missing", path: "internal/how-to/incidents/runbooks/0010-in-page-toc-missing.html" }],
             },
           ],
         },

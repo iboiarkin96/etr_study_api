@@ -1,182 +1,217 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function(){try{var k="docs-theme-preference",v=localStorage.getItem(k);if(v==="dark")document.documentElement.setAttribute("data-theme","dark");else if(v==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){/* localStorage may be unavailable; fall through to default theme */}})();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ADR 0003: Error Contract Governance</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
-
+  <title>ADR 0003 · Error Contract Governance · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
-  <main class="container" data-adr-weight="7">
-    <h1 class="internal-h1--accent-tail">ADR 0003: Error Contract Governance</h1>
-    <div id="docs-top-nav"></div>
-    <div id="docs-page-meta-mount" hidden=""></div>
-    <section class="card">
-      <h2>Ratification</h2>
-      <p>
-        Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate ratification process. Git history for this file on <code>main</code> is the record.
-      </p>
-      <ul>
-        <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
-        <li>Merge PR: <em>see git history for this file</em></li>
-        <li>Accepted: <em>as merged to <code>main</code></em></li>
-      </ul>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-    </section>
-    <section class="card">
-      <h2>Context</h2>
-      <p>
-        <strong>Why this matters:</strong> Clients cannot rely on free-text messages; they change with wording and
-        locale. Stable <strong>codes</strong> and <strong>keys</strong> let apps and partners branch on fixed values, log
-        clearly, and show their own user-facing text. One-off errors also make incidents harder to fix: “something
-        failed” in logs is not enough to act on.
-      </p>
-      <p>
-        As we add endpoints, we need one shared list of transport errors (auth, rate limits, idempotency) and
-        domain-specific tables per entity, next to OpenAPI and tests.
-      </p>
-
-    </section>
-    <section class="card">
-      <h2>Decision</h2>
-      <p>We use one versioned error contract in code and OpenAPI:</p>
-      <ol>
-        <li>Error payloads are part of public API contract.</li>
-        <li>Use stable numeric <code>code</code> and symbolic <code>key</code>.</li>
-        <li><code>code</code> + <code>key</code> are immutable once published.</li>
-        <li>Contract evolves additively; existing semantics cannot be silently changed.</li>
-        <li>Validation and business errors follow explicit, documented schemas.</li>
-        <li>Error catalog is split into:
-          <ul>
-            <li><strong>COMMON</strong> pool for service-wide reusable errors (security/rate-limit/idempotency/core transport).</li>
-            <li><strong>Entity</strong> matrices for domain-specific errors (for example <code>USER_*</code>).</li>
-          </ul>
-        </li>
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0003</li>
       </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
 
-    </section>
-    <section class="card">
-      <h2>Contract model</h2>
-      <ul>
-        <li>Business error shape:
-          <ul>
-            <li><code>{"code":"...","key":"...","message":"...","source":"business"}</code></li>
-          </ul>
-        </li>
-        <li>Validation error shape:
-          <ul>
-            <li><code>{"error_type":"validation_error","endpoint":"...","errors":[...]}</code></li>
-            <li>each <code>errors[]</code> item: <code>code</code>, <code>key</code>, <code>message</code>, <code>field</code>, <code>source</code>, <code>details</code></li>
-          </ul>
-        </li>
-      </ul>
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
-    </section>
-    <section class="card">
-      <h2>Error catalog structure</h2>
-      <h3>Common reusable pool (service-wide)</h3>
-      <p>Use <code>COMMON_*</code> for errors that should be reused consistently across all endpoints.</p>
-      <ul>
-        <li>Examples: auth required, rate-limit exceeded, body too large, idempotency key conflicts.</li>
-        <li>Implementation: reusable OpenAPI response blocks in <code>app/openapi/responses.py</code>.</li>
-        <li>Rule: do not duplicate these responses inline in routers unless behavior differs.</li>
-      </ul>
+  <main class="container">
+    <article class="docs-prose">
 
-      <h3>Entity matrices (domain-specific)</h3>
-      <p>Use entity-prefixed codes for business/validation rules specific to one domain.</p>
-      <ul>
-        <li>Example: <code>USER_001...USER_013</code> validation matrix and <code>USER_101</code>, <code>USER_404</code>.</li>
-        <li>Rule: entity code meaning is immutable once released.</li>
-        <li>Rule: each entity matrix must be reflected in OpenAPI examples and tests.</li>
-      </ul>
+      <header class="page-head">
+        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0003</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <h1>Error Contract Governance</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+          One versioned error contract — stable codes and keys, additive evolution, shared transport pool plus per-entity matrices.
+        </p>
+      </header>
 
-    </section>
-    <section class="card">
-      <h2>Implementation in this repository</h2>
-      <ul>
-        <li>Shared OpenAPI response blocks:
-          <ul>
-            <li><code>app/openapi/responses.py</code></li>
-          </ul>
-        </li>
-        <li>Validation mapping source:
-          <ul>
-            <li><code>app/validation/user.py</code></li>
-          </ul>
-        </li>
-        <li>Error response schemas:
-          <ul>
-            <li><code>app/schemas/errors.py</code></li>
-          </ul>
-        </li>
-        <li>OpenAPI examples:
-          <ul>
-            <li><code>app/openapi/examples/errors.py</code></li>
-          </ul>
-        </li>
-        <li>Endpoint declarations:
-          <ul>
-            <li>router <code>responses={...}</code> in <code>app/api/v1/*.py</code></li>
-          </ul>
-        </li>
-      </ul>
+      <section aria-labelledby="ratification-h">
+        <h2 id="ratification-h">Ratification</h2>
+        <article class="docs-card">
+          <div class="docs-card__body">
+            <p>Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate ratification process. Git history for this file on <code>main</code> is the record.</p>
+            <ul>
+              <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
+              <li>Merge PR: <em>see git history for this file</em></li>
+              <li>Accepted: <em>as merged to <code>main</code></em></li>
+            </ul>
+          </div>
+        </article>
+      </section>
 
-    </section>
-    <section class="card">
-      <h2>Consequences</h2>
-      <h3>Positive</h3>
-      <ul>
-        <li>Predictable client integration behavior.</li>
-        <li>Better incident diagnostics and observability.</li>
-        <li>Easier compatibility management across API versions.</li>
-      </ul>
-      <h3>Trade-offs</h3>
-      <ul>
-        <li>Requires governance discipline and documentation updates.</li>
-        <li>Expanding error catalog requires ongoing curation.</li>
-      </ul>
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p><strong>Why this matters:</strong> Clients cannot rely on free-text messages; they change with wording and locale. Stable <strong>codes</strong> and <strong>keys</strong> let apps and partners branch on fixed values, log clearly, and show their own user-facing text. One-off errors also make incidents harder to fix: “something failed” in logs is not enough to act on.</p>
+        <p>As we add endpoints, we need one shared list of transport errors (auth, rate limits, idempotency) and domain-specific tables per entity, next to OpenAPI and tests.</p>
+      </section>
 
-    </section>
-    <section class="card">
-      <h2>Operating rules</h2>
-      <ol>
-        <li>Add new codes; do not repurpose old ones.</li>
-        <li>Keep fallback validation codes for unmapped errors.</li>
-        <li>Prefer shared <code>COMMON</code> response blocks for cross-cutting errors.</li>
-        <li>Entity routers must keep their own matrix for domain-only errors.</li>
-        <li>Update OpenAPI examples and docs in the same change.</li>
-        <li>Ensure <code>make docs-fix</code> and <code>make release-check</code> pass before release.</li>
-      </ol>
-    </section>
-    <section id="page-history" class="card">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead>
-            <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Change</th>
-              <th scope="col">Author</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><time datetime="2026-04-21">2026-04-21</time></td>
-              <td>Added Page history section (repository baseline).</td>
-              <td><a href="../../../internal/team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <p>We use one versioned error contract in code and OpenAPI:</p>
+        <ol>
+          <li>Error payloads are part of public API contract.</li>
+          <li>Use stable numeric <code>code</code> and symbolic <code>key</code>.</li>
+          <li><code>code</code> + <code>key</code> are immutable once published.</li>
+          <li>Contract evolves additively; existing semantics cannot be silently changed.</li>
+          <li>Validation and business errors follow explicit, documented schemas.</li>
+          <li>Error catalog is split into:
+            <ul>
+              <li><strong>COMMON</strong> pool for service-wide reusable errors (security/rate-limit/idempotency/core transport).</li>
+              <li><strong>Entity</strong> matrices for domain-specific errors (for example <code>USER_*</code>).</li>
+            </ul>
+          </li>
+        </ol>
+      </section>
 
+      <section aria-labelledby="contract-h">
+        <h2 id="contract-h">Contract model</h2>
+        <ul>
+          <li>Business error shape:
+            <ul>
+              <li><code>{"code":"...","key":"...","message":"...","source":"business"}</code></li>
+            </ul>
+          </li>
+          <li>Validation error shape:
+            <ul>
+              <li><code>{"error_type":"validation_error","endpoint":"...","errors":[...]}</code></li>
+              <li>each <code>errors[]</code> item: <code>code</code>, <code>key</code>, <code>message</code>, <code>field</code>, <code>source</code>, <code>details</code></li>
+            </ul>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="catalog-h">
+        <h2 id="catalog-h">Error catalog structure</h2>
+        <h3>Common reusable pool (service-wide)</h3>
+        <p>Use <code>COMMON_*</code> for errors that should be reused consistently across all endpoints.</p>
+        <ul>
+          <li>Examples: auth required, rate-limit exceeded, body too large, idempotency key conflicts.</li>
+          <li>Implementation: reusable OpenAPI response blocks in <code>app/openapi/responses.py</code>.</li>
+          <li>Rule: do not duplicate these responses inline in routers unless behavior differs.</li>
+        </ul>
+
+        <h3>Entity matrices (domain-specific)</h3>
+        <p>Use entity-prefixed codes for business/validation rules specific to one domain.</p>
+        <ul>
+          <li>Example: <code>USER_001...USER_013</code> validation matrix and <code>USER_101</code>, <code>USER_404</code>.</li>
+          <li>Rule: entity code meaning is immutable once released.</li>
+          <li>Rule: each entity matrix must be reflected in OpenAPI examples and tests.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="impl-h">
+        <h2 id="impl-h">Implementation in this repository</h2>
+        <ul>
+          <li>Shared OpenAPI response blocks:
+            <ul>
+              <li><code>app/openapi/responses.py</code></li>
+            </ul>
+          </li>
+          <li>Validation mapping source:
+            <ul>
+              <li><code>app/validation/user.py</code></li>
+            </ul>
+          </li>
+          <li>Error response schemas:
+            <ul>
+              <li><code>app/schemas/errors.py</code></li>
+            </ul>
+          </li>
+          <li>OpenAPI examples:
+            <ul>
+              <li><code>app/openapi/examples/errors.py</code></li>
+            </ul>
+          </li>
+          <li>Endpoint declarations:
+            <ul>
+              <li>router <code>responses={...}</code> in <code>app/api/v1/*.py</code></li>
+            </ul>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Predictable client integration behavior.</li>
+                <li>Better incident diagnostics and observability.</li>
+                <li>Easier compatibility management across API versions.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Requires governance discipline and documentation updates.</li>
+                <li>Expanding error catalog requires ongoing curation.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="rules-h">
+        <h2 id="rules-h">Operating rules</h2>
+        <ol>
+          <li>Add new codes; do not repurpose old ones.</li>
+          <li>Keep fallback validation codes for unmapped errors.</li>
+          <li>Prefer shared <code>COMMON</code> response blocks for cross-cutting errors.</li>
+          <li>Entity routers must keep their own matrix for domain-only errors.</li>
+          <li>Update OpenAPI examples and docs in the same change.</li>
+          <li>Ensure <code>make docs-fix</code> and <code>make release-check</code> pass before release.</li>
+        </ol>
+      </section>
+
+      <nav aria-label="Related" class="docs-card-grid" style="margin-top:var(--space-6)">
+        <a class="docs-card" href="index.html"><div class="docs-card__head"><h3 class="docs-card__title">← All ADRs</h3></div><div class="docs-card__body">Back to the ADR index.</div></a>
+        <a class="docs-card" href="0004-api-versioning-policy.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0004</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">API versioning policy — immutable error codes within a major version.</div></a>
+        <a class="docs-card" href="0018-adr-lifecycle-ratification-and-badges.html"><div class="docs-card__head"><h3 class="docs-card__title">ADR 0018</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Lifecycle, ratification, and badges.</div></a>
+      </nav>
+
+      <footer class="docs-history" aria-label="Page history">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-04-21</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Added Page history section (repository baseline).</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
   </main>
+
+  <aside class="docs-toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
 </body></html>

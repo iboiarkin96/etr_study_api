@@ -40,86 +40,86 @@
           <h2>1 · Pick the base URL</h2>
           <p>Local development server (default): <code>http://127.0.0.1:8000</code>. All endpoints are versioned under <code>/api/v1</code>.</p>
           <pre><code class="language-bash">export BASE_URL="http://127.0.0.1:8000"
-            export API_KEY="your-key-here"</code></pre>
-            <p>For the rest of this page we assume both variables are set. The <a href="../reference/env-vars/index.html">env-vars reference</a> describes every consumer-relevant configuration knob.</p>
-          </section>
+          export API_KEY="your-key-here"</code></pre>
+          <p>For the rest of this page we assume both variables are set. The <a href="../reference/env-vars/index.html">env-vars reference</a> describes every consumer-relevant configuration knob.</p>
+        </section>
 
-          <section class="card">
-            <h2>2 · Authenticate the request</h2>
-            <p>Every protected endpoint requires the <code>X-API-Key</code> header. Missing or invalid keys come back as <code>401</code> with code <code>SECURITY_AUTH_REQUIRED</code> (<code>COMMON_401</code>). See the <a href="../how-to/authenticate.html">authenticate how-to</a> for the full token lifecycle and the <a href="../explanation/security-model.html">security model</a> for the rationale.</p>
-          </section>
+        <section class="card">
+          <h2>2 · Authenticate the request</h2>
+          <p>Every protected endpoint requires the <code>X-API-Key</code> header. Missing or invalid keys come back as <code>401</code> with code <code>SECURITY_AUTH_REQUIRED</code> (<code>COMMON_401</code>). See the <a href="../how-to/authenticate.html">authenticate how-to</a> for the full token lifecycle and the <a href="../explanation/security-model.html">security model</a> for the rationale.</p>
+        </section>
 
-          <section class="card">
-            <h2>3 · Create a user (POST)</h2>
-            <p>Required fields: <code>system_user_id</code>, <code>system_uuid</code>, <code>full_name</code>. Optional: <code>username</code>, <code>timezone</code>. The composite key <code>(system_user_id, system_uuid)</code> must be unique — re-using it returns <code>409 USER_CREATE_ALREADY_EXISTS</code>.</p>
-            <pre><code class="language-bash">curl -X POST "$BASE_URL/api/v1/user" \
-              -H "Content-Type: application/json" \
-              -H "X-API-Key: $API_KEY" \
-              -H "Idempotency-Key: tutorial-create-user-1" \
-              -d '{
-              "system_user_id": "42",
-              "system_uuid": "b2c3d4e5-0002-4000-8000-000000000002",
-              "full_name": "Ivan Petrov",
-              "timezone": "Europe/Moscow"
-              }'</code></pre>
-              <p>Successful response (<code>201 Created</code>):</p>
-              <pre><code class="language-json">{
-                "client_uuid": "1f2c…",
-                "system_user_id": "42",
-                "system_uuid": "b2c3d4e5-0002-4000-8000-000000000002",
-                "full_name": "Ivan Petrov",
-                "username": null,
-                "timezone": "Europe/Moscow",
-                "is_row_invalid": 0,
-                "created_at": "2026-05-08T10:15:30.123456+00:00",
-                "updated_at": "2026-05-08T10:15:30.123456+00:00"
-                }</code></pre>
-                <p>The server-issued <code>client_uuid</code> is the stable identifier for subsequent reads. The <code>Idempotency-Key</code> we sent makes this call safely retryable: re-running the exact same request returns the same <code>201</code> with the original body. See <a href="../how-to/handle-idempotency.html">handle idempotency</a> for the contract details.</p>
-              </section>
+        <section class="card">
+          <h2>3 · Create a user (POST)</h2>
+          <p>Required fields: <code>system_user_id</code>, <code>system_uuid</code>, <code>full_name</code>. Optional: <code>username</code>, <code>timezone</code>. The composite key <code>(system_user_id, system_uuid)</code> must be unique — re-using it returns <code>409 USER_CREATE_ALREADY_EXISTS</code>.</p>
+          <pre><code class="language-bash">curl -X POST "$BASE_URL/api/v1/user" \
+-H "Content-Type: application/json" \
+-H "X-API-Key: $API_KEY" \
+-H "Idempotency-Key: tutorial-create-user-1" \
+-d '{
+"system_user_id": "42",
+"system_uuid": "b2c3d4e5-0002-4000-8000-000000000002",
+"full_name": "Ivan Petrov",
+"timezone": "Europe/Moscow"
+          }'</code></pre>
+          <p>Successful response (<code>201 Created</code>):</p>
+          <pre><code class="language-json">{
+"client_uuid": "1f2c…",
+"system_user_id": "42",
+"system_uuid": "b2c3d4e5-0002-4000-8000-000000000002",
+"full_name": "Ivan Petrov",
+"username": null,
+"timezone": "Europe/Moscow",
+"is_row_invalid": 0,
+"created_at": "2026-05-08T10:15:30.123456+00:00",
+"updated_at": "2026-05-08T10:15:30.123456+00:00"
+          }</code></pre>
+          <p>The server-issued <code>client_uuid</code> is the stable identifier for subsequent reads. The <code>Idempotency-Key</code> we sent makes this call safely retryable: re-running the exact same request returns the same <code>201</code> with the original body. See <a href="../how-to/handle-idempotency.html">handle idempotency</a> for the contract details.</p>
+        </section>
 
-              <section class="card">
-                <h2>4 · Read the user back (GET)</h2>
-                <p>Reads use the composite path key <code>(system_uuid, system_user_id)</code> — note the order:</p>
-                <pre><code class="language-bash">curl "$BASE_URL/api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/42" \
-                  -H "X-API-Key: $API_KEY"</code></pre>
-                  <p>You get back the same payload as the create response. If the user does not exist you get <code>404 USER_NOT_FOUND</code> with the standard error envelope (<a href="../how-to/handle-errors.html">handle errors</a>).</p>
-                </section>
+        <section class="card">
+          <h2>4 · Read the user back (GET)</h2>
+          <p>Reads use the composite path key <code>(system_uuid, system_user_id)</code> — note the order:</p>
+          <pre><code class="language-bash">curl "$BASE_URL/api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/42" \
+          -H "X-API-Key: $API_KEY"</code></pre>
+          <p>You get back the same payload as the create response. If the user does not exist you get <code>404 USER_NOT_FOUND</code> with the standard error envelope (<a href="../how-to/handle-errors.html">handle errors</a>).</p>
+        </section>
 
-                <section class="card">
-                  <h2>5 · See a validation failure</h2>
-                  <p>To see the error envelope first-hand, send a deliberately bad request — e.g. omit <code>full_name</code>:</p>
-                  <pre><code class="language-bash">curl -X POST "$BASE_URL/api/v1/user" \
-                    -H "Content-Type: application/json" \
-                    -H "X-API-Key: $API_KEY" \
-                    -H "Idempotency-Key: tutorial-bad-1" \
-                    -d '{"system_user_id":"99","system_uuid":"b2c3d4e5-0002-4000-8000-000000000002"}'</code></pre>
-                    <p>Response (<code>422 Unprocessable Entity</code>):</p>
-                    <pre><code class="language-json">{
-                      "type": "about:blank",
-                      "title": "Validation failed",
-                      "status": 422,
-                      "code": "USER_CREATE_FULL_NAME_REQUIRED",
-                      "detail": "Field `full_name` is required.",
-                      "request_id": "01HE…",
-                      "errors": [
-                      {"field": "full_name", "code": "USER_CREATE_FULL_NAME_REQUIRED", "message": "Field is required"}
-                      ]
-                      }</code></pre>
-                      <p>Stable codes (e.g. <code>USER_CREATE_FULL_NAME_REQUIRED</code>) are safe to switch on — they never change between releases. The full catalogue is in <a href="../reference/errors/index.html">reference / errors</a>.</p>
-                    </section>
+        <section class="card">
+          <h2>5 · See a validation failure</h2>
+          <p>To see the error envelope first-hand, send a deliberately bad request — e.g. omit <code>full_name</code>:</p>
+          <pre><code class="language-bash">curl -X POST "$BASE_URL/api/v1/user" \
+-H "Content-Type: application/json" \
+-H "X-API-Key: $API_KEY" \
+-H "Idempotency-Key: tutorial-bad-1" \
+          -d '{"system_user_id":"99","system_uuid":"b2c3d4e5-0002-4000-8000-000000000002"}'</code></pre>
+          <p>Response (<code>422 Unprocessable Entity</code>):</p>
+          <pre><code class="language-json">{
+"type": "about:blank",
+"title": "Validation failed",
+"status": 422,
+"code": "USER_CREATE_FULL_NAME_REQUIRED",
+"detail": "Field `full_name` is required.",
+"request_id": "01HE…",
+"errors": [
+{"field": "full_name", "code": "USER_CREATE_FULL_NAME_REQUIRED", "message": "Field is required"}
+]
+          }</code></pre>
+          <p>Stable codes (e.g. <code>USER_CREATE_FULL_NAME_REQUIRED</code>) are safe to switch on — they never change between releases. The full catalogue is in <a href="../reference/errors/index.html">reference / errors</a>.</p>
+        </section>
 
-                    <section class="card">
-                      <h2>Next steps</h2>
-                      <ul>
-                        <li>The <a href="../reference/api/index.html">OpenAPI explorer</a> — every endpoint, every payload, every error, with <em>Try it out</em>.</li>
-                        <li><a href="../how-to/authenticate.html">Authenticate</a> · <a href="../how-to/handle-idempotency.html">Handle idempotency</a> · <a href="../how-to/handle-errors.html">Handle errors</a> — task-oriented recipes.</li>
-                        <li><a href="../explanation/architecture.html">Architecture</a> · <a href="../explanation/api-versioning.html">API versioning</a> — how the service is shaped.</li>
-                      </ul>
-                    </section>
+        <section class="card">
+          <h2>Next steps</h2>
+          <ul>
+            <li>The <a href="../reference/api/index.html">OpenAPI explorer</a> — every endpoint, every payload, every error, with <em>Try it out</em>.</li>
+            <li><a href="../how-to/authenticate.html">Authenticate</a> · <a href="../how-to/handle-idempotency.html">Handle idempotency</a> · <a href="../how-to/handle-errors.html">Handle errors</a> — task-oriented recipes.</li>
+            <li><a href="../explanation/architecture.html">Architecture</a> · <a href="../explanation/api-versioning.html">API versioning</a> — how the service is shaped.</li>
+          </ul>
+        </section>
 
-                  </main>
+      </main>
 
-                </div><!-- /.public-layout__main -->
-              </div><!-- /.public-layout__shell -->
+    </div><!-- /.public-layout__main -->
+  </div><!-- /.public-layout__shell -->
 
-            </body></html>
+</body></html>

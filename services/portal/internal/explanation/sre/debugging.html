@@ -1,150 +1,207 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SRE · Debugging</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
-  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <title>SRE · Debugging · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
-  <div class="internal-layout__shell">
-    <aside class="internal-layout__sidebar">
-      <p class="internal-layout__sidebar-title">Internal docs</p>
-      <div id="internal-sidebar-mount"></div>
-    </aside>
-    <div class="internal-layout__main">
-      <main class="container">
-        <div id="docs-top-nav"></div>
-        <h1 class="internal-h1--accent-tail">Debugging</h1>
-
-        <section class="card">
-          <h2>Debugging vs incident response</h2>
-          <p><a href="incident-response.html">Incident response</a> is about stopping pain fast. <strong>Debugging</strong> is about understanding the cause well enough to fix it for good. The two often overlap, but the goals differ: in an incident you may roll back without yet knowing why; in debugging you keep digging until you can explain what happened in one or two sentences.</p>
-          <p>This page is a generic playbook. For specific known failures, jump straight to a <a href="../../how-to/runbooks/index.html">runbook</a>.</p>
-        </section>
-
-        <section class="card">
-          <h2>The diagnostic loop</h2>
-          <ol>
-            <li><strong>Reproduce.</strong> A bug you cannot trigger is a bug you cannot fix.</li>
-            <li><strong>Form a hypothesis.</strong> "I think X is happening because Y."</li>
-            <li><strong>Predict.</strong> "If X is true, then I should see Z in the logs / metrics."</li>
-            <li><strong>Test cheaply.</strong> Look at the existing data first. Only add new logging or instrumentation if the existing data cannot answer.</li>
-            <li><strong>Update the hypothesis.</strong> Either the data confirms it, refines it, or kills it. Repeat.</li>
-          </ol>
-          <p>The loop is the same shape as the scientific method. The discipline is to write the hypothesis down before looking at the data, so you do not unconsciously match patterns to whatever you see.</p>
-        </section>
-
-        <section class="card">
-          <h2>What to read first</h2>
-          <p>For a production-ish issue, follow this order. Each step takes seconds and rules out whole categories of cause:</p>
-          <ol>
-            <li><strong>Health endpoints.</strong> <code>GET /healthz</code> and <code>GET /readyz</code>. If <code>readyz</code> is failing, its body tells you which dependency is broken.</li>
-            <li><strong>The dashboard.</strong> Latency, error rate, traffic, saturation. Which of the four is unusual? Since when?</li>
-            <li><strong>Recent deploys / changes.</strong> The last 24 hours. A spike that lines up with a deploy is your prime suspect.</li>
-            <li><strong>Logs (errors only).</strong> Filter Kibana to <code>level : ("error" or "critical")</code> for the last 30 minutes. Look for repeated messages — they cluster better than unique ones.</li>
-            <li><strong>One failing request.</strong> Pick a single failing log line, copy its <code>request_id</code>, and read the full thread. This is where the "aha" usually lives.</li>
-          </ol>
-        </section>
-
-        <section class="card">
-          <h2>Narrowing down — bisection</h2>
-          <p>When you do not know where the problem is, divide the search space in half each step. Examples:</p>
-          <ul>
-            <li><strong>Time bisection.</strong> If today is broken and last week was fine, ask: was Wednesday broken? If yes, check Monday. Keep halving until you find the first bad day. Then look at what changed that day.</li>
-            <li><strong>Endpoint bisection.</strong> If "the API is slow", ask: are <em>all</em> endpoints slow? If only <code>POST /conspectuses</code>, the cause is probably in that handler or its dependencies, not in the framework.</li>
-            <li><strong>User bisection.</strong> If only some users see the bug, find the smallest pattern: a country, a feature flag, a payload shape, an old client version.</li>
-            <li><strong>Code bisection.</strong> <code>git bisect</code> when you know a commit-range is the culprit and you can reproduce locally.</li>
-          </ul>
-        </section>
-
-        <section class="card">
-          <h2>Cause vs trigger vs root cause</h2>
-          <dl>
-            <dt>Trigger</dt>
-            <dd>The thing that happened just before the symptom. Usually a deploy, a config change, or a traffic spike.</dd>
-
-            <dt>Cause</dt>
-            <dd>The technical mechanism that turned the trigger into a failure. "The new code path read a null field."</dd>
-
-            <dt>Contributing factors (root causes)</dt>
-            <dd>Why the system <em>allowed</em> the cause to ship. Missing test, missing migration, brittle dependency. There is almost always more than one — that is normal.</dd>
-          </dl>
-          <p>Stopping the investigation at "trigger" is too shallow; the same trigger will hit again. Stopping at "cause" is better but still rare to prevent recurrence. The fixes that prevent recurrence usually live in the contributing factors layer.</p>
-        </section>
-
-        <section class="card">
-          <h2>Common patterns and where they hide</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Common debugging patterns">
-            <table class="docs-page-history">
-              <thead><tr><th>Symptom</th><th>Look here first</th></tr></thead>
-              <tbody>
-                <tr><td>Sudden 5xx spike right after a deploy</td><td>The diff of the last deploy; rollback first, then read the diff calmly.</td></tr>
-                <tr><td>Slow endpoint, no errors</td><td>Database slow query log, recent index changes, N+1 query patterns.</td></tr>
-                <tr><td>Intermittent 500s, no clear pattern</td><td>External dependency latency, connection pool exhaustion, retry storms.</td></tr>
-                <tr><td>Works locally, fails in another environment</td><td>Environment variables, feature flags, data shape differences, migration drift.</td></tr>
-                <tr><td>Background jobs stuck</td><td>Queue depth, worker liveness, recent code in the consumer, poison messages.</td></tr>
-                <tr><td>"It started happening on the 1st of the month"</td><td>Cron jobs, monthly reports, data growth crossing a threshold.</td></tr>
-                <tr><td>Logs say everything is fine, dashboards say it is not</td><td>Sampling, log shipper down, wrong log level, silent exceptions.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="card">
-          <h2>When to escalate</h2>
-          <p>Escalate before you are exhausted, not after. Triggers:</p>
-          <ul>
-            <li>Two hours have passed and you have no working hypothesis.</li>
-            <li>You are about to take an action that is hard to reverse (drop a table, force a migration, push a hotfix without review).</li>
-            <li>Customer impact is growing and your current attempt is not shrinking it.</li>
-            <li>You are tired enough that you might miss something obvious.</li>
-          </ul>
-          <p>Escalation is not failure — it is a tool. Use it.</p>
-        </section>
-
-        <section class="card">
-          <h2>After you fix it</h2>
-          <ul>
-            <li>Write down the cause and the fix in plain words. Even if it stays in your own notes, it pays back later.</li>
-            <li>If a runbook would have helped you find it faster, add it (or update an existing one).</li>
-            <li>If the fix changes a contract, an ADR, or a test rule, update those too. The fix is not done until the system knows about it.</li>
-            <li>If this was a SEV-1 or SEV-2, write the <a href="../../how-to/postmortems/index.html">postmortem</a>.</li>
-          </ul>
-        </section>
-
-        <section class="card">
-          <h2>References</h2>
-          <ul>
-            <li><a href="incident-response.html">Incident response</a> — when the bug is also an outage.</li>
-            <li><a href="../../how-to/runbooks/index.html">Runbooks</a> — per-alert recipes.</li>
-            <li><a href="logging.html">Logging</a> and <a href="observability.html">Observability</a> — how the data you read here is produced.</li>
-            <li>SRE Book — <a href="https://sre.google/sre-book/effective-troubleshooting/" rel="external">Effective Troubleshooting</a>.</li>
-          </ul>
-        </section>
-
-        <section id="page-history" class="card">
-          <h2>Page history</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Page history">
-            <table class="docs-page-history">
-              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
-              <tbody>
-                <tr><td><time datetime="2026-05-11">2026-05-11</time></td><td>Replaced skeleton stub with full diagnostic playbook: hypothesis loop, reading order, bisection, cause vs trigger, common patterns, escalation rules.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
-                <tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Initial skeleton stub per <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase D.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">SRE · Debugging</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
     </div>
-  </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--danger">SRE</span>
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1>Debugging as a discipline</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Why moving from a symptom to a cause is a methodical process, not an act of
+          inspiration — and why the difference between a trigger, a cause, and a
+          contributing factor is what makes fixes stick.
+        </p>
+      </header>
+
+      <h2 id="vs-incident">Debugging is not incident response</h2>
+      <p><a href="incident-response.html">Incident response</a> is about stopping pain quickly: roll back, fail over, drain the queue. The goal is restoring the system, and you may achieve it without understanding what went wrong. <strong>Debugging</strong> is about understanding what went wrong well enough to fix it for good — to write a sentence that explains the failure, satisfies you that the same failure cannot quietly recur, and points to the change that prevents it.</p>
+      <p>The two activities often run in parallel under incident pressure, and they get confused because both are urgent. They are not the same thing. Incident response that never feeds into debugging produces a system that has been rescued many times and learned from none of them.</p>
+
+      <h2 id="loop">The diagnostic loop, and why it works</h2>
+      <p>Effective debugging looks like the scientific method. A loose narrative — “let me try this” — burns time on guesses, because pattern-matching against the noise of a real system is unreliable. The disciplined alternative is to form an explicit hypothesis, predict what data would be consistent with it, look at the data, and update the hypothesis based on what you saw. Each cycle costs minutes; each iteration narrows the search space.</p>
+      <div class="docs-concept-layers" aria-label="Diagnostic loop">
+        <ol class="docs-concept-layers__stack">
+          <li class="docs-concept-layers__layer" data-tone="accent">
+            <span class="docs-concept-layers__name">Reproduce</span>
+            <span class="docs-concept-layers__what">A bug you cannot trigger is a bug you cannot study. Reproducing it is the first proof that you understand the conditions.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="info">
+            <span class="docs-concept-layers__name">Hypothesise</span>
+            <span class="docs-concept-layers__what">Write it down: “X is happening because Y.” Writing forces specificity; specificity is testable.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="teal">
+            <span class="docs-concept-layers__name">Predict</span>
+            <span class="docs-concept-layers__what">“If Y, then I should also see Z.” The prediction is what keeps the next observation honest.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="neutral">
+            <span class="docs-concept-layers__name">Test cheaply</span>
+            <span class="docs-concept-layers__what">Read what is already there before adding instrumentation. Cheap tests narrow the field faster than rich ones.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="warn">
+            <span class="docs-concept-layers__name">Update</span>
+            <span class="docs-concept-layers__what">Confirmed, refined, or killed — the hypothesis must change shape after each observation. If it does not, you are not learning.</span>
+          </li>
+        </ol>
+      </div>
+      <p>The discipline that distinguishes practitioners from beginners is not where to look first — that is local knowledge — but writing the hypothesis down before looking. Without it, the eye sees what it wanted to see; with it, the eye sees what is there.</p>
+
+      <h2 id="bisection">Bisection — why halving the search space wins</h2>
+      <p>For most non-trivial bugs, the unknown is <em>where</em> the failure lives: in which time window, which endpoint, which subset of users, which commit. Linear search through the search space — try this, try that — has a worst case proportional to the size of the space. Bisection has a worst case proportional to the logarithm of the size.</p>
+      <p>The discipline transfers across dimensions. If today is broken and last week was fine, asking about Wednesday rules out half the time window. If the symptom is “the API is slow”, asking whether every endpoint is slow rules out — or rules in — the framework as a culprit. If only some users see the failure, finding the smallest pattern that captures them is bisection along the dimension of the population.</p>
+      <p>What makes bisection work is the willingness to commit to a midpoint and accept whichever half the evidence eliminates. The temptation to “check both sides to be sure” is the temptation to do linear search. It feels safer; it is slower.</p>
+
+      <h2 id="cause">Trigger, cause, contributing factor — three depths of answer</h2>
+      <p>A failure is a chain, not a single event. The diagram below reads left-to-right: a trigger <em>activates</em> a cause; the cause was <em>enabled by</em> one or more contributing factors. The depth at which you stop the investigation determines how thoroughly you prevent recurrence.</p>
+      <ol class="docs-escalation" aria-label="Trigger activates cause, cause enabled by contributing factors">
+        <li class="docs-escalation__stage" data-role="primary">
+          <div class="docs-escalation__stage-head">
+            <span class="docs-pill docs-pill--accent">Trigger</span>
+            <span class="docs-escalation__stage-name">What happened</span>
+          </div>
+          <p class="docs-escalation__mission">The event just before the symptom.</p>
+          <ul class="docs-escalation__duties">
+            <li>A deploy, a config change, a traffic spike.</li>
+            <li>Easy to spot — but fixing only this lets the same failure reappear from a different angle.</li>
+          </ul>
+        </li>
+        <li class="docs-escalation__edge" aria-hidden="true">
+          <span class="docs-escalation__edge-arrow"></span>
+          <span class="docs-escalation__edge-label">activates</span>
+        </li>
+        <li class="docs-escalation__stage" data-role="secondary">
+          <div class="docs-escalation__stage-head">
+            <span class="docs-pill docs-pill--info">Cause</span>
+            <span class="docs-escalation__stage-name">Why it broke</span>
+          </div>
+          <p class="docs-escalation__mission">The technical mechanism of the failure.</p>
+          <ul class="docs-escalation__duties">
+            <li>“The new code path read a <code>null</code> field.”</li>
+            <li>Fixable in code — but the system shipped it anyway.</li>
+          </ul>
+        </li>
+        <li class="docs-escalation__edge" aria-hidden="true">
+          <span class="docs-escalation__edge-arrow"></span>
+          <span class="docs-escalation__edge-label">enabled by</span>
+        </li>
+        <li class="docs-escalation__stage" data-role="ic">
+          <div class="docs-escalation__stage-head">
+            <span class="docs-pill docs-pill--rose">Factors</span>
+            <span class="docs-escalation__stage-name">Why we allowed it</span>
+          </div>
+          <p class="docs-escalation__mission">Conditions that let the cause ship.</p>
+          <ul class="docs-escalation__duties">
+            <li>Missing test, missing migration, brittle dependency, unclear ownership.</li>
+            <li>Almost always more than one — that is normal.</li>
+          </ul>
+        </li>
+      </ol>
+      <p>Stopping at <em>trigger</em> — “the deploy caused it” — is the shallowest answer; the same trigger will arrive again. Stopping at <em>cause</em> is better but rarely sufficient: a fix at this layer assumes the system will catch the same class of bug next time, which it will not unless something else changed. The fixes that durably prevent recurrence are almost always in the <em>contributing factors</em> layer — the missing test, the unclear ownership, the dependency without a fallback.</p>
+      <p>This is why postmortems insist on asking “why?” multiple times. Each <em>why</em> moves you one layer deeper. The answer at the deepest layer is rarely a person and usually a system property: a feedback loop that is missing, a check that does not exist, a category of change that nobody owns.</p>
+
+      <h2 id="differential">A differential diagnosis — what categories of cause hide where</h2>
+      <p>An experienced debugger is partly a list of priors. Certain shapes of symptom strongly suggest certain shapes of cause, and starting the hypothesis loop with the prior in mind shortens the path. The patterns are not rules — they are starting hypotheses, and a good debugger discards them quickly when the evidence does not support them.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">Shape of symptom</th><th scope="col">Categories of cause that frequently produce it</th></tr></thead>
+          <tbody>
+            <tr><td>Sudden 5xx spike right after a deploy</td><td>A change in the deploy diff; configuration drift between environments; a missed migration.</td></tr>
+            <tr><td>Slow endpoint, no errors</td><td>Database query plan change; N+1 access pattern; a dependency whose latency degraded silently.</td></tr>
+            <tr><td>Intermittent failure, no clear pattern</td><td>Resource exhaustion at a percentile (pool, file descriptors); retry storms amplifying a downstream blip; race condition.</td></tr>
+            <tr><td>Works in one environment, fails in another</td><td>Environment-specific configuration; feature flags; data shape differences; migration order.</td></tr>
+            <tr><td>Background work stuck</td><td>Worker liveness or oom; queue head-of-line blocked by a poison message; idempotency hazard on retry.</td></tr>
+            <tr><td>“It started on the 1st of the month”</td><td>Scheduled job; data growth crossing a threshold; certificate or token rotation.</td></tr>
+            <tr><td>Dashboards say fine, users say broken</td><td>Sampling that hides the affected segment; the wrong metric being measured; silent exceptions.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The reason these are <em>priors</em> rather than recipes is that any of them can be wrong. Treating them as recipes — “the deploy diff is always the cause of a deploy-aligned spike” — produces confident wrong answers. The point is to start the loop somewhere informed and update fast.</p>
+
+      <h2 id="anti-patterns">Common failure modes</h2>
+      <ul>
+        <li><strong>Pattern-matching without a written hypothesis.</strong> You see something that looks like a thing you have seen before and stop looking. Half the time the resemblance is coincidence.</li>
+        <li><strong>Adding logging before reading existing logging.</strong> Instrumentation is expensive to ship and slow to read. Exhaust what is already there first.</li>
+        <li><strong>Stopping at the trigger.</strong> A satisfying answer that does not prevent recurrence. The next deploy fires the same chain.</li>
+        <li><strong>Confirmation bias under pressure.</strong> Once a hypothesis becomes appealing, contradictory evidence is rationalised. The remedy is to write the prediction before looking.</li>
+        <li><strong>Investigating exhausted.</strong> Past a certain point, additional time on the keyboard produces fewer correct conclusions than stepping away. The team's job is to make stepping away socially acceptable.</li>
+      </ul>
+
+      <h2 id="references">References</h2>
+      <ul>
+        <li><a href="incident-response.html">Incident response</a> — when the bug is also an outage.</li>
+        <li><a href="../../how-to/incidents/runbooks/index.html">Runbooks</a> — local recipes for known failure modes.</li>
+        <li><a href="logging.html">Logging</a> and <a href="observability.html">observability</a> — where the data you read here comes from.</li>
+        <li>External: <a href="https://sre.google/sre-book/effective-troubleshooting/" rel="external">SRE Book — Effective Troubleshooting</a>.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis cleanup: removed “what to read first” step list, escalation triggers, and post-fix checklist. Reframed pattern table as differential-diagnosis priors. Kept the conceptual core — loop, bisection, trigger/cause/factor chain.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code> + <code>docs-table--sticky-head --zebra</code> for the patterns table; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-11</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Replaced skeleton stub with full diagnostic playbook: hypothesis loop, reading order, bisection, cause vs trigger, common patterns, escalation rules.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#vs-incident">Debugging vs incident response</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#loop">Diagnostic loop</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#bisection">Bisection</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#cause">Trigger, cause, factor</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#differential">Differential diagnosis</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Failure modes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#references">References</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
 </body></html>

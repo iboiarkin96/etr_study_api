@@ -2,7 +2,10 @@
    with an optional brand block and a sidebar-wide collapse toggle.
    Persists group-collapse state, scroll, and full-sidebar collapse state. */
 
-const STORAGE_KEY = "docs-sidebar-collapsed-v2";
+// Storage holds the set of explicitly-EXPANDED group IDs. Default (no entry
+// in localStorage) means all groups start collapsed — the user opens what
+// they need and that selection is what persists across navigation.
+const STORAGE_KEY = "docs-sidebar-expanded-v2";
 const SCROLL_KEY = "docs-sidebar-scroll-v2";
 const SHELL_COLLAPSE_KEY = "docs-sidebar-shell-collapsed-v2";
 
@@ -25,7 +28,7 @@ function saveScroll(top) {
   }
 }
 
-function loadCollapsed() {
+function loadExpanded() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? new Set(JSON.parse(raw)) : new Set();
@@ -34,7 +37,7 @@ function loadCollapsed() {
   }
 }
 
-function saveCollapsed(set) {
+function saveExpanded(set) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
   } catch (_) {
@@ -133,7 +136,7 @@ function buildBrand(brand) {
   return header;
 }
 
-function buildNode(node, collapsed) {
+function buildNode(node, expanded) {
   const item = document.createElement("li");
   item.className = "docs-sidebar__item";
   if (node.kind) item.classList.add(`docs-sidebar__item--${node.kind}`);
@@ -182,13 +185,13 @@ function buildNode(node, collapsed) {
   if (node.children && node.children.length) {
     const sub = document.createElement("ul");
     sub.className = "docs-sidebar__children";
-    node.children.forEach((c) => sub.appendChild(buildNode(c, collapsed)));
+    node.children.forEach((c) => sub.appendChild(buildNode(c, expanded)));
     item.appendChild(sub);
     const cid = node.id || node.href || node.label;
-    // Force-expand any section whose subtree contains the current page —
-    // user must always be able to see where they are after navigating.
+    // Default is collapsed — only nodes the user has explicitly opened (or
+    // the section containing the active page) stay expanded.
     const forceOpen = hasActiveDescendant(node);
-    if (collapsed.has(cid) && !forceOpen) item.setAttribute("data-collapsed", "true");
+    if (!expanded.has(cid) && !forceOpen) item.setAttribute("data-collapsed", "true");
   }
   return item;
 }
@@ -263,7 +266,7 @@ function wireCollapseToggle(container, toggle) {
 }
 
 function render(container, tree) {
-  const collapsed = loadCollapsed();
+  const expanded = loadExpanded();
   container.classList.add("docs-sidebar");
   container.innerHTML = "";
 
@@ -273,7 +276,7 @@ function render(container, tree) {
 
   const list = document.createElement("ul");
   list.className = "docs-sidebar__list";
-  tree.sections.forEach((s) => list.appendChild(buildNode(s, collapsed)));
+  tree.sections.forEach((s) => list.appendChild(buildNode(s, expanded)));
   container.appendChild(list);
 
   // Restore scroll AFTER the DOM is populated so the offset is meaningful.
@@ -294,15 +297,15 @@ function render(container, tree) {
     if (!item || !item.classList.contains("docs-sidebar__item")) return;
     if (!item.querySelector(":scope > .docs-sidebar__children")) return;
     const cid = item.dataset.nodeId || "";
-    const current = loadCollapsed();
+    const current = loadExpanded();
     if (item.getAttribute("data-collapsed") === "true") {
       item.removeAttribute("data-collapsed");
-      current.delete(cid);
+      current.add(cid);
     } else {
       item.setAttribute("data-collapsed", "true");
-      current.add(cid);
+      current.delete(cid);
     }
-    saveCollapsed(current);
+    saveExpanded(current);
   });
 }
 

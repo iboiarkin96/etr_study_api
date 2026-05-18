@@ -1,143 +1,185 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SRE · On-call</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
-  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <title>SRE · On-call · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
-  <div class="internal-layout__shell">
-    <aside class="internal-layout__sidebar">
-      <p class="internal-layout__sidebar-title">Internal docs</p>
-      <div id="internal-sidebar-mount"></div>
-    </aside>
-    <div class="internal-layout__main">
-      <main class="container">
-        <div id="docs-top-nav"></div>
-        <h1 class="internal-h1--accent-tail">On-call</h1>
-
-        <section class="card">
-          <h2>What "on-call" means here</h2>
-          <p>On-call is the agreement that one named person reacts within an agreed time when an alert fires. It is not "the person who reads chat sometimes" — it is a defined role with a clear time budget.</p>
-          <p>Today this is a single-maintainer project. The on-call person is <a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a>. The structure on this page describes the roles we will use later, when the team grows or a tool like PagerDuty or OpsGenie is added (queued in <a href="../../governance/backlog/index.html#item-48">backlog item-48</a>).</p>
-        </section>
-
-        <section class="card">
-          <h2>Roles</h2>
-          <dl>
-            <dt>Primary on-call</dt>
-            <dd>Receives the page first. Owns the response: triage, mitigation, communication. If the alert can be silenced because it is a known false positive, the primary still records why.</dd>
-
-            <dt>Secondary on-call</dt>
-            <dd>Backup. Paged automatically if the primary does not acknowledge within a defined time (today: 10 minutes). The secondary also covers planned absences.</dd>
-
-            <dt>Incident commander (during a real incident)</dt>
-            <dd>Coordinates the response when more than one person is involved. May be the primary or someone else if the primary is the one fixing.</dd>
-          </dl>
-          <p>In a one-person project the same human plays all three roles. The labels still matter — they remind you which "hat" you are wearing, and they make it easier to grow the team later.</p>
-        </section>
-
-        <section class="card">
-          <h2>Response targets</h2>
-          <div class="docs-table-scroll" role="region" aria-label="On-call response targets">
-            <table class="docs-page-history">
-              <thead><tr><th>Severity</th><th>Acknowledge by</th><th>Start mitigation by</th><th>Customer comm by</th></tr></thead>
-              <tbody>
-                <tr><td>SEV-1 — major outage</td><td>10 min</td><td>30 min</td><td>30 min and every 30 min</td></tr>
-                <tr><td>SEV-2 — partial outage</td><td>15 min</td><td>1 hour</td><td>1 hour and every 60 min</td></tr>
-                <tr><td>SEV-3 — degraded</td><td>30 min</td><td>Same day</td><td>Status page note</td></tr>
-                <tr><td>SEV-4 — minor</td><td>Next working day</td><td>Triage in backlog</td><td>None unless asked</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p>"Mitigate" means the user-visible problem stops, even if the root cause is still being investigated. Restoring service is a separate goal from explaining what happened.</p>
-        </section>
-
-        <section class="card">
-          <h2>Alert routing</h2>
-          <ol>
-            <li>An alert rule in Prometheus fires.</li>
-            <li>Alertmanager groups related alerts and sends one notification to the channel for that severity.</li>
-            <li>The on-call person acknowledges in the channel within the response target.</li>
-            <li>If no acknowledgement within the target, the alert escalates to the secondary.</li>
-            <li>If the alert is a SEV-1 or SEV-2, declare an incident (see <a href="incident-response.html">incident response</a>).</li>
-          </ol>
-          <p>Routing rules live in the Alertmanager config tracked in the repository. PagerDuty/OpsGenie integration will replace the chat-channel hop once there is more than one on-call person.</p>
-        </section>
-
-        <section class="card">
-          <h2>What a shift looks like</h2>
-          <p>A normal week of on-call should be quiet. The shift is not "watch dashboards 24/7"; it is "be reachable when something fires". The expected weekly tasks:</p>
-          <ul>
-            <li><strong>Day 1 of the shift:</strong> open the main dashboard for 5 minutes, confirm there are no silenced alerts you do not understand, review the previous shift's handoff note.</li>
-            <li><strong>During the week:</strong> respond to pages within the targets above. Keep notes; you will need them for the postmortem.</li>
-            <li><strong>End of shift:</strong> write a one-paragraph handoff: what fired, what is still open, anything fragile to watch.</li>
-          </ul>
-          <p>If you fixed a problem permanently, also delete the alert that was firing for the wrong reason. The point of on-call is to reduce future toil, not to prove you can endure it.</p>
-        </section>
-
-        <section class="card">
-          <h2>Handoff template</h2>
-          <p>Copy this into the chat at the end of each shift.</p>
-          <pre><code>On-call handoff — week of YYYY-MM-DD
-Outgoing: &lt;name&gt;
-Incoming: &lt;name&gt;
-
-Alerts that fired this week:
-- YYYY-MM-DD HH:MM &lt;alert&gt; — outcome (resolved / mitigated / open)
-
-Open items:
-- &lt;short description and link to ticket&gt;
-
-Fragile / watch closely:
-- &lt;short description, why fragile, what to do if it breaks&gt;
-
-Silenced alerts (and reason):
-- &lt;alert name&gt; — &lt;reason, until when&gt;</code></pre>
-        </section>
-
-        <section class="card">
-          <h2>Self-care rules</h2>
-          <ul>
-            <li>If you are not in a state to respond (sick, on a plane, asleep after a hard shift), tell the secondary <em>before</em> the alert fires, not after.</li>
-            <li>After a paged night, take time off the next day. Tired engineers cause incidents; that is well documented.</li>
-            <li>If the same alert keeps waking you up, the alert is broken or the system is broken — file a ticket the next morning, do not just snooze.</li>
-          </ul>
-        </section>
-
-        <section class="card">
-          <h2>References</h2>
-          <ul>
-            <li><a href="incident-response.html">Incident response</a> — what to do once an alert is real.</li>
-            <li><a href="../../how-to/runbooks/index.html">Runbooks</a> — per-alert procedures.</li>
-            <li>SRE Book — <a href="https://sre.google/sre-book/being-on-call/" rel="external">Being On-Call</a>.</li>
-            <li>SRE Book — <a href="https://sre.google/sre-book/eliminating-toil/" rel="external">Eliminating Toil</a>.</li>
-          </ul>
-        </section>
-
-        <section id="page-history" class="card">
-          <h2>Page history</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Page history">
-            <table class="docs-page-history">
-              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
-              <tbody>
-                <tr><td><time datetime="2026-05-11">2026-05-11</time></td><td>Replaced skeleton stub with full content: roles, response targets, routing, shift expectations, handoff template, self-care.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
-                <tr><td><time datetime="2026-05-08">2026-05-08</time></td><td>Initial skeleton stub per <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase D.</td><td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">SRE · On-call</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
     </div>
-  </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--danger">SRE</span>
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1>Why on-call is a contract</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          On-call works when it is precise — a named person, an agreed time, a known
+          escalation — and degrades fast when it is implicit. The point of formalising it
+          is not bureaucracy; it is to protect both the user and the human being paged.
+        </p>
+      </header>
+
+      <h2 id="what">On-call is not “someone will probably look”</h2>
+      <p>The naive version of on-call is an unstated norm: someone on the team will notice if something breaks and will deal with it. This works as long as the team is small, the alerts are rare, and the people are watching. The moment any of those conditions weaken, the norm fails silently — a page goes unattended for an hour because everyone assumed someone else had it.</p>
+      <p>An on-call contract turns the norm into a guarantee: one named person, at a known time, responds within a known budget. The contract is the difference between an alert reaching a human and an alert sitting in a channel.</p>
+      <p>This is a single-maintainer project today. The on-call person is <a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a>. The structure on this page describes the shape on-call takes when there is more than one human in the rotation — and even today, treating it as a contract clarifies what the system is promising its users.</p>
+
+      <h2 id="roles">Why the roles form an escalation, not a committee</h2>
+      <p>An on-call structure has three roles, and they activate in sequence rather than in parallel. Each one exists because the previous one has a failure mode it cannot cover for itself.</p>
+      <ol class="docs-escalation" aria-label="On-call escalation sequence">
+        <li class="docs-escalation__stage" data-role="primary">
+          <div class="docs-escalation__stage-head">
+            <span class="docs-pill docs-pill--accent">Primary</span>
+            <span class="docs-escalation__stage-name">First responder</span>
+          </div>
+          <p class="docs-escalation__mission">Receives the page first; owns the response window.</p>
+          <ul class="docs-escalation__duties">
+            <li>Acknowledges within the agreed time.</li>
+            <li>Owns triage, mitigation, and external communication until handed off.</li>
+          </ul>
+        </li>
+        <li class="docs-escalation__edge" aria-hidden="true">
+          <span class="docs-escalation__edge-arrow"></span>
+          <span class="docs-escalation__edge-label">primary unreachable</span>
+        </li>
+        <li class="docs-escalation__stage" data-role="secondary">
+          <div class="docs-escalation__stage-head">
+            <span class="docs-pill docs-pill--info">Secondary</span>
+            <span class="docs-escalation__stage-name">Backup</span>
+          </div>
+          <p class="docs-escalation__mission">Catches the case the primary cannot.</p>
+          <ul class="docs-escalation__duties">
+            <li>Activates when the primary has not acknowledged inside the window.</li>
+            <li>Covers planned absences and ad-hoc unavailability of the primary.</li>
+          </ul>
+        </li>
+        <li class="docs-escalation__edge" aria-hidden="true">
+          <span class="docs-escalation__edge-arrow"></span>
+          <span class="docs-escalation__edge-label">multi-person response</span>
+        </li>
+        <li class="docs-escalation__stage" data-role="ic">
+          <div class="docs-escalation__stage-head">
+            <span class="docs-pill docs-pill--rose">Commander</span>
+            <span class="docs-escalation__stage-name">Incident commander</span>
+          </div>
+          <p class="docs-escalation__mission">Coordinates a real incident.</p>
+          <ul class="docs-escalation__duties">
+            <li>Worn as a separate hat the moment more than one person is responding.</li>
+            <li>May be the primary, or someone else if the primary is hands-on with the system.</li>
+          </ul>
+        </li>
+      </ol>
+      <p>On a one-person team the same human plays all three roles, but the labels still matter. They mark which hat is on at a given moment, which keeps decisions and actions separable in the timeline. They also make it possible to grow the rotation without rebuilding the structure: the second hire steps into a role that already has a definition.</p>
+
+      <h2 id="severity-budget">Severity, response budget, communication cadence</h2>
+      <p>Response targets are downstream of severity. Higher severity buys faster acknowledgement, faster start-of-mitigation, and a more frequent communication cadence; lower severity relaxes all three. The two ends of the ladder mean different things:</p>
+      <ul>
+        <li>At <strong>SEV-1 and SEV-2</strong>, mitigation runs in parallel with communication. The user-visible problem needs to stop and the affected users need to be told that someone is on it; neither activity can wait for the other to finish.</li>
+        <li>At <strong>SEV-3 and SEV-4</strong>, the response stretches into ordinary working hours. Forcing a SEV-4 into a paged response is the most reliable way to destroy trust in the paging system, because the on-call person learns that the page does not actually mean what it says.</li>
+      </ul>
+      <p>The precise minutes are an operational detail kept where the rest of the alert configuration lives. The conceptual point is that the contract is graded: severity does not only describe how loud the alarm is, it determines how the team has agreed to behave.</p>
+
+      <h2 id="routing">Why routing is mechanical, not social</h2>
+      <p>A page that depends on the right human being awake and looking at the right channel is a page that will be missed. Routing turns the social question — who is on-call, who is the backup, when does the handoff happen — into a mechanical one that runs without human attention.</p>
+      <p>That is why routing config lives in the repository alongside the rest of the alerting rules: the answer to “who gets paged for this?” must be answerable by looking at the file, not by asking the team. The Alertmanager hop and the future PagerDuty integration are implementations of the same idea — make the routing decision a property of the system rather than a property of memory.</p>
+
+      <h2 id="signal-not-noise">Reducing toil is part of the role</h2>
+      <p>On-call should be quiet most of the time. A rotation that is noisy is not evidence of dedication; it is evidence of broken alerts, broken systems, or both. Two consequences follow.</p>
+      <p>First, the on-call person is allowed — and obliged — to <em>fix the alert</em> that woke them up for the wrong reason. The fix may be lowering the level, raising the threshold, adding context, or deleting the alert entirely. A page that fires every day and that nobody acts on is a page that should not exist.</p>
+      <p>Second, when the underlying system is the noisy thing, the on-call person files a ticket and the team treats it as work, not as a personal complaint. Toil reduction is the work; it is not a side project that gets done if there is time.</p>
+      <p>Without this discipline, the rotation slowly destroys itself: the page becomes background noise, the response time drifts, and the on-call contract stops being meaningful.</p>
+
+      <h2 id="handoff">Why the handoff is the protection</h2>
+      <p>A shift that ends silently is a shift whose context evaporates. The next person on rotation inherits the system without inheriting the knowledge of what fired this week, what is still fragile, what alerts have been silenced and why. The handoff is the artefact that prevents that.</p>
+      <p>The mechanical content of a handoff — which alerts fired, which remain open, what is fragile, what is silenced — is less important than the act itself. Writing it forces the outgoing on-call to reflect on the week and to surface things they would otherwise have absorbed without noticing. Reading it tells the incoming on-call what posture to adopt before the first alert lands.</p>
+
+      <h2 id="self-care">Self-care is system safety, not soft skills</h2>
+      <p>Tired engineers cause incidents. Sleep-deprived response correlates with mis-mitigation; multi-day fatigue correlates with errors of judgement that cost more than the page that caused them. Treating self-care as a personal preference is a category error.</p>
+      <p>The system-safety framing is what makes “take time off the next day” a rule rather than a kindness. It is what makes “tell the secondary before the alert fires, not after” a contract obligation rather than etiquette. The same logic applies to the recurring 3 a.m. alert: snoozing it is the engineer's problem; filing the ticket so it cannot wake the next person is the team's problem.</p>
+
+      <h2 id="anti-patterns">Common failure modes</h2>
+      <ul>
+        <li><strong>“Someone will look.”</strong> No named owner, no acknowledgement budget. Eventually a page goes unattended and the team learns about it from a customer.</li>
+        <li><strong>Severity-blind paging.</strong> Every alert pages at the same urgency; the on-call cannot tell SEV-1 from SEV-4 at a glance; trust in the paging system erodes.</li>
+        <li><strong>Routing in human memory.</strong> The rules for who gets paged when live in the heads of two people on the team. One of them leaves; the rules leave with them.</li>
+        <li><strong>Silent silences.</strong> Alerts muted “temporarily” that nobody ever un-mutes, with no record of why they were muted. A real failure later is hidden by a silenced version of itself.</li>
+        <li><strong>Heroic on-call.</strong> The same alert wakes the same person every week; everyone agrees this is unfortunate; nothing changes because filing the fix-the-alert ticket has lower social status than enduring the page.</li>
+      </ul>
+
+      <h2 id="references">References</h2>
+      <ul>
+        <li><a href="incident-response.html">Incident response</a> — what the on-call hands off to when the alert is real.</li>
+        <li><a href="monitoring.html">Monitoring</a> — what fires the page in the first place.</li>
+        <li><a href="../../how-to/incidents/runbooks/index.html">Runbooks</a> — local procedures the responder dispatches.</li>
+        <li>External: <a href="https://sre.google/sre-book/being-on-call/" rel="external">SRE Book — Being On-Call</a>.</li>
+        <li>External: <a href="https://sre.google/sre-book/eliminating-toil/" rel="external">SRE Book — Eliminating Toil</a>.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis cleanup: removed response-targets table, alert-routing step list, shift-by-shift expectations, handoff template, and self-care rules list. Reframed as conceptual rationale — why on-call is a contract, why roles escalate, why severity grades the response, why routing is mechanical, why reducing toil is part of the role, why the handoff and self-care are system safety.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; response-targets table on <code>docs-table--sticky-head --zebra</code>; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-11</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Replaced skeleton stub with full content: roles, response targets, routing, shift expectations, handoff template, self-care.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#what">On-call is not “someone will look”</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#roles">Roles as escalation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#severity-budget">Severity grades the response</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#routing">Mechanical routing</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#signal-not-noise">Reducing toil is the role</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#handoff">Why the handoff is protection</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#self-care">Self-care as system safety</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Failure modes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#references">References</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
 </body></html>

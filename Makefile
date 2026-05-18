@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check minify-css minify-css-check
+.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check minify-css minify-css-check catalog-render catalog-render-check
 
 # ──────────────────────────────────────────────
 # Help
@@ -105,6 +105,10 @@ help:
 	@echo "  # Frontend assets"
 	@echo "  make minify-css           Minify portal CSS in place (paren-aware, idempotent)"
 	@echo "  make minify-css-check     Verify portal CSS is already minified (fails on drift)"
+	@echo ""
+	@echo "  # Service catalog (YAML → HTML)"
+	@echo "  make catalog-render       Regenerate service entity cards + hub + nav-tree from catalog-info.yaml"
+	@echo "  make catalog-render-check Verify catalog HTML is in sync with YAML (fails on drift)"
 	@echo ""
 	@echo "  # Pre-commit Hooks"
 	@echo "  make pre-commit-install   Install git pre-commit hooks"
@@ -580,6 +584,30 @@ minify-css-check:
 	@printf "$(ICON_STEP) %s\n" "Checking portal CSS minification…"
 	@$(PYTHON) scripts/minify_portal_css.py --check
 	@printf "$(ICON_OK) %s\n" "Portal CSS minification check passed"
+
+# ──────────────────────────────────────────────
+# Service catalog (YAML → HTML)
+# ──────────────────────────────────────────────
+# Regenerate per-service entity-card HTML, the services hub tile-grid + lifecycle
+# tickers, and the internal nav-tree subtree from each service's
+# catalog-info.yaml (single source of truth). Idempotent — safe to re-run.
+catalog-render:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Rendering service descriptors…"
+	@$(PYTHON) scripts/render_service_descriptors.py
+	@printf "$(ICON_OK) %s\n" "Service descriptors rendered"
+
+# Verify service descriptor HTML is already in sync with catalog-info.yaml.
+# Fails (non-zero) if any file would change — used by pre-commit.
+catalog-render-check:
+	@if [ ! -d ".venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Checking service descriptors are up to date…"
+	@$(PYTHON) scripts/render_service_descriptors.py --check
+	@printf "$(ICON_OK) %s\n" "Service descriptor check passed"
 
 # ──────────────────────────────────────────────
 # Health check

@@ -85,8 +85,17 @@ export function mountModal(root = document) {
   modals.forEach((modal) => {
     const backdrop = modal.querySelector(".docs-modal__backdrop");
     if (backdrop) backdrop.addEventListener("click", () => close(modal));
-    const closeBtn = modal.querySelector(".docs-modal__close, [data-modal-close]");
-    if (closeBtn) closeBtn.addEventListener("click", () => close(modal));
+    // `querySelectorAll` (not `querySelector`) — a modal may carry multiple
+    // close affordances (header ×, footer "Cancel", body anchors). Using
+    // the singular form binds only the first match in source order, which
+    // — if the backdrop also has `[data-modal-close]` — silently drops the
+    // header × button. Bind every match.
+    modal
+      .querySelectorAll(".docs-modal__close, .docs-close-btn[data-modal-close], [data-modal-close]")
+      .forEach((btn) => {
+        if (btn === backdrop) return;
+        btn.addEventListener("click", () => close(modal));
+      });
   });
   // Showcase / non-module HTML facade. Documented public API.
   window.docsModal = { open: openModal, close: closeModal };

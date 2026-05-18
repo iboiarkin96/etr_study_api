@@ -1,45 +1,54 @@
 @startuml
-title ETR Study API — C4 Level 1 (system context)
+title ETR Study API — C4 Level 1 · System context
+$Subtitle("Who calls the system, what it owns, what orbits it")
 
+' Compact, balanced layout. The system box sits in the middle; the
+' integrator is on top, the datastore below, and the two optional
+' stacks (observability, log search) flank either side.
 top to bottom direction
 
-actor "Integrator\n(HTTP client)" as Integrator
-note right of Integrator
-  **Out of scope:** web, mobile, bots.
-  Any OpenAPI-compliant HTTP client.
-end note
+skinparam nodesep 40
+skinparam ranksep 34
 
-rectangle "ETR Study API\nFastAPI · OpenAPI · /api/v1" as Api
+actor "Integrator\n//(HTTP client)//" as Integrator
 
-database "Relational store\n(SQLite dev · Postgres-capable)" as Db
+rectangle "**ETR Study API**\nFastAPI · OpenAPI · /api/v1\n//Versioned · idempotent · rate-limited//" as Api
 
-rectangle "OCI image\nstudy-app-api" as Img
+database "**Relational store**\nSQLite (dev) · PostgreSQL-capable\n//Owns schema & migrations//" as Db
 
-package "Observability\n(optional · Compose)" as Obs {
-  [Grafana] as Graf
+package "Observability\n//(optional)//" as Obs {
+  [Grafana]    as Graf
   [Prometheus] as Prom
-  [Blackbox] as Bbx
+  [Blackbox]   as Bbx
 }
 
-package "Log search\n(optional)" as LogSearch {
+package "Log search\n//(optional)//" as LogSearch {
   [Elasticsearch] as ES
-  [Kibana] as Kib
+  [Kibana]        as Kib
 }
 
+' Primary runtime path — kept first so it lays out as the spine.
 Integrator --> Api : HTTPS · JSON
-Api --> Db : SQL · transactions
+Api        --> Db  : SQL · transactions
 
-Img ..> Api : packages
-
-Prom ..> Api : scrape /metrics
-Bbx ..> Api : probe /ready
+' Side stacks attach to the API from the flanks.
+Prom -.> Api : scrape\n/metrics
+Bbx  -.> Api : probe\n/ready
 Graf --> Prom
 
-Api ..> ES : NDJSON logs\n(optional)
+Api -.> ES : NDJSON logs
+Kib --> ES
 
-note bottom of Db
-  Single service owns schema,
-  Alembic migrations, transactional writes.
+note right of Integrator
+  Any OpenAPI-compliant HTTP client —
+  web, mobile, bots are downstream of this boundary.
 end note
 
+note bottom of Db
+  Single-writer · transactional ·
+  append-only review log and event journal.
+end note
+
+$LegendStandard()
+$Footer("Conventions: ADR-0020 · regenerate with `make docs-fix`")
 @enduml

@@ -1,127 +1,145 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>monitoring · API reference</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
-  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <title>monitoring · API reference · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
-  <div class="internal-layout__shell">
-    <aside class="internal-layout__sidebar">
-      <p class="internal-layout__sidebar-title">Internal docs</p>
-      <div id="internal-sidebar-mount"></div>
-    </aside>
-    <div class="internal-layout__main">
-      <main class="container">
-        <div id="docs-top-nav"></div>
-        <h1 class="internal-h1--accent-tail">monitoring · API reference</h1>
-
-        <section class="card">
-          <p>
-            The monitoring service does not expose a public HTTP API for integrators. Its surface is what
-            <strong>operators</strong> consume: scrape / probe contracts the api must honour, the named recording rules
-            that downstream alerts and dashboards depend on, and the operator-facing UI endpoints (Grafana, Kibana,
-            Prometheus). These contracts are stable — moving them breaks every dashboard and runbook.
-          </p>
-        </section>
-
-        <section class="card" id="scrape-contract">
-          <h2>Scrape / probe contract — what monitoring expects from the api</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Scrape and probe contract">
-            <table>
-              <thead><tr><th>Endpoint</th><th>Method</th><th>Format</th><th>Used by</th></tr></thead>
-              <tbody>
-                <tr><td><code>/metrics</code> (port 8000)</td><td><code>GET</code></td><td>Prometheus exposition (text)</td><td>Prometheus — scrape interval 15 s.</td></tr>
-                <tr><td><code>/ready</code> (port 8000)</td><td><code>GET</code></td><td>HTTP 200 / 503</td><td>Blackbox exporter — probe interval 30 s.</td></tr>
-                <tr><td><code>/health</code> (port 8000)</td><td><code>GET</code></td><td>HTTP 200</td><td>Container orchestrator liveness probe.</td></tr>
-                <tr><td>NDJSON log file</td><td>(file tail)</td><td>One JSON object per line</td><td>Filebeat — when the optional log pipeline is on.</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="small">
-            Endpoint authority belongs to the api service: <a href="../api/api-reference.html">api · API reference</a>.
-            This page is read-only — when the contract changes, change it in the api page first and update here.
-          </p>
-        </section>
-
-        <section class="card" id="recording-rules">
-          <h2>Recording rules (named PromQL series)</h2>
-          <p>
-            Recording rules pre-compute the metrics that dashboards and alerts depend on. Names are stable; expressions
-            may evolve.
-          </p>
-          <div class="docs-table-scroll" role="region" aria-label="Recording rules">
-            <table>
-              <thead><tr><th>Rule name</th><th>Expression (sketch)</th><th>Used by</th></tr></thead>
-              <tbody>
-                <tr><td><code>api:request_rate:5m</code></td><td><code>sum(rate(http_requests_total[5m]))</code></td><td>Latency / saturation dashboards.</td></tr>
-                <tr><td><code>api:error_rate:5m</code></td><td><code>sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))</code></td><td>Fast / slow burn alerts.</td></tr>
-                <tr><td><code>api:latency_p95:5m</code></td><td><code>histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))</code></td><td>Latency dashboard.</td></tr>
-                <tr><td><code>api:availability_30d</code></td><td><code>1 - (sum_over_time(api:error_rate:5m[30d]) / count_over_time(...))</code></td><td>Error-budget burn calculation per <a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a>.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="card" id="dashboards">
-          <h2>Operator UI surface</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Operator UI surface">
-            <table>
-              <thead><tr><th>Tool</th><th>Default URL</th><th>What it serves</th></tr></thead>
-              <tbody>
-                <tr><td>Grafana</td><td><code>http://localhost:3000</code></td><td>Dashboards (api overview, latency, error budget) and alert rules.</td></tr>
-                <tr><td>Prometheus</td><td><code>http://localhost:9090</code></td><td>Raw PromQL, alert state, target health.</td></tr>
-                <tr><td>Kibana (optional)</td><td><code>http://localhost:5601</code></td><td>Log search over Elasticsearch.</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="small">
-            URLs are local-only by default per <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>;
-            no external auth layer.
-          </p>
-        </section>
-
-        <section class="card" id="see-also">
-          <h2>See also</h2>
-          <ul>
-            <li><a href="architecture.html">monitoring · Architecture</a> — pipelines, alerting model</li>
-            <li><a href="runbooks.html">monitoring · Runbooks</a> — recovery procedures</li>
-            <li><a href="../api/api-reference.html">api · API reference</a> — authoritative scrape endpoints</li>
-            <li><a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011 — SLO and error budget</a></li>
-          </ul>
-        </section>
-
-        <section id="page-history" class="card">
-          <h2>Page history</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Page history">
-            <table class="docs-page-history">
-              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><time datetime="2026-05-10">2026-05-10</time></td>
-                  <td>Filled scrape contract, recording rules, operator UI surface.</td>
-                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-                </tr>
-                <tr>
-                  <td><time datetime="2026-05-08">2026-05-08</time></td>
-                  <td>Initial skeleton stub.</td>
-                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">monitoring</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">API reference</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
     </div>
-  </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Reference</span>
+          <span class="docs-pill docs-pill--info">Operator contract</span>
+          <span class="docs-pill docs-pill--neutral">PromQL · recording rules</span>
+        </div>
+        <h1>monitoring · API reference</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          The monitoring service does not expose a public HTTP API for integrators. Its surface is what
+          <strong>operators</strong> consume: scrape / probe contracts the api must honour, the named recording rules
+          that downstream alerts and dashboards depend on, and the operator-facing UI endpoints (Grafana, Kibana,
+          Prometheus). These contracts are stable — moving them breaks every dashboard and runbook.
+        </p>
+      </header>
+
+      <h2 id="scrape-contract">Scrape / probe contract — what monitoring expects from the api</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Endpoint</th><th>Method</th><th>Format</th><th>Used by</th></tr></thead>
+          <tbody>
+            <tr><td><code>/metrics</code> (port 8000)</td><td><code>GET</code></td><td>Prometheus exposition (text)</td><td>Prometheus — scrape interval 15 s.</td></tr>
+            <tr><td><code>/ready</code> (port 8000)</td><td><code>GET</code></td><td>HTTP 200 / 503</td><td>Blackbox exporter — probe interval 30 s.</td></tr>
+            <tr><td><code>/health</code> (port 8000)</td><td><code>GET</code></td><td>HTTP 200</td><td>Container orchestrator liveness probe.</td></tr>
+            <tr><td>NDJSON log file</td><td>(file tail)</td><td>One JSON object per line</td><td>Filebeat — when the optional log pipeline is on.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">
+        Endpoint authority belongs to the api service: <a href="../api/api-reference.html">api · API reference</a>.
+        This page is read-only — when the contract changes, change it in the api page first and update here.
+      </p>
+
+      <h2 id="recording-rules">Recording rules (named PromQL series)</h2>
+      <p>
+        Recording rules pre-compute the metrics that dashboards and alerts depend on. Names are stable; expressions
+        may evolve.
+      </p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Rule name</th><th>Expression (sketch)</th><th>Used by</th></tr></thead>
+          <tbody>
+            <tr><td><code>api:request_rate:5m</code></td><td><code>sum(rate(http_requests_total[5m]))</code></td><td>Latency / saturation dashboards.</td></tr>
+            <tr><td><code>api:error_rate:5m</code></td><td><code>sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))</code></td><td>Fast / slow burn alerts.</td></tr>
+            <tr><td><code>api:latency_p95:5m</code></td><td><code>histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))</code></td><td>Latency dashboard.</td></tr>
+            <tr><td><code>api:availability_30d</code></td><td><code>1 - (sum_over_time(api:error_rate:5m[30d]) / count_over_time(...))</code></td><td>Error-budget burn calculation per <a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="dashboards">Operator UI surface</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Tool</th><th>Default URL</th><th>What it serves</th></tr></thead>
+          <tbody>
+            <tr><td>Grafana</td><td><code>http://localhost:3000</code></td><td>Dashboards (api overview, latency, error budget) and alert rules.</td></tr>
+            <tr><td>Prometheus</td><td><code>http://localhost:9090</code></td><td>Raw PromQL, alert state, target health.</td></tr>
+            <tr><td>Kibana (optional)</td><td><code>http://localhost:5601</code></td><td>Log search over Elasticsearch.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">
+        URLs are local-only by default per <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>;
+        no external auth layer.
+      </p>
+
+      <h2 id="see-also">See also</h2>
+      <ul>
+        <li><a href="architecture.html">monitoring · Architecture</a> — pipelines, alerting model</li>
+        <li><a href="runbooks.html">monitoring · Runbooks</a> — recovery procedures</li>
+        <li><a href="../api/api-reference.html">api · API reference</a> — authoritative scrape endpoints</li>
+        <li><a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011 — SLO and error budget</a></li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>docs-table--zebra --sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-10</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Filled scrape contract, recording rules, operator UI surface.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-08</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial skeleton stub.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scrape-contract">Scrape contract</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#recording-rules">Recording rules</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#dashboards">Operator UIs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#see-also">See also</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
 </body></html>

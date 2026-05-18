@@ -141,7 +141,8 @@ study_app/
 │   │   └── portal/  # Static documentation portal — public + internal IA
 │   └── portal/
 │       ├── internal/
-│       └── public/
+│       ├── public/
+│       └── ui-kit/
 ├── ops/  # Prometheus, Grafana, Filebeat configs
 │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
 │   ├── grafana/  # Dashboards and provisioning

@@ -12,6 +12,7 @@ import { mountModal } from "../../ui-kit/components/modal.js";
 import { mountDiagramLightbox } from "../../ui-kit/components/diagram-lightbox.js";
 import { mountSearch } from "../../ui-kit/components/search.js";
 import { mountCode } from "../../ui-kit/components/code.js";
+import { mountSyntaxHighlight } from "../../ui-kit/components/syntax-highlight.js";
 import { mountRocket } from "../../ui-kit/components/rocket.js";
 import { mountToc } from "../../ui-kit/components/toc.js";
 import { mountToast } from "../../ui-kit/components/toast.js";
@@ -21,7 +22,10 @@ import { initStatusTimeline } from "../../ui-kit/components/status-timeline.js";
 import { mountEndpointCards } from "../../ui-kit/components/endpoint-card.js";
 import { mountViewSwitcher } from "../../ui-kit/components/view-switcher.js";
 import { mountSparklines } from "../../ui-kit/components/sparkline.js";
+import { mountRadars } from "../../ui-kit/components/radar.js";
 import { mountFilterChips } from "../../ui-kit/components/filter-chips.js";
+import { mountMultiFilterChips } from "../../ui-kit/components/multi-filter-chips.js";
+import { mountBacklogCockpit } from "../../ui-kit/components/backlog-cockpit.js";
 import { mountTerminalCard } from "../../ui-kit/components/terminal-card.js";
 import { mountDesignCanvasCard } from "../../ui-kit/components/design-canvas-card.js";
 import { mountLiveTickers } from "../../ui-kit/components/live-tickers.js";
@@ -48,8 +52,13 @@ function boot() {
   initStatusTimeline();
   mountEndpointCards();
   mountSparklines();
+  mountRadars();
   mountViewSwitcher();
   mountFilterChips();
+  mountMultiFilterChips();
+  // Backlog cockpit is async (fetches JSON); fire-and-forget. Mounts only
+  // when [data-component="backlog-cockpit"] is present on the page.
+  mountBacklogCockpit();
   mountTerminalCard();
   mountDesignCanvasCard();
   mountLiveTickers();
@@ -66,6 +75,7 @@ function boot() {
   mountDiagramLightbox();
   mountSearch();
   mountCode();
+  mountSyntaxHighlight();
   mountRocket();
   // Hotkeys last — they reach into other components via DOM selectors.
   mountHotkeys();

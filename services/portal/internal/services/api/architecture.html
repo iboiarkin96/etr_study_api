@@ -1,320 +1,313 @@
 <!doctype html>
-<html lang="en"><head>
-  <script>/* no-flash theme bootstrap */(function () { try { var k = "docs-theme-preference", v = localStorage.getItem(k); if (v === "dark") document.documentElement.setAttribute("data-theme", "dark"); else if (v === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* localStorage may be unavailable; fall through to default theme */ } })();</script>
-
+<html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>api · Architecture</title>
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs.css" />
-  <link rel="stylesheet" href="../../../../frontend/portal/assets/docs-theme.css">
-  <script defer src="../../../../frontend/portal/assets/docs-nav.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-portal-data.js"></script>
-  <script defer src="../../../../frontend/portal/assets/docs-internal-meta.js"></script>
-  <script defer src="../../../../frontend/portal/assets/internal-sidebar.js"></script>
+  <title>api · Architecture · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
-<body class="internal-layout" data-audience="internal" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
-  <div class="internal-layout__shell">
-    <aside class="internal-layout__sidebar">
-      <p class="internal-layout__sidebar-title">Internal docs</p>
-      <div id="internal-sidebar-mount"></div>
-    </aside>
-    <div class="internal-layout__main">
-      <main class="container">
-        <div id="docs-top-nav"></div>
-        <h1 class="internal-h1--accent-tail">api · Architecture</h1>
-
-        <section class="card">
-          <p>
-            Component-level architecture of the <a href="index.html">api</a> service: domain aggregates, the C4 Level 3
-            component view, the relational schema, and the content-storage contract. For the platform-level views
-            (System Context · Containers) and architectural decisions D1–D7, see
-            <a href="../../explanation/system-design.html#architectural-decomposition">system design</a>.
-          </p>
-          <p class="small">
-            Diagram conventions per <a href="../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>.
-            Database tables documented per <a href="../../governance/adr/0029-database-table-documentation.html">ADR 0029</a>;
-            field-level pages live under <a href="data/index.html">api · Database tables</a>.
-          </p>
-        </section>
-
-        <section class="card" id="domain-model">
-          <h2>Domain model (aggregates and lifecycle)</h2>
-          <p>The api service owns these aggregates. Each maps to a relational table; cross-aggregate writes happen in one transaction.</p>
-          <ul>
-            <li>
-              <strong>User</strong> (<code>users</code>) — tenant boundary. Primary key <code>client_uuid</code>. External
-              identifiers <code>(system_user_id, system_uuid)</code> resolve to this row. Optional <code>timezone</code>
-              (IANA, e.g. <code>Europe/Berlin</code>) supports calendar-day due views; null implies UTC-only semantics.
-            </li>
-            <li>
-              <strong>Conspectus</strong> (<code>conspectuses</code>, PK <code>conspectus_uuid</code>) — the canonical
-              note after Transform: <code>cue_sheet</code>, <code>dense_paragraph</code>, <code>bullets</code>,
-              optional <code>title</code>, <code>cue_sheet_schema_version</code> (default 1), monotonic
-              <code>content_version</code>, plus optional fields for hybrid storage.
-            </li>
-            <li>
-              <strong>SchedulePolicy</strong> (<code>schedule_policies</code>) — versioned catalogue of spaced-repetition
-              rules. Composite natural key <code>(schedule_policy_id, algorithm_version)</code>; immutable
-              <code>rules</code> JSON. Referenced by <code>conspectus_schedules</code> so transitions remain
-              auditable after policy updates.
-            </li>
-            <li>
-              <strong>ConspectusSchedule</strong> (<code>conspectus_schedules</code>, 1:1 with conspectus) — mutable
-              retrieval state only: <code>slot</code>, <code>slot_d_ladder_index</code>, <code>next_review_at</code>,
-              <code>schedule_policy_id</code> + <code>algorithm_version</code> (FK), and
-              <code>schedule_revision</code> (monotonic, used for optimistic concurrency on review writes).
-            </li>
-            <li>
-              <strong>ConspectusReviewLog</strong> (<code>conspectus_review_logs</code>) — append-only: one row per
-              review with outcome tag, <code>reviewed_at</code>, denormalized
-              <code>schedule_policy_id</code> + <code>algorithm_version</code>, and immutable
-              <code>schedule_before</code> / <code>schedule_after</code> JSON. System of record for review outcomes.
-            </li>
-            <li>
-              <strong>ConspectusEvent</strong> (<code>conspectus_events</code>) — append-only facts that are not review
-              outcomes: creation, content patches, title changes, manual schedule adjustments
-              (<code>SCHEDULE_ADJUSTED</code> per decision D6).
-            </li>
-            <li>
-              <strong>LearningError</strong> (<code>learning_errors</code>) — weak cues / mistakes for remediation;
-              semantically distinct from SRS tags. Optional <code>review_log_id</code> ties an error to a review when
-              both are captured together.
-            </li>
-          </ul>
-          <p>
-            <strong>Lifecycle (summary):</strong> resolve default <code>schedule_policies</code> row → create
-            conspectus + initial schedule (<code>schedule_revision = 1</code>) + <code>CREATED</code> event →
-            query by <code>next_review_at</code> →
-            review command inserts into <code>conspectus_review_logs</code> and updates <code>conspectus_schedules</code> →
-            content PATCH appends to <code>conspectus_events</code> →
-            learning errors stand alone or commit in the same transaction as a review.
-          </p>
-        </section>
-
-        <section class="card card--diagram" id="component-view">
-          <h2>C4 Level 3 — components</h2>
-          <p>
-            Internal modules of the api process. Routers receive HTTP, validate input via Pydantic schemas, hand off to
-            domain services, which call repositories. The service is a <strong>modular monolith</strong>: one process,
-            one transactional database, optional Redis for runtime concerns.
-          </p>
-          <figure class="sys-diagram">
-            <div class="sys-diagram__head">
-              <span class="sys-diagram__badge">C4 · L3</span>
-              <div class="sys-diagram__titles">
-                <h3>Components inside the api</h3>
-                <p class="sys-diagram__sub">Presentation routers · application services · persistence repositories.</p>
-              </div>
-            </div>
-            <div class="sys-diagram__canvas">
-              <img alt="C4 L3 component view of the api service" class="diagram diagram--uml" loading="lazy" src="../../reference/uml/rendered/architecture__system_component_view.svg">
-            </div>
-            <figcaption class="sys-diagram__foot"><strong>Source:</strong>
-              <code>services/portal/internal/uml/architecture/system_component_view.puml</code>
-            </figcaption>
-          </figure>
-        </section>
-
-        <section class="card" id="persistence-model">
-          <h2>Persistence and schema</h2>
-          <p>
-            The schema separates <strong>note content</strong> from <strong>schedule state</strong>.
-            <strong>SchedulePolicy</strong> is a first-class catalogue table so <code>schedule_policy_id</code> is never
-            a dangling string. Each <strong>review</strong> is append-only in <code>conspectus_review_logs</code>, with
-            immutable <code>schedule_before</code> / <code>schedule_after</code> JSON plus
-            <code>schedule_policy_id</code> + <code>algorithm_version</code> denormalized for audit. Non-review
-            mutations append to <code>conspectus_events</code>.
-          </p>
-          <p>
-            <strong>Canonical rule:</strong> do not mirror every review into <code>conspectus_events</code>. The review
-            log is the source of truth for scheduling history.
-          </p>
-          <p>
-            <strong>Read models</strong> (<code>conspectuses</code>, <code>conspectus_schedules</code>) update in the
-            <strong>same transaction</strong> as the corresponding log insert(s).
-          </p>
-
-          <h3 id="entity-relationship-diagram">Entity–relationship</h3>
-          <figure class="sys-diagram">
-            <div class="sys-diagram__head">
-              <span class="sys-diagram__badge">ER</span>
-              <div class="sys-diagram__titles">
-                <h3>Core tables</h3>
-                <p class="sys-diagram__sub">Ownership, 1:1 schedule, append-only logs and events, optional learning-error link.</p>
-              </div>
-            </div>
-            <div class="sys-diagram__canvas">
-              <img alt="Entity-relationship diagram: users, conspectuses, schedule, review logs, events, learning_errors" class="diagram diagram--uml" loading="lazy" src="../../reference/uml/rendered/architecture__conspectus_er.svg">
-            </div>
-            <figcaption class="sys-diagram__foot"><strong>Source:</strong>
-              <code>services/portal/internal/uml/architecture/conspectus_er.puml</code>
-            </figcaption>
-          </figure>
-
-          <h3>Tables, keys, and roles</h3>
-          <p class="small">Field-level reference for each table lives under <a href="data/index.html">Database tables</a>.</p>
-          <div class="docs-table-scroll" role="region" aria-label="Tables, keys, and roles">
-            <table>
-              <thead>
-                <tr><th>Table</th><th>Keys / FK</th><th>Role</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>users</code></td>
-                  <td>PK <code>client_uuid</code>; unique <code>(system_user_id, system_uuid)</code></td>
-                  <td>Identity and tenant boundary. Optional <code>timezone</code> for local "due today" semantics.</td>
-                </tr>
-                <tr>
-                  <td><code>schedule_policies</code></td>
-                  <td>PK <code>(schedule_policy_id, algorithm_version)</code>; optional unique <code>policy_uuid</code></td>
-                  <td>Immutable versioned rules: <code>name</code>, <code>rules</code> (JSON), <code>created_at</code>. New versions add rows; never mutate history.</td>
-                </tr>
-                <tr>
-                  <td><code>conspectuses</code></td>
-                  <td>PK <code>conspectus_uuid</code>; FK <code>owner_client_uuid</code> → <code>users</code></td>
-                  <td>Content snapshot: <code>title</code>, <code>cue_sheet</code> (JSON), <code>cue_sheet_schema_version</code>, <code>dense_paragraph</code>, <code>bullets</code> (JSON), <code>content_version</code>. Hybrid-storage fields: <code>body_storage</code>, <code>external_document_id</code>, <code>content_sha256</code>, <code>sync_status</code>.</td>
-                </tr>
-                <tr>
-                  <td><code>conspectus_schedules</code></td>
-                  <td>PK/FK <code>conspectus_uuid</code> → <code>conspectuses</code> ON DELETE CASCADE; FK <code>(schedule_policy_id, algorithm_version)</code></td>
-                  <td><code>slot</code>, <code>slot_d_ladder_index</code>, <code>next_review_at</code>, <code>schedule_revision</code> (≥ 1), <code>schedule_updated_at</code>. Optional denormalised <code>owner_client_uuid</code> for index-only due queries.</td>
-                </tr>
-                <tr>
-                  <td><code>conspectus_review_logs</code></td>
-                  <td>PK <code>id</code>; FK <code>conspectus_uuid</code></td>
-                  <td>Append-only: <code>tag</code>, <code>reviewed_at</code>, <code>schedule_before</code> / <code>schedule_after</code>, <code>schedule_policy_id</code>, <code>algorithm_version</code>.</td>
-                </tr>
-                <tr>
-                  <td><code>conspectus_events</code></td>
-                  <td>PK <code>id</code>; FK <code>conspectus_uuid</code></td>
-                  <td>Append-only lifecycle: <code>event_type</code>, <code>payload</code>, <code>schema_version</code>, optional <code>correlation_id</code>.</td>
-                </tr>
-                <tr>
-                  <td><code>learning_errors</code></td>
-                  <td>PK <code>error_uuid</code>; FK <code>owner_client_uuid</code>; optional <code>conspectus_uuid</code> ON DELETE SET NULL; optional <code>review_log_id</code></td>
-                  <td>Pedagogical mistake log — distinct from SRS tags. <code>review_log_id</code> correlates with a specific review when both are recorded.</td>
-                </tr>
-                <tr>
-                  <td><code>idempotency_keys</code></td>
-                  <td>Unique <code>(owner_client_uuid, endpoint_path, idempotency_key)</code></td>
-                  <td>Deduplication of critical writes; keys must not collide across users (per <a href="../../governance/adr/0006-idempotency-write-operations.html">ADR 0006</a>).</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <h3>Indexes (typical queries)</h3>
-          <ul>
-            <li><strong>Due workload:</strong> composite <code>(owner_client_uuid, next_review_at)</code> on <code>conspectus_schedules</code> when <code>owner_client_uuid</code> is denormalised; otherwise join on <code>conspectuses</code> for ownership and index <code>(conspectus_uuid, next_review_at)</code>.</li>
-            <li><strong>Conspectus listing:</strong> <code>(owner_client_uuid, updated_at DESC)</code> on <code>conspectuses</code>.</li>
-            <li><strong>Review history:</strong> <code>(conspectus_uuid, reviewed_at DESC)</code> on <code>conspectus_review_logs</code>.</li>
-            <li><strong>Learning errors:</strong> <code>(owner_client_uuid, created_at DESC)</code>; optional <code>(conspectus_uuid, created_at DESC)</code>.</li>
-            <li><strong>Idempotency:</strong> unique scope must include <code>owner_client_uuid</code> (or API principal), not only path + key.</li>
-          </ul>
-
-          <h3 id="schema-design-notes">Schema design notes</h3>
-          <ul>
-            <li><strong><code>schedule_policies</code> as a catalogue table.</strong> Referencing <code>schedule_policy_id</code> without a parent row breaks referential integrity and makes migrations non-replayable.</li>
-            <li><strong><code>algorithm_version</code> on the schedule.</strong> The schedule row carries both <code>schedule_policy_id</code> and <code>algorithm_version</code> to reference exactly one immutable policy row (composite FK).</li>
-            <li><strong><code>schedule_revision</code>.</strong> Reviews need optimistic concurrency independent of idempotency keys; bump on every schedule mutation.</li>
-            <li><strong><code>cue_sheet_schema_version</code>.</strong> Prevents silent JSON drift; pair with migrations when the <code>cue_sheet</code> shape changes.</li>
-            <li><strong><code>idempotency_keys</code> scope.</strong> Global uniqueness on <code>(endpoint_path, idempotency_key)</code> would let two users collide; scope by owner / principal.</li>
-            <li><strong><code>learning_errors.conspectus_uuid</code>.</strong> Prefer <code>ON DELETE SET NULL</code> so deleting a conspectus does not orphan errors that should remain for analytics; choose <code>CASCADE</code> only if the product decision is to delete with the note.</li>
-          </ul>
-        </section>
-
-        <section class="card" id="content-storage">
-          <h2>Content storage — inline JSON vs external document</h2>
-          <p>
-            <strong>Default:</strong> store <code>cue_sheet</code>, <code>bullets</code>, and <code>dense_paragraph</code>
-            inline (JSON / TEXT). This respects typical body-size limits, keeps backup and transactions straightforward,
-            and allows JSON evolution through migrations and validation.
-          </p>
-
-          <h3 id="cue-sheet-json">Cue sheet JSON (schema v1)</h3>
-          <p>
-            For <code>cue_sheet_schema_version = 1</code>, <code>cue_sheet</code> is an object with a <code>rows</code>
-            array. Each row aligns with the three-column mental model:
-          </p>
-          <ul>
-            <li><code>keyword</code> — short anchor (one to three words).</li>
-            <li><code>question</code> — question or gap (e.g. "What are the three steps of X?").</li>
-            <li><code>hint</code> — brief answer cue (optional on early rows).</li>
-          </ul>
-          <p class="small">
-            Validation rejects unknown keys or missing <code>rows</code> when strict mode is on; future schema versions
-            add columns rather than overloading strings.
-          </p>
-
-          <h3 id="storage-tradeoffs">Inline vs external — when to switch</h3>
-          <div class="docs-table-scroll" role="region" aria-label="Inline vs external storage trade-offs">
-            <table>
-              <thead>
-                <tr><th>Criterion</th><th>Inline in RDBMS</th><th>External blob / document store</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Size / SLO</td>
-                  <td>Appropriate while under the configured maximum body size.</td>
-                  <td>Prefer when payloads grow large or binary attachments appear.</td>
-                </tr>
-                <tr>
-                  <td>Versioning</td>
-                  <td><code>content_version</code> plus event payloads; migrate JSON with scripts.</td>
-                  <td>Object version / ETag in store; SQL holds pointer and hash.</td>
-                </tr>
-                <tr>
-                  <td>Full-text search</td>
-                  <td>PostgreSQL FTS or generated columns; SQLite is more constrained.</td>
-                  <td>Often a dedicated search tier (operational cost).</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="small">
-            Hybrid-storage failure modes (split writes, drift, orphan blobs) and their mitigations live in the
-            <a href="runbooks.html#hybrid-storage">api · Runbooks</a> page — they are an operational concern, not an
-            architectural one.
-          </p>
-        </section>
-
-        <section class="card" id="see-also">
-          <h2>See also</h2>
-          <ul>
-            <li><a href="../../explanation/system-design.html#architectural-decomposition">System design — C4 L1 + L2 (system context, containers)</a></li>
-            <li><a href="../../explanation/system-design.html#architectural-decisions">System design — architectural decisions D1–D7</a></li>
-            <li><a href="api-reference.html">api · API reference</a> — interface this service provides</li>
-            <li><a href="runbooks.html">api · Runbooks</a> — operational procedures, hybrid-storage recovery, NFR/SLO</li>
-            <li><a href="data/index.html">api · Database tables</a> — field-level reference per ADR 0029</li>
-            <li><a href="../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a> — C4 / PlantUML conventions</li>
-            <li><a href="../../governance/adr/0029-database-table-documentation.html">ADR 0029</a> — database table documentation</li>
-          </ul>
-        </section>
-
-        <section id="page-history" class="card">
-          <h2>Page history</h2>
-          <div class="docs-table-scroll" role="region" aria-label="Page history">
-            <table class="docs-page-history">
-              <thead><tr><th>Date</th><th>Change</th><th>Author</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><time datetime="2026-05-10">2026-05-10</time></td>
-                  <td>Filled component-level architecture: domain model, C4 L3, ER diagram, schema tables, content storage. Sourced from <a href="../../explanation/system-design.html">system design</a> (relocated per <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> §4.4).</td>
-                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-                </tr>
-                <tr>
-                  <td><time datetime="2026-05-08">2026-05-08</time></td>
-                  <td>Initial skeleton stub per <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> Phase C.</td>
-                  <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">api</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Architecture</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
     </div>
-  </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Explanation</span>
+          <span class="docs-pill docs-pill--info">C4 · L3</span>
+          <span class="docs-pill docs-pill--neutral">Modular monolith</span>
+        </div>
+        <h1>api · Architecture</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Component-level architecture of the <a href="index.html">api</a> service: domain aggregates,
+          the C4 Level 3 component view, the relational schema, and the content-storage contract.
+          For platform-level views (System Context · Containers) and architectural decisions D1–D7,
+          see <a href="../../explanation/system-design.html#architectural-decomposition">system design</a>.
+        </p>
+        <p class="small">
+          Diagram conventions per <a href="../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>.
+          Database tables documented per <a href="../../governance/adr/0029-database-table-documentation.html">ADR 0029</a>;
+          field-level pages live under <a href="data/index.html">api · Database tables</a>.
+        </p>
+      </header>
+
+      <h2 id="domain-model">Domain model — aggregates and lifecycle</h2>
+      <p>The api service owns these aggregates. Each maps to a relational table; cross-aggregate writes happen in one transaction.</p>
+      <ul>
+        <li>
+          <strong>User</strong> (<code>users</code>) — tenant boundary. Primary key <code>client_uuid</code>. External
+          identifiers <code>(system_user_id, system_uuid)</code> resolve to this row. Optional <code>timezone</code>
+          (IANA, e.g. <code>Europe/Berlin</code>) supports calendar-day due views; null implies UTC-only semantics.
+        </li>
+        <li>
+          <strong>Conspectus</strong> (<code>conspectuses</code>, PK <code>conspectus_uuid</code>) — the canonical
+          note after Transform: <code>cue_sheet</code>, <code>dense_paragraph</code>, <code>bullets</code>,
+          optional <code>title</code>, <code>cue_sheet_schema_version</code> (default 1), monotonic
+          <code>content_version</code>, plus optional fields for hybrid storage.
+        </li>
+        <li>
+          <strong>SchedulePolicy</strong> (<code>schedule_policies</code>) — versioned catalogue of spaced-repetition
+          rules. Composite natural key <code>(schedule_policy_id, algorithm_version)</code>; immutable
+          <code>rules</code> JSON. Referenced by <code>conspectus_schedules</code> so transitions remain
+          auditable after policy updates.
+        </li>
+        <li>
+          <strong>ConspectusSchedule</strong> (<code>conspectus_schedules</code>, 1:1 with conspectus) — mutable
+          retrieval state only: <code>slot</code>, <code>slot_d_ladder_index</code>, <code>next_review_at</code>,
+          <code>schedule_policy_id</code> + <code>algorithm_version</code> (FK), and
+          <code>schedule_revision</code> (monotonic, used for optimistic concurrency on review writes).
+        </li>
+        <li>
+          <strong>ConspectusReviewLog</strong> (<code>conspectus_review_logs</code>) — append-only: one row per
+          review with outcome tag, <code>reviewed_at</code>, denormalized
+          <code>schedule_policy_id</code> + <code>algorithm_version</code>, and immutable
+          <code>schedule_before</code> / <code>schedule_after</code> JSON. System of record for review outcomes.
+        </li>
+        <li>
+          <strong>ConspectusEvent</strong> (<code>conspectus_events</code>) — append-only facts that are not review
+          outcomes: creation, content patches, title changes, manual schedule adjustments
+          (<code>SCHEDULE_ADJUSTED</code> per decision D6).
+        </li>
+        <li>
+          <strong>LearningError</strong> (<code>learning_errors</code>) — weak cues / mistakes for remediation;
+          semantically distinct from SRS tags. Optional <code>review_log_id</code> ties an error to a review when
+          both are captured together.
+        </li>
+      </ul>
+      <p>
+        <strong>Lifecycle (summary):</strong> resolve default <code>schedule_policies</code> row → create
+        conspectus + initial schedule (<code>schedule_revision = 1</code>) + <code>CREATED</code> event →
+        query by <code>next_review_at</code> →
+        review command inserts into <code>conspectus_review_logs</code> and updates <code>conspectus_schedules</code> →
+        content PATCH appends to <code>conspectus_events</code> →
+        learning errors stand alone or commit in the same transaction as a review.
+      </p>
+
+      <h2 id="component-view">C4 Level 3 — components</h2>
+      <p>
+        Internal modules of the api process. Routers receive HTTP, validate input via Pydantic schemas,
+        hand off to domain services, which call repositories. The service is a
+        <strong>modular monolith</strong>: one process, one transactional database, optional Redis for
+        runtime concerns.
+      </p>
+      <figure class="docs-diagram">
+        <img alt="C4 L3 component view of the api service" loading="lazy" src="../../reference/uml/rendered/architecture__system_component_view.svg">
+        <figcaption>Components inside the api · Source: <code>services/portal/internal/uml/architecture/system_component_view.puml</code></figcaption>
+      </figure>
+
+      <h2 id="persistence-model">Persistence and schema</h2>
+      <p>
+        The schema separates <strong>note content</strong> from <strong>schedule state</strong>.
+        <strong>SchedulePolicy</strong> is a first-class catalogue table so <code>schedule_policy_id</code>
+        is never a dangling string. Each <strong>review</strong> is append-only in
+        <code>conspectus_review_logs</code>, with immutable
+        <code>schedule_before</code> / <code>schedule_after</code> JSON plus
+        <code>schedule_policy_id</code> + <code>algorithm_version</code> denormalized for audit. Non-review
+        mutations append to <code>conspectus_events</code>.
+      </p>
+      <p>
+        <strong>Canonical rule:</strong> do not mirror every review into <code>conspectus_events</code>.
+        The review log is the source of truth for scheduling history.
+      </p>
+      <p>
+        <strong>Read models</strong> (<code>conspectuses</code>, <code>conspectus_schedules</code>) update in
+        the <strong>same transaction</strong> as the corresponding log insert(s).
+      </p>
+
+      <h3 id="entity-relationship-diagram">Entity–relationship</h3>
+      <figure class="docs-diagram">
+        <img alt="Entity-relationship diagram: users, conspectuses, schedule, review logs, events, learning_errors" loading="lazy" src="../../reference/uml/rendered/architecture__conspectus_er.svg">
+        <figcaption>Core tables · ownership, 1:1 schedule, append-only logs and events, optional learning-error link · Source: <code>services/portal/internal/uml/architecture/conspectus_er.puml</code></figcaption>
+      </figure>
+
+      <h3 id="schema-tables">Tables, keys, and roles</h3>
+      <p class="small">Field-level reference for each table lives under <a href="data/index.html">Database tables</a>.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Table</th><th>Keys / FK</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>users</code></td>
+              <td>PK <code>client_uuid</code>; unique <code>(system_user_id, system_uuid)</code></td>
+              <td>Identity and tenant boundary. Optional <code>timezone</code> for local "due today" semantics.</td>
+            </tr>
+            <tr>
+              <td><code>schedule_policies</code></td>
+              <td>PK <code>(schedule_policy_id, algorithm_version)</code>; optional unique <code>policy_uuid</code></td>
+              <td>Immutable versioned rules: <code>name</code>, <code>rules</code> (JSON), <code>created_at</code>. New versions add rows; never mutate history.</td>
+            </tr>
+            <tr>
+              <td><code>conspectuses</code></td>
+              <td>PK <code>conspectus_uuid</code>; FK <code>owner_client_uuid</code> → <code>users</code></td>
+              <td>Content snapshot: <code>title</code>, <code>cue_sheet</code> (JSON), <code>cue_sheet_schema_version</code>, <code>dense_paragraph</code>, <code>bullets</code> (JSON), <code>content_version</code>. Hybrid-storage fields: <code>body_storage</code>, <code>external_document_id</code>, <code>content_sha256</code>, <code>sync_status</code>.</td>
+            </tr>
+            <tr>
+              <td><code>conspectus_schedules</code></td>
+              <td>PK/FK <code>conspectus_uuid</code> → <code>conspectuses</code> ON DELETE CASCADE; FK <code>(schedule_policy_id, algorithm_version)</code></td>
+              <td><code>slot</code>, <code>slot_d_ladder_index</code>, <code>next_review_at</code>, <code>schedule_revision</code> (≥ 1), <code>schedule_updated_at</code>. Optional denormalised <code>owner_client_uuid</code> for index-only due queries.</td>
+            </tr>
+            <tr>
+              <td><code>conspectus_review_logs</code></td>
+              <td>PK <code>id</code>; FK <code>conspectus_uuid</code></td>
+              <td>Append-only: <code>tag</code>, <code>reviewed_at</code>, <code>schedule_before</code> / <code>schedule_after</code>, <code>schedule_policy_id</code>, <code>algorithm_version</code>.</td>
+            </tr>
+            <tr>
+              <td><code>conspectus_events</code></td>
+              <td>PK <code>id</code>; FK <code>conspectus_uuid</code></td>
+              <td>Append-only lifecycle: <code>event_type</code>, <code>payload</code>, <code>schema_version</code>, optional <code>correlation_id</code>.</td>
+            </tr>
+            <tr>
+              <td><code>learning_errors</code></td>
+              <td>PK <code>error_uuid</code>; FK <code>owner_client_uuid</code>; optional <code>conspectus_uuid</code> ON DELETE SET NULL; optional <code>review_log_id</code></td>
+              <td>Pedagogical mistake log — distinct from SRS tags. <code>review_log_id</code> correlates with a specific review when both are recorded.</td>
+            </tr>
+            <tr>
+              <td><code>idempotency_keys</code></td>
+              <td>Unique <code>(owner_client_uuid, endpoint_path, idempotency_key)</code></td>
+              <td>Deduplication of critical writes; keys must not collide across users (per <a href="../../governance/adr/0006-idempotency-write-operations.html">ADR 0006</a>).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="indexes">Indexes — typical queries</h3>
+      <ul>
+        <li><strong>Due workload:</strong> composite <code>(owner_client_uuid, next_review_at)</code> on <code>conspectus_schedules</code> when <code>owner_client_uuid</code> is denormalised; otherwise join on <code>conspectuses</code> for ownership and index <code>(conspectus_uuid, next_review_at)</code>.</li>
+        <li><strong>Conspectus listing:</strong> <code>(owner_client_uuid, updated_at DESC)</code> on <code>conspectuses</code>.</li>
+        <li><strong>Review history:</strong> <code>(conspectus_uuid, reviewed_at DESC)</code> on <code>conspectus_review_logs</code>.</li>
+        <li><strong>Learning errors:</strong> <code>(owner_client_uuid, created_at DESC)</code>; optional <code>(conspectus_uuid, created_at DESC)</code>.</li>
+        <li><strong>Idempotency:</strong> unique scope must include <code>owner_client_uuid</code> (or API principal), not only path + key.</li>
+      </ul>
+
+      <h3 id="schema-design-notes">Schema design notes</h3>
+      <ul>
+        <li><strong><code>schedule_policies</code> as a catalogue table.</strong> Referencing <code>schedule_policy_id</code> without a parent row breaks referential integrity and makes migrations non-replayable.</li>
+        <li><strong><code>algorithm_version</code> on the schedule.</strong> The schedule row carries both <code>schedule_policy_id</code> and <code>algorithm_version</code> to reference exactly one immutable policy row (composite FK).</li>
+        <li><strong><code>schedule_revision</code>.</strong> Reviews need optimistic concurrency independent of idempotency keys; bump on every schedule mutation.</li>
+        <li><strong><code>cue_sheet_schema_version</code>.</strong> Prevents silent JSON drift; pair with migrations when the <code>cue_sheet</code> shape changes.</li>
+        <li><strong><code>idempotency_keys</code> scope.</strong> Global uniqueness on <code>(endpoint_path, idempotency_key)</code> would let two users collide; scope by owner / principal.</li>
+        <li><strong><code>learning_errors.conspectus_uuid</code>.</strong> Prefer <code>ON DELETE SET NULL</code> so deleting a conspectus does not orphan errors that should remain for analytics; choose <code>CASCADE</code> only if the product decision is to delete with the note.</li>
+      </ul>
+
+      <h2 id="content-storage">Content storage — inline JSON vs external document</h2>
+      <p>
+        <strong>Default:</strong> store <code>cue_sheet</code>, <code>bullets</code>, and <code>dense_paragraph</code>
+        inline (JSON / TEXT). This respects typical body-size limits, keeps backup and transactions straightforward,
+        and allows JSON evolution through migrations and validation.
+      </p>
+
+      <h3 id="cue-sheet-json">Cue sheet JSON (schema v1)</h3>
+      <p>
+        For <code>cue_sheet_schema_version = 1</code>, <code>cue_sheet</code> is an object with a <code>rows</code>
+        array. Each row aligns with the three-column mental model:
+      </p>
+      <ul>
+        <li><code>keyword</code> — short anchor (one to three words).</li>
+        <li><code>question</code> — question or gap (e.g. "What are the three steps of X?").</li>
+        <li><code>hint</code> — brief answer cue (optional on early rows).</li>
+      </ul>
+      <p class="small">
+        Validation rejects unknown keys or missing <code>rows</code> when strict mode is on; future schema versions
+        add columns rather than overloading strings.
+      </p>
+
+      <h3 id="storage-tradeoffs">Inline vs external — when to switch</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Criterion</th><th>Inline in RDBMS</th><th>External blob / document store</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Size / SLO</td>
+              <td>Appropriate while under the configured maximum body size.</td>
+              <td>Prefer when payloads grow large or binary attachments appear.</td>
+            </tr>
+            <tr>
+              <td>Versioning</td>
+              <td><code>content_version</code> plus event payloads; migrate JSON with scripts.</td>
+              <td>Object version / ETag in store; SQL holds pointer and hash.</td>
+            </tr>
+            <tr>
+              <td>Full-text search</td>
+              <td>PostgreSQL FTS or generated columns; SQLite is more constrained.</td>
+              <td>Often a dedicated search tier (operational cost).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">
+        Hybrid-storage failure modes (split writes, drift, orphan blobs) and their mitigations live in the
+        <a href="runbooks.html#hybrid-storage">api · Runbooks</a> page — they are an operational concern, not an
+        architectural one.
+      </p>
+
+      <h2 id="see-also">See also</h2>
+      <ul>
+        <li><a href="../../explanation/system-design.html#architectural-decomposition">System design — C4 L1 + L2 (system context, containers)</a></li>
+        <li><a href="../../explanation/system-design.html#architectural-decisions">System design — architectural decisions D1–D7</a></li>
+        <li><a href="api-reference.html">api · API reference</a> — interface this service provides</li>
+        <li><a href="runbooks.html">api · Runbooks</a> — operational procedures, hybrid-storage recovery, NFR/SLO</li>
+        <li><a href="data/index.html">api · Database tables</a> — field-level reference per ADR 0029</li>
+        <li><a href="../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a> — C4 / PlantUML conventions</li>
+        <li><a href="../../governance/adr/0029-database-table-documentation.html">ADR 0029</a> — database table documentation</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>docs-table--zebra --sticky-head</code> + <code>figure.docs-diagram</code>; lightbox attaches automatically.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-10</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Filled component-level architecture: domain model, C4 L3, ER diagram, schema tables, content storage.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-08</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial skeleton stub per RFC 0004 Phase C.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#domain-model">Domain model</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#component-view">C4 L3 — components</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#persistence-model">Persistence and schema</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#content-storage">Content storage</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#see-also">See also</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
 </body></html>
