@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How-to · Run an API load test · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">api</a></li>
+        <li class="docs-breadcrumbs__item"><span class="docs-breadcrumbs__link">How-to</span></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">API · Run a load test</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--warn">API</span>
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+        </div>
+        <h1>Run an API load test</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">How to drive a configurable mix of HTTP requests against the API to surface latency, error rates, and SLO signals in metrics dashboards.</p>
+      </header>
+
+      <h2 id="why">Why run load-style traffic</h2>
+      <ul>
+        <li>Unit tests (<code>make test</code>) verify the contract. A load run shows the <strong>2xx / 4xx / 5xx</strong> mix, the latency distribution, and the error shape in Grafana or Prometheus — signals you cannot get from pytest alone.</li>
+        <li>Load runs are <strong>not</strong> a substitute for unit tests, and they <strong>mutate state</strong>: user-create scenarios write to the database, so run them only against local or non-production environments.</li>
+      </ul>
+
+      <h2 id="setup">Environment setup</h2>
+      <ol>
+        <li>Virtualenv: <code>make venv &amp;&amp; make install</code> (or equivalent).</li>
+        <li><code>.env</code> from <code>env/example</code> (<code>make env-init</code>), with valid <code>APP_HOST</code> and <code>APP_PORT</code>.</li>
+        <li>Migrations: <code>make migrate</code>.</li>
+        <li>For GET-by-id scenarios (optional <code>scenarios/user/get.py</code>), set <code>ROTATE_SYSTEM_USER_IDS</code> to real <code>system_user_id</code> values and adjust <code>SHARE_OF_GROUP</code> between <code>user/create.py</code> and <code>user/get.py</code> so they sum to <code>1.0</code> per user group.</li>
+      </ol>
+
+      <h2 id="simulate-500">Simulating HTTP 500 (local and non-prod only)</h2>
+      <p>Normal routes rarely return a steady stream of 500s. To emit 5xx from the <strong>same</strong> API process, so <code>http_requests_total</code> counts them, set the following in <code>.env</code>:</p>
+      <pre class="docs-code"><code class="language-bash">LOADTEST_HTTP_500=true</code></pre>
+      <p>After restarting the app, only the internal route <code>GET /__loadtest/http500</code> is available (hidden from OpenAPI). Do not enable this flag in production.</p>
+
+      <h2 id="start-api">Starting the API</h2>
+      <p>From the repository root (adjust the path):</p>
+      <pre class="docs-code"><code class="language-bash">cd /path/to/study_app
+source .venv/bin/activate
+      make run</code></pre>
+      <p>If you also want Grafana and Prometheus locally, run <code>docker compose -f docker-compose.observability.yml up -d</code> in another terminal while <code>make run</code> keeps the API in the first. Details: <a href="local-development.html">Local development</a>.</p>
+      <p>In a <strong>second</strong> terminal, run the traffic generator (see below).</p>
+
+      <h2 id="generator">Generator configuration (Python)</h2>
+      <p>Scenarios live under <code>tools/load_testing/scenarios/</code>. See <code>tools/load_testing/README.html</code> for the full contract (with diagrams). Summary:</p>
+      <ul>
+        <li><code>scenarios/weights.py</code> — <code>GROUP_WEIGHTS</code> (e.g. <code>user</code>, <code>observability_5xx</code>).</li>
+        <li>Each scenario module exports <code>GROUP</code>, <code>SHARE_OF_GROUP</code>, <code>MIX</code> (sums to 1.0 within the file), and <code>SCENARIOS</code> (scenario key → callable building a request).</li>
+        <li>Validation failures for user create are typically <strong>422</strong> — see <code>user_payload.py</code> and <code>user/create.py</code>.</li>
+        <li>HTTP 500 without touching the DB: small share via <code>scenarios/observability/http500.py</code> and <code>LOADTEST_HTTP_500=true</code>.</li>
+      </ul>
+
+      <h2 id="commands">Commands</h2>
+      <p>Plan only (no network):</p>
+      <pre class="docs-code"><code class="language-bash">python -m tools.load_testing.runner --dry-run</code></pre>
+      <p>Full run (default 100 requests; set <code>LOAD_TEST_BASE_URL</code> / <code>LOAD_TEST_API_KEY</code> if needed):</p>
+      <pre class="docs-code"><code class="language-bash">python -m tools.load_testing.runner --total-requests 200</code></pre>
+      <p>Optional delay between requests:</p>
+      <pre class="docs-code"><code class="language-bash">python -m tools.load_testing.runner --total-requests 200 --delay-ms 50</code></pre>
+
+      <h2 id="layout">Layout</h2>
+      <pre class="docs-code"><code class="language-text">tools/load_testing/
+runner.py
+README.html
+scenarios/
+weights.py
+user/create.py
+user/get.py          # optional; set ROTATE_SYSTEM_USER_IDS
+observability/http500.py
+      conspectus/README.txt</code></pre>
+
+      <h2 id="observability">Observability</h2>
+      <p>Start the stack before or alongside the API (<code>docker compose -f docker-compose.observability.yml up -d</code>). After the traffic run, open Grafana (port from <code>.env</code>, default 3001) and the Study App Observability dashboard; in Prometheus, <code>/alerts</code> when SLO rules are configured.</p>
+
+      <h2 id="issues">Common issues</h2>
+      <ul>
+        <li><strong>Connection refused:</strong> the API is not running or the <code>base_url</code> is wrong.</li>
+        <li><strong>Script errors on "#":</strong> a comment was passed as an argument. Run the command again without a trailing <code># ...</code>.</li>
+        <li><strong>Expected 200, got 404</strong> on the user GET: fix <code>ROTATE_SYSTEM_USER_IDS</code> in <code>user/get.py</code>.</li>
+        <li><strong>429 Too Many Requests:</strong> lower the intensity through <code>--delay-ms</code>, or raise the dev rate limit.</li>
+      </ul>
+
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; bash/text snippets as <code>docs-code</code>; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-03</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Tightened Why-run section and Common-issues bullets; replaced em-dash connectors with colons or full sentences.</span>
+        </li>
+      </ul>
+    </footer>
+    <section id="page-history" class="card">
+      <h2>Page history</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Page history">
+        <table class="docs-page-history">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Change</th>
+              <th scope="col">Author</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><time datetime="2026-04-21">2026-04-21</time></td>
+              <td>Added Page history section (repository baseline).</td>
+              <td><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why">Why load traffic</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#setup">Environment setup</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#simulate-500">Simulating HTTP 500</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#start-api">Starting the API</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#generator">Generator config</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#commands">Commands</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layout">Layout</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#observability">Observability</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#issues">Common issues</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

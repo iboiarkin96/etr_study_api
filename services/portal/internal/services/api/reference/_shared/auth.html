@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authentication &amp; authorization · API · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">api</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Shared</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Auth</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Reference</span>
+          <span class="docs-pill docs-pill--warn">API</span>
+          <span class="docs-pill docs-pill--neutral">Shared</span>
+        </div>
+        <h1>Authentication &amp; authorization</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Single source of truth for how the internal API authenticates integrators and authorises access to per-tenant resources. Per-operation specs link here for the global scheme and only describe operation-specific deltas. Governing ADR: <a href="../../../../governance/adr/0005-api-security-defaults.html">ADR 0005</a>.</p>
+      </header>
+
+      <h2 id="scheme">Scheme — API key</h2>
+      <p>All endpoints under <code>/api/v1/**</code> require a valid <strong>API key</strong> in the <code>X-API-Key</code> header. The key identifies the <strong>integrator</strong> (one third-party tenant). The actor inside that tenant — the learner — is identified separately by <code>(system_user_id, system_uuid)</code> in the body or query, depending on the operation.</p>
+      <div class="docs-table-wrap" role="region" aria-label="X-API-Key header">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Header</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>X-API-Key</code></td>
+              <td>string</td>
+              <td>Yes</td>
+              <td>Opaque ASCII secret issued out-of-band. Printable ASCII; conventional prefix <code>sk_live_</code> / <code>sk_test_</code>. Length ≥ 32 chars. Rotation is operator-driven; no overlapping rotation in v1.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Out of scope in v1:</strong> OAuth 2.0, JWT bearer tokens, mTLS, IP allow-listing, session cookies. Adding any of these requires an ADR.</p>
+
+      <h2 id="actor-resolution">Actor resolution: integrator vs learner</h2>
+      <p>The two-layer identity model is deliberate: one API key may serve many learners (an integrator is a school, a tutor app, a Telegram Mini App, …).</p>
+      <ul>
+        <li>The <strong>integrator</strong> is resolved from <code>X-API-Key</code> by the auth middleware <em>before</em> the handler runs.</li>
+        <li>The <strong>learner</strong> is resolved from <code>(system_user_id, system_uuid)</code> in the body or path/query, by the service layer <em>after</em> validation. Resolution returns <code>users.client_uuid</code>; this UUID is the canonical owner key on every row owned by the learner.</li>
+        <li>If the user composite key does not resolve, the operation returns <code>404 USER_404 USER_NOT_FOUND</code>. Always — never <code>403</code> (do not leak existence).</li>
+      </ul>
+
+      <h2 id="authorization">Authorization — ownership</h2>
+      <p>v1 uses a single authorisation rule: <strong>ownership</strong>. The resolved learner must own every resource the operation touches.</p>
+      <ul>
+        <li>Conspectus: <code>conspectuses.owner_client_uuid = users.client_uuid</code>.</li>
+        <li>Error log entry: <code>learning_errors.owner_client_uuid = users.client_uuid</code>; if a referenced <code>conspectus_uuid</code> is set, it must also be owned by the same learner.</li>
+        <li>Schedule: belongs to a conspectus; ownership transitively via <code>conspectuses</code>.</li>
+      </ul>
+      <p><strong>Cross-tenant access</strong> (resource exists but belongs to a different learner): always return <code>404 &lt;DOMAIN&gt;_404</code>. Never <code>403</code>. The integrator gets the same response whether the resource does not exist or belongs to someone else — by design.</p>
+      <p><strong>No admin override.</strong> v1 has no super-user role. Operator access to production data goes through DB-level audited queries, not the API.</p>
+
+      <h2 id="errors">Errors emitted by the auth layer</h2>
+      <p>See <a href="error-envelope.html">error envelope</a> for the shape; registered in <a href="error-catalog.html#common">error catalog</a>.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Auth-related errors">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>HTTP</th><th>Code</th><th>Key</th><th>When</th></tr></thead>
+          <tbody>
+            <tr><td><code>401</code></td><td><code>COMMON_401</code></td><td><code>SECURITY_AUTH_REQUIRED</code></td><td>Missing, malformed, or revoked <code>X-API-Key</code>.</td></tr>
+            <tr><td><code>404</code></td><td><code>USER_404</code></td><td><code>USER_NOT_FOUND</code></td><td>Learner composite key does not resolve OR resource not owned by this learner (collapsed to 404 on purpose).</td></tr>
+            <tr><td><code>500</code></td><td><code>COMMON_500</code></td><td><code>SECURITY_AUTH_STRATEGY_INVALID</code></td><td>Server misconfiguration. Operator-only — never the integrator's fault.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="rate-limit-ref">Rate limiting (related)</h2>
+      <p>Rate limits are enforced per <code>X-API-Key</code> by middleware (<code>COMMON_429 SECURITY_RATE_LIMIT_EXCEEDED</code>). The default budget and the sliding-window definition live in <a href="../../../../governance/adr/0005-api-security-defaults.html">ADR 0005</a>. Per-endpoint override requires its own ADR; v1 has none.</p>
+
+      <h2 id="forbidden-patterns">Forbidden patterns</h2>
+      <ul>
+        <li><strong>Returning <code>403</code></strong> for cross-tenant access. Always <code>404</code> — even if you know the resource exists.</li>
+        <li><strong>Including the API key in URLs / query strings.</strong> Header only.</li>
+        <li><strong>Logging the API key.</strong> Mask to last 4 chars in any log line.</li>
+        <li><strong>Trusting client-supplied <code>owner_client_uuid</code></strong> in a body. The server resolves it from <code>(system_user_id, system_uuid)</code>; ignore any body field that tries to set ownership directly.</li>
+      </ul>
+
+      <h2 id="traceability">Traceability</h2>
+      <ul>
+        <li><strong>ADR:</strong> <a href="../../../../governance/adr/0005-api-security-defaults.html">0005 — API security defaults</a>.</li>
+        <li><strong>System design:</strong> <a href="../../../../explanation/system-design.html#scope">scope &amp; boundaries</a>.</li>
+        <li><strong>Related shared pages:</strong> <a href="idempotency.html">idempotency</a>, <a href="error-envelope.html">error envelope</a>.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="Page history">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; error tables on <code>docs-table--sticky-head --zebra</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-04-29</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Phase 3: shared auth overlay aligned with ADR 0005.</span>
+        </li>
+      </ul>
+    </footer>
+    <section id="page-history" class="card">
+      <h2>Page history</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Page history">
+        <table class="docs-page-history">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Change</th>
+              <th scope="col">Author</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><time datetime="2026-04-21">2026-04-21</time></td>
+              <td>Added Page history section (repository baseline).</td>
+              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scheme">Scheme</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#actor-resolution">Actor resolution</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#authorization">Authorization</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#errors">Errors</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rate-limit-ref">Rate limiting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#forbidden-patterns">Forbidden patterns</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#traceability">Traceability</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
