@@ -283,6 +283,7 @@ def render_entity_card(svc: dict) -> str:
         f"{pills_block}\n"
         f"    </div>\n"
         f'    <h1 class="entity-card__title" id="entity-name">{meta["name"]}</h1>\n'
+        f'    <div id="docs-top-nav"></div>\n'
         f'    <p class="entity-card__lede">{lede}</p>\n'
         f"  </header>\n"
         f"\n"

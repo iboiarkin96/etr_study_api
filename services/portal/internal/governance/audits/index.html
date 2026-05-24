@@ -9,6 +9,44 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
   <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <style>
+    /* Audits index — toolbar + view-switcher overlays. Composes UI Kit v3
+       docs-view-switcher and multi-filter-chips; only the layout glue and
+       cards-vs-table toggle live here. */
+    .audit-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+      margin: 0 0 var(--space-4);
+    }
+    .audit-toolbar__group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+    .audit-toolbar__label {
+      font-family: var(--font-mono);
+      font-size: var(--fs-100);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #audit-views[data-view="by-group"] .audit-table-view { display: none; }
+    #audit-views[data-view="table"]    .audit-by-group   { display: none; }
+
+    .audit-empty {
+      padding: var(--space-5);
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: var(--radius-lg);
+      display: none;
+    }
+    #audit-views[data-empty="true"] .audit-empty { display: block; }
+  </style>
 </head>
 <body data-page-type="landing-section" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
 
@@ -45,7 +83,7 @@
             we match them (Table 2) with a short justification per row, then scoring arithmetic, Top-5 gaps with
             workflow status, and next steps. ADRs record <em>decisions</em>; assessments record <em>how we compare</em>
             to common practice on a given date. For the template, see the
-            <a href="../../handbook/templates/audit.html">Assessment template</a>.
+            <a href="../../foundations/reference/sa/templates/audit.html">Assessment template</a>.
           </p>
           <div class="home-hero__stats">
             <span class="docs-pill docs-pill--info">5 categories</span>
@@ -62,18 +100,49 @@
       </div>
     </section>
 
-    <!-- ── Jump chips ──────────────────────────────────────────────────── -->
-    <nav aria-label="Jump to category" style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-5)">
-      <a class="docs-pill docs-pill--neutral" href="#dx">Documentation</a>
-      <a class="docs-pill docs-pill--neutral" href="#ui-ux">UI/UX</a>
-      <a class="docs-pill docs-pill--neutral" href="#api">REST API</a>
-      <a class="docs-pill docs-pill--neutral" href="#bug-audit">Bug audit</a>
-      <a class="docs-pill docs-pill--neutral" href="#maturity">Project maturity</a>
-      <a class="docs-pill docs-pill--neutral" href="#full-index">Full index</a>
-    </nav>
+    <!-- ── Toolbar: category filter + view switcher ───────────────────── -->
+    <div class="audit-toolbar">
+      <div class="audit-toolbar__group">
+        <span class="audit-toolbar__label">Category</span>
+        <div data-component="multi-filter-chips" data-state-key="category" data-default="all" aria-label="Category">
+          <button class="docs-chip docs-chip--filter" type="button" data-value="all" aria-pressed="true">All</button>
+          <button class="docs-chip docs-chip--filter" type="button" data-value="dx" aria-pressed="false">Documentation</button>
+          <button class="docs-chip docs-chip--filter" type="button" data-value="ui-ux" aria-pressed="false">UI/UX</button>
+          <button class="docs-chip docs-chip--filter" type="button" data-value="api" aria-pressed="false">REST API</button>
+          <button class="docs-chip docs-chip--filter" type="button" data-value="bug-audit" aria-pressed="false">Bug audit</button>
+          <button class="docs-chip docs-chip--filter" type="button" data-value="maturity" aria-pressed="false">Project maturity</button>
+        </div>
+      </div>
+      <div class="audit-toolbar__group">
+        <span class="audit-toolbar__label">View</span>
+        <div data-component="view-switcher" data-target="#audit-views" data-storage-key="audit-view" data-default="by-group" class="docs-view-switcher" aria-label="View">
+          <button class="docs-view-switcher__btn" type="button" data-view="by-group">
+            <svg viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <rect x="0.5" y="0.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.2"></rect>
+              <rect x="7" y="0.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.2"></rect>
+              <rect x="0.5" y="7" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.2"></rect>
+              <rect x="7" y="7" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.2"></rect>
+            </svg>
+            By group
+          </button>
+          <button class="docs-view-switcher__btn" type="button" data-view="table">
+            <svg viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <rect x="0.5" y="0.5" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.2"></rect>
+              <rect x="0.5" y="5" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.2"></rect>
+              <rect x="0.5" y="9.5" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.2"></rect>
+            </svg>
+            Table
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="audit-views" data-view="by-group">
+
+    <div class="audit-by-group">
 
     <!-- ── Categories ──────────────────────────────────────────────────── -->
-    <section id="dx" aria-labelledby="dx-h">
+    <section id="dx" data-group="dx" aria-labelledby="dx-h">
       <h2 id="dx-h">Documentation experience (DX)</h2>
       <p>Maturity assessments focused on information architecture, docs-as-code, discoverability, and accessibility of the docs portal. Full list: <a href="docs/index.html">DX assessments index</a>.</p>
       <div class="docs-card-grid">
@@ -83,7 +152,7 @@
       </div>
     </section>
 
-    <section id="ui-ux" aria-labelledby="uiux-h">
+    <section id="ui-ux" data-group="ui-ux" aria-labelledby="uiux-h">
       <h2 id="uiux-h">UI/UX assessments</h2>
       <p>Maturity assessments focused on UI/UX of the docs portal. Full list: <a href="ui-ux/index.html">UI/UX assessments index</a>.</p>
       <div class="docs-card-grid">
@@ -93,7 +162,7 @@
       </div>
     </section>
 
-    <section id="api" aria-labelledby="api-h">
+    <section id="api" data-group="api" aria-labelledby="api-h">
       <h2 id="api-h">REST / HTTP API assessments</h2>
       <p>Maturity assessments for the HTTP API surface — OpenAPI contract, idempotency, security headers, metrics, CI quality. Full list: <a href="api/index.html">REST API assessments index</a>.</p>
       <div class="docs-card-grid">
@@ -101,7 +170,7 @@
       </div>
     </section>
 
-    <section id="bug-audit" aria-labelledby="bug-h">
+    <section id="bug-audit" data-group="bug-audit" aria-labelledby="bug-h">
       <h2 id="bug-h">Bug audit</h2>
       <p>Single report enumerating known portal bugs with severity and triage notes.</p>
       <div class="docs-card-grid">
@@ -109,7 +178,7 @@
       </div>
     </section>
 
-    <section id="maturity" aria-labelledby="maturity-h">
+    <section id="maturity" data-group="maturity" aria-labelledby="maturity-h">
       <h2 id="maturity-h">Project maturity assessments</h2>
       <p>Two complementary streams under one index. <strong>Engineering Maturity</strong> — 30 practices across 6 weighted axes benchmarked against Google SRE Book, DORA, OWASP ASVS, CNCF Security Whitepaper. <strong>Tech Docs Maturity</strong> — 144 practices across 12 weighted axes (v2) benchmarked against Diátaxis, MADR 4.0, OpenAPI 3.1, Backstage, Stripe, GitLab Handbook, Mintlify, and the 2025–2026 AI-readability frontier. Full list: <a href="maturity/index.html">Project maturity assessments index</a>.</p>
       <div class="docs-card-grid">
@@ -120,40 +189,35 @@
       </div>
     </section>
 
-    <!-- ── Full index table ──────────────────────────────────────────── -->
-    <section id="full-index" aria-labelledby="full-h">
-      <h2 id="full-h">Full index</h2>
+    </div><!-- /.audit-by-group -->
+
+    <!-- ── Table view ─────────────────────────────────────────────────── -->
+    <div class="audit-table-view">
       <div class="docs-table-wrap">
         <table class="docs-table docs-table--zebra docs-table--sticky-head">
           <thead><tr><th>Assessment</th><th>Summary</th><th>Status</th></tr></thead>
           <tbody>
-            <tr><td><a href="docs/2026-05-01-documentation-experience-assessment.html">DX — 2026-05-01</a></td><td>Documentation experience snapshot; refreshed evidence for <code>make verify</code>, full-tree search, <code>docs-spec-check</code>, in-page feedback pattern.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="docs/2026-04-18-documentation-experience-assessment.html">DX — 2026-04-18</a></td><td>25-practice Table 1/2 with justification column, weighted axis model, Top-5 gap workflow.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="docs/2026-04-14-documentation-experience-assessment.html">DX — 2026-04-14</a></td><td>Baseline 25-practice Table 1/2, weighted axis model, Top-5 gap workflow.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="ui-ux/2026-05-09-ui-ux-consistency-assessment.html">UI/UX Consistency — 2026-05-09</a></td><td>Snapshot refresh; Table 1/2, weighted axes, Top-5 gaps.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="ui-ux/2026-04-24-ui-ux-assessment.html">UI/UX — 2026-04-24</a></td><td>Premium benchmark re-assessment of Study App product and docs experience; updated AS-IS scores, Top-5 statuses.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="ui-ux/2026-04-23-ui-ux-assessment.html">UI/UX — 2026-04-23</a></td><td>Repeat docs UI/UX assessment; updated AS-IS scoring, weighted axis model, Top-5 statuses.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="api/2026-04-14-rest-api-assessment.html">REST API — 2026-04-14</a></td><td>24-row Table 1/2 covering OpenAPI, idempotency, security headers, metrics, CI; unweighted mean with Top-5 gap workflow.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="bugs/2026-05-07-portal-bug-audit.html">Bug audit — 2026-05-07</a></td><td>Portal bug audit; severity-classified findings.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="maturity/2026-05-13-systems-analysis-maturity-assessment.html">SA Maturity — 2026-05-13</a></td><td>Systems Analysis maturity assessment with practice-level scoring.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="maturity/2026-05-10-tech-docs-maturity-assessment-v2.html">Tech Docs Maturity v2 — 2026-05-10</a></td><td>Expanded 144-practice / 12-axis assessment; overall ≈ 4.6 / 10. New axes (Onboarding 4.4; Trust/Compliance/Analytics 2.7).</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
-            <tr><td><a href="maturity/2026-05-10-tech-docs-maturity-assessment.html">Tech Docs Maturity v1 — 2026-05-10</a></td><td>100-practice / 10-axis baseline; overall ≈ 5.4 / 10. HTML-first authoring identified as P0 unlock.</td><td><span class="docs-pill docs-pill--neutral">Superseded by v2</span></td></tr>
-            <tr><td><a href="maturity/2026-05-10-project-maturity-assessment.html">Project Maturity — 2026-05-10</a></td><td>30-practice / 6-axis baseline; overall ≈ 5.2 / 10. Arch Governance 7.6; Security &amp; Compliance 2.0 (P0 remediation).</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="dx"><td><a href="docs/2026-05-01-documentation-experience-assessment.html">DX — 2026-05-01</a></td><td>Documentation experience snapshot; refreshed evidence for <code>make verify</code>, full-tree search, <code>docs-spec-check</code>, in-page feedback pattern.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="dx"><td><a href="docs/2026-04-18-documentation-experience-assessment.html">DX — 2026-04-18</a></td><td>25-practice Table 1/2 with justification column, weighted axis model, Top-5 gap workflow.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="dx"><td><a href="docs/2026-04-14-documentation-experience-assessment.html">DX — 2026-04-14</a></td><td>Baseline 25-practice Table 1/2, weighted axis model, Top-5 gap workflow.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="ui-ux"><td><a href="ui-ux/2026-05-09-ui-ux-consistency-assessment.html">UI/UX Consistency — 2026-05-09</a></td><td>Snapshot refresh; Table 1/2, weighted axes, Top-5 gaps.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="ui-ux"><td><a href="ui-ux/2026-04-24-ui-ux-assessment.html">UI/UX — 2026-04-24</a></td><td>Premium benchmark re-assessment of Study App product and docs experience; updated AS-IS scores, Top-5 statuses.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="ui-ux"><td><a href="ui-ux/2026-04-23-ui-ux-assessment.html">UI/UX — 2026-04-23</a></td><td>Repeat docs UI/UX assessment; updated AS-IS scoring, weighted axis model, Top-5 statuses.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="api"><td><a href="api/2026-04-14-rest-api-assessment.html">REST API — 2026-04-14</a></td><td>24-row Table 1/2 covering OpenAPI, idempotency, security headers, metrics, CI; unweighted mean with Top-5 gap workflow.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="bug-audit"><td><a href="bugs/2026-05-07-portal-bug-audit.html">Bug audit — 2026-05-07</a></td><td>Portal bug audit; severity-classified findings.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="maturity"><td><a href="maturity/2026-05-13-systems-analysis-maturity-assessment.html">SA Maturity — 2026-05-13</a></td><td>Systems Analysis maturity assessment with practice-level scoring.</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="maturity"><td><a href="maturity/2026-05-10-tech-docs-maturity-assessment-v2.html">Tech Docs Maturity v2 — 2026-05-10</a></td><td>Expanded 144-practice / 12-axis assessment; overall ≈ 4.6 / 10. New axes (Onboarding 4.4; Trust/Compliance/Analytics 2.7).</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
+            <tr data-group="maturity"><td><a href="maturity/2026-05-10-tech-docs-maturity-assessment.html">Tech Docs Maturity v1 — 2026-05-10</a></td><td>100-practice / 10-axis baseline; overall ≈ 5.4 / 10. HTML-first authoring identified as P0 unlock.</td><td><span class="docs-pill docs-pill--neutral">Superseded by v2</span></td></tr>
+            <tr data-group="maturity"><td><a href="maturity/2026-05-10-project-maturity-assessment.html">Project Maturity — 2026-05-10</a></td><td>30-practice / 6-axis baseline; overall ≈ 5.2 / 10. Arch Governance 7.6; Security &amp; Compliance 2.0 (P0 remediation).</td><td><span class="docs-pill docs-pill--success">Active</span></td></tr>
             <tr><td><a href="2026-05-16-ia-migration-manifest.html">IA Migration Manifest — 2026-05-16</a></td><td>Diátaxis IA migration manifest tracking every move/redirect from Phase 0–F.</td><td><span class="docs-pill docs-pill--info">Reference</span></td></tr>
           </tbody>
         </table>
       </div>
-    </section>
+    </div><!-- /.audit-table-view -->
 
-    <!-- ── See also ───────────────────────────────────────────────────── -->
-    <section aria-labelledby="seealso-h">
-      <h2 id="seealso-h">See also</h2>
-      <div class="docs-card-grid">
-        <a class="docs-card" href="../../handbook/templates/audit.html"><span class="docs-card__hint">Template</span><div class="docs-card__head"><h3 class="docs-card__title">Assessment template</h3><span class="docs-pill docs-pill--neutral">format</span></div><div class="docs-card__body">Format, structure &amp; LLM prompt for new audit reports.</div><div class="docs-card__footer">Open template →</div></a>
-        <a class="docs-card" href="../adr/0024-architecture-and-quality-assessment-documents.html"><span class="docs-card__hint">ADR 0024</span><div class="docs-card__head"><h3 class="docs-card__title">Assessment format</h3><span class="docs-pill docs-pill--success">Accepted</span></div><div class="docs-card__body">Why audits live here, the table schema, scoring, and process.</div><div class="docs-card__footer">Open ADR →</div></a>
-        <a class="docs-card" href="../../../ui-kit/index.html"><span class="docs-card__hint">Design system</span><div class="docs-card__head"><h3 class="docs-card__title">Portal UI Kit</h3><span class="docs-pill docs-pill--info">/portal/ui-kit</span></div><div class="docs-card__body">Tokens, components, and templates this page is built on.</div><div class="docs-card__footer">Open UI Kit →</div></a>
-      </div>
-    </section>
+    <div class="audit-empty">No audits match this filter.</div>
+
+    </div><!-- /#audit-views -->
 
     <footer class="docs-history" aria-label="Page history">
       <h2 class="docs-history__title">History</h2>
@@ -175,10 +239,60 @@
         </li>
       </ul>
     </footer>
+    <section id="page-history" class="card">
+      <h2>Page history</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Page history">
+        <table class="docs-page-history">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Change</th>
+              <th scope="col">Author</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><time datetime="2026-04-21">2026-04-21</time></td>
+              <td>Added Page history section (repository baseline).</td>
+              <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
   </main>
 
   <aside class="docs-toc" aria-label="On this page"></aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script>
+    /* Category filter glue — listens for `multifilterchange` from
+       multi-filter-chips and toggles `hidden` on every [data-group]
+       element (sections in By-group view + rows in Table view). Runs
+       once on load so deep-links like `#category=ui-ux` are honoured. */
+    (function () {
+      function apply(value) {
+        var v = value || "all";
+        var els = document.querySelectorAll("#audit-views [data-group]");
+        var visible = 0;
+        els.forEach(function (el) {
+          var match = v === "all" || el.getAttribute("data-group") === v;
+          el.hidden = !match;
+          if (match) visible++;
+        });
+        var views = document.getElementById("audit-views");
+        if (views) views.setAttribute("data-empty", visible === 0 ? "true" : "false");
+      }
+      window.addEventListener("multifilterchange", function (e) {
+        if (e.detail && e.detail.key === "category") apply(e.detail.value);
+      });
+      try {
+        var params = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+        apply(params.get("category") || "all");
+      } catch (_) { apply("all"); }
+    })();
+  </script>
 
   <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 

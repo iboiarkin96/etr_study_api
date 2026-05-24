@@ -37,6 +37,7 @@
         <p class="home-hero__eyebrow">
           <span class="docs-pill docs-pill--info">Tutorial</span>
           <span class="docs-pill docs-pill--neutral">SRE · Foundations</span>
+
         </p>
         <h1>Your first runbook drill</h1>
         <div id="docs-top-nav"></div>
@@ -45,6 +46,7 @@
           until exit criteria are met. The point is to feel the drill loop —
           trigger → triage → recovery → postmortem stub — not to handle a real
           incident. Real on-call walks the same loop with thicker steps and more witnesses.
+
         </p>
         <div class="docs-chip-row docs-chip-row--mt-3">
           <span class="docs-chip">⚙️ 4 phases</span>
@@ -64,123 +66,141 @@
           <li>Repo on a clean branch — drills modify a test file, you'll revert at the end.</li>
           <li>You've skimmed
             <a href="../../how-to/incidents/runbooks/0001-tests-failing.html">runbook 0001 — tests failing</a>
-            once; sections are <em>Trigger / Fast triage / Causes / Recovery / Exit / Follow-up</em>.</li>
-          </ul>
-        </section>
+            once; sections are <em>Trigger / Fast triage / Causes / Recovery / Exit / Follow-up</em>.
 
-        <section id="goal">
-          <h2>
-            <span class="docs-step-number" aria-hidden="true">0</span>
-            Goal
-          </h2>
-          <ul>
-            <li>One intentionally broken assertion, committed to a local <code>drill/</code> branch.</li>
-            <li><code>make test</code> red — the trigger condition runbook 0001 names.</li>
-            <li>You walk all six sections of runbook 0001 against this failure.</li>
-            <li>A postmortem stub at
-              <code>services/portal/internal/scratch/drill-&lt;date&gt;.md</code> capturing what you saw and how long each section took.</li>
-              <li>Branch deleted, repo back on the original commit.</li>
-            </ul>
-          </section>
+          </li>
+        </ul>
+      </section>
 
-          <section id="phase-1">
-            <h2>
-              <span class="docs-step-number" aria-hidden="true">1</span>
-              Manufacture the failure
-            </h2>
-            <p>Cut a drill branch and break one assertion:</p>
-            <pre class="docs-code"><code class="language-bash">git switch -c drill/runbook-0001-$(whoami)</code></pre>
-            <p>
-              Open any small unit test (e.g. a health-check or trivial schema test) and
-              change one expected value so the assertion fails:
-            </p>
-            <pre class="docs-code"><code class="language-python"># Example diff — pick any test in tests/ with a hard-coded expected value
+      <section id="goal">
+        <h2>
+          <span class="docs-step-number" aria-hidden="true">0</span>
+          Goal
+        </h2>
+        <ul>
+          <li>One intentionally broken assertion, committed to a local <code>drill/</code> branch.</li>
+          <li><code>make test</code> red — the trigger condition runbook 0001 names.</li>
+          <li>You walk all six sections of runbook 0001 against this failure.</li>
+          <li>A postmortem stub at
+            <code>services/portal/internal/scratch/drill-&lt;date&gt;.md</code> capturing what you saw and how long each section took.
+
+          </li>
+          <li>Branch deleted, repo back on the original commit.</li>
+        </ul>
+      </section>
+
+      <section id="phase-1">
+        <h2>
+          <span class="docs-step-number" aria-hidden="true">1</span>
+          Manufacture the failure
+        </h2>
+        <p>Cut a drill branch and break one assertion:</p>
+        <pre class="docs-code"><code class="language-bash">git switch -c drill/runbook-0001-$(whoami)</code></pre>
+        <p>
+          Open any small unit test (e.g. a health-check or trivial schema test) and
+          change one expected value so the assertion fails:
+
+        </p>
+        <pre class="docs-code"><code class="language-python"># Example diff — pick any test in tests/ with a hard-coded expected value
 - assert response.status_code == 200
 + assert response.status_code == 201   # drill: forced mismatch
-            </code></pre>
-            <p>Confirm the failure surfaces:</p>
-            <pre class="docs-code"><code class="language-bash">make test</code></pre>
-            <p>
-              Expected: red. Note the <em>start time</em> — this is your "page received"
-              timestamp for the postmortem.
-            </p>
-            <div class="docs-card docs-card--ghost">
-              <h3 class="docs-card__title">✓ Check your progress</h3>
-              <p>
-                <code>make test</code> exits non-zero. The failing assertion in the
-                output matches the one you edited (no other tests should be red — if
-                they are, your change was too broad; revert and pick a smaller test).
-              </p>
-            </div>
-          </section>
+        </code></pre>
+        <p>Confirm the failure surfaces:</p>
+        <pre class="docs-code"><code class="language-bash">make test</code></pre>
+        <p>
+          Expected: red. Note the <em>start time</em> — this is your "page received"
+          timestamp for the postmortem.
 
-          <section id="phase-2">
-            <h2>
-              <span class="docs-step-number" aria-hidden="true">2</span>
-              Walk Trigger + Triage
-            </h2>
-            <p>Open runbook 0001. Out loud (yes, out loud — it forces the loop), answer:</p>
-            <ol>
-              <li><strong>Trigger</strong> — does your failure match the runbook's
-                trigger condition? (red <code>make test</code>) ✓</li>
-                <li><strong>Fast triage</strong> — execute each command the runbook names.
-                  For each one, note in your stub:
-                  <ul>
-                    <li>command run</li>
-                    <li>output (one-line summary)</li>
-                    <li>hypothesis after seeing it</li>
-                  </ul>
-                </li>
-              </ol>
-              <div class="docs-card docs-card--ghost">
-                <h3 class="docs-card__title">✓ Check your progress</h3>
-                <p>
-                  Your stub has a <em>Triage</em> section with one entry per runbook
-                  command. The last line is a single hypothesis (most likely:
-                  <em>"assertion mismatch in test X, value drift"</em>).
-                </p>
-              </div>
-            </section>
+        </p>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>
+            <code>make test</code> exits non-zero. The failing assertion in the
+            output matches the one you edited (no other tests should be red — if
+            they are, your change was too broad; revert and pick a smaller test).
 
-            <section id="phase-3">
-              <h2>
-                <span class="docs-step-number" aria-hidden="true">3</span>
-                Walk Causes + Recovery
-              </h2>
-              <p>From runbook 0001:</p>
-              <ol>
-                <li><strong>Causes</strong> — your hypothesis from Phase 2 should map to
-                  one of the runbook's listed causes. Write the match into the stub
-                  (<em>"matches cause #N: stale assertion"</em>). If nothing matches,
-                  that is itself a finding — the runbook needs an extra cause.</li>
-                  <li><strong>Recovery</strong> — execute the recovery the runbook names
-                    for that cause. In your case: revert the test change.</li>
-                  </ol>
-                  <pre class="docs-code"><code class="language-bash">git checkout -- tests/&lt;file&gt;
+          </p>
+        </div>
+      </section>
+
+      <section id="phase-2">
+        <h2>
+          <span class="docs-step-number" aria-hidden="true">2</span>
+          Walk Trigger + Triage
+        </h2>
+        <p>Open runbook 0001. Out loud (yes, out loud — it forces the loop), answer:</p>
+        <ol>
+          <li><strong>Trigger</strong> — does your failure match the runbook's
+            trigger condition? (red <code>make test</code>) ✓
+
+          </li>
+          <li><strong>Fast triage</strong> — execute each command the runbook names.
+            For each one, note in your stub:
+            <ul>
+              <li>command run</li>
+              <li>output (one-line summary)</li>
+              <li>hypothesis after seeing it</li>
+            </ul>
+
+          </li>
+        </ol>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>
+            Your stub has a <em>Triage</em> section with one entry per runbook
+            command. The last line is a single hypothesis (most likely:
+            <em>"assertion mismatch in test X, value drift"</em>).
+
+          </p>
+        </div>
+      </section>
+
+      <section id="phase-3">
+        <h2>
+          <span class="docs-step-number" aria-hidden="true">3</span>
+          Walk Causes + Recovery
+        </h2>
+        <p>From runbook 0001:</p>
+        <ol>
+          <li><strong>Causes</strong> — your hypothesis from Phase 2 should map to
+            one of the runbook's listed causes. Write the match into the stub
+            (<em>"matches cause #N: stale assertion"</em>). If nothing matches,
+            that is itself a finding — the runbook needs an extra cause.
+
+          </li>
+          <li><strong>Recovery</strong> — execute the recovery the runbook names
+            for that cause. In your case: revert the test change.
+
+          </li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">git checkout -- tests/&lt;file&gt;
 make test
-                  </code></pre>
-                  <div class="docs-card docs-card--ghost">
-                    <h3 class="docs-card__title">✓ Check your progress</h3>
-                    <p>
-                      <code>make test</code> exits 0 (green). Note the time — this is your
-                      <em>recovery</em> timestamp. Time-to-recovery (TTR) = recovery − trigger.
-                    </p>
-                  </div>
-                </section>
+        </code></pre>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>
+            <code>make test</code> exits 0 (green). Note the time — this is your
+            <em>recovery</em> timestamp. Time-to-recovery (TTR) = recovery − trigger.
 
-                <section id="phase-4">
-                  <h2>
-                    <span class="docs-step-number" aria-hidden="true">4</span>
-                    Exit criteria + postmortem stub
-                  </h2>
-                  <p>From runbook 0001:</p>
-                  <ol>
-                    <li><strong>Exit</strong> — verify every exit-criterion bullet. For this
-                      drill: <code>make test</code> green, no lingering branch changes, no
-                      uncommitted edits outside the drill scope.</li>
-                      <li><strong>Follow-up</strong> — fill out the postmortem stub:</li>
-                    </ol>
-                    <pre class="docs-code"><code class="language-markdown"># Drill postmortem — runbook 0001
+          </p>
+        </div>
+      </section>
+
+      <section id="phase-4">
+        <h2>
+          <span class="docs-step-number" aria-hidden="true">4</span>
+          Exit criteria + postmortem stub
+        </h2>
+        <p>From runbook 0001:</p>
+        <ol>
+          <li><strong>Exit</strong> — verify every exit-criterion bullet. For this
+            drill: <code>make test</code> green, no lingering branch changes, no
+            uncommitted edits outside the drill scope.
+
+          </li>
+          <li><strong>Follow-up</strong> — fill out the postmortem stub:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-markdown"># Drill postmortem — runbook 0001
 - Drill date: &lt;date&gt;
 - Trigger time: &lt;t0&gt;
 - Recovery time: &lt;t1&gt;
@@ -200,61 +220,91 @@ make test
 ## Follow-up
 - [ ] File issue: ...
 - [ ] Update runbook 0001: ...
-                    </code></pre>
-                    <p>
-                      The <em>Runbook friction</em> section is the real value of the drill — it
-                      turns a synthetic failure into a feedback loop on the runbook itself.
-                    </p>
-                    <div class="docs-card docs-card--ghost">
-                      <h3 class="docs-card__title">✓ You're done</h3>
-                      <ol>
-                        <li>Stub file exists under <code>scratch/</code>, all sections filled in (Runbook friction may be empty — that's fine).</li>
-                        <li>Repo back on <code>main</code> (or your original branch), drill branch deleted.</li>
-                        <li>You can name TTR in minutes and one thing the runbook could improve.</li>
-                      </ol>
-                      <p>That is the drill loop —
-                        <em>manufacture failure → walk runbook → time it → write friction</em>.
-                        Game-day exercises run the same loop on larger failures with witnesses
-                        (see SRE practice
-                        <a href="../../team/roles/sre/practices/game-days.html">game-days</a>).</p>
-                      </div>
+        </code></pre>
+        <p>
+          The <em>Runbook friction</em> section is the real value of the drill — it
+          turns a synthetic failure into a feedback loop on the runbook itself.
 
-                      <div class="docs-card docs-card--ghost docs-card--mt-3">
-                        <h3 class="docs-card__title">↺ Want to start over (or clean up)?</h3>
-                        <pre class="docs-code"><code class="language-bash">git switch main
+        </p>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ You're done</h3>
+          <ol>
+            <li>Stub file exists under <code>scratch/</code>, all sections filled in (Runbook friction may be empty — that's fine).</li>
+            <li>Repo back on <code>main</code> (or your original branch), drill branch deleted.</li>
+            <li>You can name TTR in minutes and one thing the runbook could improve.</li>
+          </ol>
+          <p>That is the drill loop —
+            <em>manufacture failure → walk runbook → time it → write friction</em>.
+            Game-day exercises run the same loop on larger failures with witnesses
+            (see SRE practice
+            <a href="../../team/roles/sre/practices/game-days.html">game-days</a>).
+          </p>
+        </div>
+
+        <div class="docs-card docs-card--ghost docs-card--mt-3">
+          <h3 class="docs-card__title">↺ Want to start over (or clean up)?</h3>
+          <pre class="docs-code"><code class="language-bash">git switch main
 git branch -D drill/runbook-0001-$(whoami) 2&gt;/dev/null || true
 rm services/portal/internal/scratch/drill-*.md
-                        </code></pre>
-                      </div>
-                    </section>
+          </code></pre>
+        </div>
+      </section>
 
-                    <aside class="docs-card docs-card--gradient docs-card--mt-6">
-                      <h3 class="docs-card__title">Next step: harder drills</h3>
-                      <ul>
-                        <li><a href="../../how-to/incidents/runbooks/0002-migrations-failing.html">Runbook 0002 — migrations failing</a> — same drill shape on Alembic.</li>
-                        <li><a href="../../how-to/incidents/runbooks/0009-error-budget-exhaustion.html">Runbook 0009 — error budget exhaustion</a> — the long-horizon version.</li>
-                        <li><a href="../../team/roles/sre/practices/game-days.html">SRE practice — game days</a> — multi-person drills.</li>
-                        <li><a href="../../team/roles/sre/practices/blameless-postmortem.html">SRE practice — blameless postmortem</a> — what the stub becomes for real incidents.</li>
-                      </ul>
-                    </aside>
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Next step: harder drills</h3>
+        <ul>
+          <li><a href="../../how-to/incidents/runbooks/0002-migrations-failing.html">Runbook 0002 — migrations failing</a> — same drill shape on Alembic.</li>
+          <li><a href="../../how-to/incidents/runbooks/0009-error-budget-exhaustion.html">Runbook 0009 — error budget exhaustion</a> — the long-horizon version.</li>
+          <li><a href="../../team/roles/sre/practices/game-days.html">SRE practice — game days</a> — multi-person drills.</li>
+          <li><a href="../../team/roles/sre/practices/blameless-postmortem.html">SRE practice — blameless postmortem</a> — what the stub becomes for real incidents.</li>
+        </ul>
+      </aside>
 
-                    <footer class="docs-history" aria-label="Page history">
-                      <h2 class="docs-history__title">History</h2>
-                      <ul class="docs-history__list">
-                        <li class="docs-history__row">
-                          <span class="docs-history__date">2026-05-17</span>
-                          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-                          <span class="docs-history__note">Created (Diátaxis growth plan T3): SRE drill loop on runbook 0001 — break one assertion → walk Trigger/Triage/Causes/Recovery/Exit → postmortem stub with TTR.</span>
-                        </li>
-                      </ul>
-                    </footer>
+      <footer class="docs-history" aria-label="Page history">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-19</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Linked to <a href="../../foundations/reference/sa/templates/tutorial.html">tutorial template v1</a> (Diátaxis audit M3): canonical shape extracted from this tutorial and 11 siblings.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Created (Diátaxis growth plan T3): SRE drill loop on runbook 0001 — break one assertion → walk Trigger/Triage/Causes/Recovery/Exit → postmortem stub with TTR.</span>
 
-                  </article>
-                </main>
+          </li>
+        </ul>
+      </footer>
 
-                <aside class="docs-toc" aria-label="On this page"></aside>
-                <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+    </article>
+    <section id="page-history" class="card">
+      <h2>Page history</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Page history">
+        <table class="docs-page-history">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Change</th>
+              <th scope="col">Author</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><time datetime="2026-04-21">2026-04-21</time></td>
+              <td>Added Page history section (repository baseline).</td>
+              <td><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-                <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+  </main>
 
-              </body></html>
+  <aside class="docs-toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
