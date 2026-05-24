@@ -101,23 +101,28 @@ def _is_redirect_stub(root_el, text: str) -> bool:
 
 
 def _has_docs_css(root_el) -> bool:
+    """Accept either the legacy ``docs.css`` link or the UI Kit v2 bundle
+    (``assets_v2/runtime/internal/entry.css``) — both load the docs design
+    tokens + component CSS the rest of this hook validates against."""
     for node in root_el.iter():
         if not isinstance(node.tag, str) or _local_name(node.tag) != "link":
             continue
         if (node.attrib.get("rel") or "").lower() != "stylesheet":
             continue
         href = (node.attrib.get("href") or "").lower()
-        if "docs.css" in href:
+        if "docs.css" in href or "assets_v2/runtime/internal/entry.css" in href:
             return True
     return False
 
 
 def _has_docs_nav_script(root_el) -> bool:
+    """Accept either the legacy ``docs-nav.js`` script or the UI Kit v2
+    runtime entry (``assets_v2/runtime/internal/entry.js``)."""
     for node in root_el.iter():
         if not isinstance(node.tag, str) or _local_name(node.tag) != "script":
             continue
         src = (node.attrib.get("src") or "").lower()
-        if "docs-nav.js" in src:
+        if "docs-nav.js" in src or "assets_v2/runtime/internal/entry.js" in src:
             return True
     return False
 
@@ -159,24 +164,55 @@ def _count_tag(root_el, tag_name: str) -> int:
     return count
 
 
-def _has_section_card(root_el) -> bool:
+def _is_new_kit_page(root_el) -> bool:
+    """UI Kit v2 pages declare ``<body class="docs-shell">`` to opt into the
+    kit's grid layout (sidebar + main + TOC). The kit's content container is
+    ``<main class="container">``, not ``<section class="card">`` — so the
+    legacy card-section requirement doesn't apply to these pages."""
     for node in root_el.iter():
-        if not isinstance(node.tag, str) or _local_name(node.tag) != "section":
+        if not isinstance(node.tag, str) or _local_name(node.tag) != "body":
             continue
         classes = set((node.attrib.get("class") or "").split())
-        if "card" in classes:
+        return "docs-shell" in classes
+    return False
+
+
+def _has_section_card(root_el) -> bool:
+    """Legacy pages wrap content in ``<section class="card">``; UI Kit v2
+    pages use ``<article class="docs-prose">`` containing kit primitives
+    (``.sa-section``, ``.docs-card``, ``.pa-section``). Accept either."""
+    for node in root_el.iter():
+        if not isinstance(node.tag, str):
+            continue
+        tag = _local_name(node.tag)
+        classes = set((node.attrib.get("class") or "").split())
+        if tag == "section" and "card" in classes:
+            return True
+        if tag == "article" and "docs-prose" in classes:
+            return True
+        if tag == "section" and (
+            "sa-section" in classes or "docs-card" in classes or "pa-section" in classes
+        ):
             return True
     return False
 
 
 def _has_page_history_section(root_el) -> bool:
-    """Standard hub pages use id=page-history; assessment reports use id=5-page-history."""
+    """Legacy hub pages use ``<section id="page-history">``; assessment
+    reports use ``id="5-page-history"``; UI Kit v2 pages use
+    ``<footer class="docs-history">`` (kit component ``footer-history``)."""
     for node in root_el.iter():
-        if not isinstance(node.tag, str) or _local_name(node.tag) != "section":
+        if not isinstance(node.tag, str):
             continue
-        sid = (node.attrib.get("id") or "").strip()
-        if sid in ("page-history", "5-page-history"):
-            return True
+        tag = _local_name(node.tag)
+        if tag == "section":
+            sid = (node.attrib.get("id") or "").strip()
+            if sid in ("page-history", "5-page-history"):
+                return True
+        if tag == "footer":
+            classes = set((node.attrib.get("class") or "").split())
+            if "docs-history" in classes:
+                return True
     return False
 
 
@@ -214,6 +250,7 @@ def main() -> None:
 
         if not redirect_stub:
             swagger_layout = _is_swagger_layout(doc)
+            new_kit_page = _is_new_kit_page(doc)
             # The public developer portal is intentionally isolated from the
             # internal docs skeleton — it does not carry the Page history block
             # because external consumers don't need internal change provenance.
@@ -224,7 +261,15 @@ def main() -> None:
                 failures.append(f"{rel}: expected exactly one <h1>")
             if not _has_top_nav_mount(doc):
                 failures.append(f'{rel}: missing <div id="docs-top-nav"></div>')
-            if not swagger_layout and not is_public_portal and not _has_section_card(doc):
+            # UI Kit v2 pages (body.docs-shell) use <main class="container">
+            # with kit primitives instead of section.card — the card check
+            # is a legacy concept that doesn't apply to them.
+            if (
+                not swagger_layout
+                and not is_public_portal
+                and not new_kit_page
+                and not _has_section_card(doc)
+            ):
                 failures.append(f'{rel}: expected at least one <section class="card">')
             if not swagger_layout and not is_public_portal and not _has_page_history_section(doc):
                 failures.append(
