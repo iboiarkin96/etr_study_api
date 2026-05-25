@@ -34,7 +34,7 @@ import { mountHotkeys } from "../../ui-kit/components/hotkeys.js";
 import { mountSiteFooter } from "../../ui-kit/components/site-footer.js";
 import { mountFooterHistory } from "../../ui-kit/components/footer-history.js";
 import { mountAuroraRail } from "../../ui-kit/components/aurora-rail.js";
-import { mountReadingGuide } from "../../ui-kit/components/reading-guide.js";
+import { mountLensChip } from "../../ui-kit/components/lens-chip.js";
 import { mountInteractiveChecklist } from "../../ui-kit/components/interactive-checklist.js";
 
 function boot() {
@@ -70,9 +70,9 @@ function boot() {
   mountLiveTickers();
   mountTextDecrypt();
   mountVariableWeight();
-  // Reading-guide must mount before mountToc / mountTocFab so anchors
-  // inside the injected legend can be picked up by the TOC scan.
-  mountReadingGuide();
+  // Lens-chip mounts before the tooltip runtime so the tooltip mount pass
+  // sees the data-tooltip attributes it injects on every .lens-chip.
+  mountLensChip();
   mountInteractiveChecklist();
   mountBreadcrumbs();
   // Drawer first: it can auto-create a drawer that contains a sidebar slot.
