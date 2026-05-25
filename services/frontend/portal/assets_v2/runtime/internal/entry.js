@@ -32,7 +32,10 @@ import { mountLiveTickers } from "../../ui-kit/components/live-tickers.js";
 import { mountTextDecrypt, mountVariableWeight } from "../../ui-kit/components/text-decrypt.js";
 import { mountHotkeys } from "../../ui-kit/components/hotkeys.js";
 import { mountSiteFooter } from "../../ui-kit/components/site-footer.js";
+import { mountFooterHistory } from "../../ui-kit/components/footer-history.js";
 import { mountAuroraRail } from "../../ui-kit/components/aurora-rail.js";
+import { mountReadingGuide } from "../../ui-kit/components/reading-guide.js";
+import { mountInteractiveChecklist } from "../../ui-kit/components/interactive-checklist.js";
 
 function boot() {
   mountToast();
@@ -48,6 +51,9 @@ function boot() {
   mountSiteFooter();
   mountBugReport();
   mountReadingProgress();
+  // Wrap the page-end <footer.docs-history> in a <details> for collapsing.
+  // Must run before mountAuthorChip so the chips inside history rows pick up.
+  mountFooterHistory();
   mountAuthorChip();
   initStatusTimeline();
   mountEndpointCards();
@@ -64,6 +70,10 @@ function boot() {
   mountLiveTickers();
   mountTextDecrypt();
   mountVariableWeight();
+  // Reading-guide must mount before mountToc / mountTocFab so anchors
+  // inside the injected legend can be picked up by the TOC scan.
+  mountReadingGuide();
+  mountInteractiveChecklist();
   mountBreadcrumbs();
   // Drawer first: it can auto-create a drawer that contains a sidebar slot.
   // mountSidebar() then renders BOTH the main sidebar and the drawer's copy.
