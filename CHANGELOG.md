@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 2026-05-26 — Make pipeline restored for the UI Kit v3 portal
+
+#### Security
+
+- **Three CVE-driven dependency bumps in `requirements.txt`:**
+  - `idna 3.11 → 3.15` (CVE-2026-45409 — DoS via crafted `idna.encode()` input).
+  - `urllib3 2.6.3 → 2.7.0` (PYSEC-2026-141 — cross-origin redirect leaks `Authorization`; PYSEC-2026-142 — decompression DoS).
+  - `starlette 1.0.0 → 1.0.1` (PYSEC-2026-161 — Host-header path injection).
+- **`pip` in `.venv` bumped 26.0.1 → 26.1.1** (CVE-2026-3219 — tar-vs-ZIP confusion; CVE-2026-6357 — self-update import-order race). Surfaced by the new local-mode pip-audit pass.
+
+#### Changed
+
+- **`make deps-audit` pivots to local-mode** ([`Makefile`](Makefile)): runs `pip-audit -l` against the live `.venv` instead of `pip-audit -r requirements.txt`, which spawns a temp venv whose `ensurepip` bootstrap hangs indefinitely on Python 3.14. Local mode is ~20× faster (~3 s vs. ~55 s), stricter (catches tooling like pip itself), and immune to the hang. ADR 0019 scope unchanged.
+- **`make docs-fix` is now idempotent** — second consecutive run is a true no-op (was rewriting 600+ files on every cycle). Two root causes fixed:
+  - [`scripts/repair_docs_html.py`](scripts/repair_docs_html.py): html5lib serialize was inserting one extra blank line before `</body></html>` on every parse-serialize round-trip. Collapse `\n{3,}` → `\n\n` before `</body>` so the pipeline converges.
+  - [`scripts/format_docs_html.py`](scripts/format_docs_html.py): stop stripping page-local `<style>` overlays — those are intentional per-page kit complements (page-hero gradients, quad-card grids, radar lane backgrounds) and aren't worth promoting into the shared kit. The strip caused 32 pages to lose their CSS while the HTML still referenced the classes.
+- **`make docs-fix` step list:** added `[6/10] render service catalog (YAML → HTML)` between `format` and `ensure-maintainers` so format/repair touches don't drift the catalog HTML downstream of `catalog-render-check`.
+- **`format_docs_html.py` v3 detection widened** to recognise `ui-kit/**` showcase pages (was `internal/**` only). Showcase pages now keep their `entry.css` link instead of being force-fed the legacy `docs.css` + `docs-nav.js` stack.
+- **Script-side path literals updated** for the post-IA-restructure tree — fixes `check_path_literals` failures across:
+  - [`scripts/collect_docs_portal_data.py`](scripts/collect_docs_portal_data.py): profiles base path `internal/portal/people` → `internal/team/people`.
+  - [`scripts/normalize_pdoc_output.py`](scripts/normalize_pdoc_output.py): `DOCS_ASSETS` corrected to `services/frontend/portal/assets`.
+  - [`scripts/validate_docs_feedback.py`](scripts/validate_docs_feedback.py): `governance/audit/` → `governance/audits/`.
+  - [`scripts/spec_lint.py`](scripts/spec_lint.py) + [`scripts/spec_consistency.py`](scripts/spec_consistency.py): glob and `ERROR_CATALOG` paths updated to `internal/services/api/reference/**`.
+  - [`scripts/sync_docs.py`](scripts/sync_docs.py): drop the two HTML-target sync blocks for deleted pages (`internal/analysis/system-design.html`, `internal/handbook/howto/0003-make-commands-inventory.html`); point the errors-page sync at `internal/services/api/reference/errors.html`.
+- **`scripts/spec_lint.py` understands the UI Kit v3 shape:** accepts `<footer class="docs-history">` in place of the legacy `<section id="page-history">`, skips the `docs-spec-status.js` script-link requirement on `body.docs-shell` pages (the kit doesn't ship that runtime), and matches the kit's `<pre class="docs-code"><span class="docs-code__lang">…</span><code>…</code></pre>` block shape so the example-block regex stops false-failing on properly-formatted code samples.
+- **`scripts/validate_docs_design.py` frozen-paths updated** — `internal/roles/*/radar.html` → `internal/team/roles/*/radar.html`, notes-detection now matches `internal/team/people/<person>/notes/`, and `internal/index.html` is now treated as a router landing (no `<section id="page-history">` requirement).
+- **`scripts/validate_docs_html.py` + `repair_docs_html.py` skip pdoc output** under `internal/services/api/code-reference/` — html5lib's `<wbr>` void-tag handling otherwise re-serialized the generator-owned HTML as broken.
+- **`scripts/check_path_literals.py` heuristic extended:** add `tmp/var/build/dist` to the gitignored-output-dir allowlist and `ia_manifest.csv` to the known generated basenames so `ia_migrate.py`'s default output path stops false-failing.
+- **`scripts/render_service_descriptors.py` typing fix** (`node: dict[str, object]`) to keep mypy clean after the recent ruff format reflow.
+- **`.pre-commit-config.yaml` mypy hook** now declares `types-PyYAML==6.0.12.20260518` in `additional_dependencies` — pre-commit's isolated env doesn't see the project `.venv`'s site-packages, so the yaml stubs need declaring locally.
+
+#### Removed
+
+- **Five retired scripts deleted** (none wired into any Make target or pre-commit hook):
+  - `scripts/audit_add_justification_column.py` — one-shot Justification-column migration, already applied.
+  - `scripts/audit_front_docs_links.py` — `services/portal/internal/front/` was absorbed into the Diataxis tree; coverage now provided by `scripts/check_asset_refs.py`.
+  - `scripts/capture_screen_specs.py` — referenced deleted `internal/front/screens/assets`.
+  - `scripts/generate_token_gallery.py` — referenced deleted `internal/front/docs-frontend-token-gallery.html`.
+  - `scripts/minify_portal_css.py` — conflicts with the "portal CSS must stay human-readable" rule; the `make minify-css` / `make minify-css-check` targets are dropped from the `Makefile`.
+- **230 lines of dead handbook-table helpers in `scripts/sync_docs.py`** — `_handbook_doc_entries`, `_render_handbook_rows_html`, `_HANDBOOK_*` constants, `_should_include_handbook_doc`, `_doc_sort_key`, `_extract_html_title`, `_render_endpoints_html`, `_render_makefile_html` — none had call sites after the handbook target pages were deleted from the IA.
+
+#### Fixed
+
+- **924 malformed `<a class="docs-history__author" … data-variant="sm"</a>` tags repaired across 473 pages.** The start-tag `>` had been stripped by a prior buggy script pass, breaking HTML5 parsing. Bodies left empty (the kit's `author-chip.js` injects content on mount).
+- **70+ broken cross-doc anchors unwrapped** (`href="X">text</a>` → `text`) for refs pointing at deleted pages (`internal/explanation/system-design.html`, `internal/sre/{severity,dora}.html`, `internal/governance/rfc/0004-service-catalog.html`, etc.); 23 surgical depth fixes (off-by-one `../`) in `internal/reference/front/{contracts,patterns,screens}/*`; rename `diataxis-v2.html` → `diataxis.html`; dir-rewrite `internal/roles/` → `internal/team/roles/` in UI Kit showcase. `check_asset_refs` now passes across 8515 references.
+- **Page-local `<style>` overlays restored** on 32 pages where the broken `format_docs_html.py` had stripped them on prior runs while the page HTML still referenced the classes (`foundations/index.html`, `onboarding/index.html`, `services/datastore/index.html`, `governance/{adr,audits,rfc}/index.html`, 17 `foundations/reference/sa/*.html`, three radar/landing pages, etc.). Source recovered from `git HEAD`; spliced in immediately after the canonical `entry.css` / `docs.css` `<link>`.
+- **A11y heading hierarchy** — ~20 pages had `h1 → h3` or `h2 → h4` skips. Fixes by class:
+  - **CTA cards** in `reference/{dev,qa,foundations-reference}/index.html`: `<h3>` → `<h2>` + matching CSS selector update so visual size stays the same.
+  - **UI Kit index pages** (`foundations/index.html`, `components/index.html`, `templates/index.html`, `templates/ops-cockpit.html`): top-level `.docs-card__title` `<h3>` → `<h2>`.
+  - **Leading-card-before-h2 pages** (`templates/ops-runbook.html` "Escalation"; `templates/doc-howto.html` "Prerequisites"): `<h3>` → `<h2>`.
+  - **Six role radars** (`team/roles/{architect,dev,manager,qa,sa,sre}/radar.html`): Legend / Summary / 5-groups `<h3>` → `<h2>`.
+  - **`entity-card.html` showcase** had 6× `<h1>` (1 page + 5 example cards); example cards demoted to `<h2>`.
+  - **ADR 0022 "Superseded" status pill** was a stray `<h3>` outside the heading hierarchy; converted to `<span class="docs-card__title">`.
+  - **`reader-personas.html` / `topology.html` / 2026-05-24 principal-triad-docs audit**: `<h4>` rows under their immediate `<h2>` promoted to `<h3>`.
+- **Illegal `--` inside HTML5 comments stripped** from `ui-kit/pages/templates/ops-cockpit.html` and `governance/audits/index.html` (`<!-- /.cockpit-view--board -->`-style closing markers were causing html5lib parse errors). The JS doesn't depend on them.
+- **Hub slimming:** `reference/dev/index.html` and `reference/qa/index.html` slimmed to hero + radar CTA only (the practice/checklist content now lives on the role radars and per-practice pages). Stale TOC items + unused CSS dropped; both pages mirror each other's shape.
+- **Lens-chip "How this page reads" legend → tooltip migration:** the bulky collapsible legend was deleted from 18 handbook pages; lens definitions now live on the chips themselves (auto-attached by the new [`services/frontend/portal/assets_v2/ui-kit/components/lens-chip.js`](services/frontend/portal/assets_v2/ui-kit/components/lens-chip.js), rendered by the shared `tooltip.js` runtime on hover/focus). `ui-kit/components/reading-guide.{js,css}` deleted; entry CSS/JS imports updated.
+- **2 unused CSS var references resolved** — `var(--mono)` → `var(--font-mono)` in `catalog-layout.css`; `var(--font-size-sm)` → `var(--fs-meta)` in `home.css`.
+
+#### Tests
+
+- **`tests/api/v1/test_docs_search_telemetry_api.py`** — `test_docs_search_telemetry_metrics_reports_query_counts` had hard-coded April-2026 timestamps. The metrics endpoint clamps the rolling window to 30 days; the test rotted as today drifted past that boundary. Replaced with `time.time()`-derived timestamps so the test stays correct over time.
+
 ### Added
 
 - **Portal CSS minifier + Make targets:** new [`scripts/minify_portal_css.py`](scripts/minify_portal_css.py) (paren-aware, idempotent — preserves `calc(...)` / `var(...)` arithmetic and `/*! ... */` legal comments) plus `make minify-css` and `make minify-css-check` targets in [`Makefile`](Makefile). Originally applied across every stylesheet under `services/frontend/portal/assets/`; reverted on 2026-05-09 for [`docs.css`](services/frontend/portal/assets/docs.css), [`public-layout.css`](services/frontend/portal/assets/public-layout.css), and [`internal-layout.css`](services/frontend/portal/assets/internal-layout.css), which are now committed in formatted form so they can be reviewed and edited directly. The minifier and Make targets remain available as opt-in build-time tools.

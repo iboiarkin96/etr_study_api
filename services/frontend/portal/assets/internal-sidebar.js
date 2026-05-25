@@ -280,7 +280,7 @@
             { label: "Diagrams and lightbox", path: "internal/reference/front/components/diagrams-and-lightbox.html" },
             { label: "Resume reading and back-to-top", path: "internal/reference/front/components/resume-and-back-to-top.html" },
             { label: "Rocket launch animation", path: "internal/reference/front/components/rocket-launch-animation.html" },
-            { label: "Report-bug FAB", path: "internal/reference/front/components/report-bug-fab.html" },
+            { label: "Bug report", path: "ui-kit/pages/components/bug-report.html" },
             { label: "Sticky On this page TOC", path: "internal/reference/front/components/sticky-toc.html" },
             { label: "Hotkeys", path: "internal/reference/front/foundations/hotkeys.html" },
           ],
