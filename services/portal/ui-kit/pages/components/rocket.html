@@ -172,6 +172,39 @@
       </div>
     </section>
 
+    <!-- ── Anatomy ───────────────────────────────────────────────────────── -->
+
+    <section aria-labelledby="rk-anatomy">
+      <h2 id="rk-anatomy">Anatomy</h2>
+      <p>The FAB stacks several decorative layers under a single accessible <code>&lt;button&gt;</code>. The shell is a 52 × 52 px rounded square; everything inside is <code>aria-hidden</code> chrome that the runtime drives via CSS variables, classes, and per-particle keyframes.</p>
+      <ol>
+        <li><strong>Shell</strong> (<code>.docs-rocket-fab</code>) — accessible button with <code>aria-label="Back to top"</code>. <code>data-visible="true"</code> after the reader scrolls past <code>300 px</code>; before then the button is opacity-0 and <code>pointer-events:none</code>.</li>
+        <li><strong>Progress ring</strong> (<code>.docs-rocket-fab__progress-ring</code>) — conic-gradient stroke wrapping the border, driven by the CSS custom property <code>--rocket-progress: 0 → 100</code>. Updated on <code>scroll</code> as <code>scrollY / (scrollHeight − innerHeight) × 100</code>. Purely decorative (<code>pointer-events:none</code>).</li>
+        <li><strong>Rocket glyph</strong> (<code>.docs-rocket-fab__rocket</code>) — stroke-only inline SVG (viewBox <code>0 0 24 24</code>, stroke <code>1.8 px</code>, <code>currentColor</code>). Four paths: hull, porthole, fins, nozzle bar. Idle <code>1.7 s</code> bob + rotate; accelerates to <code>1 s</code> on hover.</li>
+        <li><strong>Ember particles</strong> (<code>.docs-rocket-fab__ember--1</code> … <code>--5</code>) — five small accent dots rising from the exhaust on staggered loops. Pure CSS, no JS per-frame work.</li>
+        <li><strong>Smoke puffs</strong> (<code>.docs-rocket-fab__smoke--left|mid|right</code>) — three CSS blurs drifting downward; background is <code>--card</code> mixed with white for a soft cloud read.</li>
+        <li><strong>Flame</strong> (<code>.docs-rocket-fab__flame</code>) — appears only with <code>.is-launching</code>; pulses while the WebGL2 smoke pre-charges. Hidden during idle / hover.</li>
+        <li><strong>Trail + speed lines</strong> (<code>.docs-rocket-fab__trail</code>, <code>.docs-rocket-fab__speed-line--a</code>, <code>--b</code>) — radial streaks that fade in during the launch phase to sell the Bézier exit.</li>
+        <li><strong>Rocket wrap</strong> (<code>.docs-rocket-fab__rocket-wrap</code>) — the <code>span</code> the JS targets with <code>transform</code> for the off-screen flight. The shell stays in place; only the wrap moves.</li>
+      </ol>
+    </section>
+
+    <!-- ── Lifecycle ─────────────────────────────────────────────────────── -->
+
+    <section aria-labelledby="rk-lifecycle">
+      <h2 id="rk-lifecycle">Animation lifecycle</h2>
+      <ol>
+        <li><strong>Mount.</strong> <code>mountRocket()</code> detects <code>body.docs-shell</code> and injects the FAB before the closing <code>&lt;/body&gt;</code>. On landing pages it instead loads the home WebGL flowfield into any <code>[data-component="rocket"]</code> slot — the same export serves both surfaces.</li>
+        <li><strong>Reveal.</strong> A <code>scroll</code> listener flips <code>data-visible</code> when <code>window.scrollY ≥ 300</code>. The same handler updates <code>--rocket-progress</code> on every frame.</li>
+        <li><strong>Idle.</strong> Bob (Y-axis translate) + slight Z-rotate at <code>1.7 s</code>. Five ember loops + three smoke loops run continuously.</li>
+        <li><strong>Hover / focus.</strong> Border tints to accent, <code>translateY(-2 px)</code>, <code>--shadow-md</code> lifts elevation; bob accelerates to <code>1 s</code>. <code>:focus-visible</code> draws a <code>2 px</code> accent ring at <code>2 px</code> offset.</li>
+        <li><strong>Click → pre-charge (800 ms).</strong> Class <code>.is-launching</code> fades the shell to transparent; the CSS flame pulses. In parallel a WebGL2 canvas is created with an FBM (domain-warped fractal Brownian motion) smoke shader; particles begin spawning before the rocket moves.</li>
+        <li><strong>Flight (2 600 ms).</strong> The rocket-wrap follows a <strong>G2-continuous Bézier loop</strong>: approach segment → full circle → exit. A C2-smooth velocity profile (smootherstep + Gaussian apex) drives a per-frame tangent rotation, curvature banking, and speed stretch. Particle pool is <code>2400</code> on WebGL2 / <code>800</code> on the Canvas2D fallback.</li>
+        <li><strong>Settle.</strong> <code>window.scrollTo({ top: 0, behavior: "smooth" })</code> fires near the apex so the page snaps back while the rocket is still off-screen. The class is removed; idle bob resumes.</li>
+        <li><strong>Reduced motion.</strong> When <code>prefers-reduced-motion: reduce</code> is set, all CSS keyframes are disabled and the click handler short-circuits to <code>window.scrollTo({ top: 0 })</code> with no WebGL canvas created.</li>
+      </ol>
+    </section>
+
     <!-- ── Markup ────────────────────────────────────────────────────────── -->
 
     <section aria-labelledby="rk-markup">
@@ -269,7 +302,8 @@ stroke="currentColor" stroke-width="1.8"&gt;
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
-        <li class="docs-history__row"><span class="docs-history__date">2026-05-15</span><a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a><span class="docs-history__note">Initial showcase.</span></li>
+        <li class="docs-history__row"><span class="docs-history__date">2026-05-26</span><a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a><span class="docs-history__note">Added Anatomy + Animation lifecycle sections, consolidating content from the legacy <code>reference/front/components/rocket-launch-animation.html</code> and the back-to-top portion of <code>reference/front/components/resume-and-back-to-top.html</code>. Dropped obsolete content: positioning-stacking with the bug FAB (v3 bug-report is now a topbar action), mobile <code>38 px</code> variant (uniform <code>52 px</code> on every viewport now), the "armed at footer" gate, and the legacy <code>.docs-back-to-top*</code> CSS surface.</span></li>
+        <li class="docs-history__row"><span class="docs-history__date">2026-05-15</span><a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a><span class="docs-history__note">Initial showcase — premium scroll-to-top FAB with WebGL2 FBM smoke, Bézier loop trajectory, conic-gradient progress ring, and Canvas2D fallback.</span></li>
       </ul>
     </footer>
 

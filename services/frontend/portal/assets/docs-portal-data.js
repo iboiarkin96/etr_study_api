@@ -20,10 +20,6 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "SWE · Schemas &amp; Contracts · Study App Internal"
       },
       {
-        "path": "internal/explanation/dev/service-descriptor-policy.html",
-        "title": "SWE · Service descriptor policy · Study App Internal"
-      },
-      {
         "path": "internal/explanation/index.html",
         "title": "Explanation · Study App Internal"
       },
@@ -400,8 +396,24 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Moved — see reference/templates/audit.html"
       },
       {
+        "path": "internal/governance/audits/api/2026-05-25-rest-api-assessment.html",
+        "title": "REST API Assessment — 2026-05-25 · Study App Internal"
+      },
+      {
         "path": "internal/governance/audits/api/index.html",
         "title": "REST API assessments · Study App Internal"
+      },
+      {
+        "path": "internal/governance/audits/bugs/2026-05-25-portal-bug-audit.html",
+        "title": "Portal Bug Audit — 2026-05-25 · Study App Internal"
+      },
+      {
+        "path": "internal/governance/audits/bugs/index.html",
+        "title": "Bug audit · Study App Internal"
+      },
+      {
+        "path": "internal/governance/audits/docs/2026-05-25-documentation-experience-assessment.html",
+        "title": "Documentation Experience Assessment — 2026-05-25 · Study App Internal"
       },
       {
         "path": "internal/governance/audits/docs/index.html",
@@ -412,8 +424,16 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Audits · Study App Internal"
       },
       {
+        "path": "internal/governance/audits/maturity/2026-05-25-project-maturity-assessment.html",
+        "title": "Project Maturity Assessment — 2026-05-25 · Study App Internal"
+      },
+      {
         "path": "internal/governance/audits/maturity/index.html",
         "title": "Project maturity assessments · Study App Internal"
+      },
+      {
+        "path": "internal/governance/audits/ui-ux/2026-05-25-ui-ux-assessment.html",
+        "title": "UI/UX Assessment — 2026-05-25 · Study App Internal"
       },
       {
         "path": "internal/governance/audits/ui-ux/index.html",
@@ -553,7 +573,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/how-to/service/local-development.html",
-        "title": "How-to · Run the API locally · Study App Internal"
+        "title": "How-to · Local development · Study App Internal"
       },
       {
         "path": "internal/how-to/service/make-commands-and-workflows.html",
@@ -636,28 +656,12 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Docs frontend popup &amp; overlay system · Reference · Study App Internal"
       },
       {
-        "path": "internal/reference/front/components/report-bug-fab.html",
-        "title": "Docs frontend report-bug FAB · Reference · Study App Internal"
-      },
-      {
         "path": "internal/reference/front/components/resume-and-back-to-top.html",
         "title": "Docs frontend resume reading and back-to-top · Reference · Study App Internal"
       },
       {
-        "path": "internal/reference/front/components/rocket-launch-animation.html",
-        "title": "Docs frontend rocket launch animation · Reference · Study App Internal"
-      },
-      {
         "path": "internal/reference/front/components/spec-metadata-block.html",
         "title": "Docs frontend: spec metadata block · Reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/components/sticky-toc.html",
-        "title": "Sticky On this page TOC and scroll-spy · Reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/components/tooltips.html",
-        "title": "Docs frontend: tooltips and inline hints · Reference · Study App Internal"
       },
       {
         "path": "internal/reference/front/contracts/feedback-and-editorial-workflow.html",
