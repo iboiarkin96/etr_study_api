@@ -25,7 +25,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OPERATIONS_GLOB = "services/portal/internal/api/*/operations/*.html"
+OPERATIONS_GLOB = "services/portal/internal/services/api/reference/*/operations/*.html"
 
 REQUIRED_SECTIONS: tuple[str, ...] = (
     "business-context",
@@ -169,8 +169,19 @@ def _is_section_filled(section_id: str, body: str) -> tuple[bool, str]:
 
 
 def _has_example_block(html: str) -> bool:
-    """True iff the document contains at least one ``<pre><code>...</code></pre>`` block."""
-    return bool(re.search(r"<pre[^>]*>\s*<code\b", html, flags=re.IGNORECASE | re.DOTALL))
+    """True iff the document contains at least one code block.
+
+    Matches the legacy ``<pre><code>...`` shape AND the UI Kit v2 shape
+    ``<pre class="docs-code" data-lang="…"><span class="docs-code__lang">…</span><code>…``,
+    where one inert ``<span>`` may sit between the ``<pre>`` and ``<code>``.
+    """
+    return bool(
+        re.search(
+            r"<pre[^>]*>(?:\s*|\s*<span[^>]*>[^<]*</span>\s*)<code\b",
+            html,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+    )
 
 
 def _has_status_mount(html: str) -> bool:
@@ -188,15 +199,30 @@ def _loads_status_script(html: str) -> bool:
 
 
 def _has_page_history_row(html: str) -> bool:
-    """Check that the page-history section has at least one ``<tbody><tr>`` data row."""
+    """Check that the page-history section has at least one data row.
+
+    Accepts either the legacy ``<section id="page-history">`` with a
+    ``<tbody><tr>`` table OR the UI Kit v2 ``<footer class="docs-history">``
+    with ``<li class="docs-history__row">`` entries.
+    """
     section = _find_section(html, "page-history")
-    if section is None:
-        return False
-    body = section[1]
-    tbody_match = re.search(r"<tbody>(.*?)</tbody>", body, flags=re.DOTALL | re.IGNORECASE)
-    if tbody_match is None:
-        return False
-    return bool(re.search(r"<tr\b", tbody_match.group(1), flags=re.IGNORECASE))
+    if section is not None:
+        body = section[1]
+        tbody_match = re.search(r"<tbody>(.*?)</tbody>", body, flags=re.DOTALL | re.IGNORECASE)
+        if tbody_match and re.search(r"<tr\b", tbody_match.group(1), flags=re.IGNORECASE):
+            return True
+    return bool(re.search(r"\bdocs-history__row\b", html))
+
+
+def _is_v2_kit_page(html: str) -> bool:
+    """True iff the page opts into the UI Kit v2 shell (body.docs-shell)."""
+    return bool(re.search(r'<body[^>]*class="[^"]*\bdocs-shell\b', html, flags=re.IGNORECASE))
+
+
+def _has_v2_history_footer(html: str) -> bool:
+    """True iff the page uses the kit's ``<footer class="docs-history">`` block
+    in lieu of the legacy ``<section id="page-history">``."""
+    return bool(re.search(r'<footer[^>]*class="[^"]*\bdocs-history\b', html, flags=re.IGNORECASE))
 
 
 def lint_spec(path: Path) -> list[str]:
@@ -223,14 +249,18 @@ def lint_spec(path: Path) -> list[str]:
         errors.append(
             f"data-spec-status={status!r} not in {sorted(ALLOWED_STATUSES)}",
         )
-    elif not _has_status_mount(html):
-        errors.append(
-            "metadata strip lacks a [data-spec-status-mount] element to render the status pill",
-        )
-    elif not _loads_status_script(html):
-        errors.append(
-            "page does not link docs-spec-status.js — the status pill will not hydrate",
-        )
+    elif not _is_v2_kit_page(html):
+        # UI Kit v2 (body.docs-shell) renders the status differently — the
+        # legacy [data-spec-status-mount] + docs-spec-status.js pair is
+        # required only on non-kit pages.
+        if not _has_status_mount(html):
+            errors.append(
+                "metadata strip lacks a [data-spec-status-mount] element to render the status pill",
+            )
+        elif not _loads_status_script(html):
+            errors.append(
+                "page does not link docs-spec-status.js — the status pill will not hydrate",
+            )
 
     if not _attribute(html, "data-spec-owner"):
         errors.append('<body data-spec-owner="..."> is missing')
@@ -239,8 +269,13 @@ def lint_spec(path: Path) -> list[str]:
     if not op_id:
         errors.append('<body data-spec-operation-id="..."> is missing')
 
-    # Required sections.
+    # Required sections — kit v2 pages substitute the kit footer for the legacy
+    # <section id="page-history">, so accept that alternative.
+    v2 = _is_v2_kit_page(html)
+    has_v2_footer = _has_v2_history_footer(html)
     for section_id in REQUIRED_SECTIONS:
+        if section_id == "page-history" and v2 and has_v2_footer:
+            continue
         located = _find_section(html, section_id)
         if located is None:
             errors.append(f'required section "{section_id}" is missing')

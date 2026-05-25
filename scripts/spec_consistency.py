@@ -31,8 +31,10 @@ from collections.abc import Iterable
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OPERATIONS_GLOB = "services/portal/internal/api/*/operations/*.html"
-ERROR_CATALOG = REPO_ROOT / "services/portal/internal/api/_shared/error-catalog.html"
+OPERATIONS_GLOB = "services/portal/internal/services/api/reference/*/operations/*.html"
+ERROR_CATALOG = (
+    REPO_ROOT / "services/portal/internal/services/api/reference/_shared/error-catalog.html"
+)
 OPENAPI_BASELINE = REPO_ROOT / "services/portal/public/reference/api/openapi-baseline.json"
 
 # A spec page in these statuses is allowed to lack a corresponding OpenAPI operation:

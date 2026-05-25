@@ -469,39 +469,33 @@
           ],
         },
         {
-          label: "DX audit",
-          children: [
-            { label: "DX 2026-04-14", path: "internal/governance/audits/docs/2026-04-14-documentation-experience-assessment.html" },
-            { label: "DX 2026-04-18", path: "internal/governance/audits/docs/2026-04-18-documentation-experience-assessment.html" },
-            { label: "DX 2026-05-01", path: "internal/governance/audits/docs/2026-05-01-documentation-experience-assessment.html" },
-          ],
-        },
-        {
-          label: "UI/UX audit",
-          children: [
-            { label: "UI/UX 2026-04-23", path: "internal/governance/audits/ui-ux/2026-04-23-ui-ux-assessment.html" },
-            { label: "UI/UX 2026-04-24", path: "internal/governance/audits/ui-ux/2026-04-24-ui-ux-assessment.html" },
-            { label: "UI/UX 2026-05-09", path: "internal/governance/audits/ui-ux/2026-05-09-ui-ux-consistency-assessment.html" },
-          ],
-        },
-        {
           label: "REST API audit",
           children: [
-            { label: "REST API 2026-04-14", path: "internal/governance/audits/api/2026-04-14-rest-api-assessment.html" },
+            { label: "REST API 2026-05-25", path: "internal/governance/audits/api/2026-05-25-rest-api-assessment.html" },
           ],
         },
         {
           label: "Bug audit",
           children: [
-            { label: "Bug audit 2026-05-07", path: "internal/governance/audits/bugs/2026-05-07-portal-bug-audit.html" },
+            { label: "Bug audit 2026-05-25", path: "internal/governance/audits/bugs/2026-05-25-portal-bug-audit.html" },
+          ],
+        },
+        {
+          label: "DX audit",
+          children: [
+            { label: "DX 2026-05-25", path: "internal/governance/audits/docs/2026-05-25-documentation-experience-assessment.html" },
           ],
         },
         {
           label: "Project maturity audit",
           children: [
-            { label: "Project Maturity 2026-05-11", path: "internal/governance/audits/maturity/2026-05-10-project-maturity-assessment.html" },
-            { label: "Tech Docs Maturity 2026-05-11", path: "internal/governance/audits/maturity/2026-05-10-tech-docs-maturity-assessment.html" },
-            { label: "Tech Docs Maturity v2 2026-05-11", path: "internal/governance/audits/maturity/2026-05-10-tech-docs-maturity-assessment-v2.html" },
+            { label: "Project Maturity 2026-05-25", path: "internal/governance/audits/maturity/2026-05-25-project-maturity-assessment.html" },
+          ],
+        },
+        {
+          label: "UI/UX audit",
+          children: [
+            { label: "UI/UX 2026-05-25", path: "internal/governance/audits/ui-ux/2026-05-25-ui-ux-assessment.html" },
           ],
         },
       ],

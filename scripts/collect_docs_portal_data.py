@@ -98,7 +98,7 @@ def collect_maintainer_pages() -> dict[str, list[dict[str, str]]]:
 def collect_people_from_profiles() -> list[dict[str, str | list[str]]]:
     """Parse profile pages; body must declare data-person-id and related attributes."""
     people: list[dict[str, str | list[str]]] = []
-    base = DOCS_ROOT / "internal" / "portal" / "people"
+    base = DOCS_ROOT / "internal" / "team" / "people"
     if not base.is_dir():
         return people
 

@@ -15,11 +15,23 @@ FROZEN_DOCS_REL_PATHS = {
 
 
 def _iter_html_files() -> list[Path]:
-    """Return all HTML files under services/portal/."""
+    """Return all HTML files under services/portal/.
+
+    pdoc-generated output under ``internal/services/api/code-reference/`` is
+    skipped — those pages are emitted by an external generator (we cannot
+    fix void-tag handling, optional-tag closing, etc. inside its templates).
+    """
     out: list[Path] = []
     for path in sorted(DOCS_ROOT.glob("**/*.html")):
         rel = path.relative_to(DOCS_ROOT)
         if rel in FROZEN_DOCS_REL_PATHS:
+            continue
+        if len(rel.parts) >= 4 and rel.parts[0:4] == (
+            "internal",
+            "services",
+            "api",
+            "code-reference",
+        ):
             continue
         out.append(path)
     return out

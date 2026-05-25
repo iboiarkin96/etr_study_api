@@ -37,7 +37,13 @@ OUTPUT_BASENAMES = {
     "search-index-public.json",
     "docs-portal-data.js",
     "docs-frontend-token-gallery.html",
+    "ia_manifest.csv",
 }
+
+# Directories that are conventionally gitignored output sinks. A chain whose
+# top-level non-anchor part is one of these is accepted unconditionally —
+# scripts create them on demand.
+OUTPUT_DIRS = {"tmp", "var", "build", "dist"}
 
 
 def _collect_anchors(tree: ast.AST) -> dict[str, Path]:
@@ -89,6 +95,8 @@ def _check_chain(file: Path, line_no: int, anchor: Path, parts: list[str]) -> st
     if target.exists():
         return None
     if parts[-1] in OUTPUT_BASENAMES and target.parent.exists():
+        return None
+    if parts and parts[0] in OUTPUT_DIRS:
         return None
     rel_anchor = anchor.relative_to(ROOT).as_posix() or "."
     rel_target = "/".join(parts)

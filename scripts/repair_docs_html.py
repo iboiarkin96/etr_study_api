@@ -20,8 +20,17 @@ def _iter_target_files() -> list[Path]:
     targets: list[Path] = []
     for html_path in sorted(DOCS_ROOT.glob("**/*.html")):
         rel = html_path.relative_to(DOCS_ROOT)
-        # pdoc output is generator-owned; keep it untouched.
+        # pdoc output is generator-owned; keep it untouched. Covers both the
+        # legacy roots (api/, pdoc/) and the current location
+        # services/portal/internal/services/api/code-reference/.
         if rel.parts and rel.parts[0] in {"api", "pdoc"}:
+            continue
+        if len(rel.parts) >= 4 and rel.parts[0:4] == (
+            "internal",
+            "services",
+            "api",
+            "code-reference",
+        ):
             continue
         if rel in FROZEN_DOCS_REL_PATHS:
             continue
@@ -30,7 +39,13 @@ def _iter_target_files() -> list[Path]:
 
 
 def _repair_html(text: str) -> str:
-    """Parse and re-serialize HTML5 to fix broken nesting/closing tags."""
+    """Parse and re-serialize HTML5 to fix broken nesting/closing tags.
+
+    Note on idempotency: html5lib emits a literal newline between text nodes and
+    closing tags, so each parse-serialize cycle would grow the blank-line gap
+    before ``</body></html>``. Collapse runs of >=2 newlines back to exactly one
+    blank line before ``</body>`` so a clean file is a fixed point.
+    """
     parser = html5lib.HTMLParser(tree=html5lib.getTreeBuilder("etree"))
     document = parser.parse(text)
     repaired = html5lib.serialize(
@@ -41,6 +56,11 @@ def _repair_html(text: str) -> str:
         alphabetical_attributes=False,
         inject_meta_charset=False,
     )
+    # Collapse "\n\n+" before </body> into a single blank line so repeated
+    # repair passes converge.
+    import re as _re
+
+    repaired = _re.sub(r"\n{3,}(?=</body>)", "\n\n", repaired)
     if not repaired.endswith("\n"):
         repaired += "\n"
     if not repaired.lower().startswith("<!doctype html>"):

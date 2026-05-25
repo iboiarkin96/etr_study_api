@@ -17,7 +17,7 @@ ISSUE_TEMPLATE = REPO_ROOT / ".github" / "ISSUE_TEMPLATE" / "docs_feedback.md"
 KEY_DOC_PAGES = (
     REPO_ROOT / "services" / "portal" / "index.html",
     REPO_ROOT / "services" / "portal" / "internal" / "index.html",
-    REPO_ROOT / "services" / "portal" / "internal" / "governance" / "audit" / "index.html",
+    REPO_ROOT / "services" / "portal" / "internal" / "governance" / "audits" / "index.html",
 )
 
 

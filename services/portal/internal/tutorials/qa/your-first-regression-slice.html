@@ -64,7 +64,7 @@
           <li><code>make venv &amp;&amp; make install</code> succeeded and <code>make test</code> passes on <code>main</code>.</li>
           <li>You've finished <a href="onboarding.html">QA · Tester onboarding</a> Day 1–2 (you can run pytest, you can read a defect report).</li>
           <li>You know what a <em>critical path</em> is — the steps a user must complete to get value, not every feature in the app.</li>
-          <li>You've skimmed <a href="../../reference/qa/checklists/0002-api-acceptance-checklist.html">checklist 0002 — API acceptance</a> once so you recognise the test categories.</li>
+          <li>You've skimmed checklist 0002 — API acceptance once so you recognise the test categories.</li>
         </ul>
       </section>
 
@@ -80,27 +80,27 @@
           <li>Write a slice report at
             <code>services/portal/internal/scratch/regression-slice-&lt;date&gt;.md</code> with
             scope, results, blockers, and a single-line verdict (<em>green / amber / red</em>).</li>
-        </ul>
-      </section>
+          </ul>
+        </section>
 
-      <section id="phase-1">
-        <h2>
-          <span class="docs-step-number" aria-hidden="true">1</span>
-          Scope and pick
-        </h2>
-        <p>Open the test tree and find tests that touch the chosen feature. For the default <em>user create + read</em> slice:</p>
-        <pre class="docs-code"><code class="language-bash">find tests -name "test_user_*.py" -type f
+        <section id="phase-1">
+          <h2>
+            <span class="docs-step-number" aria-hidden="true">1</span>
+            Scope and pick
+          </h2>
+          <p>Open the test tree and find tests that touch the chosen feature. For the default <em>user create + read</em> slice:</p>
+          <pre class="docs-code"><code class="language-bash">find tests -name "test_user_*.py" -type f
 pytest --collect-only tests/api/v1/test_user_create.py -q
 pytest --collect-only tests/api/v1/test_user_read.py -q
-</code></pre>
-        <p>From the collected list, pick <strong>3–5 tests</strong> that match the critical path. The filter rule is sharp:</p>
-        <ul>
-          <li><strong>Happy path first.</strong> If the test exercises the success case end-to-end (request → response → DB state), it belongs in the slice.</li>
-          <li><strong>One representative error per failure mode.</strong> One 4xx that proves validation works; one 4xx that proves authz works. Not every variant.</li>
-          <li><strong>No edge cases.</strong> Empty strings, max-length payloads, Unicode boundaries — those are unit-test concerns. The regression slice asks "does the user-visible promise still hold?".</li>
-        </ul>
-        <p>Write the picks in the report under <em>"Scope"</em>:</p>
-        <pre class="docs-code"><code class="language-markdown"># Regression slice: user create + read
+          </code></pre>
+          <p>From the collected list, pick <strong>3–5 tests</strong> that match the critical path. The filter rule is sharp:</p>
+          <ul>
+            <li><strong>Happy path first.</strong> If the test exercises the success case end-to-end (request → response → DB state), it belongs in the slice.</li>
+            <li><strong>One representative error per failure mode.</strong> One 4xx that proves validation works; one 4xx that proves authz works. Not every variant.</li>
+            <li><strong>No edge cases.</strong> Empty strings, max-length payloads, Unicode boundaries — those are unit-test concerns. The regression slice asks "does the user-visible promise still hold?".</li>
+          </ul>
+          <p>Write the picks in the report under <em>"Scope"</em>:</p>
+          <pre class="docs-code"><code class="language-markdown"># Regression slice: user create + read
 
 **Build under test**: &lt;commit-sha&gt; on branch &lt;name&gt;
 **Run by**: &lt;handle&gt; · &lt;date&gt;
@@ -110,32 +110,32 @@ pytest --collect-only tests/api/v1/test_user_read.py -q
 2. `tests/api/v1/test_user_create.py::test_create_user_validation_error`
 3. `tests/api/v1/test_user_read.py::test_get_user_ok`
 4. `tests/api/v1/test_user_read.py::test_get_user_not_found`
-</code></pre>
-        <div class="docs-card docs-card--ghost">
-          <h3 class="docs-card__title">✓ Check your progress</h3>
-          <p>
-            The <em>Scope</em> section has between 3 and 5 named tests, each pointing at
-            a real <code>nodeid</code> that <code>pytest --collect-only</code> emitted. If you
-            picked 8, the slice is too wide — cut it down; you can always run a wider
-            sweep next time.
-          </p>
-        </div>
-      </section>
+          </code></pre>
+          <div class="docs-card docs-card--ghost">
+            <h3 class="docs-card__title">✓ Check your progress</h3>
+            <p>
+              The <em>Scope</em> section has between 3 and 5 named tests, each pointing at
+              a real <code>nodeid</code> that <code>pytest --collect-only</code> emitted. If you
+              picked 8, the slice is too wide — cut it down; you can always run a wider
+              sweep next time.
+            </p>
+          </div>
+        </section>
 
-      <section id="phase-2">
-        <h2>
-          <span class="docs-step-number" aria-hidden="true">2</span>
-          Run the slice
-        </h2>
-        <p>Run only the picked tests, with timing, and capture the output:</p>
-        <pre class="docs-code"><code class="language-bash">make test-one path="tests/api/v1/test_user_create.py::test_create_user_ok \
+        <section id="phase-2">
+          <h2>
+            <span class="docs-step-number" aria-hidden="true">2</span>
+            Run the slice
+          </h2>
+          <p>Run only the picked tests, with timing, and capture the output:</p>
+          <pre class="docs-code"><code class="language-bash">make test-one path="tests/api/v1/test_user_create.py::test_create_user_ok \
   tests/api/v1/test_user_create.py::test_create_user_validation_error \
   tests/api/v1/test_user_read.py::test_get_user_ok \
-  tests/api/v1/test_user_read.py::test_get_user_not_found" 2>&amp;1 \
+  tests/api/v1/test_user_read.py::test_get_user_not_found" 2&gt;&amp;1 \
   | tee services/portal/internal/scratch/regression-slice-raw.txt
-</code></pre>
-        <p>Paste the per-test result into the report under <em>"Results"</em>:</p>
-        <pre class="docs-code"><code class="language-markdown">## Results
+          </code></pre>
+          <p>Paste the per-test result into the report under <em>"Results"</em>:</p>
+          <pre class="docs-code"><code class="language-markdown">## Results
 
 | #  | Test                                          | Result | Time   | Notes               |
 |----|-----------------------------------------------|--------|--------|---------------------|
@@ -145,26 +145,26 @@ pytest --collect-only tests/api/v1/test_user_read.py -q
 | 4  | test_get_user_not_found                       | FAIL   | 0.06s  | 500 instead of 404  |
 
 **Pass-rate**: 3 / 4 (75%) · **Wall time**: 0.30s
-</code></pre>
-        <div class="docs-card docs-card--ghost">
-          <h3 class="docs-card__title">✓ Check your progress</h3>
-          <p>
-            The table has one row per scoped test; result column is <strong>PASS</strong>
-            or <strong>FAIL</strong> (no «partial», no «flaky» on a first run); pass-rate
-            and wall-time are computed. If a test errored before assertion (import
-            error, fixture failure), mark it <strong>BLOCKED</strong> and note the cause —
-            that's a different signal than a real fail.
-          </p>
-        </div>
-      </section>
+          </code></pre>
+          <div class="docs-card docs-card--ghost">
+            <h3 class="docs-card__title">✓ Check your progress</h3>
+            <p>
+              The table has one row per scoped test; result column is <strong>PASS</strong>
+              or <strong>FAIL</strong> (no «partial», no «flaky» on a first run); pass-rate
+              and wall-time are computed. If a test errored before assertion (import
+              error, fixture failure), mark it <strong>BLOCKED</strong> and note the cause —
+              that's a different signal than a real fail.
+            </p>
+          </div>
+        </section>
 
-      <section id="phase-3">
-        <h2>
-          <span class="docs-step-number" aria-hidden="true">3</span>
-          Triage blockers
-        </h2>
-        <p>For every FAIL or BLOCKED row, write one <em>blocker</em> entry in the report. Same shape as a defect — the slice report feeds the backlog, not the inbox.</p>
-        <pre class="docs-code"><code class="language-markdown">## Blockers
+        <section id="phase-3">
+          <h2>
+            <span class="docs-step-number" aria-hidden="true">3</span>
+            Triage blockers
+          </h2>
+          <p>For every FAIL or BLOCKED row, write one <em>blocker</em> entry in the report. Same shape as a defect — the slice report feeds the backlog, not the inbox.</p>
+          <pre class="docs-code"><code class="language-markdown">## Blockers
 
 ### B1 · test_get_user_not_found — 500 instead of 404
 - **Reproduce**: `GET /api/v1/users/00000000-0000-0000-0000-000000000000`
@@ -173,26 +173,26 @@ pytest --collect-only tests/api/v1/test_user_read.py -q
 - **Severity**: high — known endpoint, wrong status code, user-facing
 - **Suspected cause**: missing `HTTPException` raise in the not-found branch
 - **Owner**: &lt;name&gt; · **Target fix**: before next slice
-</code></pre>
-        <p>Don't speculate beyond what the test output and one quick log glance support — guesses get hard to retract. If the cause isn't obvious in 5 minutes, write <em>"cause unknown — needs dev triage"</em> and move on.</p>
-        <div class="docs-card docs-card--ghost">
-          <h3 class="docs-card__title">✓ Check your progress</h3>
-          <p>
-            Every non-PASS row has a numbered blocker entry. Each entry names the
-            reproduce step, expected, actual, severity, and an owner. If a single
-            blocker explains multiple failed tests, group them under one entry —
-            slice reports prefer one cause over duplicate noise.
-          </p>
-        </div>
-      </section>
+          </code></pre>
+          <p>Don't speculate beyond what the test output and one quick log glance support — guesses get hard to retract. If the cause isn't obvious in 5 minutes, write <em>"cause unknown — needs dev triage"</em> and move on.</p>
+          <div class="docs-card docs-card--ghost">
+            <h3 class="docs-card__title">✓ Check your progress</h3>
+            <p>
+              Every non-PASS row has a numbered blocker entry. Each entry names the
+              reproduce step, expected, actual, severity, and an owner. If a single
+              blocker explains multiple failed tests, group them under one entry —
+              slice reports prefer one cause over duplicate noise.
+            </p>
+          </div>
+        </section>
 
-      <section id="phase-4">
-        <h2>
-          <span class="docs-step-number" aria-hidden="true">4</span>
-          Verdict
-        </h2>
-        <p>Close the report with a single-line verdict the next reader can act on without re-reading the whole file:</p>
-        <pre class="docs-code"><code class="language-markdown">## Verdict
+        <section id="phase-4">
+          <h2>
+            <span class="docs-step-number" aria-hidden="true">4</span>
+            Verdict
+          </h2>
+          <p>Close the report with a single-line verdict the next reader can act on without re-reading the whole file:</p>
+          <pre class="docs-code"><code class="language-markdown">## Verdict
 
 - **Slice**: user create + read · 4 tests · 0.30s wall time
 - **Pass-rate**: 75% (3 / 4)
@@ -202,55 +202,55 @@ pytest --collect-only tests/api/v1/test_user_read.py -q
   1. B1 · GET /users/{id} 500 path → 404
   2. (none)
   3. (none)
-</code></pre>
-        <p>The traffic-light is a calibration, not a vote: any high-severity blocker on a user-facing path is <strong>RED</strong> regardless of pass-rate; a single low-severity blocker on a corner case is <strong>AMBER</strong>; all-PASS is <strong>GREEN</strong>.</p>
-        <div class="docs-card docs-card--ghost">
-          <h3 class="docs-card__title">✓ You're done</h3>
-          <ol>
-            <li>Report file exists under <code>scratch/</code> with Scope, Results, Blockers, Verdict.</li>
-            <li>Verdict is one of GREEN / AMBER / RED with one explicit reason.</li>
-            <li>Every FAIL is traceable to a numbered blocker entry.</li>
-          </ol>
-          <p>That is the regression loop —
-            <em>scope → run → triage → verdict</em>. Real slices widen scope, automate the
-            run, and feed verdicts into release gates; the shape is the same.</p>
-        </div>
-      </section>
+          </code></pre>
+          <p>The traffic-light is a calibration, not a vote: any high-severity blocker on a user-facing path is <strong>RED</strong> regardless of pass-rate; a single low-severity blocker on a corner case is <strong>AMBER</strong>; all-PASS is <strong>GREEN</strong>.</p>
+          <div class="docs-card docs-card--ghost">
+            <h3 class="docs-card__title">✓ You're done</h3>
+            <ol>
+              <li>Report file exists under <code>scratch/</code> with Scope, Results, Blockers, Verdict.</li>
+              <li>Verdict is one of GREEN / AMBER / RED with one explicit reason.</li>
+              <li>Every FAIL is traceable to a numbered blocker entry.</li>
+            </ol>
+            <p>That is the regression loop —
+              <em>scope → run → triage → verdict</em>. Real slices widen scope, automate the
+              run, and feed verdicts into release gates; the shape is the same.</p>
+            </div>
+          </section>
 
-      <div class="docs-card docs-card--ghost docs-card--mt-3">
-        <h3 class="docs-card__title">↺ Want to start over?</h3>
-        <pre class="docs-code"><code class="language-bash">rm services/portal/internal/scratch/regression-slice-*.md services/portal/internal/scratch/regression-slice-raw.txt
-</code></pre>
-        <p>The slice report lives only in <code>scratch/</code> — no tests were modified, no defects were filed. The repo stays as-is.</p>
-      </div>
+          <div class="docs-card docs-card--ghost docs-card--mt-3">
+            <h3 class="docs-card__title">↺ Want to start over?</h3>
+            <pre class="docs-code"><code class="language-bash">rm services/portal/internal/scratch/regression-slice-*.md services/portal/internal/scratch/regression-slice-raw.txt
+            </code></pre>
+            <p>The slice report lives only in <code>scratch/</code> — no tests were modified, no defects were filed. The repo stays as-is.</p>
+          </div>
 
-      <aside class="docs-card docs-card--gradient docs-card--mt-6">
-        <h3 class="docs-card__title">Next step: widen the slice</h3>
-        <ul>
-          <li><a href="../../foundations/reference/sa/templates/tutorial.html">Tutorial template</a> — shape this tutorial follows.</li>
-          <li><a href="../../reference/qa/checklists/0002-api-acceptance-checklist.html">Checklist 0002 — API acceptance</a> — full bullet list for one endpoint.</li>
-          <li><a href="your-first-accessibility-audit.html">QA · Your first accessibility audit</a> — sister surface for the UI layer.</li>
-          <li><a href="onboarding.html">QA · Tester onboarding</a> — Day 4 covers the wider regression sweep this slice is a piece of.</li>
-        </ul>
-      </aside>
+          <aside class="docs-card docs-card--gradient docs-card--mt-6">
+            <h3 class="docs-card__title">Next step: widen the slice</h3>
+            <ul>
+              <li><a href="../../foundations/reference/sa/templates/tutorial.html">Tutorial template</a> — shape this tutorial follows.</li>
+              <li>Checklist 0002 — API acceptance — full bullet list for one endpoint.</li>
+              <li><a href="your-first-accessibility-audit.html">QA · Your first accessibility audit</a> — sister surface for the UI layer.</li>
+              <li><a href="onboarding.html">QA · Tester onboarding</a> — Day 4 covers the wider regression sweep this slice is a piece of.</li>
+            </ul>
+          </aside>
 
-      <footer class="docs-history" aria-label="History">
-        <h2 class="docs-history__title">History</h2>
-        <ul class="docs-history__list">
-          <li class="docs-history__row">
-            <span class="docs-history__date">2026-05-19</span>
-            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-            <span class="docs-history__note">Created on <a href="../../foundations/reference/sa/templates/tutorial.html">tutorial template v1</a> (Diátaxis audit Q1b): QA wave-2 — scope → run → triage → verdict, 3–5 test critical-path filter, traffic-light verdict rubric.</span>
-          </li>
-        </ul>
-      </footer>
+          <footer class="docs-history" aria-label="History">
+            <h2 class="docs-history__title">History</h2>
+            <ul class="docs-history__list">
+              <li class="docs-history__row">
+                <span class="docs-history__date">2026-05-19</span>
+                <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+                <span class="docs-history__note">Created on <a href="../../foundations/reference/sa/templates/tutorial.html">tutorial template v1</a> (Diátaxis audit Q1b): QA wave-2 — scope → run → triage → verdict, 3–5 test critical-path filter, traffic-light verdict rubric.</span>
+              </li>
+            </ul>
+          </footer>
 
-    </article>
-  </main>
+        </article>
+      </main>
 
-  <aside class="docs-toc" aria-label="On this page"></aside>
-  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+      <aside class="docs-toc" aria-label="On this page"></aside>
+      <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
 
-  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+      <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
-</body></html>
+    </body></html>

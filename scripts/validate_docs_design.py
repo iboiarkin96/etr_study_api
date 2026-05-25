@@ -19,20 +19,21 @@ FROZEN_DOCS_REL_PATHS = {
     Path("internal/team/people/ivan-boyarkin/sa-growth.html"),
     # Standalone week backlog calendar (custom layout, not portal doc skeleton).
     Path("internal/team/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
-    # Portal router landing — intentional selector layout (no docs-nav, no
-    # top-nav mount, no section.card, no page-history). It picks between the
-    # public and internal portals, and is not a docs page itself.
+    # Portal router landings — intentional selector layouts. They pick between
+    # sub-portals and aren't docs pages themselves; no docs-nav, no top-nav
+    # mount, no section.card, no page-history.
     Path("index.html"),
-    # Standalone 25-practices grids with their own embedded design tokens;
-    # not part of the legacy docs skeleton. Each role has its radar page under
-    # roles/<role>/radar.html (post-IA-Phase-1) plus a curated landing under
-    # roles/<role>/index.html.
-    Path("internal/roles/sa/radar.html"),
-    Path("internal/roles/architect/radar.html"),
-    Path("internal/roles/dev/radar.html"),
-    Path("internal/roles/manager/radar.html"),
-    Path("internal/roles/sre/radar.html"),
-    Path("internal/roles/qa/radar.html"),
+    Path("internal/index.html"),
+    # Standalone 25-practices radar grids with their own embedded chart tokens;
+    # not part of the docs skeleton. Each role has its radar at
+    # team/roles/<role>/radar.html and a curated landing at
+    # team/roles/<role>/index.html.
+    Path("internal/team/roles/sa/radar.html"),
+    Path("internal/team/roles/architect/radar.html"),
+    Path("internal/team/roles/dev/radar.html"),
+    Path("internal/team/roles/manager/radar.html"),
+    Path("internal/team/roles/sre/radar.html"),
+    Path("internal/team/roles/qa/radar.html"),
 }
 
 
@@ -72,10 +73,11 @@ def _iter_docs_pages(candidates: list[str] | None = None) -> list[Path]:
             continue
         if rel in FROZEN_DOCS_REL_PATHS:
             continue
-        # Scratch HTML under portal profile `notes/` (gitignored locally; never shipped).
+        # Scratch HTML under per-person `notes/` (gitignored locally; never shipped).
+        # Path shape: internal/team/people/<person>/notes/*.html
         if (
             len(rel.parts) >= 5
-            and rel.parts[0:3] == ("internal", "portal", "people")
+            and rel.parts[0:3] == ("internal", "team", "people")
             and rel.parts[4] == "notes"
         ):
             continue

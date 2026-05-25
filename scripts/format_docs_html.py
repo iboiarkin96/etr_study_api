@@ -64,36 +64,49 @@ def _rel_href(current_file: Path, target_file: Path) -> str:
 
 
 def _is_internal_v3_page(text: str, current_file: Path) -> bool:
-    """Return True if ``current_file`` lives under ``internal/`` and uses the v3 runtime.
+    """Return True if ``current_file`` is a v3 UI-Kit page.
 
     A page is considered "v3" when it loads ``assets_v2/runtime/internal/entry.js``.
     Such pages own their stylesheet/JS stack through ``entry.css``/``entry.js`` and
     must NOT be force-fed the legacy ``docs.css`` + ``docs-nav.js`` pair, which
     injects a second sidebar/drawer/bug-report layer on top of the v3 mounts.
 
+    Covers both the internal portal (``internal/**``) and the UI Kit showcase
+    pages (``ui-kit/**``) — both live under ``services/portal/`` and both share
+    the v3 runtime.
+
     Args:
         text: HTML source.
         current_file: Path of the file under :data:`DOCS_ROOT`.
 
     Returns:
-        Whether the page is a v3 internal-portal page.
+        Whether the page is a v3 UI-Kit page.
     """
     try:
         rel = current_file.relative_to(DOCS_ROOT)
     except ValueError:
         return False
-    if not rel.parts or rel.parts[0] != INTERNAL_ROOT_REL.name:
+    if not rel.parts:
+        return False
+    if rel.parts[0] not in {INTERNAL_ROOT_REL.name, "ui-kit"}:
         return False
     return bool(ENTRY_JS_RE.search(text))
 
 
 def _normalize_stylesheet(text: str, current_file: Path) -> str:
-    """Remove inline ``<style>`` blocks and enforce the right stylesheet link in ``<head>``.
+    """Enforce the right stylesheet link in ``<head>``.
 
     For v3 internal-portal pages (see :func:`_is_internal_v3_page`) the canonical
     stylesheet is ``assets_v2/runtime/internal/entry.css`` and the legacy
-    ``assets/docs.css`` link is stripped. For everything else the legacy single
-    ``docs.css`` link is enforced as before.
+    ``assets/docs.css`` link is dropped. For everything else the legacy single
+    ``docs.css`` link is enforced.
+
+    Page-local ``<style>`` overlays are intentionally preserved — many v3 pages
+    carry small per-page declarations (page-hero gradients, quad-card grids,
+    radar lane backgrounds) that complement the shared kit and aren't worth
+    promoting into the kit itself. Stripping them silently was the original
+    cause of the docs-fix non-idempotency drift (each run removed the styles,
+    the user re-added them, the cycle never converged).
 
     Args:
         text: Full HTML document text.
@@ -102,7 +115,7 @@ def _normalize_stylesheet(text: str, current_file: Path) -> str:
     Returns:
         Updated HTML string.
     """
-    normalized = STYLE_BLOCK_RE.sub("\n", text)
+    normalized = text
 
     if _is_internal_v3_page(normalized, current_file):
         target = ASSETS_ROOT / "assets_v2" / "runtime" / "internal" / "entry.css"
@@ -398,7 +411,7 @@ def main() -> None:
             continue
         if len(rel.parts) >= 4 and rel.parts[0:4] == (
             "internal",
-            "catalog",
+            "services",
             "api",
             "code-reference",
         ):

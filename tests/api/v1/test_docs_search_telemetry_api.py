@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app.core.database import SessionLocal
+
+
+def _now_ms() -> int:
+    """Current epoch milliseconds — used so test events fall inside the metrics window."""
+    return int(time.time() * 1000)
 
 
 def _clean_docs_search_events() -> None:
@@ -22,7 +29,7 @@ def test_ingest_docs_search_telemetry_accepts_valid_payload(client: TestClient) 
         "/internal/telemetry/docs-search",
         json={
             "event": "search_query",
-            "emitted_at_ms": 1_776_420_000_000,
+            "emitted_at_ms": _now_ms(),
             "page_path": "/index.html",
             "session_id": "s-api",
             "query_id": "q-api",
@@ -43,7 +50,7 @@ def test_ingest_docs_search_telemetry_returns_422_for_invalid_payload(client: Te
     response = client.post(
         "/internal/telemetry/docs-search",
         json={
-            "emitted_at_ms": 1_776_420_000_000,
+            "emitted_at_ms": _now_ms(),
         },
     )
     assert response.status_code == 422
@@ -55,11 +62,12 @@ def test_ingest_docs_search_telemetry_returns_422_for_invalid_payload(client: Te
 def test_docs_search_telemetry_metrics_reports_query_counts(client: TestClient) -> None:
     """Metrics endpoint aggregates query rows and click-through data."""
     _clean_docs_search_events()
+    base_ms = _now_ms()
     client.post(
         "/internal/telemetry/docs-search",
         json={
             "event": "search_query",
-            "emitted_at_ms": 1_776_420_010_000,
+            "emitted_at_ms": base_ms,
             "session_id": "s-metrics",
             "query_id": "q-metrics-1",
             "query_text": "adr",
@@ -71,7 +79,7 @@ def test_docs_search_telemetry_metrics_reports_query_counts(client: TestClient) 
         "/internal/telemetry/docs-search",
         json={
             "event": "search_query",
-            "emitted_at_ms": 1_776_420_020_000,
+            "emitted_at_ms": base_ms + 10_000,
             "session_id": "s-metrics",
             "query_id": "q-metrics-2",
             "query_text": "runbook",
@@ -83,7 +91,7 @@ def test_docs_search_telemetry_metrics_reports_query_counts(client: TestClient) 
         "/internal/telemetry/docs-search",
         json={
             "event": "search_result_click",
-            "emitted_at_ms": 1_776_420_021_000,
+            "emitted_at_ms": base_ms + 11_000,
             "session_id": "s-metrics",
             "query_id": "q-metrics-2",
             "result_rank": 1,

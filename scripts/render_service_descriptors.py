@@ -489,7 +489,9 @@ def _humanize(name: str) -> str:
     parts = cleaned.split("-")
     if not parts:
         return name
-    return " ".join(parts[:1]).capitalize() + ((" " + " ".join(parts[1:])) if len(parts) > 1 else "")
+    return " ".join(parts[:1]).capitalize() + (
+        (" " + " ".join(parts[1:])) if len(parts) > 1 else ""
+    )
 
 
 def _sort_key(path: Path) -> tuple:
@@ -521,7 +523,9 @@ def _build_diataxis_node(
             continue
         if entry.is_dir():
             sub_id = f"{id_prefix}-{_id_safe(entry.name)}"
-            sub_label = _extract_label(entry / "index.html") if (entry / "index.html").exists() else None
+            sub_label = (
+                _extract_label(entry / "index.html") if (entry / "index.html").exists() else None
+            )
             sub_label = sub_label or _humanize(entry.name)
             sub_node = _build_diataxis_node(entry, sub_id, sub_label)
             if sub_node is not None:
@@ -584,7 +588,7 @@ def _build_services_subtree(services: list[dict]) -> list[dict]:
                     }
                 )
         kids.extend(_build_diataxis_children(name, svc_dir))
-        node = {
+        node: dict[str, object] = {
             "id": f"services-{name}",
             "label": _nav_label(name),
             "href": f"/services/portal/internal/services/{name}/index.html",

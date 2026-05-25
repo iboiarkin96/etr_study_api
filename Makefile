@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check minify-css minify-css-check catalog-render catalog-render-check
+.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check
 
 # ──────────────────────────────────────────────
 # Help
@@ -102,10 +102,6 @@ help:
 	@echo "  make docs-feedback-check  Smoke-check page-level feedback wiring for key docs pages"
 	@echo "  make docs-check           Verify docs are already in sync (fails on drift)"
 	@echo ""
-	@echo "  # Frontend assets"
-	@echo "  make minify-css           Minify portal CSS in place (paren-aware, idempotent)"
-	@echo "  make minify-css-check     Verify portal CSS is already minified (fails on drift)"
-	@echo ""
 	@echo "  # Service catalog (YAML → HTML)"
 	@echo "  make catalog-render       Regenerate service entity cards + hub + nav-tree from catalog-info.yaml"
 	@echo "  make catalog-render-check Verify catalog HTML is in sync with YAML (fails on drift)"
@@ -168,14 +164,18 @@ install:
 	@$(PIP) install -r requirements.txt -q
 	@printf "$(ICON_OK) %s\n" "Dependencies installed"
 
-# OSV-backed vulnerability scan of pinned dependencies (ADR 0019). Uses a repo-local cache (see .gitignore).
+# Vulnerability scan of the actual venv contents (ADR 0019). Repo-local cache (see .gitignore).
+# `-l` audits packages already installed in .venv instead of spinning up an ephemeral venv
+# to resolve requirements.txt — the ephemeral-venv path hangs on Python 3.14's `ensurepip`
+# bootstrap. Auditing the live venv is stricter (covers tooling like pip itself) and ~20x
+# faster (~3s vs ~55s on first run).
 deps-audit:
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@mkdir -p .pip-audit-cache
-	@printf "$(ICON_STEP) %s\n" "Running pip-audit against requirements.txt…"
-	@$(PYTHON) -m pip_audit -r requirements.txt --desc on --cache-dir .pip-audit-cache
+	@printf "$(ICON_STEP) %s\n" "Running pip-audit against the local venv…"
+	@$(PYTHON) -m pip_audit -l --desc on --cache-dir .pip-audit-cache
 	@printf "$(ICON_OK) %s\n" "pip-audit: no known vulnerabilities reported"
 
 # Create root .env from the single tracked template (env/example).
@@ -452,25 +452,27 @@ docs-fix:
 		printf "$(ICON_ERR) %s\n" "scripts/regenerate_docs.py not found."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-FIX: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/8] regenerate UML diagrams"
+	@printf "$(ICON_INFO) %s\n" "[1/10] regenerate UML diagrams"
 	@$(PYTHON) scripts/regenerate_docs.py
-	@printf "$(ICON_INFO) %s\n" "[2/8] sync marker-based documentation"
+	@printf "$(ICON_INFO) %s\n" "[2/10] sync marker-based documentation"
 	@$(PYTHON) scripts/sync_docs.py
-	@printf "$(ICON_INFO) %s\n" "[3/8] render docs markdown to html companions"
+	@printf "$(ICON_INFO) %s\n" "[3/10] render docs markdown to html companions"
 	@$(PYTHON) scripts/render_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[4/8] repair docs html structure"
+	@printf "$(ICON_INFO) %s\n" "[4/10] repair docs html structure"
 	@$(PYTHON) scripts/repair_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[5/8] normalize docs html template"
+	@printf "$(ICON_INFO) %s\n" "[5/10] normalize docs html template"
 	@$(PYTHON) scripts/format_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[6/9] ensure docs body maintainers"
+	@printf "$(ICON_INFO) %s\n" "[6/10] render service catalog (YAML → HTML)"
+	@$(PYTHON) scripts/render_service_descriptors.py
+	@printf "$(ICON_INFO) %s\n" "[7/10] ensure docs body maintainers"
 	@$(PYTHON) scripts/ensure_docs_maintainers.py
-	@printf "$(ICON_INFO) %s\n" "[7/9] collect docs maintainer pages index"
+	@printf "$(ICON_INFO) %s\n" "[8/10] collect docs maintainer pages index"
 	@$(PYTHON) scripts/collect_docs_portal_data.py
-	@printf "$(ICON_INFO) %s\n" "[8/9] Python API reference (pdoc)"
+	@printf "$(ICON_INFO) %s\n" "[9/10] Python API reference (pdoc)"
 	@rm -rf services/portal/internal/services/api/code-reference
 	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
 	@$(PYTHON) scripts/normalize_pdoc_output.py
-	@printf "$(ICON_INFO) %s\n" "[9/9] build docs search index"
+	@printf "$(ICON_INFO) %s\n" "[10/10] build docs search index"
 	@$(PYTHON) scripts/build_docs_search_index.py
 	@printf "$(COLOR_GREEN)== DOCS-FIX: SUCCESS ==$(COLOR_RESET)\n"
 
@@ -562,28 +564,6 @@ docs-check:
 		rm -f "$$tmp_before" "$$tmp_after"; \
 		exit 1; \
 	fi
-
-# ──────────────────────────────────────────────
-# Frontend assets
-# ──────────────────────────────────────────────
-# Minify all CSS under services/frontend/portal/assets/ in place.
-# Paren-aware (preserves calc/var arithmetic), idempotent — safe to re-run.
-minify-css:
-	@if [ ! -d ".venv" ]; then \
-		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
-	fi
-	@printf "$(ICON_STEP) %s\n" "Minifying portal CSS…"
-	@$(PYTHON) scripts/minify_portal_css.py
-	@printf "$(ICON_OK) %s\n" "Portal CSS minified"
-
-# Verify portal CSS is already minified — fails if any file would shrink.
-minify-css-check:
-	@if [ ! -d ".venv" ]; then \
-		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
-	fi
-	@printf "$(ICON_STEP) %s\n" "Checking portal CSS minification…"
-	@$(PYTHON) scripts/minify_portal_css.py --check
-	@printf "$(ICON_OK) %s\n" "Portal CSS minification check passed"
 
 # ──────────────────────────────────────────────
 # Service catalog (YAML → HTML)

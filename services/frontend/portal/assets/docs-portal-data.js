@@ -129,7 +129,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/foundations/reference/sa/diataxis.html",
-        "title": "Diátaxis · Study App Internal"
+        "title": "🧭 Diátaxis — quadrants, tradeoffs, anti-patterns · Study App Internal"
       },
       {
         "path": "internal/foundations/reference/sa/discoverability.html",
@@ -400,44 +400,8 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Moved — see reference/templates/audit.html"
       },
       {
-        "path": "internal/governance/audits/accessibility/2026-Q2-accessibility-audit.html",
-        "title": "♿ 2026-Q2 Accessibility audit — WCAG 2.2 AA · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/api/2026-04-14-rest-api-assessment.html",
-        "title": "REST API Assessment — 2026-04-14 · Study App Internal"
-      },
-      {
         "path": "internal/governance/audits/api/index.html",
         "title": "REST API assessments · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/bugs/2026-05-07-portal-bug-audit.html",
-        "title": "Portal Bug Audit — 2026-05-07 · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/docs/2026-04-14-documentation-experience-assessment.html",
-        "title": "DX Assessment — 2026-04-14 · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/docs/2026-04-18-documentation-experience-assessment.html",
-        "title": "Documentation Experience (DX) Assessment — formed 18 Apr 2026 (test snapshot) · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/docs/2026-05-01-documentation-experience-assessment.html",
-        "title": "Documentation Experience (DX) Assessment — formed 1 May 2026 · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/docs/2026-05-18-multi-service-ia-target-tree.html",
-        "title": "Multi-service IA · Target tree · Audits · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/docs/2026-05-18-testing-pyramid-assessment.html",
-        "title": "Testing Pyramid Assessment — formed 18 May 2026 · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/docs/2026-05-24-principal-triad-docs-audit.html",
-        "title": "Principal-Triad Docs Audit — 24 May 2026 · Study App Internal"
       },
       {
         "path": "internal/governance/audits/docs/index.html",
@@ -448,40 +412,12 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Audits · Study App Internal"
       },
       {
-        "path": "internal/governance/audits/maturity/2026-05-10-project-maturity-assessment.html",
-        "title": "Project Maturity Assessment — formed 10 May 2026 · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/maturity/2026-05-10-tech-docs-maturity-assessment-v2.html",
-        "title": "Tech Docs Maturity Assessment v2 — formed 10 May 2026 · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/maturity/2026-05-10-tech-docs-maturity-assessment.html",
-        "title": "Tech Docs Maturity Assessment v1 — formed 10 May 2026 · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/maturity/2026-05-13-systems-analysis-maturity-assessment.html",
-        "title": "Systems Analysis Maturity Assessment — 2026-05-13 · Study App Internal"
-      },
-      {
         "path": "internal/governance/audits/maturity/index.html",
         "title": "Project maturity assessments · Study App Internal"
       },
       {
-        "path": "internal/governance/audits/ui-ux/2026-04-23-ui-ux-assessment.html",
-        "title": "UI/UX Assessment (repeat) · 2026-04-23 · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/ui-ux/2026-04-24-ui-ux-assessment.html",
-        "title": "UI/UX Assessment (premium benchmark) · 2026-04-24 · Study App Internal"
-      },
-      {
-        "path": "internal/governance/audits/ui-ux/2026-05-09-ui-ux-consistency-assessment.html",
-        "title": "UI/UX consistency &amp; design-system assessment · 2026-05-09 · Study App Internal"
-      },
-      {
         "path": "internal/governance/audits/ui-ux/index.html",
-        "title": "UI/UX consistency assessments · Study App Internal"
+        "title": "UI/UX assessments · Study App Internal"
       },
       {
         "path": "internal/governance/backlog/index.html",
@@ -2148,6 +2084,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Dependency lanes · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/design-canvas-card.html",
+        "title": "Design canvas card · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/diagram-lightbox.html",
         "title": "Diagram lightbox · Portal UI Kit"
       },
@@ -2503,5 +2443,17 @@ window.__DOCS_PORTAL_DATA__ = {
       }
     ]
   },
-  "people": []
+  "people": [
+    {
+      "personId": "16fc8b78537109162984a2fdbef6e142",
+      "slug": "ivan-boyarkin",
+      "github": "iboiarkin96",
+      "displayName": "Ivan Boyarkin",
+      "photo": "internal/team/people/ivan-boyarkin/photo.jpg",
+      "groups": [
+        "backend",
+        "pm"
+      ]
+    }
+  ]
 };
