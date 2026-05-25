@@ -2,7 +2,7 @@
 <html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Structured Logging — Practice 06 · SRE</title>
+  <title>Structured logging — machine-readable events, not prose — Practice 06 · SRE</title>
   <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
@@ -21,7 +21,7 @@
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
-        <li class="docs-breadcrumbs__item" aria-current="page">Structured Logging</li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Structured logging</li>
       </ol>
     </nav>
     <div class="topbar__spacer"></div>
@@ -33,124 +33,276 @@
   <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
   <main class="container">
-    <p class="pa-eyebrow">
-      <span class="pa-eyebrow__num">06</span>
-      <span class="pa-eyebrow__group">Group B · Observability</span>
-      <span class="pa-scorebar"><span class="pa-scorebar__asis">4.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span class="pa-scorebar__hint">AS-IS → TO-BE</span></span>
-    </p>
-    <h1 class="pa-title">Structured Logging — machine-readable events, not prose for humans</h1>
-    <div id="docs-top-nav"></div>
-    <p class="pa-lead">All log lines emitted as consistent JSON with trace correlation fields — so engineers can query, join, and pivot from metric to log to trace in one operation rather than grepping through free-form text.</p>
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">06</span>
+        <span class="pa-eyebrow__group">Group B · Observability</span>
+      </p>
+      <h1>Structured logging — machine-readable events, not prose</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Every log line is a JSON event with a locked schema and a <code>trace_id</code> — so an operator pivots from a metric spike to the exact request's logs in one query, not an afternoon of grep.</p>
+    </header>
 
     <div class="pa-tldr">
       <span class="pa-tldr__label">TL;DR</span>
-      <p class="pa-tldr__text">Structured logging means every log line is a machine-parseable JSON object with a consistent schema: <code>timestamp</code>, <code>level</code>, <code>service</code>, <code>trace_id</code>, <code>span_id</code>, <code>message</code>, and domain-specific fields. No free-form printf strings. Every log line carries the same trace ID as the distributed trace for that request, enabling engineers to pivot from a metric anomaly → log events → distributed trace in seconds. That pivot is what converts log search from "find a needle in a haystack" into a structured query.</p>
+      <p class="pa-tldr__text">Structured logging means every log line is a JSON object with a canonical schema: <code>ts</code>, <code>level</code>, <code>service</code>, <code>trace_id</code>, <code>request_id</code>, <code>user_id</code>, <code>message</code>, plus domain fields. No printf strings, no free-form prose. The shared library injects trace context automatically; a CI lint rejects any log call that bypasses it. PII is stripped in the pipeline before the event lands in the index. The pay-off is the pivot — metric anomaly → log query by <code>trace_id</code> → distributed trace — measured in seconds, not hours.</p>
     </div>
 
-    <figure class="pa-figure" aria-label="Structured vs unstructured log comparison">
-      <svg viewBox="0 0 720 185" role="img" aria-label="Structured vs unstructured log format">
-        <g font-family="ui-monospace,Menlo,Consolas,monospace">
-          <rect class="pa-svg-box pa-svg-box--accent" x="20" y="20" width="320" height="145" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--accent" x="180" y="45" text-anchor="middle" font-size="11" font-weight="700">❌ Unstructured</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="35" y="65" font-size="9">2026-01-12 INFO UserService - User 42</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="35" y="80" font-size="9">logged in from 1.2.3.4</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="35" y="100" font-size="9">→ grep, awk, hope</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="35" y="118" font-size="9">→ no trace correlation</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="35" y="136" font-size="9">→ no machine parsing</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="35" y="154" font-size="9">→ hours of diagnosis</text>
-          <rect class="pa-svg-box pa-svg-box--good" x="380" y="20" width="320" height="145" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--good" x="540" y="45" text-anchor="middle" font-size="11" font-weight="700">✓ Structured</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="395" y="65" font-size="9">{"level":"info","service":"user",</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="395" y="80" font-size="9"> "trace_id":"abc123","user_id":42,</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="395" y="95" font-size="9"> "ip":"1.2.3.4","msg":"login"}</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="395" y="118" font-size="9">→ query by trace_id instantly</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="395" y="136" font-size="9">→ join logs + traces + metrics</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="395" y="154" font-size="9">→ 2-minute diagnosis</text>
-        </g>
+    <figure class="pa-figure" aria-label="Structured log pipeline">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Event to structured log to collector to index to query" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="65" y="106" text-anchor="middle" font-weight="700">Event</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="65" y="124" text-anchor="middle" font-size="10">request handled</text>
+
+        <rect class="pa-svg-box" x="145" y="80" width="130" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="210" y="106" text-anchor="middle" font-weight="700">JSON log</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="210" y="124" text-anchor="middle" font-size="10">zap / pino → stdout</text>
+
+        <rect class="pa-svg-box" x="295" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="355" y="106" text-anchor="middle" font-weight="700">Collector</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="355" y="124" text-anchor="middle" font-size="10">Vector · PII filter</text>
+
+        <rect class="pa-svg-box" x="435" y="80" width="110" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="490" y="106" text-anchor="middle" font-weight="700">Index</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="490" y="124" text-anchor="middle" font-size="10">Loki</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="555" y="80" width="80" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="595" y="106" text-anchor="middle" font-weight="700">Query</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="595" y="124" text-anchor="middle" font-size="10">trace_id</text>
+
+        <path d="M125 110 L140 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M275 110 L290 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M415 110 L430 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M545 110 L552 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
       </svg>
-      <figcaption class="pa-figure__caption">Unstructured logs are read by humans. Structured logs are queried by machines. The difference is hours vs. seconds in incident diagnosis.</figcaption>
+      <figcaption class="pa-figure__caption">Event happens → structured log is emitted to stdout as JSON → Vector ships and scrubs PII → Loki indexes → operators query by <code>trace_id</code>. Every hop preserves the schema; nothing is parsed back out of prose.</figcaption>
     </figure>
 
-    <section id="what" class="pa-section">
-      <h2>What it is</h2>
-      <p><strong>Structured logging</strong> means every log event is a JSON object with a canonical schema. The minimum required fields are:</p>
+    <h2 id="what">What it is</h2>
+    <p><strong>Structured logging</strong> is the discipline of emitting every log line as a machine-parseable event — a JSON object with a fixed schema — rather than a human-readable sentence with values interpolated into it. The unit of work is no longer "a line of text" but "an event with fields", and the consumer is no longer a human running <code>grep</code> but a query engine running a filter over an index. The shift sounds cosmetic until the first incident; then it is the difference between answering "show me every error in the request whose trace ID is <code>abc123</code>" in 400 milliseconds versus in 40 minutes.</p>
+    <p>A log event that ships to production satisfies five mandatory properties: it is valid JSON on a single line; it carries the canonical fields (<code>ts</code>, <code>level</code>, <code>service</code>, <code>trace_id</code>, <code>request_id</code>, <code>user_id</code>, <code>message</code>); it uses field names locked in the schema repository and types that have not changed since the field was introduced; it has been emitted through the shared logging library, not constructed by hand; and it has passed the PII filter before reaching the index. Anything missing one of the five does not ship — CI in the shared library repo enforces this.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Unstructured logs are an asset that ages into a liability. The first week of a service's life, a free-form <code>printf</code> reads beautifully; the first incident a year later, the same line is impossible to query because nobody remembers which field is the user ID and which is the IP. The aggregator cannot help: it sees a string. Engineers fall back to <code>grep | awk | sort | uniq</code> against gigabytes of text, and the time-to-diagnosis becomes a function of typing speed.</p>
+    <p>Structured logs invert the economics. The aggregator parses once at ingest time and indexes by field; subsequent queries are sub-second. The <code>trace_id</code> field is the join key — the same ID the distributed trace carries, the same ID the request travels with from the edge to the database — so an operator who sees a metric spike at 14:02 can pull every log line from every service that participated in the spike's offending requests with one query. That pivot is the single biggest reduction in mean-time-to-diagnosis available; it costs nothing at runtime and pays back the migration sprint inside one incident.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose logging practice is published. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Datadog</p>
+        <p class="pa-industry__what">Datadog's platform is built around unified log / metric / trace correlation through a shared <code>trace_id</code>. Their explicit recommendation: use one canonical logging library per language (pino for Node, zap or zerolog for Go, structlog for Python) configured once at startup to read the OpenTelemetry context and inject trace IDs automatically. Individual call sites pass no context; the library does it.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Automatic trace-context injection via library middleware is the only scalable answer. Manual context plumbing produces inconsistent coverage — some lines have trace IDs, some do not — and the resulting log search is useless on exactly the line you need.</p>
+        <p class="pa-industry__source">Source: <a href="https://docs.datadoghq.com/logs/log_collection/" rel="noopener">Datadog — Log Collection &amp; Management</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Grafana Loki</p>
+        <p class="pa-industry__what">Loki's best-practice guide is unusual: it tells teams to keep cardinality on labels low and push the high-cardinality fields (user IDs, request IDs, trace IDs) into the JSON body, where LogQL parses them at query time. The trade-off is deliberate — labels are the index, the body is the payload; mixing the two produces an index explosion that kills query latency.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Keep the index shape boring (<code>service</code>, <code>env</code>, <code>level</code>) and shove everything queryable into the JSON body. Loki parses fields at query time fast enough that there is no reason to promote them to labels — and every promoted label is one more dimension the index has to remember forever.</p>
+        <p class="pa-industry__source">Source: <a href="https://grafana.com/docs/loki/latest/get-started/labels/bp-labels/" rel="noopener">Grafana Loki — Labels best practices</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Charity Majors (Honeycomb)</p>
+        <p class="pa-industry__what">Majors's blog reframes structured logging as the wide-event story: one log line per request, with as many fields as the request had interesting facts about it. Levels and severity are debatable, schemas drift, but the discipline of "every interesting attribute lives on the event as a typed field" is the part that converts logs into a queryable record of what the system actually did.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Add fields liberally; prefer one wide event per request over a stream of narrow events. The aggregator handles wide rows fine; an operator filtering by <code>user_id</code> AND <code>error_code</code> AND <code>route</code> would rather have one event with all three than three events that have to be joined.</p>
+        <p class="pa-industry__source">Source: <a href="https://charity.wtf/" rel="noopener">charity.wtf — observability writing</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">OpenTelemetry</p>
+        <p class="pa-industry__what">The OpenTelemetry Logs specification standardises the data model: severity, body, attributes, trace context, resource attributes. It does not prescribe a wire format but it does fix the field semantics — and the SDKs for every supported language produce log records that already speak it, so a service emitting via the OTel logger arrives at any compliant backend ready to be queried by the same field names everywhere.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Borrow the OTel field semantics even if the backend is Loki rather than an OTel-native vendor. <code>trace_id</code>, <code>span_id</code>, <code>severity_number</code>, <code>service.name</code> mean the same thing across the industry; using anything else trades portability for nothing.</p>
+        <p class="pa-industry__source">Source: <a href="https://opentelemetry.io/docs/specs/otel/logs/" rel="noopener">OpenTelemetry — Logs specification</a></p>
+      </div>
+    </div>
+    <p class="pa-industry-pattern">Across every team whose logging practice is public, the playbook converges: a single library per language, automatic trace-context injection, OTel-compatible field names, low-cardinality index labels, wide events with all the facts on them, and PII scrubbed at the collector before anything hits the index.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete structured-logging practice has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Canonical schema</p><p class="pa-anatomy__hint">A locked field list — <code>ts</code>, <code>level</code>, <code>service</code>, <code>trace_id</code>, <code>request_id</code>, <code>user_id</code>, <code>message</code> — with stable types. The schema lives in a repo; renames go through a versioned migration, not a Slack thread.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Shared library per language</p><p class="pa-anatomy__hint">zap (Go), pino (Node), structlog (Python). Pre-configured to emit JSON to stdout with the canonical fields. Services call the library; no service constructs log lines by hand.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Automatic trace-context injection</p><p class="pa-anatomy__hint">The library reads the OpenTelemetry context from the current goroutine or async-local store and stamps <code>trace_id</code> + <code>span_id</code> on every event. Zero per-call plumbing; zero forgotten lines.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">CI lint enforcement</p><p class="pa-anatomy__hint">A linter that fails the build if a log call bypasses the canonical library or references a field not in the schema. Catches drift before it reaches production and produces an un-queryable event.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Pipeline: collector + PII filter</p><p class="pa-anatomy__hint">Vector tails stdout, applies redaction rules (email, phone, card number patterns) before forwarding to Loki. PII never touches the index; the contract holds even if a developer accidentally logs a raw request body.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Level discipline</p><p class="pa-anatomy__hint">DEBUG sampled or off in production, INFO for state transitions, WARN for recoverable failures, ERROR for failures requiring attention, FATAL for process-killing conditions. Levels are a routing primitive, not a developer mood.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Retention policy</p><p class="pa-anatomy__hint">Routing rules at the collector: INFO retained 14 days, ERROR retained 90 days, DEBUG dropped in production. Retention is configured centrally, not negotiated per service.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App emits structured logs from every service through one canonical library per language — <strong>zap</strong> in Go services, <strong>pino</strong> in Node services — configured at startup to write JSON to stdout with the canonical schema. The schema is locked in <code>infra/logging/schema.json</code> and a CI lint in the shared-library repo rejects pull requests that bypass the library or reference an unknown field. Every event carries <code>ts</code>, <code>level</code>, <code>service</code>, <code>trace_id</code>, <code>request_id</code>, <code>user_id</code>, and <code>message</code>; domain fields (route, error code, latency in ms) ride alongside.</p>
+    <p>Containers write to stdout; <strong>Vector</strong> tails the container logs, applies a PII filter (regex-based redaction for email, phone, card numbers, and a small allow-list of fields that may carry user-readable identifiers) and ships the events to <strong>Loki</strong>. Loki indexes a small, low-cardinality label set (<code>service</code>, <code>env</code>, <code>level</code>) and parses the JSON body at query time — so a typical incident query (<code>{service="lessons-api",level="error"} |= "trace_id=abc123"</code> in LogQL) runs in milliseconds without forcing high-cardinality fields onto the index. Trace IDs propagate through HTTP and gRPC headers using OpenTelemetry instrumentation; the same ID appears in the metric exemplars in <a href="metrics-dashboards.html">metrics &amp; dashboards</a> and on the distributed trace in <a href="distributed-tracing.html">distributed tracing</a>, so the three views are joinable on the field every event already carries.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Schema discipline — field names locked, types stable</h3>
+      <p>A schema is a contract between the producer (every service emitting logs) and the consumer (every dashboard, every alert query, every on-call runbook). Once a field name and type ship to production they are immutable in practice: rename <code>user_id</code> to <code>userId</code> and every dashboard built on the old name breaks silently — the query keeps running, it just returns nothing. The discipline is to treat the schema like an API. New fields can be added freely; existing fields cannot change name or type. When the field semantics genuinely need to change, the schema is versioned (every event carries a <code>schema_version</code>), the new field is added in parallel, dashboards migrate, and the old field is retired on a schedule. It is more ceremony than developers like; it is the only thing that keeps a year-old dashboard functional.</p>
+      <h4>Log levels and their meanings</h4>
+      <p>Levels are not severity opinions; they are a routing key. The conventional ladder is <strong>DEBUG</strong> (verbose, useful only inside a development environment — sampled or dropped in production), <strong>INFO</strong> (a significant state transition: request handled, job started, connection opened), <strong>WARN</strong> (a recoverable degradation: retry succeeded, fallback used, deprecated path hit), <strong>ERROR</strong> (a failure that needs attention but did not kill the process), and <strong>FATAL</strong> (a failure that kills the process; the next line in the log is typically silence). Discipline at this layer is what makes the rest of the practice viable: an INFO that should be DEBUG floods the index with noise, an ERROR that should be WARN pages the on-call for a self-healing retry. Code review enforces the ladder; the linter cannot, because the right level is contextual.</p>
+      <h4>Sampling vs full ingest — the economics</h4>
+      <p>At low traffic, ingesting every log line is cheap and correct. At high traffic the bill becomes the dominant cost of the observability stack — a single chatty INFO line in a 5k-RPS path is gigabytes per day in storage. Sampling trades fidelity for cost: keep every ERROR and WARN, keep a fraction of INFO (1-in-10 or 1-in-100 depending on the route), drop DEBUG. The catch is that sampled INFO loses the property that made it useful — you can no longer answer "show me every line in this user's request" because the lines for that user might be the ones that got dropped. The mitigation is tail-based sampling: hold all the events for a trace in a buffer until the trace ends; if any event in the trace is ERROR, keep the whole trace; otherwise sample by ratio. It is more expensive at the collector but it preserves the join key, which is the entire point.</p>
+      <h4>Correlation IDs — threading request, trace, log</h4>
+      <p>Three identifiers tie the observability stack together. The <code>request_id</code> is the application-level handle on a single inbound request — generated at the edge, propagated to every downstream call, surfaced to the user as part of the error UI so they can quote it in a support ticket. The <code>trace_id</code> is the distributed-tracing handle — usually a 128-bit W3C traceparent value, generated by the OpenTelemetry SDK at the first instrumented hop, propagated via the <code>traceparent</code> header through every service. The <code>span_id</code> identifies the specific operation within the trace. All three appear on every log line. The <code>trace_id</code> is the most valuable because it is the field the distributed trace itself indexes on; the <code>request_id</code> is the most valuable because it is the field a user can type into a search bar. They are not redundant — they are different join keys for different audiences.</p>
+      <h4>Trade-offs — what this practice costs</h4>
       <ul>
-        <li><code>timestamp</code> — ISO 8601 with millisecond precision.</li>
-        <li><code>level</code> — <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>.</li>
-        <li><code>service</code> — the emitting service name (from environment config, not hardcoded).</li>
-        <li><code>trace_id</code> — the OpenTelemetry trace ID for the current request, propagated from the HTTP/gRPC header.</li>
-        <li><code>span_id</code> — the current span ID within the trace.</li>
-        <li><code>message</code> — a human-readable description of the event (not the only field; domain fields carry the data).</li>
+        <li><strong>Up-front library work.</strong> Picking the canonical library, wrapping it in a thin internal façade, and migrating one service per language to it takes a sprint. Teams that skip this step end up with three logging libraries in the Go services alone and the schema drifts within months.</li>
+        <li><strong>Storage and bandwidth.</strong> JSON is bulkier than free-form text by 2-3x, and the index is bulkier still. The cost is real but bounded; it is dwarfed by the cost of an hour-long incident where the on-call cannot find the failing request.</li>
+        <li><strong>Schema-change ceremony.</strong> Renaming a field is no longer a one-PR change; it becomes an additive deprecation. Developers will resent this until the first time a year-old dashboard saves an incident — then the ceremony pays for itself in a single afternoon.</li>
       </ul>
-      <p>Domain-specific fields (user_id, order_id, error_code, latency_ms) are added per event type. The schema is enforced by the shared logging library — services don't construct log lines by hand.</p>
-    </section>
+    </div>
 
-    <section id="why" class="pa-section">
-      <h2>Why we need it</h2>
-      <p>Unstructured logs are text for humans. Structured logs are events for machines. The log aggregator (Loki, OpenSearch, BigQuery) can filter, aggregate, and join structured events in milliseconds. When every log line carries the same trace ID as the distributed trace for that request, engineers can pivot from a metric anomaly to every log event in the affected request path in one query. That pivot converts incident diagnosis from hours of log grepping into a 2-minute structured query.</p>
-      <p>The <code>trace_id</code> field is the key connection: it ties together a distributed trace, all log events from all services involved in that request, and the metric data points recorded during that request window. Without it, logs are silos — with it, they're a join table across the entire observability stack.</p>
-    </section>
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">event</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">log emitter (zap / pino)</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">stdout buffer</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">Vector ships + scrubs PII</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">parse</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">Loki index</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">query / alert</span>
+    </div>
+    <p>An event begins as a function call in service code — <code>log.Error("payment failed", "order_id", id, "err", err)</code>. The shared library reads the OpenTelemetry context out of the goroutine-local store, stamps <code>trace_id</code> and <code>span_id</code> onto the record, and writes a single line of JSON to stdout. The container's stdout buffer holds the line for milliseconds. Vector, running as a node-local daemon, tails the buffer, applies the PII filter, and forwards the event to Loki over the push API. Loki parses the JSON body once at ingest, attaches the low-cardinality labels, and writes the record to the chunk store. From here the event is queryable: dashboards filter on it, alert rules count it, the on-call pivots from a trace to it. The full path runs in well under a second under normal load — the budget on the alert path lives in the rule evaluation, not the log pipeline.</p>
 
-    <section id="industry" class="pa-section">
-      <h2>How others do it</h2>
-      <div class="pa-industry">
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Datadog</p>
-          <p class="pa-industry__what">Datadog's platform is built around unified log, metric, and trace correlation through a shared <code>trace_id</code>. Their recommendation: use a single logging library per language (pino for Node.js, structlog for Python, zerolog for Go) that automatically injects the OpenTelemetry trace context into every log line. The library configuration is set once at application startup; individual log calls don't need to pass context manually.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Automatic trace context injection via logging library middleware is the only scalable approach. Requiring developers to pass trace context manually on every log call produces inconsistent coverage — some log lines have trace IDs, some don't, and the query is useless for the ones that don't.</p>
-          <p class="pa-industry__source">Source: <a href="https://docs.datadoghq.com/logs/log_collection/" rel="noopener">Datadog — Log Collection</a></p>
-        </div>
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Cloudflare</p>
-          <p class="pa-industry__what">Cloudflare's observability team enforces structured logging through CI lint rules: any log statement that doesn't call the canonical structured logging function fails the build. Their schema is versioned — when the schema changes, all services are updated in a coordinated migration, not ad hoc. Schema version is a field in every log event, enabling the aggregator to handle schema migrations without breaking dashboards.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Enforce the schema in CI, not in code review. Code review catches some violations; CI catches all of them. Schema versioning is worth the investment — it prevents the "we changed the field name and broke all the dashboards" incident.</p>
-          <p class="pa-industry__source">Source: <a href="https://blog.cloudflare.com/" rel="noopener">Cloudflare Blog — Engineering</a></p>
-        </div>
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong><code>trace_id</code> missing from most lines</strong></td>
+            <td>SWEs pass context manually on the lines they remember and forget on the lines they don't.</td>
+            <td>Library middleware injects the OpenTelemetry context automatically; a CI lint rejects log calls that bypass the library. Manual propagation always degrades into partial coverage, and partial coverage is the case that ruins the incident query.</td>
+          </tr>
+          <tr>
+            <td><strong>INFO spam buries the ERROR signal</strong></td>
+            <td>"Log everything at info, it's useful for debugging."</td>
+            <td>Enforce the level ladder in code review. DEBUG is verbose dev output (off or sampled in production), INFO is significant state transitions, WARN is recoverable degradation, ERROR is attention-required failure, FATAL kills the process. Promoting noise to INFO burns storage and hides the lines that mattered.</td>
+          </tr>
+          <tr>
+            <td><strong>Schema drift between services</strong></td>
+            <td>One service uses <code>user_id</code>, another <code>userId</code>, a third <code>uid</code> — nobody noticed.</td>
+            <td>Lock the schema in a repo; CI lint references it. New fields can be added freely; renames are versioned migrations with parallel emission. The aggregator cannot fix a field name it does not know about.</td>
+          </tr>
+          <tr>
+            <td><strong>PII written to the index</strong></td>
+            <td>SWE logs the raw request body for "easier debugging"; the request body contains an email or a card number.</td>
+            <td>PII filter at the collector (Vector) with regex-based redaction. The contract holds even if a developer makes a mistake; the index never sees the raw value. Audit the filter rules quarterly against the production stream.</td>
+          </tr>
+          <tr>
+            <td><strong>High-cardinality fields promoted to labels</strong></td>
+            <td>"Querying by user_id is slow, let's index it." On Loki this explodes the label cardinality.</td>
+            <td>Keep labels boring (<code>service</code>, <code>env</code>, <code>level</code>); keep high-cardinality fields in the JSON body. LogQL parses the body fast enough that there is no reason to promote anything — and every promotion is one more dimension the index has to remember.</td>
+          </tr>
+          <tr>
+            <td><strong>Hand-rolled JSON via <code>fmt.Sprintf</code></strong></td>
+            <td>Library was unavailable on a hot path, somebody built the JSON by hand "for now".</td>
+            <td>The library is the contract. Hand-rolled JSON drifts within weeks: missing fields, wrong type for the timestamp, no trace context. CI lint forbids string interpolation that looks like JSON in a log call.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Log event</span>
+        <p class="pa-example__title">ERROR — lessons-api payment retry exhausted, captured during the SLO burn that paged on-call</p>
       </div>
-    </section>
-
-    <section id="anatomy" class="pa-section">
-      <h2>Anatomy</h2>
-      <div class="pa-anatomy">
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Canonical schema and shared library</p><p class="pa-anatomy__hint">One logging library per language, pre-configured with the canonical schema. Services call the library; the library produces compliant JSON. No service constructs log lines by hand.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Automatic trace context injection</p><p class="pa-anatomy__hint">The logging library reads the OpenTelemetry context from the current goroutine/thread and injects trace_id and span_id into every log line automatically. Zero manual plumbing per log call.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">CI schema enforcement</p><p class="pa-anatomy__hint">A linter that fails the build if a log call doesn't go through the canonical library. Catches violations before they reach production and produce un-queryable log events.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Retention and routing policy</p><p class="pa-anatomy__hint">Log routing rules: debug logs discarded in production (or sampled at 1%), info logs retained 14 days, error logs retained 90 days. Route to the central aggregator with the retention policy configured — not ad hoc per service.</p></div>
+      <div class="pa-example__body">
+        <pre><code>{
+  "ts":            "2026-05-24T14:02:17.413Z",
+  "level":         "error",
+  "service":       "lessons-api",
+  "env":           "prod",
+  "schema_version": 2,
+  "trace_id":      "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id":       "00f067aa0ba902b7",
+  "request_id":    "req_01HZX8K3M2V7N4Q5",
+  "user_id":       "usr_94217",
+  "route":         "POST /v1/lessons/:id/purchase",
+  "error_code":    "PAYMENT_PROVIDER_5XX",
+  "retry_count":   3,
+  "latency_ms":    1842,
+  "upstream":      "stripe",
+  "message":       "payment retry exhausted",
+  "stack": [
+    "lessons-api/internal/payment/charge.go:142 charge.attempt",
+    "lessons-api/internal/payment/charge.go:88  charge.run",
+    "lessons-api/internal/http/lessons.go:213   handler.purchase"
+  ]
+}
+</code></pre>
+        <p><strong>What this event does.</strong> It is the line the on-call lands on when the SLO burn-rate alert from <a href="alerting-design.html">alerting design</a> fires. The alert query in Loki is <code>{service="lessons-api",level="error"} | json | error_code="PAYMENT_PROVIDER_5XX"</code>; the count of matching events in the last minute is what the alert rule thresholds on. Once the alert pages, the operator copies the <code>trace_id</code> from any matching event and pulls the full distributed trace — every span the request touched, the latency on each, the upstream that failed. The <code>stack</code> field gives the entry point inside the service without forcing a separate APM tool. None of this is possible if the same outage produced free-form text lines reading <code>"payment failed for user 94217 after 3 retries"</code> — the join key is gone and the query becomes a substring scan.</p>
       </div>
-    </section>
+    </div>
 
-    <section id="pitfalls" class="pa-section">
-      <h2>Common pitfalls</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
-        <table class="pa-pitfalls">
-          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
-          <tbody>
-            <tr><td>trace_id missing from most log lines</td><td>Developers pass context manually and forget sometimes.</td><td>Automatic middleware injection — no manual passing. Any log line without a trace_id is invisible during incident diagnosis. Zero tolerance.</td></tr>
-            <tr><td>Info-level log spam makes error logs unsearchable</td><td>Developers log everything at info level for "debugging convenience."</td><td>Enforce log level discipline: debug for verbose development output (disabled in production), info for significant state transitions, warn for recoverable errors, error for failures requiring attention. Debug-in-production burns storage and makes signal impossible to find.</td></tr>
-            <tr><td>Structured logging in new services, unstructured in legacy</td><td>Legacy services are "too hard to migrate."</td><td>Migrate the highest-traffic legacy services first — they generate 80% of the log volume and 80% of the queries. A mixed fleet where some services emit structured logs and some don't breaks trace correlation for the mixed requests.</td></tr>
-          </tbody>
-        </table>
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every service emits JSON via the shared library</p><p class="pa-quality__hint">zap in Go, pino in Node, structlog in Python. No service constructs log lines by hand; CI lint enforces it.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Canonical schema locked and versioned</p><p class="pa-quality__hint">Field names and types live in <code>infra/logging/schema.json</code>; renames are additive migrations, never in-place edits.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">trace_id on 100% of production events</p><p class="pa-quality__hint">Automatic injection from the OpenTelemetry context; sampled audit confirms coverage every quarter.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">PII filter in the pipeline</p><p class="pa-quality__hint">Vector applies email / phone / card / token redaction before Loki ingest. Rules audited quarterly against the live stream.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Loki labels stay low-cardinality</p><p class="pa-quality__hint">Index labels limited to <code>service</code>, <code>env</code>, <code>level</code>; everything else lives in the JSON body and is parsed at query time.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Level discipline holds</p><p class="pa-quality__hint">DEBUG sampled or off in production; INFO reserved for state transitions; ERROR fires only when human attention is warranted. Reviewed in code review, not after the fact.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Retention policy applied centrally</p><p class="pa-quality__hint">INFO 14 days, ERROR 90 days, DEBUG dropped in production. Configured at the collector, not per service.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://opentelemetry.io/docs/specs/otel/logs/" rel="noopener">OpenTelemetry — Logs specification</a><span class="pa-refs__hint">The canonical data model for log records — severity, body, attributes, trace context. Borrow the field names even if the backend is not OTel-native.</span></li>
+          <li><a href="https://grafana.com/docs/loki/latest/get-started/labels/bp-labels/" rel="noopener">Grafana Loki — Labels best practices</a><span class="pa-refs__hint">Why labels stay low-cardinality and high-cardinality fields live in the JSON body, parsed at query time.</span></li>
+          <li><a href="https://docs.datadoghq.com/logs/log_collection/" rel="noopener">Datadog — Log management guide</a><span class="pa-refs__hint">Unified log / metric / trace correlation through a shared <code>trace_id</code>; pick-the-canonical-library guidance.</span></li>
+          <li><a href="https://charity.wtf/" rel="noopener">Charity Majors — observability writing</a><span class="pa-refs__hint">The wide-event story: one log line per request, every interesting fact a typed field.</span></li>
+        </ul>
       </div>
-    </section>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="distributed-tracing.html">Distributed tracing — where <code>trace_id</code> originates</a><span class="pa-refs__hint">The trace context the logging library injects on every line; the join key for the entire observability stack.</span></li>
+          <li><a href="metrics-dashboards.html">Metrics &amp; dashboards — where log events surface as counts</a><span class="pa-refs__hint">Dashboards over log-derived metrics; exemplars carry the same <code>trace_id</code> the logs do.</span></li>
+          <li><a href="alerting-design.html">Alerting design — the rules that count error events</a><span class="pa-refs__hint">Symptom-based paging queries the log index by <code>level="error"</code>; structured logs are the prerequisite.</span></li>
+          <li><a href="runbooks.html">Runbooks — the page every on-call lands on</a><span class="pa-refs__hint">The runbook tells the operator which log query to run; structured logging makes the query a one-liner.</span></li>
+        </ul>
+      </div>
+    </div>
 
-    <section id="page-history" class="pa-section">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
-          <tbody>
-            <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
-              <td>Initial version: Structured Logging practice for SRE radar.</td>
-              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-14">2026-05-14</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: Structured Logging practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
 
-    <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
-    <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
 
-    <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
-  </body></html>
+</body></html>

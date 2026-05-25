@@ -2,7 +2,7 @@
 <html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Chaos Engineering — Practice 05 · SRE</title>
+  <title>Chaos engineering — break things on purpose, before they break on you — Practice 05 · SRE</title>
   <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
@@ -21,7 +21,7 @@
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
-        <li class="docs-breadcrumbs__item" aria-current="page">Chaos Engineering</li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Chaos engineering</li>
       </ol>
     </nav>
     <div class="topbar__spacer"></div>
@@ -33,132 +33,357 @@
   <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
   <main class="container">
-    <p class="pa-eyebrow">
-      <span class="pa-eyebrow__num">05</span>
-      <span class="pa-eyebrow__group">Group A · Reliability foundations</span>
-      <span class="pa-scorebar"><span class="pa-scorebar__asis">1.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.5</span><span class="pa-scorebar__hint">AS-IS → TO-BE</span></span>
-    </p>
-    <h1 class="pa-title">Chaos Engineering — break things on purpose before they break on you</h1>
-    <div id="docs-top-nav"></div>
-    <p class="pa-lead">Intentional failure injection in controlled conditions to verify that redundancy, failover paths, and alert coverage work the way the team assumes — before a real incident proves they don't.</p>
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">05</span>
+        <span class="pa-eyebrow__group">Group A · Reliability foundations</span>
+      </p>
+      <h1>Chaos engineering — break things on purpose, before they break on you</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Inject controlled failure into a system that is otherwise healthy, with a written hypothesis and a small blast radius, so that redundancy, failover, and alert coverage prove themselves in business hours instead of at 3 a.m. The output is not the failure — it is the gap between the system you designed and the system you actually have.</p>
+    </header>
 
     <div class="pa-tldr">
       <span class="pa-tldr__label">TL;DR</span>
-      <p class="pa-tldr__text">Chaos engineering runs controlled experiments that inject failures into a production or staging environment to validate system behaviour under stress. Each experiment has a hypothesis ("if we kill one replica, P99 stays below 500 ms and alerts fire within 2 minutes"), a blast radius limit, a defined rollback plan, and a postmortem-style retrospective. Start with manual GameDays before automating. The goal is to find the gap between the system you designed and the system you actually have — in controlled conditions, not at 3 am during a real incident.</p>
+      <p class="pa-tldr__text">A chaos experiment is a hypothesis under load: <em>"if we inject 200 ms latency into 1% of lessons-api traffic, p99 stays under 500 ms and the SLO-burn alert fires within 2 minutes."</em> Every experiment carries a defined <strong>steady state</strong>, a <strong>blast radius cap</strong> (start at 1% traffic, never above 10% in production), an <strong>abort condition</strong> that triggers automatically, and a <strong>retrospective</strong> within 24 hours. Start in staging with LitmusChaos; promote to production as quarterly GameDays once the staging run is boring. The most valuable finding is rarely the failure — it is the missing alert, the stale runbook, the failover that took 8 minutes instead of 30 seconds.</p>
     </div>
 
-    <figure class="pa-figure" aria-label="Chaos experiment structure">
-      <svg viewBox="0 0 720 195" role="img" aria-label="Chaos engineering experiment lifecycle">
-        <g font-family="ui-monospace,Menlo,Consolas,monospace">
-          <rect class="pa-svg-box pa-svg-box--accent" x="20" y="40" width="130" height="80" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--accent" x="85" y="72" text-anchor="middle" font-size="11" font-weight="700">Hypothesis</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="85" y="90" text-anchor="middle" font-size="10">define steady state</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="85" y="106" text-anchor="middle" font-size="10">+ expected outcome</text>
-          <path class="pa-svg-arrow" d="M150 80 L170 80 L164 76 M170 80 L164 84"></path>
-          <rect class="pa-svg-box" x="172" y="40" width="130" height="80" rx="8"></rect>
-          <text class="pa-svg-text" x="237" y="72" text-anchor="middle" font-size="11" font-weight="700">Inject</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="237" y="90" text-anchor="middle" font-size="10">controlled failure</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="237" y="106" text-anchor="middle" font-size="10">limited blast radius</text>
-          <path class="pa-svg-arrow" d="M302 80 L322 80 L316 76 M322 80 L316 84"></path>
-          <rect class="pa-svg-box" x="324" y="40" width="130" height="80" rx="8"></rect>
-          <text class="pa-svg-text" x="389" y="72" text-anchor="middle" font-size="11" font-weight="700">Observe</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="389" y="90" text-anchor="middle" font-size="10">measure vs hypothesis</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="389" y="106" text-anchor="middle" font-size="10">check alerts + recovery</text>
-          <path class="pa-svg-arrow" d="M454 80 L474 80 L468 76 M474 80 L468 84"></path>
-          <rect class="pa-svg-box pa-svg-box--good" x="476" y="40" width="220" height="80" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--good" x="586" y="72" text-anchor="middle" font-size="11" font-weight="700">Learn</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="586" y="90" text-anchor="middle" font-size="10">hypothesis confirmed → raise bar</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="586" y="106" text-anchor="middle" font-size="10">hypothesis failed → fix + retest</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="360" y="175" text-anchor="middle" font-size="10" font-style="italic">always in business hours · with rollback ready · never "let's see what happens"</text>
-        </g>
+    <figure class="pa-figure" aria-label="Chaos experiment lifecycle">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Steady state to hypothesis to fault injection to measure to learn" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="65" y="106" text-anchor="middle" font-weight="700">Steady state</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="65" y="124" text-anchor="middle" font-size="10">baseline metrics</text>
+
+        <rect class="pa-svg-box" x="145" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="205" y="106" text-anchor="middle" font-weight="700">Hypothesis</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="205" y="124" text-anchor="middle" font-size="10">predict + measure</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="285" y="20" width="160" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="365" y="42" text-anchor="middle" font-weight="700">Inject — staging</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="365" y="60" text-anchor="middle" font-size="10">LitmusChaos · 1%</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="285" y="148" width="160" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="365" y="170" text-anchor="middle" font-weight="700">Inject — prod</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="365" y="188" text-anchor="middle" font-size="10">GameDay · 1% traffic</text>
+
+        <rect class="pa-svg-box" x="465" y="80" width="80" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="505" y="106" text-anchor="middle" font-weight="700">Measure</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="505" y="124" text-anchor="middle" font-size="10">vs hypothesis</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="555" y="80" width="80" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="595" y="106" text-anchor="middle" font-weight="700">Learn / fix</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="595" y="124" text-anchor="middle" font-size="10">runbook · alert</text>
+
+        <path d="M125 110 L140 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M265  98 L280  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M265 122 L280 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M445  46 L460  98" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M445 174 L460 122" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M545 110 L553 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
       </svg>
-      <figcaption class="pa-figure__caption">Hypothesis → Inject → Observe → Learn. Never run without a hypothesis and a blast radius limit.</figcaption>
+      <figcaption class="pa-figure__caption">Steady state → hypothesis → inject (staging first, then production at 1% traffic) → measure against the hypothesis → learn. The arrow back from learning is implicit; every experiment seeds the next one.</figcaption>
     </figure>
 
-    <section id="what" class="pa-section">
-      <h2>What it is</h2>
-      <p><strong>Chaos engineering</strong> is the discipline of running deliberate failure experiments against a production or production-like environment to discover weaknesses before they manifest as real incidents. A chaos experiment has five mandatory components:</p>
+    <h2 id="what">What it is</h2>
+    <p><strong>Chaos engineering</strong> is the practice of running deliberate failure experiments against a healthy system to discover weaknesses before they manifest as real incidents. It is not "break stuff and see"; it is the scientific method applied to operational risk. An experiment that ships must satisfy five mandatory properties: a measurable <em>steady state</em> defined in concrete metrics; a written <em>hypothesis</em> the experiment will confirm or refute; a bounded <em>blast radius</em> — one replica, one AZ, 1% of traffic — that cannot cascade beyond its declared scope; an automatic <em>abort</em> wired to that scope; and a <em>retrospective</em> within 24 hours that produces an action item, not a feeling.</p>
+    <p>The output of a chaos experiment is never "the system broke" or "the system survived" — those are the inputs. The output is the delta between what the team predicted and what actually happened: the alert that should have fired and didn't, the runbook step that turned out to be wrong, the failover that took 8 minutes when the architecture diagram promised 30 seconds. Confirmed hypotheses raise the next bar; refuted ones generate backlog tickets with named owners.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Redundancy that has never been exercised under load is decorative. The architecture diagram shows three replicas; the question chaos engineering answers is whether the system actually survives losing one, and how long the surviving two take to absorb the traffic. Disaster-recovery runbooks that have not been rehearsed are fiction — written in a calm afternoon, read at 3 a.m. by an engineer who has never executed step 4 before. The cost of finding the gap in business hours, with the author of the runbook standing next to the on-call, is one order of magnitude lower than finding it during a real outage.</p>
+    <p>The single most valuable signal from chaos experiments is rarely the failure mode itself. It is the <em>observability gap</em>: "we injected 200 ms of latency and the SLO-burn alert did not fire for 8 minutes — the rule's window was too long." That gap was invisible during steady operation and would have been discovered in production at exactly the worst time. Chaos engineering is the only practice that surfaces that class of bug deterministically rather than waiting for the universe to do it on the team's behalf.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose chaos practice is published and copied. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Netflix — Chaos Monkey &amp; the Simian Army</p>
+        <p class="pa-industry__what">Netflix invented the discipline in 2010 with Chaos Monkey, a tool that randomly terminates production EC2 instances during business hours. The principle: if the system cannot survive instance loss when engineers are awake, it definitely cannot survive it on a Saturday night. The Simian Army later added Latency Monkey, Conformity Monkey, and Chaos Gorilla — the last terminating an entire AWS availability zone. The whole framework is anchored in the published Principles of Chaos Engineering: steady state, hypothesis, real-world events, minimal blast radius, automate.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Production is where the practice has to land. Staging exercises are a prerequisite, not a destination. And every experiment maps to one of the five principles — those five questions are the gate a proposal has to pass before it gets a calendar slot.</p>
+        <p class="pa-industry__source">Source: <a href="https://principlesofchaos.org/" rel="noopener">Principles of Chaos Engineering</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Amazon — GameDays</p>
+        <p class="pa-industry__what">Amazon runs structured GameDays — multi-team failure-injection exercises with a facilitator (the "GameDay lead"), a predetermined scenario, and roleplay of the entire response: IC rotation, comms, customer messaging. GameDays are mandatory quarterly for every Tier 0 service. AWS later productised the substrate as Fault Injection Service (FIS), which lets teams declare experiments as JSON templates with safety stop-conditions wired to CloudWatch alarms.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> The technical failure is the easy half. The human response — who pages whom, who updates the status page, who decides to abort — is the half that actually breaks under pressure. GameDays test the whole response loop, not just the failover.</p>
+        <p class="pa-industry__source">Source: <a href="https://aws.amazon.com/fis/" rel="noopener">AWS Fault Injection Service</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Gremlin — the chaos maturity model</p>
+        <p class="pa-industry__what">Gremlin's published maturity model is four stages: (0) no chaos, reactive only; (1) manual GameDays in staging; (2) automated experiments against staging on a schedule; (3) automated experiments against production with auto-abort wired to SLO burn. The guidance is unambiguous: spend 6–12 months at stage 1 before automating. Manual GameDays build the hypothesis discipline and the blast-radius muscle; automation without those is just a high-throughput incident generator.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Automation is the destination, not the starting point. Two quarters of manual GameDays first — that is where the team learns to write hypotheses and cap blast radius. Automation amplifies whatever culture it lands in; amplify a careful one.</p>
+        <p class="pa-industry__source">Source: <a href="https://www.gremlin.com/community/tutorials/chaos-engineering-the-history-principles-and-practice/" rel="noopener">Gremlin — Chaos Engineering tutorials</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Nora Jones / Jepsen / CNCF Litmus</p>
+        <p class="pa-industry__what">Nora Jones (formerly Netflix, then Jeli) reframed chaos engineering around <em>learning systems</em>: the value is in the institutional memory of what was learned, not the catalogue of injected faults. Jepsen (Kyle Kingsbury) does the academic-grade variant — formally specified failure modes against distributed databases, published as adversarial test reports. CNCF Litmus is the open-source operator that brings this to Kubernetes: experiments are CRDs, with probes that decide pass/fail and an automatic abort if the probe fails.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Treat experiment results as a corpus, not a stream. The retrospective is where the value crystallises — without that step, chaos engineering degrades to expensive theatre. And use a tool (Litmus, for us) where the experiment is declarative and the abort is wired to the probe, not to a human noticing.</p>
+        <p class="pa-industry__source">Source: <a href="https://litmuschaos.io/" rel="noopener">LitmusChaos documentation</a></p>
+      </div>
+    </div>
+    <p class="pa-industry-pattern">Across every published programme the playbook converges: a written hypothesis, a 1–5% blast radius, automatic abort on a real-time signal, an enforced retrospective inside 24 hours, and a maturity ramp that starts in staging and ends with scheduled production experiments. Tooling differs; the discipline does not.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete chaos-engineering practice has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Steady-state definition</p><p class="pa-anatomy__hint">A small set of metrics — typically RED or USE plus the SLO indicator — declared as the system's "healthy" state. The experiment measures against this baseline; without it there is nothing to compare to.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Written hypothesis</p><p class="pa-anatomy__hint">"If [fault], then [outcome] within [time], measured by [metric]." Written before the experiment runs, signed off by the owning team. A refuted hypothesis is more valuable than a confirmed one — that is the whole point.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Blast-radius cap</p><p class="pa-anatomy__hint">Numeric, declared in the manifest. Production experiments cap at 1% of traffic and never above 10% without VP sign-off. Staging caps at 100% of a single namespace.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Automatic abort conditions</p><p class="pa-anatomy__hint">Probes wired to the steady-state metrics. If error rate exceeds 2× baseline or p99 latency exceeds 2× baseline for more than 60 s, the experiment terminates itself — no human in the loop. Manual kill-switch must restore baseline within 60 seconds.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Staging → production ramp</p><p class="pa-anatomy__hint">Every experiment runs first in staging until the hypothesis is boring. Production promotion requires three consecutive staging runs that confirm the hypothesis with no drift. Some failure modes only exist in production — staging is the gate, not the test.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Retrospective within 24 hours</p><p class="pa-anatomy__hint">Thirty-minute review, postmortem format. Hypothesis, observed, delta, action items. Every action item is a Jira ticket with an owner and a date; no finding without a follow-up.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Experiment catalogue</p><p class="pa-anatomy__hint">Every experiment ever run lives in <code>infra/chaos/</code> as a manifest plus its retrospective. The catalogue is the institutional memory; it is the asset chaos engineering actually produces.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App uses <strong>LitmusChaos</strong> as the operator in the <code>chaos-staging</code> namespace; experiments are declared as <code>ChaosEngine</code> CRDs alongside the service they target. The catalogue lives at <code>infra/chaos/</code>, one directory per service, with the experiment manifest, the hypothesis document, and the retrospective archive in the same folder. Probes are wired to the same Prometheus instance the SLO dashboards read, so abort triggers are the same numbers the on-call team trusts in steady state. CI runs a smoke set of low-impact experiments (single pod kill, single-replica DNS latency) against every PR that touches infra; the heavier experiments run on a nightly schedule against the staging cluster.</p>
+    <p>Production chaos lives in <strong>quarterly GameDays</strong>, not a continuous pipeline — the team is at the maturity ramp's stage 1, not stage 3. Each GameDay scopes to one Tier 0 service, runs in a two-hour window during business hours, caps blast radius at <strong>1% of traffic</strong>, and has a named GameDay lead, IC, and scribe. The experiment manifest is reviewed in a dry-run meeting one week before; the retrospective is filed inside 24 hours and the action items land in the SRE backlog. The first GameDays target the obvious ones — lessons-api dependency latency, recommendations-api regional failover, payment-service circuit-breaker behaviour — and graduate to subtler ones (cache-stampede, partial-AZ network partition) once the response loop is rehearsed.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>The Principles of Chaos — the five questions every experiment must answer</h3>
+      <p>The Netflix-era Principles document (principlesofchaos.org) is the canonical reference. Every experiment proposal has to answer five questions before it gets a calendar slot, and the order matters.</p>
+      <h4>1. Build a hypothesis around steady-state behaviour</h4>
+      <p>The system has a "normal" — a small set of metrics whose values describe healthy operation. For Study App that is the SLO indicator (success ratio of lessons-api requests), p99 latency at 350 ms, and the error budget burn rate. Steady state is declared <em>before</em> the experiment; the hypothesis predicts how that state will (or will not) change under the injected fault.</p>
+      <h4>2. Vary real-world events</h4>
+      <p>The faults injected must mirror what actually goes wrong in production: instance termination, network latency, network partition, disk full, dependency timeout, region failure. Don't inject "the application becomes 50% slower" — inject the cause: a 200 ms latency on the database connection, or a 5xx on every fifth call to the payments dependency. The fault has to be something the universe could plausibly do.</p>
+      <h4>3. Minimise blast radius</h4>
+      <p>The radius is a single number: pods affected, traffic percentage, replicas removed. The number starts as low as the experiment is still informative — 1% of traffic, one of three replicas — and only grows after several runs at the smaller scope show no surprises. The cost of escalating slowly is a few more experiments; the cost of escalating fast is a self-inflicted outage on the calendar.</p>
+      <h4>4. Run experiments in production</h4>
+      <p>Staging is where the experiment is debugged; production is where the result counts. The traffic patterns, data volumes, and third-party dependencies that produce the interesting failure modes only exist there. The corollary is that production experiments need a higher bar — automatic abort on real-time signal, smaller initial blast radius, business-hours window, named IC — but the destination is production.</p>
+      <h4>5. Automate experiments to run continuously</h4>
+      <p>One-off experiments age. A failover that worked in March silently breaks in May because a config drifted; the only way to catch that is to re-run the experiment on a schedule. Stage-3 maturity is automated production chaos with auto-abort; getting there takes two or three years of building the discipline at the earlier stages first.</p>
+      <h3>The four phases of a chaos experiment</h3>
+      <h4>Phase 1 — Define steady state</h4>
+      <p>Pick the metrics that describe "system is healthy." Use the SLI for the service plus one or two operational signals (latency, queue depth). Capture the numeric range — not "p99 is fine" but "p99 sits between 280 and 380 ms during the experiment window." Steady state must be measurable in the same time window the experiment will run.</p>
+      <h4>Phase 2 — Form a hypothesis</h4>
+      <p>State explicitly what the steady-state metrics will do under the injected fault. The strong form is two-sided: "p99 will rise to no more than 500 ms, and the SLO-burn alert will fire within 2 minutes." Both halves matter — the system can survive the fault and still fail the experiment if the alert was silent.</p>
+      <h4>Phase 3 — Inject the fault &amp; observe</h4>
+      <p>Run the manifest. The probes either confirm the hypothesis or trip the abort. Observation is continuous: a human watches the dashboard, the auto-abort watches the probes, and the experiment writes its own structured log to the catalogue. The injection runs no longer than the experiment requires — typically 5 to 15 minutes for latency, 30 to 60 seconds for instance termination.</p>
+      <h4>Phase 4 — Verify, learn, fix</h4>
+      <p>Compare observed to hypothesis. The interesting outcomes are the deltas: alert that fired late, runbook that referenced a deprecated dashboard, failover that took 8 minutes. Each delta becomes a backlog ticket with an owner. A clean run still produces an action: raise the blast radius next quarter, or graduate the experiment from staging to production.</p>
+      <h3>Fault classes — what the universe actually does</h3>
+      <h4>Latency injection</h4>
+      <p>Add a fixed or distribution-based delay to network calls. The most common production-relevant fault: dependencies don't usually die, they slow down. Litmus, Toxiproxy, and tc-netem all do this; the manifest specifies the delay distribution and the target (pod, service, percentage of calls).</p>
+      <h4>Error injection</h4>
+      <p>Return 5xx, 4xx, or RPC errors on a percentage of calls. Reveals circuit-breaker behaviour, retry storms, and whether the upstream knows how to back off. The trap: error injection that mirrors the real error rate is more useful than a 100% kill — most outages are partial.</p>
+      <h4>Resource exhaustion</h4>
+      <p>Fill CPU, memory, disk, or file descriptors on a pod or node. Surfaces the OOM-kill story, the disk-pressure eviction story, and the autoscaler's behaviour under contention. Pair it with a request-rate probe to see whether throughput actually degrades or just shifts noise.</p>
+      <h4>Dependency failure</h4>
+      <p>Make a downstream service unreachable, or a database read-replica disappear. Tests the timeout and fallback path that the architecture diagram promises. The most common finding: the fallback exists in code but has never been exercised, so its own bugs were never debugged.</p>
+      <h4>Region / zone failure</h4>
+      <p>Drop an entire availability zone or region from routing. The highest-stakes experiment; the one that justifies the whole multi-region investment. AWS FIS or a manual route table change; the GameDay format is mandatory for this class.</p>
+      <h3>Trade-offs — what this practice costs</h3>
       <ul>
-        <li><strong>Hypothesis:</strong> A specific, measurable prediction of system behaviour under the failure. "If we terminate one of three API replicas, P99 latency stays below 500 ms and at least one alert fires within 2 minutes."</li>
-        <li><strong>Blast radius limit:</strong> A defined maximum scope of the failure — one replica, one AZ, 5% of traffic. Experiments that can cascade uncontrollably are not experiments, they're accidents.</li>
-        <li><strong>Steady-state baseline:</strong> The metric values before the experiment starts, so deviation can be measured objectively.</li>
-        <li><strong>Rollback plan:</strong> The specific steps to stop the experiment and restore normal operation, validated before the experiment begins.</li>
-        <li><strong>Retrospective:</strong> A structured review of what was learned — confirmed hypotheses raise the bar; failed hypotheses generate remediation work.</li>
+        <li><strong>Calendar time.</strong> A GameDay is a two-hour window for the service team plus an hour of dry-run plus an hour of retrospective. Four GameDays a year across four Tier 0 services is ~64 person-hours of senior engineering attention; that is the price of insurance.</li>
+        <li><strong>Operational risk during the experiment.</strong> Even a 1% blast radius is a 1% blast radius — some real customers will see degradation. The trade is paid in business hours under controlled conditions versus paid at 3 a.m. under uncontrolled ones. The arithmetic favours the experiment, but it is not zero.</li>
+        <li><strong>Cultural reversal.</strong> Engineers are trained to prevent failure; chaos engineering asks them to schedule it. The first GameDay is psychologically difficult and requires explicit air cover from leadership ("you are not the on-call who broke it; you are the one who scheduled it.") Without that, the practice stalls at proposal stage.</li>
       </ul>
-    </section>
+    </div>
 
-    <section id="why" class="pa-section">
-      <h2>Why we need it</h2>
-      <p>Redundancy and failover paths that have never been tested under load are theoretical. DR documentation that has never been exercised is fiction. Chaos engineering converts theoretical reliability into verified reliability by running the failure scenario under controlled conditions — with a team that's alert, rested, and prepared — rather than discovering the gaps at 3 am during a real incident.</p>
-      <p>The most valuable discovery from chaos experiments is typically not the failure itself but the alert gap: "we terminated a replica and no alert fired for 8 minutes." That gap would have been invisible during normal operation and discovered too late during a real incident.</p>
-    </section>
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">hypothesis drafted</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">design review</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">staging run</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">result vs hypothesis</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">fix gap · raise bar</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">production GameDay</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">retrospective filed</span>
+    </div>
+    <p>A new experiment starts as a hypothesis written by the owning team — never by the SRE team in isolation. The design review is a 30-minute meeting one week before the run that asks the five Principles questions: steady state, hypothesis, real-world fault, blast radius, abort. The experiment runs in staging first and lives there until three consecutive runs match the hypothesis with no drift; only then does it become a production GameDay candidate. The production run uses the same manifest with stricter blast radius and IC oversight. The retrospective is filed inside 24 hours and the action items land in the SRE backlog with named owners and dates. Experiments that complete cleanly graduate — wider blast radius, or shorter rehearsal cycle next quarter; experiments that surface gaps stay in the catalogue until every action item ships.</p>
 
-    <section id="industry" class="pa-section">
-      <h2>How others do it</h2>
-      <div class="pa-industry">
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Netflix (Chaos Monkey)</p>
-          <p class="pa-industry__what">Netflix invented the practice with Chaos Monkey (2010) — an automated tool that randomly terminates EC2 instances in production during business hours. The principle: if the system can't survive random instance termination during business hours, it definitely can't survive it at 3 am on a weekend. Netflix later expanded the suite to the "Simian Army" — tools for testing network failures, latency injection, and AZ failures.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Run experiments in production, during business hours. Staging experiments are useful for initial validation; production experiments are what matter for confidence. Engineers available during business hours can respond to unexpected failure modes — they cannot at 3 am.</p>
-          <p class="pa-industry__source">Source: <a href="https://netflix.github.io/chaosmonkey/" rel="noopener">Netflix Chaos Monkey</a></p>
-        </div>
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Amazon (GameDay)</p>
-          <p class="pa-industry__what">Amazon runs "GameDays" — structured failure injection exercises involving multiple teams, a facilitator (the "GameDay lead"), and a predetermined scenario. Unlike automated chaos, Amazon's GameDays are social events: teams roleplay the incident response, IC rotation, and communication processes as well as the technical failure injection. GameDays are mandatory quarterly for all Tier 0 services.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> GameDays test the human response process, not just the technical failover. Automatic failover that no one knows how to monitor or communicate around produces a different failure mode than the technical one. Test the process, not just the system.</p>
-          <p class="pa-industry__source">Source: <a href="https://aws.amazon.com/gameday/" rel="noopener">AWS GameDay</a></p>
-        </div>
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Gremlin</p>
-          <p class="pa-industry__what">Gremlin (a chaos engineering platform) publishes the "Chaos Maturity Model" — a four-stage model: no chaos (reactive only), manual GameDays, automated experiments against staging, automated experiments against production with automatic abort triggers. Most organisations should start at stage 2 (manual GameDays) and spend 6–12 months there before moving to automation.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Automation is the destination, not the starting point. Manual GameDays first — they build the hypothesis discipline, the blast radius thinking, and the retrospective habit that make automated chaos safe.</p>
-          <p class="pa-industry__source">Source: <a href="https://www.gremlin.com/chaos-engineering/" rel="noopener">Gremlin — Chaos Engineering</a></p>
-        </div>
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Running chaos without a hypothesis</strong></td>
+            <td>"Let's see what happens" feels like experimentation and is faster to schedule.</td>
+            <td>Refuse to run the experiment. The hypothesis is what makes the result useful — without it, a confirmed failure tells you only that you broke something. Write the two-sided prediction (system survives <em>and</em> alert fires) before the manifest is merged.</td>
+          </tr>
+          <tr>
+            <td><strong>Automating before the team has run manual GameDays</strong></td>
+            <td>Automation looks more impressive than a calendar invite for a two-hour exercise.</td>
+            <td>Spend two quarters at maturity stage 1 — manual, scheduled, in staging then in production. Automation amplifies whatever discipline it lands in; build the discipline first. Litmus's CRDs make automation easy later; making the team careful is the hard part.</td>
+          </tr>
+          <tr>
+            <td><strong>Findings filed and forgotten</strong></td>
+            <td>The retrospective is treated as the end of the experiment instead of the start of follow-up.</td>
+            <td>Every finding produces a Jira ticket with an owner and a date — no exceptions, no "we'll track it informally". The catalogue tracks open vs closed action items and that ratio is reviewed in the monthly SRE retro alongside MTTA.</td>
+          </tr>
+          <tr>
+            <td><strong>Blast radius set in prose, not in the manifest</strong></td>
+            <td>"We'll be careful" is faster to type than a probe definition.</td>
+            <td>Encode the cap in the experiment CRD: target pods, traffic percentage, auto-abort thresholds. The manifest is the contract; what is not written in it does not exist. Litmus's probes plus a tight <code>chaosDuration</code> are the structural enforcement.</td>
+          </tr>
+          <tr>
+            <td><strong>No abort condition</strong></td>
+            <td>The team trusts the human watching the dashboard.</td>
+            <td>Wire automatic abort to the steady-state metrics — error rate &gt; 2× baseline or p99 &gt; 2× baseline for 60 s ends the experiment without human input. Humans are slower than the SLO; the probe is faster. Manual kill-switch is the backup, not the primary.</td>
+          </tr>
+          <tr>
+            <td><strong>Staging experiment that doesn't translate</strong></td>
+            <td>Staging traffic is a synthetic trickle; the interesting failure modes only show up against production load and data volumes.</td>
+            <td>Treat staging as the rehearsal venue, not the test. The hypothesis is provisionally confirmed in staging; the real confirmation comes from the production GameDay. Don't skip staging — staging catches the experiment's own bugs — but don't trust it as the answer.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Chaos experiment</span>
+        <p class="pa-example__title">CHA-014 — lessons-api dependency-latency injection (200 ms · 1% traffic · staging then prod GameDay)</p>
       </div>
-    </section>
-
-    <section id="anatomy" class="pa-section">
-      <h2>Anatomy</h2>
-      <div class="pa-anatomy">
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Experiment hypothesis</p><p class="pa-anatomy__hint">Written before the experiment starts: "If [failure], then [outcome] within [time], measured by [metric]." No hypothesis = no experiment = just breaking things. A hypothesis that turns out to be wrong is more valuable than one that is confirmed.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Blast radius control</p><p class="pa-anatomy__hint">Define the maximum scope before the experiment. One replica, one availability zone, 5% of traffic. Have an abort signal — a single command or button that stops the experiment and restores normal state within 60 seconds.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Staging → production progression</p><p class="pa-anatomy__hint">Run in staging first until the experiment is safe and the hypothesis is consistent. Then promote to production. Some failures only manifest in production (traffic patterns, data volumes, external dependencies) — staging experiments are a prerequisite, not a substitute.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Experiment retrospective</p><p class="pa-anatomy__hint">30-minute retrospective within 24 hours: what was the hypothesis, what actually happened, what was learned, what changes to make. Write it in the postmortem format. Findings feed directly into runbooks and alert improvements.</p></div>
+      <div class="pa-example__body">
+        <pre><code>apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name:        cha-014-lessons-api-latency
+  namespace:   chaos-staging
+  labels:
+    experiment_id:  CHA-014
+    target_service: lessons-api
+    blast_radius:   "0.01"          # 1% of pod traffic
+    owner:          sre-platform
+    review_by:      "2026-08-22"
+spec:
+  appinfo:
+    appns:     lessons
+    applabel:  "app=lessons-api"
+    appkind:   deployment
+  chaosServiceAccount: litmus-admin
+  experiments:
+  - name: pod-network-latency
+    spec:
+      components:
+        env:
+        - name: TARGET_CONTAINER
+          value: "lessons-api"
+        - name: NETWORK_LATENCY      # injected delay
+          value: "200"               # milliseconds
+        - name: TOTAL_CHAOS_DURATION
+          value: "300"               # 5 minutes
+        - name: PODS_AFFECTED_PERC
+          value: "1"                 # 1% of pods
+      probe:
+      - name:        slo-burn-stable
+        type:        promProbe
+        mode:        Continuous
+        runProperties:
+          probeTimeout:  10s
+          interval:      15s
+          retry:         0
+          stopOnFailure: true        # auto-abort
+        promProbe/inputs:
+          endpoint:  http://prometheus.monitoring.svc:9090
+          query:     "job:slo_error_rate:rate5m{service='lessons-api'}"
+          comparator:
+            type:   float
+            value:  "0.02"            # 2× steady-state error
+            criteria: "&lt;"
+      - name:        p99-bounded
+        type:        promProbe
+        mode:        Continuous
+        runProperties:
+          probeTimeout:  10s
+          interval:      15s
+          stopOnFailure: true
+        promProbe/inputs:
+          endpoint:  http://prometheus.monitoring.svc:9090
+          query:     "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service='lessons-api'}[2m])))"
+          comparator:
+            type:   float
+            value:  "0.500"           # 500 ms ceiling
+            criteria: "&lt;"
+hypothesis: |
+  Injecting 200 ms of network latency into 1% of lessons-api pods will:
+  (1) keep p99 below 500 ms — circuit breakers and timeouts absorb the delay;
+  (2) cause the SLO-burn alert to fire within 2 minutes if the injected
+      latency expands beyond the 1% scope (negative control);
+  (3) leave the dashboard visibly annotated by the GameDay marker.
+abort_conditions: |
+  - error rate &gt; 2× baseline for 60 s  (auto, via probe)
+  - p99 latency &gt; 500 ms                (auto, via probe)
+  - manual kill via `kubectl delete chaosengine cha-014-lessons-api-latency`
+  - target restore within 60 s after abort
+runbook_url: https://internal.studyapp/runbooks/lessons-api-chaos-cha-014
+</code></pre>
+        <p><strong>What this experiment does.</strong> It injects 200 ms of network latency into 1% of lessons-api pods for 5 minutes, with two continuous Prometheus probes wired to auto-abort. The hypothesis is two-sided: the system absorbs the latency without breaching p99, <em>and</em> the SLO-burn alert is sensitive enough to notice if the radius accidentally expands. The first staging run last quarter revealed that the alert fired at 4 m 30 s instead of within 2 minutes — the rule's evaluation window was too long. That finding produced ticket SRE-417 (shorten the 1 h window to 30 m for sub-percentage incidents), and CHA-014 is now scheduled for its first production GameDay in three weeks. Without the experiment, the alert gap would have been discovered during a real partial-dependency outage at the worst possible time.</p>
       </div>
-    </section>
+    </div>
 
-    <section id="pitfalls" class="pa-section">
-      <h2>Common pitfalls</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
-        <table class="pa-pitfalls">
-          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
-          <tbody>
-            <tr><td>Running chaos without a hypothesis</td><td>"Let's see what happens" feels like experimentation.</td><td>Never inject a failure without a written hypothesis. The hypothesis is what makes the result useful — without it, a confirmed failure tells you nothing actionable.</td></tr>
-            <tr><td>Automating before manual GameDays are mature</td><td>Automation looks more impressive than manual exercises.</td><td>Spend at least 2 quarters running manual GameDays before introducing automation. The discipline of hypothesis writing and blast radius limiting must be habitual before automation amplifies it.</td></tr>
-            <tr><td>Findings filed and forgotten</td><td>The GameDay retrospective is treated as closure, not a starting point.</td><td>Every finding from a chaos experiment generates either a runbook update, an alert rule change, or an architectural improvement item in the engineering backlog. No finding without an action item.</td></tr>
-          </tbody>
-        </table>
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every experiment has a written, two-sided hypothesis</p><p class="pa-quality__hint">System survives the fault <em>and</em> the alert fires inside its window. Both halves required before the manifest merges.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Blast radius encoded in the manifest</p><p class="pa-quality__hint">Production caps at 1% traffic, never above 10% without VP sign-off. The number lives in the CRD, not in a Slack thread.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Automatic abort wired to steady-state probes</p><p class="pa-quality__hint">Error rate &gt; 2× baseline or p99 &gt; 2× baseline for 60 s terminates the experiment without human input. Manual kill is the backup.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Staging-first ramp</p><p class="pa-quality__hint">Three consecutive clean staging runs required before production promotion. Staging is the gate, not the test.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Quarterly production GameDay calendar</p><p class="pa-quality__hint">One Tier 0 service per quarter, two-hour window, named lead/IC/scribe, dry-run one week prior.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Retrospective inside 24 hours, every action item owned</p><p class="pa-quality__hint">Postmortem format. Hypothesis, observed, delta, ticketed action items. Open-vs-closed ratio reviewed monthly.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Experiment catalogue under version control</p><p class="pa-quality__hint"><code>infra/chaos/</code> holds every manifest plus its retrospective. The catalogue is the institutional memory; experiments not in it never happened.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://principlesofchaos.org/" rel="noopener">Principles of Chaos Engineering</a><span class="pa-refs__hint">The canonical five-principle statement (Netflix origin); the gate every experiment proposal answers.</span></li>
+          <li><a href="https://www.gremlin.com/community/tutorials/chaos-engineering-the-history-principles-and-practice/" rel="noopener">Gremlin — chaos engineering tutorials</a><span class="pa-refs__hint">The four-stage maturity model and the case for two quarters of manual GameDays before automation.</span></li>
+          <li><a href="https://litmuschaos.io/" rel="noopener">LitmusChaos documentation</a><span class="pa-refs__hint">The CNCF chaos operator Study App uses; declarative CRDs with probe-based auto-abort.</span></li>
+          <li><a href="https://aws.amazon.com/fis/" rel="noopener">AWS Fault Injection Service</a><span class="pa-refs__hint">JSON-templated experiments with CloudWatch stop-conditions; the production-grade automation reference.</span></li>
+          <li><a href="https://www.learningfromincidents.io/" rel="noopener">Nora Jones — Learning From Incidents</a><span class="pa-refs__hint">The reframing of chaos engineering as a learning system; the case for treating retrospectives as the asset.</span></li>
+        </ul>
       </div>
-    </section>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="slo-error-budget.html">SLO &amp; error budget — the steady-state metrics chaos measures against</a><span class="pa-refs__hint">Every probe in a chaos manifest reads the same SLI series the SLO dashboard does; without the SLO there is no steady state.</span></li>
+          <li><a href="game-days.html">GameDays — the production-side ritual</a><span class="pa-refs__hint">Quarterly two-hour exercises with a named lead/IC/scribe; this is where Study App's production chaos lives until stage-3 automation lands.</span></li>
+          <li><a href="incident-command.html">Incident command — the response loop a GameDay rehearses</a><span class="pa-refs__hint">The human half of the experiment: who pages whom, who runs comms, who calls the abort.</span></li>
+          <li><a href="synthetic-monitoring.html">Synthetic monitoring — the always-on counterpart</a><span class="pa-refs__hint">Synthetics watch for the failure modes chaos surfaces; the two practices feed each other's signal lists.</span></li>
+        </ul>
+      </div>
+    </div>
 
-    <section id="page-history" class="pa-section">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
-          <tbody>
-            <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
-              <td>Initial version: Chaos Engineering practice for SRE radar.</td>
-              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-14">2026-05-14</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: Chaos Engineering practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
 
-    <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
-    <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
 
-    <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
-  </body></html>
+</body></html>

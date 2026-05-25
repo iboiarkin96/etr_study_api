@@ -8,28 +8,20 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "ETR Study API — Documentation"
       },
       {
-        "path": "internal/explanation/api/dod.html",
-        "title": "API · Why Definition of Done · Study App Internal"
-      },
-      {
         "path": "internal/explanation/dev/business-logic.html",
-        "title": "Dev · Business Logic · Study App Internal"
+        "title": "SWE · Business Logic · Study App Internal"
       },
       {
         "path": "internal/explanation/dev/requirements.html",
-        "title": "Dev · Requirements · Study App Internal"
+        "title": "SWE · Requirements · Study App Internal"
       },
       {
         "path": "internal/explanation/dev/schemas-and-contracts.html",
-        "title": "Dev · Schemas &amp; Contracts · Study App Internal"
+        "title": "SWE · Schemas &amp; Contracts · Study App Internal"
       },
       {
         "path": "internal/explanation/dev/service-descriptor-policy.html",
-        "title": "Dev · Service descriptor policy · Study App Internal"
-      },
-      {
-        "path": "internal/explanation/docs/how-to-taxonomy.html",
-        "title": "Docs · How-to taxonomy · Study App Internal"
+        "title": "SWE · Service descriptor policy · Study App Internal"
       },
       {
         "path": "internal/explanation/index.html",
@@ -80,8 +72,200 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "SRE · SLOs · Study App Internal"
       },
       {
-        "path": "internal/explanation/system-design.html",
-        "title": "System Design — moved · Study App Internal"
+        "path": "internal/foundations/explanation/reader-personas.html",
+        "title": "👥 Reader personas — who reads this portal · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/index.html",
+        "title": "Foundations — Cross-cutting reference, explanation, how-to · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/dev/index.html",
+        "title": "SWE reference — Cross-cutting engineering practices · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/index.html",
+        "title": "Reference — Foundations · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/qa/index.html",
+        "title": "QA reference — Cross-cutting quality practices · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/authoring/add-a-page.html",
+        "title": "Add a page · Authoring · Documentation handbook"
+      },
+      {
+        "path": "internal/foundations/reference/sa/authoring/add-a-runbook.html",
+        "title": "Add a runbook · Authoring · Documentation handbook"
+      },
+      {
+        "path": "internal/foundations/reference/sa/authoring/add-an-adr.html",
+        "title": "Add an ADR · Authoring · Documentation handbook"
+      },
+      {
+        "path": "internal/foundations/reference/sa/authoring/add-an-api-spec.html",
+        "title": "Add an API spec · Authoring · Documentation handbook"
+      },
+      {
+        "path": "internal/foundations/reference/sa/authoring/add-an-rfc.html",
+        "title": "Add an RFC · Authoring · Documentation handbook"
+      },
+      {
+        "path": "internal/foundations/reference/sa/authoring/history-format.html",
+        "title": "History format · Authoring · Documentation handbook"
+      },
+      {
+        "path": "internal/foundations/reference/sa/authoring/update-sidebar.html",
+        "title": "Update sidebar · Authoring · Documentation handbook"
+      },
+      {
+        "path": "internal/foundations/reference/sa/catalog.html",
+        "title": "🧩 Catalog taxonomy — kinds, YAML, relations, lifecycle · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/deprecation.html",
+        "title": "🗑️ Deprecation — how we retire pages, APIs, entities · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/diataxis.html",
+        "title": "Diátaxis · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/discoverability.html",
+        "title": "🔎 Discoverability — how readers find pages · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/document-types.html",
+        "title": "📚 Document types — matrix &amp; templates · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/domain-model.html",
+        "title": "🌐 Domain model — bounded contexts &amp; language · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/entity-card.html",
+        "title": "🪪 Entity card — canonical visual template per kind · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/freshness.html",
+        "title": "🕒 Freshness — staleness SLA &amp; drift detection · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/index.html",
+        "title": "How we author this portal · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/ownership.html",
+        "title": "👥 Ownership — RACI for the doc system · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/page-skeleton.html",
+        "title": "📐 Page skeleton — markup contract &amp; mobile · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/principles.html",
+        "title": "Principles · How we author this portal · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/process.html",
+        "title": "🔁 Process — how docs ship · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/spine-matrix.html",
+        "title": "📋 Spine matrix — what each entity must document · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/style-guide.html",
+        "title": "🗣️ Style guide · Principles · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/adr.html",
+        "title": "ADR template · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/api-spec.html",
+        "title": "Specification template · Internal API · Study App"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/audit.html",
+        "title": "Assessment template · services/portal/audit · Study App"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/bug-report.html",
+        "title": "Bug report template · QA · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/component-spec.html",
+        "title": "Component spec template · Frontend · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/data-table.html",
+        "title": "Database table spec template · Study App · Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/foundation-spec.html",
+        "title": "Foundation spec template · Frontend · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/how-to.html",
+        "title": "How-to · How-to template · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/index.html",
+        "title": "Templates · Documentation handbook"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/postmortem.html",
+        "title": "How-to · Postmortem template · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/rfc.html",
+        "title": "RFC template · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/runbook.html",
+        "title": "How-to · Runbook template · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/screen-spec.html",
+        "title": "Screen spec template — international standard · Frontend · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/service-descriptor.html",
+        "title": "Service descriptor template · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/test-case.html",
+        "title": "Test case template · QA · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/test-plan.html",
+        "title": "Test plan template · QA · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/templates/tutorial.html",
+        "title": "Tutorial · Tutorial template · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/topology.html",
+        "title": "🗺️ IA contract — flat disk, Diátaxis sidebar · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/traceability-matrix.html",
+        "title": "🧾 Traceability matrix — requirement → release · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/visual-contract.html",
+        "title": "🎨 Visual contract — why uniformity matters · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/voice.html",
+        "title": "🗣️ Voice — plain language &amp; global style · Study App Internal"
+      },
+      {
+        "path": "internal/foundations/reference/sa/workflows.html",
+        "title": "🔁 Workflows — cross-service flows · Study App Internal"
       },
       {
         "path": "internal/governance/adr/0000-template.html",
@@ -212,12 +396,12 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "ADR Index · Study App Internal"
       },
       {
-        "path": "internal/governance/audits/2026-05-16-ia-migration-manifest.html",
-        "title": "IA migration manifest · 2026-05-16 · Study App Internal"
-      },
-      {
         "path": "internal/governance/audits/AUDIT_TEMPLATE.html",
         "title": "Moved — see reference/templates/audit.html"
+      },
+      {
+        "path": "internal/governance/audits/accessibility/2026-Q2-accessibility-audit.html",
+        "title": "♿ 2026-Q2 Accessibility audit — WCAG 2.2 AA · Study App Internal"
       },
       {
         "path": "internal/governance/audits/api/2026-04-14-rest-api-assessment.html",
@@ -242,6 +426,18 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "internal/governance/audits/docs/2026-05-01-documentation-experience-assessment.html",
         "title": "Documentation Experience (DX) Assessment — formed 1 May 2026 · Study App Internal"
+      },
+      {
+        "path": "internal/governance/audits/docs/2026-05-18-multi-service-ia-target-tree.html",
+        "title": "Multi-service IA · Target tree · Audits · Study App Internal"
+      },
+      {
+        "path": "internal/governance/audits/docs/2026-05-18-testing-pyramid-assessment.html",
+        "title": "Testing Pyramid Assessment — formed 18 May 2026 · Study App Internal"
+      },
+      {
+        "path": "internal/governance/audits/docs/2026-05-24-principal-triad-docs-audit.html",
+        "title": "Principal-Triad Docs Audit — 24 May 2026 · Study App Internal"
       },
       {
         "path": "internal/governance/audits/docs/index.html",
@@ -316,24 +512,16 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "RFC 0004 · Public vs internal documentation portal IA · Study App Internal"
       },
       {
+        "path": "internal/governance/rfc/0005-ia-v3-migration.html",
+        "title": "RFC 0005 · Multi-service IA v3 migration · Study App Internal"
+      },
+      {
         "path": "internal/governance/rfc/index.html",
         "title": "RFC Index · Study App Internal"
       },
       {
-        "path": "internal/how-to/api/add-post-contract.html",
-        "title": "How-to · Add POST /api/v1/contract · Study App Internal"
-      },
-      {
-        "path": "internal/how-to/api/api-endpoint-testing.html",
-        "title": "How-to · API endpoint testing · Study App Internal"
-      },
-      {
-        "path": "internal/how-to/api/api-load-testing.html",
-        "title": "How-to · API load testing · Study App Internal"
-      },
-      {
         "path": "internal/how-to/docs/change-docs-frontend-safely.html",
-        "title": "How-to · Change docs frontend safely · Study App Internal"
+        "title": "How-to · Playbooks for docs-frontend changes · Study App Internal"
       },
       {
         "path": "internal/how-to/docs/docs-pipeline.html",
@@ -345,15 +533,15 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/how-to/incidents/postmortems/_template.html",
-        "title": "How-to · Postmortem template · Study App Internal"
+        "title": "Moved — Postmortem template · Study App Internal"
       },
       {
         "path": "internal/how-to/incidents/postmortems/index.html",
-        "title": "How-to · Postmortems · Study App Internal"
+        "title": "How-to · Write a postmortem · Study App Internal"
       },
       {
         "path": "internal/how-to/incidents/runbooks/0000-template.html",
-        "title": "How-to · Runbook template · Study App Internal"
+        "title": "Moved — Runbook template · Study App Internal"
       },
       {
         "path": "internal/how-to/incidents/runbooks/0001-tests-failing.html",
@@ -405,19 +593,19 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/how-to/qa/accessibility-testing.html",
-        "title": "How-to · Accessibility testing playbook · Study App Internal"
+        "title": "How-to · Run an accessibility audit on a page · Study App Internal"
       },
       {
         "path": "internal/how-to/qa/documentation-testing.html",
-        "title": "How-to · Documentation testing playbook · Study App Internal"
+        "title": "How-to · Verify a docs page before merge · Study App Internal"
       },
       {
         "path": "internal/how-to/qa/exploratory-testing.html",
-        "title": "How-to · Exploratory testing playbook · Study App Internal"
+        "title": "How-to · Run an exploratory testing session · Study App Internal"
       },
       {
         "path": "internal/how-to/qa/release-smoke.html",
-        "title": "How-to · Release smoke testing playbook · Study App Internal"
+        "title": "How-to · Run release smoke before tagging · Study App Internal"
       },
       {
         "path": "internal/how-to/service/add-service-to-catalog.html",
@@ -425,11 +613,11 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/how-to/service/docker-image-and-container.html",
-        "title": "How-to · Docker image and container · Study App Internal"
+        "title": "How-to · Build and run the API as a Docker image · Study App Internal"
       },
       {
         "path": "internal/how-to/service/local-development.html",
-        "title": "How-to · Local development · Study App Internal"
+        "title": "How-to · Run the API locally · Study App Internal"
       },
       {
         "path": "internal/how-to/service/make-commands-and-workflows.html",
@@ -440,112 +628,12 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "ETR Study API · Internal documentation"
       },
       {
-        "path": "internal/reference/api/_shared/auth.html",
-        "title": "Authentication &amp; authorization · API · Study App Internal"
+        "path": "internal/onboarding/glossary.html",
+        "title": "Glossary — Acronyms &amp; domain terms · Study App Internal"
       },
       {
-        "path": "internal/reference/api/_shared/error-catalog.html",
-        "title": "Error catalog · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/_shared/error-envelope.html",
-        "title": "Error envelope · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/_shared/field-conventions.html",
-        "title": "Field conventions · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/_shared/idempotency.html",
-        "title": "Idempotency · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/_shared/index.html",
-        "title": "Shared API standards · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/_shared/observability-conventions.html",
-        "title": "Observability conventions · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/_shared/openapi-authoring-guide.html",
-        "title": "OpenAPI authoring guide · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/_shared/pagination.html",
-        "title": "Pagination · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/_shared/versioning.html",
-        "title": "API versioning · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/conspectus/index.html",
-        "title": "Conspectus resource · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/conspectus/operations/get-api-v1-conspectuses-due.html",
-        "title": "GET /api/v1/conspectuses/due · Conspectus · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/conspectus/operations/get-api-v1-schedule-summary.html",
-        "title": "GET /api/v1/schedule/summary · Conspectus · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html",
-        "title": "PATCH /api/v1/conspectuses/{conspectus_uuid} · Conspectus · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html",
-        "title": "POST /api/v1/conspectuses/{conspectus_uuid}/actions/review · Conspectus · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/conspectus/operations/post-api-v1-conspectuses.html",
-        "title": "POST /api/v1/conspectuses · Conspectus · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/error-log/index.html",
-        "title": "Error log resource · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/error-log/operations/get-api-v1-errors.html",
-        "title": "GET /api/v1/errors · Error log · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/error-log/operations/post-api-v1-errors.html",
-        "title": "POST /api/v1/errors · Error log · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/error-matrix-by-status.html",
-        "title": "Error matrix by status · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/errors.html",
-        "title": "Error catalog and sync · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/index.html",
-        "title": "HTTP API reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/user/index.html",
-        "title": "User resource · API · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/user/operations/get-api-v1-user-system_uuid-system_user_id.html",
-        "title": "GET /api/v1/user/{system_uuid}/{system_user_id} · User · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/user/operations/patch-api-v1-user-system_uuid-system_user_id.html",
-        "title": "PATCH /api/v1/user/{system_uuid}/{system_user_id} · User · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/user/operations/post-api-v1-user.html",
-        "title": "POST /api/v1/user · User · Study App Internal"
-      },
-      {
-        "path": "internal/reference/api/user/operations/put-api-v1-user-system_uuid-system_user_id.html",
-        "title": "PUT /api/v1/user/{system_uuid}/{system_user_id} · User · Study App Internal"
+        "path": "internal/onboarding/index.html",
+        "title": "Onboarding — Day 1 / Week 1 / Month 1 · Study App Internal"
       },
       {
         "path": "internal/reference/data/index.html",
@@ -569,7 +657,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/reference/front/_shared/component-spec-template.html",
-        "title": "Component spec template · Frontend · Study App Internal"
+        "title": "Moved — Component spec template · Study App Internal"
       },
       {
         "path": "internal/reference/front/_shared/contract-spec-template.html",
@@ -581,7 +669,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/reference/front/_shared/foundation-spec-template.html",
-        "title": "Foundation spec template · Frontend · Study App Internal"
+        "title": "Moved — Foundation spec template · Study App Internal"
       },
       {
         "path": "internal/reference/front/_shared/glossary.html",
@@ -589,7 +677,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/reference/front/_shared/process.html",
-        "title": "Documentation maintenance process · Frontend · Study App Internal"
+        "title": "Moved — Documentation maintenance process · Study App Internal"
       },
       {
         "path": "internal/reference/front/_shared/spec-definition-of-done.html",
@@ -597,7 +685,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/reference/front/_shared/style-guide.html",
-        "title": "Documentation style guide and audit standard · Frontend · Study App Internal"
+        "title": "Moved — Documentation style guide · Study App Internal"
       },
       {
         "path": "internal/reference/front/architecture-map.html",
@@ -701,7 +789,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/reference/front/screens/docs-screen-template.html",
-        "title": "Screen spec template — international standard · Frontend · Study App Internal"
+        "title": "Moved — Screen spec template · Study App Internal"
       },
       {
         "path": "internal/reference/index.html",
@@ -745,15 +833,15 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/reference/qa/templates/bug-report-template.html",
-        "title": "Bug report template · QA · Study App Internal"
+        "title": "Moved — Bug report template · Study App Internal"
       },
       {
         "path": "internal/reference/qa/templates/test-case-template.html",
-        "title": "Test case template · QA · Study App Internal"
+        "title": "Moved — Test case template · Study App Internal"
       },
       {
         "path": "internal/reference/qa/templates/test-plan-template.html",
-        "title": "Test plan template · QA · Study App Internal"
+        "title": "Moved — Test plan template · Study App Internal"
       },
       {
         "path": "internal/reference/qa/test-environments.html",
@@ -765,27 +853,35 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/reference/templates/adr.html",
-        "title": "ADR template · Study App Internal"
+        "title": "Moved — ADR template · Study App Internal"
       },
       {
         "path": "internal/reference/templates/api-spec.html",
-        "title": "Specification template · Internal API · Study App"
+        "title": "Moved — API operation spec template · Study App Internal"
       },
       {
         "path": "internal/reference/templates/audit.html",
-        "title": "Assessment template · services/portal/audit · Study App"
+        "title": "Moved — Audit template · Study App Internal"
       },
       {
         "path": "internal/reference/templates/data-table.html",
-        "title": "Database table spec template · Study App · Internal"
+        "title": "Moved — Database table spec template · Study App Internal"
+      },
+      {
+        "path": "internal/reference/templates/how-to.html",
+        "title": "Moved — How-to template · Study App Internal"
       },
       {
         "path": "internal/reference/templates/rfc.html",
-        "title": "RFC template · Study App Internal"
+        "title": "Moved — RFC template · Study App Internal"
       },
       {
         "path": "internal/reference/templates/service-descriptor.html",
-        "title": "Service descriptor template · Study App Internal"
+        "title": "Moved — Service descriptor template · Study App Internal"
+      },
+      {
+        "path": "internal/reference/templates/tutorial.html",
+        "title": "Moved — Tutorial template · Study App Internal"
       },
       {
         "path": "internal/services/api/api-reference.html",
@@ -936,12 +1032,24 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "app.validation.user API documentation"
       },
       {
-        "path": "internal/services/api/code-reference/index.html",
-        "title": "internal/services/api/code-reference/index.html"
-      },
-      {
         "path": "internal/services/api/dependencies.html",
         "title": "api · Dependencies · Study App · Internal"
+      },
+      {
+        "path": "internal/services/api/explanation/dod.html",
+        "title": "API · Why Definition of Done · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/how-to/add-post-contract.html",
+        "title": "How-to · Add POST /api/v1/contract · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/how-to/api-endpoint-testing.html",
+        "title": "How-to · Verify an API endpoint against its contract · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/how-to/api-load-testing.html",
+        "title": "How-to · Run an API load test · Study App Internal"
       },
       {
         "path": "internal/services/api/index.html",
@@ -952,8 +1060,120 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "api · On-call · Study App · Internal"
       },
       {
+        "path": "internal/services/api/reference/_shared/auth.html",
+        "title": "Authentication &amp; authorization · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/_shared/error-catalog.html",
+        "title": "Error catalog · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/_shared/error-envelope.html",
+        "title": "Error envelope · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/_shared/field-conventions.html",
+        "title": "Field conventions · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/_shared/idempotency.html",
+        "title": "Idempotency · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/_shared/index.html",
+        "title": "Shared API standards · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/_shared/observability-conventions.html",
+        "title": "Observability conventions · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/_shared/openapi-authoring-guide.html",
+        "title": "OpenAPI authoring guide · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/_shared/pagination.html",
+        "title": "Pagination · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/_shared/versioning.html",
+        "title": "API versioning · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/conspectus/index.html",
+        "title": "Conspectus resource · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/conspectus/operations/get-api-v1-conspectuses-due.html",
+        "title": "GET /api/v1/conspectuses/due · Conspectus · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/conspectus/operations/get-api-v1-schedule-summary.html",
+        "title": "GET /api/v1/schedule/summary · Conspectus · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html",
+        "title": "PATCH /api/v1/conspectuses/{conspectus_uuid} · Conspectus · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html",
+        "title": "POST /api/v1/conspectuses/{conspectus_uuid}/actions/review · Conspectus · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/conspectus/operations/post-api-v1-conspectuses.html",
+        "title": "POST /api/v1/conspectuses · Conspectus · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/error-log/index.html",
+        "title": "Error log resource · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/error-log/operations/get-api-v1-errors.html",
+        "title": "GET /api/v1/errors · Error log · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/error-log/operations/post-api-v1-errors.html",
+        "title": "POST /api/v1/errors · Error log · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/error-matrix-by-status.html",
+        "title": "Error matrix by status · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/errors.html",
+        "title": "Error catalog and sync · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/index.html",
+        "title": "HTTP API reference · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/user/index.html",
+        "title": "User resource · API · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/user/operations/get-api-v1-user-system_uuid-system_user_id.html",
+        "title": "GET /api/v1/user/{system_uuid}/{system_user_id} · User · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/user/operations/patch-api-v1-user-system_uuid-system_user_id.html",
+        "title": "PATCH /api/v1/user/{system_uuid}/{system_user_id} · User · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/user/operations/post-api-v1-user.html",
+        "title": "POST /api/v1/user · User · Study App Internal"
+      },
+      {
+        "path": "internal/services/api/reference/user/operations/put-api-v1-user-system_uuid-system_user_id.html",
+        "title": "PUT /api/v1/user/{system_uuid}/{system_user_id} · User · Study App Internal"
+      },
+      {
         "path": "internal/services/api/runbooks.html",
         "title": "api · Runbooks · Study App · Internal"
+      },
+      {
+        "path": "internal/services/datastore/index.html",
+        "title": "datastore · Catalog entry · Study App · Internal"
       },
       {
         "path": "internal/services/index.html",
@@ -1024,10 +1244,6 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Team · Study App Internal"
       },
       {
-        "path": "internal/team/index.v2.html",
-        "title": "Team · Study App Internal"
-      },
-      {
         "path": "internal/team/people/cursor/index.html",
         "title": "Cursor · Study App Internal"
       },
@@ -1053,83 +1269,83 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/architect/practices/adr-process.html",
-        "title": "Architecture Decision Records — Practice 11 · Architect"
+        "title": "ADR process — numbered, durable decisions — Practice 11 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/api-first-design.html",
-        "title": "API-First Design — Practice 10 · Architect"
+        "title": "API-first design — contract before code — Practice 10 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/architecture-mentoring.html",
-        "title": "Architecture Mentoring — Practice 24 · Architect"
+        "title": "Architecture mentoring — grow the next architects — Practice 24 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/architecture-retrospective.html",
-        "title": "Architecture Retrospective — Practice 25 · Architect"
+        "title": "Architecture retrospective — learn from the system — Practice 25 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/architecture-review.html",
-        "title": "Architecture Review — Practice 13 · Architect"
+        "title": "Architecture review — structured change governance — Practice 13 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/build-vs-buy.html",
-        "title": "Build vs Buy vs OSS — Practice 07 · Architect"
+        "title": "Build vs buy vs OSS — structured decision framework — Practice 07 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/c4-model.html",
-        "title": "C4 Model Diagrams — Practice 03 · Architect"
+        "title": "C4 model — architecture as code at four zoom levels — Practice 03 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/capacity-finops.html",
-        "title": "Capacity Planning &amp; FinOps — Practice 20 · Architect"
+        "title": "Capacity planning &amp; FinOps — Practice 20 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/chaos-engineering.html",
-        "title": "Chaos Engineering — Practice 18 · Architect"
+        "title": "Chaos engineering — Practice 18 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/design-docs.html",
-        "title": "Design Docs — Practice 15 · Architect"
+        "title": "Design docs — Practice 15 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/domain-driven-design.html",
-        "title": "Domain-Driven Design — Practice 01 · Architect"
+        "title": "Domain-driven design — Practice 01 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/engineering-principles.html",
-        "title": "Engineering Principles — Practice 22 · Architect"
+        "title": "Engineering principles — Practice 22 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/event-driven-architecture.html",
-        "title": "Event-Driven Architecture — Practice 02 · Architect"
+        "title": "Event-driven architecture — Practice 02 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/fitness-functions.html",
-        "title": "Fitness Functions — Practice 04 · Architect"
+        "title": "Fitness functions — Practice 04 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/hexagonal-architecture.html",
-        "title": "Hexagonal Architecture — Practice 05 · Architect"
+        "title": "Hexagonal architecture — Practice 05 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/nfr-definition.html",
-        "title": "Non-Functional Requirements — Practice 16 · Architect"
+        "title": "NFR definition — Practice 16 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/poc-spike.html",
-        "title": "Proof of Concept &amp; Spike — Practice 09 · Architect"
+        "title": "Proof of concept &amp; spike — Practice 09 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/rfc-process.html",
-        "title": "RFC Process — Practice 12 · Architect"
+        "title": "RFC process — Practice 12 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/slo-sla-design.html",
-        "title": "SLO &amp; SLA Design — Practice 17 · Architect"
+        "title": "SLO &amp; SLA design — Practice 17 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/stakeholder-mapping.html",
-        "title": "Stakeholder Mapping — Practice 14 · Architect"
+        "title": "Stakeholder mapping — Practice 14 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/team-topologies.html",
@@ -1137,19 +1353,19 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/architect/practices/tech-debt-management.html",
-        "title": "Tech Debt Management — Practice 21 · Architect"
+        "title": "Tech-debt management — Practice 21 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/technical-roadmapping.html",
-        "title": "Technical Roadmapping — Practice 08 · Architect"
+        "title": "Technical roadmapping — Practice 08 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/technology-radar.html",
-        "title": "Technology Radar — Practice 06 · Architect"
+        "title": "Technology radar — Practice 06 · Architect"
       },
       {
         "path": "internal/team/roles/architect/practices/threat-modeling.html",
-        "title": "Threat Modeling — Practice 19 · Architect"
+        "title": "Threat modeling — Practice 19 · Architect"
       },
       {
         "path": "internal/team/roles/architect/radar.html",
@@ -1157,119 +1373,119 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/dev/index.html",
-        "title": "Developer portal · Study App Internal"
+        "title": "SWE portal · Study App Internal"
       },
       {
         "path": "internal/team/roles/dev/onboarding.html",
-        "title": "Developer onboarding journey · Study App Internal"
+        "title": "SWE onboarding journey · Study App Internal"
       },
       {
         "path": "internal/team/roles/dev/practices/api-contract-first.html",
-        "title": "API Contract-First — OpenAPI / GraphQL SDL / Protobuf before code — Practice 12 · Developer"
+        "title": "API contract-first — Practice 12 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/ci-green-trunk.html",
-        "title": "CI &amp; green-trunk discipline — Practice 06 · Developer"
+        "title": "CI &amp; green-trunk — Practice 06 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/codeowners.html",
-        "title": "CODEOWNERS &amp; inner-source — every file has an owner — Practice 24 · Developer"
+        "title": "CODEOWNERS &amp; inner-source — Practice 24 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/continuous-learning.html",
-        "title": "Continuous Learning — book clubs, brown-bags, conferences — Practice 25 · Developer"
+        "title": "Continuous learning — Practice 25 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/continuous-refactoring.html",
-        "title": "Continuous Refactoring — Practice 05 · Developer"
+        "title": "Continuous refactoring — Practice 05 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/conventional-commits.html",
-        "title": "Conventional Commits — Practice 09 · Developer"
+        "title": "Conventional Commits — Practice 09 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/ddd-tactical.html",
-        "title": "DDD tactical patterns — aggregates, value objects, services — Practice 13 · Developer"
+        "title": "DDD tactical patterns — Practice 13 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/design-docs.html",
-        "title": "Design Docs &amp; RFCs — written before code — Practice 15 · Developer"
+        "title": "Design docs &amp; RFCs — Practice 15 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/devcontainers.html",
-        "title": "Reproducible dev env — devcontainers / Nix / Compose — Practice 21 · Developer"
+        "title": "Reproducible dev env — Practice 21 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/distributed-tracing.html",
-        "title": "Distributed Tracing — OpenTelemetry spans on every call — Practice 17 · Developer"
+        "title": "Distributed tracing — Practice 17 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/docs-as-code.html",
-        "title": "Docs-as-Code — docs live next to the code they describe — Practice 22 · Developer"
+        "title": "Docs-as-code — Practice 22 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/error-monitoring.html",
-        "title": "Error monitoring — every exception has an owner — Practice 19 · Developer"
+        "title": "Error monitoring — Practice 19 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/feature-flags.html",
-        "title": "Feature Flags — Practice 07 · Developer"
+        "title": "Feature flags — Practice 07 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/index.html",
-        "title": "Developer practices · Study App Internal"
+        "title": "SWE practices · Study App Internal"
       },
       {
         "path": "internal/team/roles/dev/practices/pair-mob-programming.html",
-        "title": "Pair &amp; Mob Programming — Practice 04 · Developer"
+        "title": "Pair &amp; mob programming — Practice 04 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/performance-budgets.html",
-        "title": "Performance budgets — measured, not assumed — Practice 20 · Developer"
+        "title": "Performance budgets — Practice 20 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/pre-commit-hooks.html",
-        "title": "Pre-commit hooks — Practice 08 · Developer"
+        "title": "Pre-commit hooks — Practice 08 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/progressive-delivery.html",
-        "title": "Progressive Delivery — Practice 10 · Developer"
+        "title": "Progressive delivery — Practice 10 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/slos-in-code.html",
-        "title": "SLOs in code — error budgets that gate releases — Practice 18 · Developer"
+        "title": "SLOs in code — Practice 18 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/small-prs.html",
-        "title": "Small PRs — Practice 03 · Developer"
+        "title": "Small PRs — Practice 03 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/structured-logging.html",
-        "title": "Structured Logging — JSON, context, severity — Practice 16 · Developer"
+        "title": "Structured logging — Practice 16 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/tech-debt-register.html",
-        "title": "Tech-Debt Register — explicit, ranked, quarterly — Practice 23 · Developer"
+        "title": "Tech-debt register — Practice 23 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/test-driven-development.html",
-        "title": "Test-Driven Development — Practice 02 · Developer"
+        "title": "Test-driven development — Practice 02 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/trunk-based-development.html",
-        "title": "Trunk-Based Development — Practice 01 · Developer"
+        "title": "Trunk-based development — Practice 01 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/twelve-factor-app.html",
-        "title": "Twelve-Factor App — portable, scalable, ops-friendly — Practice 11 · Developer"
+        "title": "Twelve-Factor App — Practice 11 · SWE"
       },
       {
         "path": "internal/team/roles/dev/practices/type-safety.html",
-        "title": "Type safety as default — strict mode, no escape hatches — Practice 14 · Developer"
+        "title": "Type safety as default — Practice 14 · SWE"
       },
       {
         "path": "internal/team/roles/dev/radar.html",
-        "title": "Developer practices · 25 practices used at top-tier startups · Study App Internal"
+        "title": "SWE practices · 25 practices used at top-tier startups · Study App Internal"
       },
       {
         "path": "internal/team/roles/index.html",
@@ -1285,55 +1501,55 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/manager/practices/ab-testing.html",
-        "title": "A/B Testing — Practice 18 · Product management"
+        "title": "A/B testing — let users decide, not opinions — Practice 18 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/continuous-discovery.html",
-        "title": "Continuous Discovery — weekly customer touchpoints — Practice 01 · Product management"
+        "title": "Continuous discovery — weekly customer touchpoints — Practice 01 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/customer-journey-map.html",
-        "title": "Customer Journey Map — Practice 05 · Product management"
+        "title": "Customer journey map — end-to-end experience — Practice 05 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/decision-raci.html",
-        "title": "Decision RACI — Practice 25 · Product management"
+        "title": "Decision RACI — who decides, who does, who is consulted — Practice 25 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/definition-ready-done.html",
-        "title": "Definition of Ready &amp; Done — Practice 15 · Product management"
+        "title": "Definition of ready &amp; done — the quality gates — Practice 15 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/dual-track-agile.html",
-        "title": "Dual-track Agile — Practice 11 · Product management"
+        "title": "Dual-track agile — discovery and delivery in parallel — Practice 11 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/funnel-cohort-analytics.html",
-        "title": "Funnel &amp; Cohort Analytics — Practice 19 · Product management"
+        "title": "Funnel &amp; cohort analytics — where users leave and why — Practice 19 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/go-to-market.html",
-        "title": "Go-to-Market Playbook — Practice 23 · Product management"
+        "title": "Go-to-market playbook — between \"built\" and \"adopted\" — Practice 23 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/heart-framework.html",
-        "title": "HEART Framework — Practice 17 · Product management"
+        "title": "HEART framework — UX metrics that matter — Practice 17 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/impact-mapping.html",
-        "title": "Impact Mapping — Practice 13 · Product management"
+        "title": "Impact mapping — deliverables tied to business goals — Practice 13 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/jtbd.html",
-        "title": "Jobs-to-be-Done — outcome-driven requirements — Practice 02 · Product management"
+        "title": "Jobs-to-be-done — outcome-driven requirements — Practice 02 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/north-star-metric.html",
-        "title": "North Star Metric — Practice 16 · Product management"
+        "title": "North-star metric — the single number that matters — Practice 16 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/now-next-later-roadmap.html",
-        "title": "Now-Next-Later Roadmap — Practice 09 · Product management"
+        "title": "Now-next-later roadmap — outcome over timeline — Practice 09 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/okrs.html",
@@ -1341,47 +1557,47 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/manager/practices/opportunity-solution-tree.html",
-        "title": "Opportunity Solution Tree — Practice 03 · Product management"
+        "title": "Opportunity solution tree — outcome to experiment — Practice 03 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/product-brief.html",
-        "title": "Product Brief / PRD — Practice 14 · Product management"
+        "title": "Product brief / PRD — the contract before you build — Practice 14 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/product-health-dashboard.html",
-        "title": "Product Health Dashboard — Practice 20 · Product management"
+        "title": "Product health dashboard — always know if the product is working — Practice 20 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/product-postmortem.html",
-        "title": "Product Postmortem — Practice 24 · Product management"
+        "title": "Product postmortem — learn from every miss and every win — Practice 24 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/product-review-cadence.html",
-        "title": "Product Review Cadence — Practice 21 · Product management"
+        "title": "Product review cadence — rhythm for decisions — Practice 21 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/product-vision.html",
-        "title": "Product Vision &amp; Narrative — Practice 07 · Product management"
+        "title": "Product vision &amp; narrative — the north star — Practice 07 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/rice-prioritisation.html",
-        "title": "RICE Prioritisation — Practice 08 · Product management"
+        "title": "RICE prioritisation — scoring over gut feel — Practice 08 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/stakeholder-alignment.html",
-        "title": "Stakeholder Alignment — Practice 22 · Product management"
+        "title": "Stakeholder alignment — influence without authority — Practice 22 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/story-mapping.html",
-        "title": "User Story Mapping — Practice 12 · Product management"
+        "title": "User story mapping — build shared understanding — Practice 12 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/user-research-synthesis.html",
-        "title": "User Research Synthesis — Practice 04 · Product management"
+        "title": "User research synthesis — from interviews to insights — Practice 04 · Product management"
       },
       {
         "path": "internal/team/roles/manager/practices/working-backwards.html",
-        "title": "Working Backwards — PR/FAQ — Practice 10 · Product management"
+        "title": "Working backwards — PR/FAQ before you build — Practice 10 · Product management"
       },
       {
         "path": "internal/team/roles/manager/radar.html",
@@ -1397,11 +1613,11 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/qa/practices/accessibility-automation.html",
-        "title": "Accessibility Test Automation — embed a11y in CI · Practice 14 · QA Engineer"
+        "title": "Accessibility test automation — Practice 14 · QA"
       },
       {
         "path": "internal/team/roles/qa/practices/api-acceptance-testing.html",
-        "title": "API Acceptance Testing — systematic per-endpoint sign-off · Practice 12 · QA Engineer"
+        "title": "API Acceptance Testing — Practice 12 · QA"
       },
       {
         "path": "internal/team/roles/qa/practices/boundary-value-analysis.html",
@@ -1489,7 +1705,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/qa/practices/three-amigos.html",
-        "title": "Three Amigos — Dev × QA × PM session before every story · Practice 21 · QA Engineer"
+        "title": "Three Amigos — SWE × QA × PM session before every story · Practice 21 · QA Engineer"
       },
       {
         "path": "internal/team/roles/qa/practices/visual-regression-testing.html",
@@ -1625,23 +1841,23 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/sre/practices/alerting-design.html",
-        "title": "Alerting Design — Practice 09 · SRE"
+        "title": "Alerting design — fewer alerts, each one actionable — Practice 09 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/blameless-postmortem.html",
-        "title": "Blameless Postmortem — Practice 15 · SRE"
+        "title": "Blameless Postmortem — systemic causes, not individual errors — Practice 15 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/capacity-planning.html",
-        "title": "Capacity Planning — Practice 04 · SRE"
+        "title": "Capacity planning — forecast load, validate with tests, hold headroom — Practice 04 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/chaos-engineering.html",
-        "title": "Chaos Engineering — Practice 05 · SRE"
+        "title": "Chaos engineering — break things on purpose, before they break on you — Practice 05 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/cicd-reliability.html",
-        "title": "CI/CD Reliability — Practice 17 · SRE"
+        "title": "CI/CD Reliability — the pipeline is a production system — Practice 17 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/compliance-automation.html",
@@ -1653,7 +1869,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/sre/practices/distributed-tracing.html",
-        "title": "Distributed Tracing — Practice 08 · SRE"
+        "title": "Distributed tracing — follow one request across every service it touches — Practice 08 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/game-days.html",
@@ -1661,7 +1877,7 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/sre/practices/incident-command.html",
-        "title": "Incident Command Structure — Practice 13 · SRE"
+        "title": "Incident Command Structure — one person coordinates, one person diagnoses — Practice 13 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/incident-severity.html",
@@ -1669,27 +1885,27 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/sre/practices/metrics-dashboards.html",
-        "title": "Metrics &amp; Dashboards — Practice 07 · SRE"
+        "title": "Metrics &amp; dashboards — four golden signals, versioned as code — Practice 07 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/on-call-handbook.html",
-        "title": "On-Call Handbook — Practice 11 · SRE"
+        "title": "On-call handbook — every question answered before the page fires — Practice 11 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/progressive-delivery.html",
-        "title": "Progressive Delivery — Practice 16 · SRE"
+        "title": "Progressive delivery — ship at any speed, limit blast radius — Practice 16 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/reliability-tiering.html",
-        "title": "Reliability Tiering — Practice 03 · SRE"
+        "title": "Reliability tiering — not every service deserves a pager — Practice 03 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/rollback-playbook.html",
-        "title": "Rollback Playbook — Practice 19 · SRE"
+        "title": "Rollback playbook — the fastest path from broken to healthy — Practice 19 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/runbooks.html",
-        "title": "Runbooks — Practice 14 · SRE"
+        "title": "Runbooks — senior engineer reasoning encoded for 3 am — Practice 14 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/secret-management.html",
@@ -1701,11 +1917,11 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/sre/practices/slo-error-budget.html",
-        "title": "SLO &amp; Error Budget — Practice 01 · SRE"
+        "title": "SLO &amp; Error Budget — reliability defined in numbers — Practice 01 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/structured-logging.html",
-        "title": "Structured Logging — Practice 06 · SRE"
+        "title": "Structured logging — machine-readable events, not prose — Practice 06 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/supply-chain-security.html",
@@ -1713,31 +1929,91 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "internal/team/roles/sre/practices/synthetic-monitoring.html",
-        "title": "Synthetic Monitoring — Practice 10 · SRE"
+        "title": "Synthetic monitoring — detect outages before users do — Practice 10 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/toil-reduction.html",
-        "title": "Toil Reduction — Practice 02 · SRE"
+        "title": "Toil reduction — automate the repetitive or pay for it in burnout — Practice 02 · SRE"
       },
       {
         "path": "internal/team/roles/sre/practices/vulnerability-mgmt.html",
-        "title": "Vulnerability Management — Practice 21 · SRE"
+        "title": "Vulnerability management — known vulnerabilities are a reliability risk — Practice 21 · SRE"
       },
       {
         "path": "internal/team/roles/sre/radar.html",
         "title": "SRE practices · 25 practices for production excellence · Study App Internal"
       },
       {
+        "path": "internal/tutorials/architect/your-first-adr.html",
+        "title": "Your first ADR · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/architect/your-first-trade-off-study.html",
+        "title": "Your first trade-off study · Tutorials · Study App Internal"
+      },
+      {
         "path": "internal/tutorials/dev/onboarding-zero-to-endpoint.html",
         "title": "Onboarding: zero to endpoint · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/dev/your-first-background-task.html",
+        "title": "Your first background task · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/dev/your-first-migration.html",
+        "title": "Your first migration · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/dev/your-first-pr-through-the-gate.html",
+        "title": "Your first PR through the gate · Tutorials · Study App Internal"
       },
       {
         "path": "internal/tutorials/index.html",
         "title": "Tutorials · Study App Internal"
       },
       {
+        "path": "internal/tutorials/manager/your-first-dod-walk-through.html",
+        "title": "Your first DoD walk-through · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/manager/your-first-sprint-slice.html",
+        "title": "Your first sprint slice · Tutorials · Study App Internal"
+      },
+      {
         "path": "internal/tutorials/qa/onboarding.html",
         "title": "Tester onboarding · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/qa/your-first-accessibility-audit.html",
+        "title": "Your first accessibility audit · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/qa/your-first-api-checklist-run.html",
+        "title": "Your first API checklist run · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/qa/your-first-regression-slice.html",
+        "title": "Your first regression slice · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/sa/diataxis-101.html",
+        "title": "Diátaxis 101 for this portal · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/sa/your-first-page.html",
+        "title": "Your first portal page · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/sa/your-first-system-sketch.html",
+        "title": "Your first system sketch · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/sre/your-first-capacity-drill.html",
+        "title": "Your first capacity drill · Tutorials · Study App Internal"
+      },
+      {
+        "path": "internal/tutorials/sre/your-first-runbook-drill.html",
+        "title": "Your first runbook drill · Tutorials · Study App Internal"
       },
       {
         "path": "public/explanation/api-versioning.html",
@@ -1812,6 +2088,14 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Portal UI Kit · Study App"
       },
       {
+        "path": "ui-kit/pages/components/anatomy-grid.html",
+        "title": "Anatomy grid · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/author-chip.html",
+        "title": "Author chip · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/breadcrumbs.html",
         "title": "Breadcrumbs · Portal UI Kit"
       },
@@ -1836,12 +2120,28 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Close button · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/cockpit.html",
+        "title": "Cockpit (page template) · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/code.html",
         "title": "Code · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/compare-grid.html",
+        "title": "Compare grid · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/concept-layers.html",
         "title": "Concept layers · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/cta-banner.html",
+        "title": "SA glossary banner · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/deepdive-callout.html",
+        "title": "Deep-dive callout · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/components/dep-lanes.html",
@@ -1872,24 +2172,60 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Example frame · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/feature-cards.html",
+        "title": "SA cards · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/field-row.html",
         "title": "Field row · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/filter-chips.html",
+        "title": "Filter chips · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/components/footer-history.html",
         "title": "Footer history · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/glossary-list.html",
+        "title": "Glossary list · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/hero.html",
         "title": "Hero · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/home-webgl.html",
+        "title": "Home WebGL · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/components/index.html",
         "title": "Components · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/industry-cards.html",
+        "title": "Industry cards · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/info-button.html",
         "title": "Info button · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/inline-diagram.html",
+        "title": "Inline diagram · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/interactive-checklist.html",
+        "title": "Interactive checklist · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/kind-block.html",
+        "title": "Kind block · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/lifecycle-box.html",
+        "title": "SA lifecycle · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/components/method-badge.html",
@@ -1900,6 +2236,22 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Modal · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/multi-filter-chips.html",
+        "title": "Multi filter chips · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/numbered-section.html",
+        "title": "SA section · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/numbered-step-list.html",
+        "title": "Numbered step list · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/page-hero.html",
+        "title": "SA hero · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/person-card.html",
         "title": "Person card · Portal UI Kit"
       },
@@ -1908,12 +2260,40 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Pill · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/practice-article.html",
+        "title": "Practice article (page template) · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/quality-checklist.html",
+        "title": "Quality checklist · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/radar.html",
         "title": "Radar · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/reading-progress.html",
+        "title": "Reading progress · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/references-grid.html",
+        "title": "References grid · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/rocket.html",
         "title": "Rocket · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/role-onboarding.html",
+        "title": "Role onboarding (page template) · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/roles-radar.html",
+        "title": "Roles radar (page template) · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/rollout-timeline.html",
+        "title": "Rollout timeline · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/components/scene-bg.html",
@@ -1922,6 +2302,14 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "ui-kit/pages/components/search.html",
         "title": "Search · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/section-card.html",
+        "title": "Section card · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/services-catalog.html",
+        "title": "Services catalog (page template) · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/components/sidebar.html",
@@ -1940,12 +2328,24 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Sparkline · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/spine-grid.html",
+        "title": "Spine grid · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/state-strip.html",
+        "title": "State strip · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/status-pill.html",
         "title": "Status pill · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/components/status-timeline.html",
         "title": "Status timeline · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/syntax-highlight.html",
+        "title": "Syntax highlight · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/components/table.html",
@@ -1964,8 +2364,16 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Test pyramid · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/text-decrypt.html",
+        "title": "Text decrypt · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/theme-toggle.html",
         "title": "Theme toggle · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/components/tldr-callout.html",
+        "title": "TL;DR callout · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/components/toast.html",
@@ -1992,6 +2400,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "View switcher · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/worked-example.html",
+        "title": "Worked example · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/foundations/css-architecture.html",
         "title": "CSS architecture · Portal UI Kit"
       },
@@ -2008,12 +2420,20 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "JS modules · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/foundations/layout.html",
+        "title": "Layout · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/foundations/motion.html",
         "title": "Motion · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/foundations/philosophy.html",
         "title": "Design philosophy · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/foundations/prose.html",
+        "title": "Prose · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/foundations/tokens.html",
@@ -2066,13 +2486,13 @@ window.__DOCS_PORTAL_DATA__ = {
     ],
     "16fc8b78537109162984a2fdbef6e145": [
       {
-        "path": "internal/reference/api/errors.html",
+        "path": "internal/services/api/reference/errors.html",
         "title": "Error catalog and sync · API · Study App Internal"
       }
     ],
     "16fc8b78537109162984a2fdbef6e143": [
       {
-        "path": "internal/reference/api/errors.html",
+        "path": "internal/services/api/reference/errors.html",
         "title": "Error catalog and sync · API · Study App Internal"
       }
     ],

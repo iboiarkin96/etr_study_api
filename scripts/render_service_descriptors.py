@@ -85,6 +85,14 @@ SPINE_PAGES: tuple[tuple[str, str], ...] = (
     ("on-call.html", "On-call"),
 )
 
+# Diataxis subdirectories that may sit alongside the spine in a service tree.
+# When present, the generator walks the subtree and emits sidebar entries.
+DIATAXIS_SUBDIRS: tuple[tuple[str, str, str], ...] = (
+    ("how-to", "How-to", "🛠"),
+    ("reference", "Reference", "📖"),
+    ("explanation", "Explanation", "💡"),
+)
+
 # Sidebar-nav service labels. Defaults to title-case of the directory name;
 # add an entry here when that default would be wrong (acronyms etc.).
 NAV_LABELS: dict[str, str] = {
@@ -445,6 +453,119 @@ def _find_node(tree, node_id: str):
     return None
 
 
+_H1_RE = re.compile(r"<h1[^>]*>(.*?)</h1>", re.DOTALL | re.IGNORECASE)
+_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.DOTALL | re.IGNORECASE)
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _extract_label(html_path: Path) -> str | None:
+    """Return the page's h1 text (or <title>'s leading segment). Strips tags."""
+    try:
+        text = html_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    match = _H1_RE.search(text)
+    if match is None:
+        match = _TITLE_RE.search(text)
+        if match is None:
+            return None
+        # Titles are typically "Foo · Bar · Internal"; take leading segment.
+        raw = match.group(1).split("·")[0]
+    else:
+        raw = match.group(1)
+    label = _TAG_RE.sub("", raw)
+    label = re.sub(r"\s+", " ", label).strip()
+    return label or None
+
+
+def _id_safe(name: str) -> str:
+    """Strip leading underscore and lowercase for nav-tree ids."""
+    return name.lstrip("_").lower()
+
+
+def _humanize(name: str) -> str:
+    """Fallback label from a filename/dir stem when no h1 is available."""
+    cleaned = name.lstrip("_").replace("_", "-")
+    parts = cleaned.split("-")
+    if not parts:
+        return name
+    return " ".join(parts[:1]).capitalize() + ((" " + " ".join(parts[1:])) if len(parts) > 1 else "")
+
+
+def _sort_key(path: Path) -> tuple:
+    """Sort: _shared first (for shared conventions), then dirs, then files; alpha."""
+    name = path.name
+    shared_bucket = 0 if name == "_shared" else 1
+    dir_bucket = 0 if path.is_dir() else 1
+    return (shared_bucket, dir_bucket, name.lower())
+
+
+def _build_diataxis_node(
+    path: Path,
+    id_prefix: str,
+    label: str,
+) -> dict | None:
+    """Walk a directory under a service's diataxis subdir; return a nav node.
+
+    Returns None when the directory has no html content.
+    """
+    if not path.is_dir():
+        return None
+
+    index_file = path / "index.html"
+    children: list[dict] = []
+    for entry in sorted(path.iterdir(), key=_sort_key):
+        if entry.name.startswith("."):
+            continue
+        if entry == index_file:
+            continue
+        if entry.is_dir():
+            sub_id = f"{id_prefix}-{_id_safe(entry.name)}"
+            sub_label = _extract_label(entry / "index.html") if (entry / "index.html").exists() else None
+            sub_label = sub_label or _humanize(entry.name)
+            sub_node = _build_diataxis_node(entry, sub_id, sub_label)
+            if sub_node is not None:
+                children.append(sub_node)
+        elif entry.is_file() and entry.suffix == ".html":
+            leaf_label = _extract_label(entry) or _humanize(entry.stem)
+            children.append(
+                {
+                    "id": f"{id_prefix}-{_id_safe(entry.stem)}",
+                    "label": leaf_label,
+                    "href": "/" + str(entry.relative_to(ROOT)),
+                }
+            )
+
+    node: dict = {
+        "id": id_prefix,
+        "label": label,
+    }
+    if index_file.exists():
+        node["href"] = "/" + str(index_file.relative_to(ROOT))
+    if children:
+        node["children"] = children
+    # Drop empty nodes (no index, no children).
+    if not children and "href" not in node:
+        return None
+    return node
+
+
+def _build_diataxis_children(svc_name: str, svc_dir: Path) -> list[dict]:
+    """Return how-to/reference/explanation nav nodes that exist under svc_dir."""
+    extras: list[dict] = []
+    for subdir, sub_label, sub_icon in DIATAXIS_SUBDIRS:
+        sub_path = svc_dir / subdir
+        if not sub_path.is_dir():
+            continue
+        prefix = f"services-{svc_name}-{subdir}"
+        node = _build_diataxis_node(sub_path, prefix, sub_label)
+        if node is None:
+            continue
+        node["icon"] = sub_icon
+        extras.append(node)
+    return extras
+
+
 def _build_services_subtree(services: list[dict]) -> list[dict]:
     children = []
     for svc in services:
@@ -462,6 +583,7 @@ def _build_services_subtree(services: list[dict]) -> list[dict]:
                         "href": f"/services/portal/internal/services/{name}/{filename}",
                     }
                 )
+        kids.extend(_build_diataxis_children(name, svc_dir))
         node = {
             "id": f"services-{name}",
             "label": _nav_label(name),

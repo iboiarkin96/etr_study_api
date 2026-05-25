@@ -2,7 +2,7 @@
 <html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CI/CD Reliability — Practice 17 · SRE</title>
+  <title>CI/CD Reliability — the pipeline is a production system — Practice 17 · SRE</title>
   <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
@@ -33,130 +33,342 @@
   <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
   <main class="container">
-    <p class="pa-eyebrow">
-      <span class="pa-eyebrow__num">17</span>
-      <span class="pa-eyebrow__group">Group D · Delivery reliability</span>
-      <span class="pa-scorebar"><span class="pa-scorebar__asis">5.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span class="pa-scorebar__hint">AS-IS → TO-BE</span></span>
-    </p>
-    <h1 class="pa-title">CI/CD Reliability — the pipeline is a production system</h1>
-    <div id="docs-top-nav"></div>
-    <p class="pa-lead">A set of standards and practices that treat the CI/CD pipeline as a reliability-critical system — with flaky test elimination, duration budgets, build infrastructure monitoring, and on-call coverage for pipeline failures.</p>
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">17</span>
+        <span class="pa-eyebrow__group">Group D · Delivery reliability</span>
+      </p>
+      <h1>CI/CD Reliability — the pipeline is a production system</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">A set of standards and practices that treat the CI/CD pipeline as a reliability-critical system — with flaky test elimination, duration budgets, build infrastructure monitoring, and on-call coverage for pipeline failures.</p>
+    </header>
 
     <div class="pa-tldr">
       <span class="pa-tldr__label">TL;DR</span>
       <p class="pa-tldr__text">CI/CD reliability means the pipeline is fast, deterministic, and treated as a production system when it breaks. Four standards: flaky test rate below 0.5% (tests that fail intermittently without code changes are quarantined and fixed within one sprint); pipeline duration budget (PR build ≤ 10 min, deploy pipeline ≤ 20 min — breaches are treated as regressions); build infrastructure monitoring (pipeline failure rate, queue depth, and duration tracked with the same dashboards as user-facing services); and pipeline on-call (a broken main branch is a P1 incident with a named responder). A slow or unreliable pipeline is a reliability risk — it delays rollbacks, produces deployment anxiety, and erodes the engineering team's trust in automation.</p>
     </div>
 
-    <figure class="pa-figure" aria-label="CI/CD reliability pipeline stages">
-      <svg viewBox="0 0 720 180" role="img" aria-label="CI/CD reliability pipeline with duration budgets">
-        <g font-family="ui-monospace,Menlo,Consolas,monospace">
-          <rect class="pa-svg-box pa-svg-box--accent" x="20" y="40" width="110" height="80" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--accent" x="75" y="68" text-anchor="middle" font-size="10" font-weight="700">Lint + Unit</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="75" y="86" text-anchor="middle" font-size="9">≤ 3 min</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="75" y="103" text-anchor="middle" font-size="9">flake rate &lt;0.5%</text>
-          <path class="pa-svg-arrow" d="M130 80 L155 80 L149 76 M155 80 L149 84"></path>
-          <rect class="pa-svg-box" x="157" y="40" width="110" height="80" rx="8"></rect>
-          <text class="pa-svg-text" x="212" y="68" text-anchor="middle" font-size="10" font-weight="700">Integration</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="212" y="86" text-anchor="middle" font-size="9">≤ 5 min</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="212" y="103" text-anchor="middle" font-size="9">real deps · no mocks</text>
-          <path class="pa-svg-arrow" d="M267 80 L292 80 L286 76 M292 80 L286 84"></path>
-          <rect class="pa-svg-box" x="294" y="40" width="110" height="80" rx="8"></rect>
-          <text class="pa-svg-text" x="349" y="68" text-anchor="middle" font-size="10" font-weight="700">Security scan</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="349" y="86" text-anchor="middle" font-size="9">SAST + SCA</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="349" y="103" text-anchor="middle" font-size="9">≤ 2 min</text>
-          <path class="pa-svg-arrow" d="M404 80 L429 80 L423 76 M429 80 L423 84"></path>
-          <rect class="pa-svg-box pa-svg-box--good" x="431" y="40" width="110" height="80" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--good" x="486" y="68" text-anchor="middle" font-size="10" font-weight="700">Build + Push</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="486" y="86" text-anchor="middle" font-size="9">artefact signed</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="486" y="103" text-anchor="middle" font-size="9">SBOM attached</text>
-          <path class="pa-svg-arrow" d="M541 80 L566 80 L560 76 M566 80 L560 84"></path>
-          <rect class="pa-svg-box pa-svg-box--good" x="568" y="40" width="130" height="80" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--good" x="633" y="68" text-anchor="middle" font-size="10" font-weight="700">Deploy → prod</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="633" y="86" text-anchor="middle" font-size="9">canary gate</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="633" y="103" text-anchor="middle" font-size="9">auto rollback</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="360" y="160" text-anchor="middle" font-size="10" font-style="italic">total PR pipeline budget: ≤ 10 min · total deploy pipeline: ≤ 20 min</text>
-        </g>
+    <figure class="pa-figure" aria-label="CI/CD pipeline flow with DORA outcome metrics">
+      <svg viewBox="0 0 640 220" role="img" aria-label="PR through build, tests, security scans, artifact, deploy gate measured by DORA" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="92" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="51" y="106" text-anchor="middle" font-weight="700">PR</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="51" y="124" text-anchor="middle" font-size="10">opened</text>
+
+        <rect class="pa-svg-box" x="112" y="80" width="92" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="158" y="106" text-anchor="middle" font-weight="700">Build</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="158" y="124" text-anchor="middle" font-size="10">compile · image</text>
+
+        <rect class="pa-svg-box" x="219" y="80" width="92" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="265" y="106" text-anchor="middle" font-weight="700">Tests</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="265" y="124" text-anchor="middle" font-size="10">unit · integration</text>
+
+        <rect class="pa-svg-box" x="326" y="80" width="92" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="372" y="106" text-anchor="middle" font-weight="700">Scans</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="372" y="124" text-anchor="middle" font-size="10">SAST · SCA</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="433" y="80" width="92" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="479" y="106" text-anchor="middle" font-weight="700">Artifact</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="479" y="124" text-anchor="middle" font-size="10">signed · SBOM</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="540" y="80" width="95" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="587" y="106" text-anchor="middle" font-weight="700">Deploy gate</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="587" y="124" text-anchor="middle" font-size="10">Argo CD</text>
+
+        <text class="pa-svg-text pa-svg-text--muted" x="320" y="32" text-anchor="middle" font-size="11" font-weight="700">DORA outcomes</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="320" y="50" text-anchor="middle" font-size="10">deployment frequency · lead time · change failure rate</text>
+
+        <path d="M 97 110 L 110 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M204 110 L 217 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M311 110 L 324 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M418 110 L 431 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M525 110 L 538 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+
+        <text class="pa-svg-text pa-svg-text--muted" x="320" y="190" text-anchor="middle" font-size="10" font-style="italic">PR pipeline ≤ 10 min · deploy pipeline ≤ 20 min</text>
       </svg>
-      <figcaption class="pa-figure__caption">Five-stage pipeline with per-stage duration budgets. Total PR build ≤ 10 min; deploy pipeline ≤ 20 min. Duration regressions are treated as bugs.</figcaption>
+      <figcaption class="pa-figure__caption">PR opens → build → tests → security scans → signed artifact → deploy gate. Pipeline outcomes are measured as DORA: deployment frequency, lead time for changes, change failure rate.</figcaption>
     </figure>
 
-    <section id="what" class="pa-section">
-      <h2>What it is</h2>
-      <p><strong>CI/CD reliability</strong> is the practice of treating the build and deploy pipeline as a production system — one that has SLOs, is monitored, has an on-call owner, and whose regressions are fixed with the same urgency as production bugs. Four core standards:</p>
+    <h2 id="what">What it is</h2>
+    <p><strong>CI/CD reliability</strong> is the practice of treating the build and deploy pipeline as a production system — one that has SLOs, is monitored, has an on-call owner, and whose regressions are fixed with the same urgency as production bugs. Four core standards:</p>
+    <ul>
+      <li><strong>Flaky test elimination:</strong> A flaky test is one that fails intermittently without any code change. Flaky tests erode trust in the pipeline (engineers start ignoring red builds) and slow down the development cycle. Target: flaky test rate below 0.5% of test runs. Any test flagged as flaky is quarantined (skipped in CI, tracked in a quarantine backlog) and fixed within one sprint. A quarantined test is not a resolved test — it must be fixed or deleted.</li>
+      <li><strong>Duration budgets:</strong> PR pipeline (lint + unit + integration + security scan + build) must complete in under 10 minutes. Deploy pipeline (from merge to production canary) must complete in under 20 minutes. Pipeline duration is tracked over time — a regression (e.g., a new test that adds 4 minutes to the build) is treated as a bug in the same sprint it appears.</li>
+      <li><strong>Build infrastructure monitoring:</strong> Pipeline failure rate (failures not caused by code changes), queue depth (number of builds waiting for runners), and pipeline duration P90 are tracked on the same dashboards as user-facing services. Alerts fire when failure rate exceeds 5% or P90 duration exceeds budget.</li>
+      <li><strong>Pipeline on-call:</strong> A broken main branch (build that fails in main after a merge) is a P1 incident. There is a named on-call owner for the pipeline. The break is acknowledged within 30 minutes and resolved or reverted within 2 hours. A main branch that stays broken is a deployment blocker for every team.</li>
+    </ul>
+
+    <h2 id="why">Why we need it</h2>
+    <p>The CI/CD pipeline is on the critical path of every deployment. A slow or unreliable pipeline delays rollbacks — the most time-sensitive operation in incident response. If rolling back a broken deployment takes 20 minutes because the pipeline is slow, those 20 minutes are added to every incident's MTTR. A 10-minute pipeline budget for a rollback saves 10 minutes from every P0 and P1 incident.</p>
+    <p>Flaky tests are particularly destructive because their cost is invisible. Each flaky test failure causes an engineer to re-trigger the build — typically 5–10 minutes of waste per occurrence. At 20 flaky test failures per day across the team, this is 100–200 minutes of lost productivity per day. The DORA State of DevOps Report consistently finds that high-performing engineering teams have near-zero flaky test rates — flaky tests are a lagging indicator of test quality problems that compound over time.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Google</p>
+        <p class="pa-industry__what">Google's internal CI system (TAP — Test Automation Platform) runs billions of test cases per day. Their key practice: "test hermiticity" — every test must produce the same result in any environment, at any time, without network access or external dependencies. Any test that fails this criterion is automatically quarantined and reported to the test owner. Google also enforces a "build breakage is a P0" policy: if a change breaks the build, the author has 15 minutes to revert before the CI system does it automatically.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Automatic revert on build break. 15 minutes is a generous window — the point is that a broken build is never left overnight. The social norm that "it's OK to leave the build broken" is the root cause of most main branch reliability problems.</p>
+        <p class="pa-industry__source">Source: <a href="https://engineering.google/products/test-reliability/" rel="noopener">Google Engineering — Test Reliability</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Shopify</p>
+        <p class="pa-industry__what">Shopify runs one of the largest Ruby monorepos in the world. Their CI challenge: a test suite that takes hours if run naively. Their solution: "test impact analysis" — each PR only runs tests that are affected by the changed files, not the entire suite. This reduced their median PR build time from 40 minutes to 8 minutes. They also publish a "test health score" per service — a weekly metric combining flaky test rate, build duration, and first-pass success rate — which is reviewed in each team's weekly engineering meeting.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Test impact analysis is the highest-leverage optimisation for large codebases. Running 100% of tests on every PR is wasteful once the suite exceeds a few minutes. Impact analysis is not a shortcut — it's the correct engineering decision.</p>
+        <p class="pa-industry__source">Source: <a href="https://shopify.engineering/" rel="noopener">Shopify Engineering Blog</a></p>
+      </div>
+    </div>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Flaky test quarantine process</p><p class="pa-anatomy__hint">A test is flagged as flaky if it fails in CI without a corresponding code change. The CI system automatically opens a ticket, adds the <code>@quarantine</code> annotation to the test, and skips it in subsequent runs. The test owner has one sprint to fix or delete the test. Tests in quarantine for more than 2 sprints are deleted — a deleted test is better than a permanently skipped test.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Pipeline duration tracking</p><p class="pa-anatomy__hint">Every pipeline run records per-stage duration to a time-series store. Weekly report: P50 and P90 duration per stage, trend vs. last 4 weeks. Any stage that regresses more than 20% in a week is a bug assigned to the team that merged the change causing the regression.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Build infrastructure SLO</p><p class="pa-anatomy__hint">Pipeline availability SLO: 99.5% of builds must start within 2 minutes of trigger (queue depth SLO). Pipeline success SLO: infrastructure-caused failures (runner crashes, network timeouts unrelated to code) below 1% of builds. Both tracked monthly and reviewed in the SRE team's monthly SLO review.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Main branch protection</p><p class="pa-anatomy__hint">Main branch requires passing CI before merge (branch protection rule). Post-merge build result is monitored — if main breaks after merge, the CI system triggers an automatic alert to the pipeline on-call and the author of the last merge. Auto-revert policy: if the break is not acknowledged within 30 minutes, the last merge is reverted automatically.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App CI runs on <strong>GitHub Actions</strong>. Every PR triggers a workflow whose required checks are: unit tests, integration tests (against ephemeral Postgres + Redis services in the runner), lint (ruff + eslint + stylelint), security scan (Trivy for the image, Bandit/Semgrep for source), and image build (multi-stage Dockerfile, push to GHCR with cosign signature). The set is encoded as <em>required status checks</em> in branch protection on <code>main</code> — a PR cannot merge without all five green.</p>
+    <p>Deploys are GitOps via <strong>Argo CD</strong>. The CI job that produces the signed image updates the image tag in <code>infra/argocd/</code>; Argo CD detects the change, runs its sync policy (canary first, then full rollout if health checks pass), and reports back. The DORA dashboard at <a href="../../../../sre/dora.html"><code>internal/sre/dora.html</code></a> tracks deployment frequency, lead time for changes, change failure rate, and time to restore — refreshed weekly from GitHub Actions and Argo CD events. Flaky tests are quarantined via the <code>@pytest.mark.quarantine</code> marker (and <code>.skipFlaky</code> in the JS suites); CI excludes them from the required-check set but the quarantine backlog is reviewed at every sprint planning, and a test cannot sit in quarantine past two sprints without an owner decision to fix or delete.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>DORA metrics — measuring delivery as a system</h3>
+      <p>The DORA research programme, summarised in Forsgren et al.'s <em>Accelerate</em>, established four metrics that together describe an engineering organisation's delivery performance. They are <em>outcome</em> metrics, not activity metrics, and they correlate with both organisational performance and engineer well-being.</p>
+      <h4>Deployment frequency</h4>
+      <p>How often the team deploys to production. Elite teams deploy multiple times per day; high performers between once per day and once per week; medium performers between once per week and once per month; low performers less than once per month. The interesting fact is not the number itself but what it implies — high frequency is only possible if the change size is small, which is only possible if the pipeline is fast and the rollback is cheap. Frequency is therefore a proxy for batch size and pipeline confidence.</p>
+      <h4>Lead time for changes</h4>
+      <p>Time from code committed to code running in production. Elite: under one hour. High: one day to one week. Medium: one week to one month. Low: more than one month. Lead time is the most direct measure of pipeline throughput; it includes review, build, test, and deploy stages, so a regression in any one of them shows up here first.</p>
+      <h4>Mean time to restore (MTTR)</h4>
+      <p>Time from incident detected to incident resolved. Elite: under one hour. High: under one day. Medium: one day to one week. Low: more than one week. MTTR is a function of two things — how fast the team can identify the bad change, and how fast the pipeline can ship a fix or roll back. A slow pipeline degrades MTTR linearly, which is why CI/CD reliability is a reliability practice and not a developer-productivity practice.</p>
+      <h4>Change failure rate</h4>
+      <p>Percentage of deployments that cause a production incident (rollback, hotfix, or degraded service). Elite and high: 0–15%. Medium: 16–30%. Low: 46–60%. The single most consistent finding from the DORA dataset: high-performing teams do not have a lower change failure rate by being more careful — they have it by deploying smaller changes more often, which makes each change easier to verify and cheaper to roll back.</p>
+      <h4>Pipeline reliability as a first-class incident class</h4>
+      <p>A broken pipeline is an incident, not a chore. When main is red, every team is blocked from shipping; every minute the pipeline stays broken multiplies across the organisation. The principled response is to give the pipeline an on-call rotation, a P1 severity for main breakage, and the same post-mortem treatment as a customer-facing outage. The reverse — treating pipeline breakage as "someone will get to it" — is how a team ends up with a multi-day red main branch and a deploy log that says nothing has shipped this week.</p>
+      <h4>Test-pyramid economics</h4>
+      <p>Mike Cohn's test pyramid (unit > integration > end-to-end) is an economic argument, not an aesthetic one. A unit test runs in milliseconds and isolates one component; an integration test runs in seconds and exercises a contract; an end-to-end test runs in minutes and exercises the full system. The pyramid says the count of tests should follow that cost curve — many unit tests, fewer integration tests, very few end-to-end tests. Inverting the pyramid (lots of slow e2e tests, few unit tests) produces a long pipeline that nobody trusts and that everyone re-triggers when it fails. The flake rate of e2e tests is structurally higher because the surface area is larger; the test pyramid is the structural answer to flake.</p>
+      <h4>Supply-chain integrity — SLSA and provenance</h4>
+      <p>The build pipeline is itself a target. SolarWinds (2020) and Codecov (2021) showed that an attacker who compromises the build system can ship malware to every downstream consumer with the legitimate signing key of the upstream project. The SLSA framework (Supply-chain Levels for Software Artifacts) defines four levels of build integrity: SLSA 1 (build script documented), SLSA 2 (hosted build service with provenance), SLSA 3 (hardened build platform, non-falsifiable provenance), SLSA 4 (hermetic, reproducible builds, two-party review). The provenance attestation records what was built, from which source, by which builder, with which dependencies — and is signed so a verifier downstream can prove the artifact is legitimate.</p>
+      <h4>Trade-offs — what this practice costs</h4>
       <ul>
-        <li><strong>Flaky test elimination:</strong> A flaky test is one that fails intermittently without any code change. Flaky tests erode trust in the pipeline (engineers start ignoring red builds) and slow down the development cycle. Target: flaky test rate below 0.5% of test runs. Any test flagged as flaky is quarantined (skipped in CI, tracked in a quarantine backlog) and fixed within one sprint. A quarantined test is not a resolved test — it must be fixed or deleted.</li>
-        <li><strong>Duration budgets:</strong> PR pipeline (lint + unit + integration + security scan + build) must complete in under 10 minutes. Deploy pipeline (from merge to production canary) must complete in under 20 minutes. Pipeline duration is tracked over time — a regression (e.g., a new test that adds 4 minutes to the build) is treated as a bug in the same sprint it appears.</li>
-        <li><strong>Build infrastructure monitoring:</strong> Pipeline failure rate (failures not caused by code changes), queue depth (number of builds waiting for runners), and pipeline duration P90 are tracked on the same dashboards as user-facing services. Alerts fire when failure rate exceeds 5% or P90 duration exceeds budget.</li>
-        <li><strong>Pipeline on-call:</strong> A broken main branch (build that fails in main after a merge) is a P1 incident. There is a named on-call owner for the pipeline. The break is acknowledged within 30 minutes and resolved or reverted within 2 hours. A main branch that stays broken is a deployment blocker for every team.</li>
+        <li><strong>Up-front pipeline engineering.</strong> Reaching a 10-minute PR pipeline requires test parallelisation, build caching, and selective test execution — none of which are free. Teams that skip this work end up with 40-minute pipelines and the cultural problems that follow.</li>
+        <li><strong>Discipline at PR time.</strong> Required checks, signed artifacts, and SLSA provenance add friction to "just push a hotfix" workflows. The friction is the point; without it the supply-chain protections do not exist when they are needed.</li>
+        <li><strong>Cultural reversal on flake.</strong> Engineers learn to re-trigger CI rather than investigate flakes — it is locally rational and globally destructive. The forcing function is the quarantine + delete-after-two-sprints rule: flake becomes visible work that must be closed.</li>
       </ul>
-    </section>
+    </div>
 
-    <section id="why" class="pa-section">
-      <h2>Why we need it</h2>
-      <p>The CI/CD pipeline is on the critical path of every deployment. A slow or unreliable pipeline delays rollbacks — the most time-sensitive operation in incident response. If rolling back a broken deployment takes 20 minutes because the pipeline is slow, those 20 minutes are added to every incident's MTTR. A 10-minute pipeline budget for a rollback saves 10 minutes from every P0 and P1 incident.</p>
-      <p>Flaky tests are particularly destructive because their cost is invisible. Each flaky test failure causes an engineer to re-trigger the build — typically 5–10 minutes of waste per occurrence. At 20 flaky test failures per day across the team, this is 100–200 minutes of lost productivity per day. The DORA State of DevOps Report consistently finds that high-performing engineering teams have near-zero flaky test rates — flaky tests are a lagging indicator of test quality problems that compound over time.</p>
-    </section>
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">PR opened</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">checks run</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">review</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">merge</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">build</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">deploy gate</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">deployed</span>
+    </div>
+    <p>A PR is opened against <code>main</code>. GitHub Actions runs the required checks in parallel — lint, unit, integration, security scan, image build — and reports each as a status. Human review proceeds in parallel with CI; once both pass, the PR is merged. The post-merge build runs once more on the merged commit, produces a signed image with SLSA provenance, and updates the image tag in the Argo CD repo. Argo CD picks up the change, applies it to the canary slice first, watches health and SLO probes for the soak window, and either promotes to the full rollout or rolls back automatically. The DORA timer for that change starts at "code committed" and stops at "deployed and healthy" — the difference is lead time, recorded for the weekly review.</p>
 
-    <section id="industry" class="pa-section">
-      <h2>How others do it</h2>
-      <div class="pa-industry">
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Google</p>
-          <p class="pa-industry__what">Google's internal CI system (TAP — Test Automation Platform) runs billions of test cases per day. Their key practice: "test hermiticity" — every test must produce the same result in any environment, at any time, without network access or external dependencies. Any test that fails this criterion is automatically quarantined and reported to the test owner. Google also enforces a "build breakage is a P0" policy: if a change breaks the build, the author has 15 minutes to revert before the CI system does it automatically.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Automatic revert on build break. 15 minutes is a generous window — the point is that a broken build is never left overnight. The social norm that "it's OK to leave the build broken" is the root cause of most main branch reliability problems.</p>
-          <p class="pa-industry__source">Source: <a href="https://engineering.google/products/test-reliability/" rel="noopener">Google Engineering — Test Reliability</a></p>
-        </div>
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Shopify</p>
-          <p class="pa-industry__what">Shopify runs one of the largest Ruby monorepos in the world. Their CI challenge: a test suite that takes hours if run naively. Their solution: "test impact analysis" — each PR only runs tests that are affected by the changed files, not the entire suite. This reduced their median PR build time from 40 minutes to 8 minutes. They also publish a "test health score" per service — a weekly metric combining flaky test rate, build duration, and first-pass success rate — which is reviewed in each team's weekly engineering meeting.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Test impact analysis is the highest-leverage optimisation for large codebases. Running 100% of tests on every PR is wasteful once the suite exceeds a few minutes. Impact analysis is not a shortcut — it's the correct engineering decision.</p>
-          <p class="pa-industry__source">Source: <a href="https://shopify.engineering/" rel="noopener">Shopify Engineering Blog</a></p>
-        </div>
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Flaky tests tolerated because "they usually pass"</strong></td>
+            <td>The cost of flakiness is invisible — no single failure is expensive enough to fix immediately.</td>
+            <td>Track aggregate flakiness cost: flaky failures per week × average re-trigger time = wasted engineer hours per week. When the number is visible, the fix priority becomes clear. A single test that fails once per day wastes 30+ engineer-minutes per week.</td>
+          </tr>
+          <tr>
+            <td><strong>Build duration grows without notice</strong></td>
+            <td>Each new test adds a few seconds — no single addition is a regression.</td>
+            <td>Track duration as a time series and alert on trend, not just threshold. A trend of +5 seconds per week over 12 weeks is a 60-second regression — invisible week-to-week, significant over a quarter.</td>
+          </tr>
+          <tr>
+            <td><strong>Pipeline breaks treated as "someone else's problem"</strong></td>
+            <td>No named pipeline on-call; everyone assumes someone else will fix it.</td>
+            <td>Assign pipeline on-call as a rotating weekly responsibility. The on-call engineer's job during a main branch break is identical to incident response: acknowledge, assess, fix or revert. The broken main is a P1 until it's green.</td>
+          </tr>
+          <tr>
+            <td><strong>Unsigned artifacts shipped to production</strong></td>
+            <td>Signing adds CI complexity; provenance feels like compliance theatre until the first supply-chain incident.</td>
+            <td>Sign every image with cosign at build time and verify the signature at the Argo CD admission step. The signature is part of the artifact; an unsigned image is not deployable. SLSA provenance is the minimum bar, not an optional extra.</td>
+          </tr>
+          <tr>
+            <td><strong>End-to-end tests dominate the suite</strong></td>
+            <td>E2E tests feel "more realistic"; they catch bugs unit tests miss.</td>
+            <td>Invert the instinct: build the unit-test base wide and the e2e tip narrow. E2E tests are expensive and flaky by surface area; use a handful as smoke tests, not a hundred as regression coverage. Push real coverage down to integration and unit layers where the economics work.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">GitHub Actions workflow</span>
+        <p class="pa-example__title">Study App PR pipeline — matrix tests, security scan, signed image, deploy gate</p>
       </div>
-    </section>
+      <div class="pa-example__body">
+        <pre><code>name: ci
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
 
-    <section id="anatomy" class="pa-section">
-      <h2>Anatomy</h2>
-      <div class="pa-anatomy">
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Flaky test quarantine process</p><p class="pa-anatomy__hint">A test is flagged as flaky if it fails in CI without a corresponding code change. The CI system automatically opens a ticket, adds the `@quarantine` annotation to the test, and skips it in subsequent runs. The test owner has one sprint to fix or delete the test. Tests in quarantine for more than 2 sprints are deleted — a deleted test is better than a permanently skipped test.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Pipeline duration tracking</p><p class="pa-anatomy__hint">Every pipeline run records per-stage duration to a time-series store. Weekly report: P50 and P90 duration per stage, trend vs. last 4 weeks. Any stage that regresses more than 20% in a week is a bug assigned to the team that merged the change causing the regression.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Build infrastructure SLO</p><p class="pa-anatomy__hint">Pipeline availability SLO: 99.5% of builds must start within 2 minutes of trigger (queue depth SLO). Pipeline success SLO: infrastructure-caused failures (runner crashes, network timeouts unrelated to code) below 1% of builds. Both tracked monthly and reviewed in the SRE team's monthly SLO review.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Main branch protection</p><p class="pa-anatomy__hint">Main branch requires passing CI before merge (branch protection rule). Post-merge build result is monitored — if main breaks after merge, the CI system triggers an automatic alert to the pipeline on-call and the author of the last merge. Auto-revert policy: if the break is not acknowledged within 30 minutes, the last merge is reverted automatically.</p></div>
+permissions:
+  contents:   read
+  id-token:   write   # OIDC for cosign keyless signing
+  packages:   write   # push to GHCR
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [unit, integration]
+        python: ["3.12"]
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: ci }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: ${{ matrix.python }}, cache: pip }
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -m "${{ matrix.suite }} and not quarantine" --junitxml=junit.xml
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: junit-${{ matrix.suite }}, path: junit.xml }
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@v0
+        with: { scan-type: fs, severity: HIGH,CRITICAL, exit-code: '1' }
+      - name: Semgrep SAST
+        run: semgrep ci --config auto --error
+
+  build-and-sign:
+    needs: [test, security-scan]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' &amp;&amp; github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sigstore/cosign-installer@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          push:      true
+          tags:      ghcr.io/${{ github.repository }}:${{ github.sha }}
+          provenance: true       # SLSA build provenance
+          sbom:       true       # SPDX SBOM attached
+      - name: Sign image (keyless, OIDC)
+        run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+
+  deploy-gate:
+    needs: build-and-sign
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { repository: study-app/infra, token: ${{ secrets.INFRA_PAT }} }
+      - name: Verify cosign signature
+        run: cosign verify --certificate-identity-regexp '.*study-app.*' \
+             ghcr.io/study-app/api@${{ needs.build-and-sign.outputs.digest }}
+      - name: Bump image tag for Argo CD
+        run: |
+          yq -i '.spec.template.spec.containers[0].image =
+                 "ghcr.io/study-app/api@${{ needs.build-and-sign.outputs.digest }}"' \
+                 argocd/apps/api/deployment.yaml
+          git commit -am "deploy(api): ${{ github.sha }}" &amp;&amp; git push
+</code></pre>
+        <p><strong>What this workflow does.</strong> The PR run does test + security-scan in parallel — both required for merge. The post-merge run additionally builds the image, attaches SLSA provenance and an SBOM, signs the digest with cosign (keyless, via GitHub's OIDC token), and updates the Argo CD repo to point production at the new digest. Argo CD takes it from there: canary slice, soak, promote or roll back. The deploy gate verifies the signature before bumping the tag — an unsigned or untrusted image cannot reach production even if the build job was somehow tricked into pushing one. The matrix split keeps unit and integration parallel so the PR pipeline stays inside the 10-minute budget.</p>
       </div>
-    </section>
+    </div>
 
-    <section id="pitfalls" class="pa-section">
-      <h2>Common pitfalls</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
-        <table class="pa-pitfalls">
-          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
-          <tbody>
-            <tr><td>Flaky tests tolerated because "they usually pass"</td><td>The cost of flakiness is invisible — no single failure is expensive enough to fix immediately.</td><td>Track aggregate flakiness cost: flaky failures per week × average re-trigger time = wasted engineer hours per week. When the number is visible, the fix priority becomes clear. A single test that fails once per day wastes 30+ engineer-minutes per week.</td></tr>
-            <tr><td>Build duration grows without notice</td><td>Each new test adds a few seconds — no single addition is a regression.</td><td>Track duration as a time series and alert on trend, not just threshold. A trend of +5 seconds per week over 12 weeks is a 60-second regression — invisible week-to-week, significant over a quarter.</td></tr>
-            <tr><td>Pipeline breaks treated as "someone else's problem"</td><td>No named pipeline on-call; everyone assumes someone else will fix it.</td><td>Assign pipeline on-call as a rotating weekly responsibility. The on-call engineer's job during a main branch break is identical to incident response: acknowledge, assess, fix or revert. The broken main is a P1 until it's green.</td></tr>
-          </tbody>
-        </table>
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">PR pipeline finishes inside 10 minutes</p><p class="pa-quality__hint">P90 duration is on a dashboard; a regression above 10 min opens a bug in the same sprint.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Flaky test rate &lt; 0.5%</p><p class="pa-quality__hint">Quarantine via marker, fix within one sprint, delete after two. Quarantine backlog reviewed at sprint planning.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Required checks enforced on <code>main</code></p><p class="pa-quality__hint">Branch protection blocks merge without unit + integration + lint + security scan + image build green.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every image signed and SLSA-attested</p><p class="pa-quality__hint">cosign keyless signing via OIDC; SBOM attached; Argo CD verifies signature before sync.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">DORA dashboard refreshed weekly</p><p class="pa-quality__hint">Deployment frequency, lead time, change failure rate, MTTR — at <code>internal/sre/dora.html</code>, reviewed in the monthly SRE retro.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Pipeline on-call defined</p><p class="pa-quality__hint">Rotating weekly responsibility; broken main is a P1; ACK 30 min, fix or revert in 2 h.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Test pyramid in shape</p><p class="pa-quality__hint">Many unit, fewer integration, a handful of e2e smoke tests. Inverted pyramids are tracked and unwound.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://dora.dev/" rel="noopener">DORA — State of DevOps research</a><span class="pa-refs__hint">The canonical source for the four delivery metrics and their elite/high/medium/low bands.</span></li>
+          <li><a href="https://itrevolution.com/product/accelerate/" rel="noopener">Forsgren, Humble, Kim — <em>Accelerate</em></a><span class="pa-refs__hint">The book that consolidated the DORA findings and the case that delivery performance predicts organisational performance.</span></li>
+          <li><a href="https://cloud.google.com/build/docs/best-practices" rel="noopener">Google Cloud Build — best practices</a><span class="pa-refs__hint">Reference for hermetic builds, caching strategy, and minimal build images.</span></li>
+          <li><a href="https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions" rel="noopener">GitHub Actions — security hardening</a><span class="pa-refs__hint">OIDC for keyless signing, least-privilege tokens, third-party action pinning by SHA.</span></li>
+          <li><a href="https://slsa.dev/" rel="noopener">SLSA — Supply-chain Levels for Software Artifacts</a><span class="pa-refs__hint">The framework for build provenance, levels 1–4, and what each level protects against.</span></li>
+        </ul>
       </div>
-    </section>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="progressive-delivery.html">Progressive delivery — canaries and rollouts</a><span class="pa-refs__hint">What happens after the deploy gate: canary slicing, soak windows, automated rollback.</span></li>
+          <li><a href="deployment-health.html">Deployment health — readiness, liveness, SLO probes</a><span class="pa-refs__hint">The health signals Argo CD watches to decide whether to promote or roll back.</span></li>
+          <li><a href="supply-chain-security.html">Supply-chain security — signing, SBOM, provenance</a><span class="pa-refs__hint">The deeper treatment of cosign, SLSA, and how artifacts become trustable.</span></li>
+          <li><a href="rollback-playbook.html">Rollback playbook — when and how to revert</a><span class="pa-refs__hint">Where MTTR is actually paid; the pipeline must be fast enough to make rollback the default response.</span></li>
+        </ul>
+      </div>
+    </div>
 
-    <section id="page-history" class="pa-section">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
-          <tbody>
-            <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
-              <td>Initial version: CI/CD Reliability practice for SRE radar.</td>
-              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial version: CI/CD Reliability practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
 
-    <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
-    <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
 
-    <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
-  </body></html>
+</body></html>

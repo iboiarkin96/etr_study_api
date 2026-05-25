@@ -32,7 +32,7 @@ const DEFAULT_CONFIG = {
     title: "Study App",
     subtitle: "Internal portal",
     glyph: "🚀",
-    href: "/",
+    href: "/services/portal/internal/index.html",
     tagline:
       "Documentation, governance, and engineering practices — one place to ship Study App with confidence.",
     social: [
@@ -43,27 +43,28 @@ const DEFAULT_CONFIG = {
     {
       title: "Docs",
       links: [
-        { label: "Architecture", href: "/internal/architect/" },
-        { label: "API reference", href: "/internal/catalog/api/" },
-        { label: "Runbooks", href: "/internal/sre/" },
-        { label: "UI Kit", href: "/services/portal/ui-kit/index.html", badge: "v2" },
+        { label: "Services catalog", href: "/services/portal/internal/services/index.html" },
+        { label: "API reference", href: "/services/portal/internal/services/api/reference/index.html" },
+        { label: "Runbooks", href: "/services/portal/internal/how-to/incidents/runbooks/index.html" },
+        { label: "UI Kit", href: "/services/portal/ui-kit/index.html", badge: "v3" },
       ],
     },
     {
       title: "Governance",
       links: [
-        { label: "RFCs", href: "/internal/governance/rfc/" },
-        { label: "ADRs", href: "/internal/governance/adr/" },
-        { label: "Backlog", href: "/internal/governance/backlog/" },
-        { label: "Roadmap", href: "/internal/governance/roadmap/" },
+        { label: "RFCs", href: "/services/portal/internal/governance/rfc/index.html" },
+        { label: "ADRs", href: "/services/portal/internal/governance/adr/index.html" },
+        { label: "Backlog", href: "/services/portal/internal/governance/backlog/index.html" },
+        { label: "Audits", href: "/services/portal/internal/governance/audits/index.html" },
       ],
     },
     {
       title: "Team",
       links: [
-        { label: "Maintainers", href: "/internal/team/" },
-        { label: "Handbook", href: "/internal/handbook/" },
-        { label: "Practices radar", href: "/internal/dev/practices/" },
+        { label: "Team", href: "/services/portal/internal/team/index.html" },
+        { label: "Contributors", href: "/services/portal/internal/team/people/index.html" },
+        { label: "Roles", href: "/services/portal/internal/team/roles/index.html" },
+        { label: "Handbook", href: "/services/portal/internal/foundations/reference/sa/index.html" },
       ],
     },
     {

@@ -2,7 +2,7 @@
 <html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Type safety as default — strict mode, no escape hatches — Practice 14 · Developer</title>
+  <title>Type safety as default — Practice 14 · SWE</title>
   <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
@@ -19,9 +19,9 @@
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
-        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Developer</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SWE</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
-        <li class="docs-breadcrumbs__item" aria-current="page">Type safety as default</li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Type safety</li>
       </ol>
     </nav>
     <div class="topbar__spacer"></div>
@@ -33,173 +33,260 @@
   <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
   <main class="container">
-    <p class="pa-eyebrow">
-      <span class="pa-eyebrow__num">14</span>
-      <span class="pa-eyebrow__group">Group C · Architecture &amp; design</span>
-      <span class="pa-scorebar"><span class="pa-scorebar__asis">5.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">8.5</span><span class="pa-scorebar__hint">AS-IS → TO-BE</span></span>
-    </p>
-    <h1 class="pa-title">Type safety as default — strict mode, no escape hatches</h1>
-    <div id="docs-top-nav"></div>
-    <p class="pa-lead">Run the language's strictest type-checker in CI as a required gate. Block PRs that introduce <code>any</code>, <code>cast</code>, or <code># type: ignore</code> without a reason comment.</p>
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">14</span>
+        <span class="pa-eyebrow__group">Group C · Architecture &amp; design</span>
+      </p>
+      <h1 class="pa-title">Type safety as default — strict mode, no escape hatches</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">Strict typing on by default; <code>any</code> / <code># type: ignore</code> banned except with a written reason and an expiry date.</p>
+    </header>
 
     <div class="pa-tldr">
       <span class="pa-tldr__label">TL;DR</span>
-      <p class="pa-tldr__text">A 2017 study by Gao, Bird, and Barr (Microsoft Research) measured what happens when JavaScript bug-fix commits are re-typed in TypeScript or Flow: 15% of the bugs would have been caught at compile time. Type safety as default means every codebase runs its language's strictest type-checker as a required CI gate — TypeScript <code>strict: true</code>, Python <code>mypy --strict</code>, Rust (no choice), Go with <code>golangci-lint</code>. Escape hatches (<code>any</code>, <code>cast</code>, <code>type: ignore</code>) are reviewed individually, must include a justifying comment, and are tracked in a monotonically-decreasing budget. The type system is a free exhaustive code reviewer that runs in seconds; disabling it is a strictly worse trade than disabling tests.</p>
+      <p class="pa-tldr__text">Type safety has moved from "expert option" to "default" across modern stacks: TypeScript strict mode, Python's mypy/pyright with strict flags, Rust by construction, Kotlin null-safety. Microsoft's 2017 study found a 15% reduction in defects per file after adding TypeScript types. The discipline: strict mode in CI, escape hatches (<code>any</code> / <code>type: ignore</code>) require a comment + expiry date, generated types from external schemas (OpenAPI, GraphQL, Protobuf — Practice 12) replace hand-written ones.</p>
     </div>
 
-    <figure class="pa-figure" aria-label="Runtime versus compile-time errors">
-      <svg viewBox="0 0 720 200" role="img" aria-label="Type-safety effect: bugs moving from runtime to compile time">
-        <g font-family="ui-monospace,Menlo,Consolas,monospace">
-          <text class="pa-svg-text" x="180" y="28" text-anchor="middle" font-size="11" font-weight="700">Without strict types</text>
-          <circle class="pa-svg-box" cx="180" cy="110" r="74" fill="none"></circle>
-          <text class="pa-svg-text pa-svg-text--muted" x="180" y="80" text-anchor="middle" font-size="10">runtime errors</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="180" y="100" text-anchor="middle" font-size="10">caught by</text>
-          <text class="pa-svg-text" x="180" y="120" text-anchor="middle" font-size="13" font-weight="700">customers</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="180" y="142" text-anchor="middle" font-size="10">incident channel</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="180" y="190" text-anchor="middle" font-size="10" font-style="italic">cost: hours · pages</text>
+    <figure class="pa-figure" aria-label="Type safety spectrum">
+      <svg viewBox="0 0 760 220" role="img" aria-label="Type-safety spectrum: untyped → typed → strict" style="display:block;max-width:720px;margin:0 auto;height:auto">
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="380" y="20" text-anchor="middle" font-size="10" letter-spacing="0.6">UNTYPED → TYPED LOOSE → STRICT · ESCAPE HATCHES TRACKED</text>
 
-          <text class="pa-svg-text pa-svg-text--accent" x="540" y="28" text-anchor="middle" font-size="11" font-weight="700">With strict types</text>
-          <circle class="pa-svg-box pa-svg-box--accent" cx="540" cy="110" r="74" fill="none"></circle>
-          <text class="pa-svg-text pa-svg-text--accent" x="540" y="80" text-anchor="middle" font-size="10">compile errors</text>
-          <text class="pa-svg-text pa-svg-text--accent" x="540" y="100" text-anchor="middle" font-size="10">caught by</text>
-          <text class="pa-svg-text pa-svg-text--accent" x="540" y="120" text-anchor="middle" font-size="13" font-weight="700">tsc / mypy</text>
-          <text class="pa-svg-text pa-svg-text--accent" x="540" y="142" text-anchor="middle" font-size="10">red line in PR</text>
-          <text class="pa-svg-text pa-svg-text--accent" x="540" y="190" text-anchor="middle" font-size="10" font-style="italic">cost: seconds · in-IDE</text>
+        <rect class="pa-svg-box" x="20" y="50" width="220" height="160" rx="10" style="stroke:var(--danger, #c0392b)"></rect>
+        <text class="pa-svg-text pa-svg-text--mono" x="130" y="72" text-anchor="middle" font-weight="700" font-size="9" style="fill:var(--danger, #c0392b)">UNTYPED</text>
+        <text class="pa-svg-text" x="130" y="96" text-anchor="middle" font-weight="700" font-size="14" style="fill:var(--danger, #c0392b)">JS / Python no hints</text>
+        <line x1="35" y1="110" x2="225" y2="110" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="130" y="130" text-anchor="middle" font-size="11">type bugs at runtime</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="130" y="146" text-anchor="middle" font-size="11">IDE can't help</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="130" y="162" text-anchor="middle" font-size="11">refactor = grep + pray</text>
+        <text class="pa-svg-text pa-svg-text--mono" x="130" y="190" text-anchor="middle" font-weight="700" font-size="9" style="fill:var(--danger, #c0392b)">2026 ANTIPATTERN</text>
 
-          <path class="pa-svg-arrow" d="M260 110 L460 110"></path>
-          <text class="pa-svg-text pa-svg-text--muted" x="360" y="100" text-anchor="middle" font-size="10" font-style="italic">Gao, Bird &amp; Barr 2017:</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="360" y="116" text-anchor="middle" font-size="10" font-style="italic">~15% of JS bugs would have been caught</text>
-        </g>
+        <rect class="pa-svg-box" x="270" y="50" width="220" height="160" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="380" y="72" text-anchor="middle" font-weight="700" font-size="9">TYPED LOOSE</text>
+        <text class="pa-svg-text" x="380" y="96" text-anchor="middle" font-weight="700" font-size="14">TS / mypy default</text>
+        <line x1="285" y1="110" x2="475" y2="110" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="380" y="130" text-anchor="middle" font-size="11">implicit any allowed</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="380" y="146" text-anchor="middle" font-size="11">unchecked indexed access</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="380" y="162" text-anchor="middle" font-size="11">"feels" type-safe</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="380" y="190" text-anchor="middle" font-weight="700" font-size="9">PARTIAL — DON'T STOP HERE</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="520" y="50" width="220" height="160" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="630" y="72" text-anchor="middle" font-weight="700" font-size="9">STRICT</text>
+        <text class="pa-svg-text pa-svg-text--good" x="630" y="96" text-anchor="middle" font-weight="700" font-size="14">strict everything</text>
+        <line x1="535" y1="110" x2="725" y2="110" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="630" y="130" text-anchor="middle" font-size="11">tsc --strict / mypy --strict</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="630" y="146" text-anchor="middle" font-size="11">noUncheckedIndexedAccess</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="630" y="162" text-anchor="middle" font-size="11">escape hatches tracked</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="630" y="190" text-anchor="middle" font-weight="700" font-size="9">DEFAULT IN 2026</text>
       </svg>
-      <figcaption class="pa-figure__caption">Bugs do not disappear — they move. Strict types catch them seconds after the typo, at zero customer cost. Without them, the same bugs are caught in production by customers and the on-call engineer.</figcaption>
+      <figcaption class="pa-figure__caption">Three positions on the type-safety spectrum. Strict is the modern default; loose is a way-station, not a destination; untyped is an antipattern in 2026.</figcaption>
     </figure>
 
-    <section id="what" class="pa-section">
+    <section id="what">
       <h2>What it is</h2>
-      <p><strong>Type safety as default</strong> means the language's strictest type-checking mode is enabled, runs in CI as a required gate, and escape hatches are reviewed line-by-line. The concrete configuration per language:</p>
+      <p>Type safety as a default means three things working together:</p>
       <ul>
-        <li><strong>TypeScript</strong> — <code>"strict": true</code> in <code>tsconfig.json</code>. This enables <code>strictNullChecks</code>, <code>noImplicitAny</code>, <code>strictFunctionTypes</code>, <code>strictBindCallApply</code>, <code>strictPropertyInitialization</code>, <code>alwaysStrict</code>, and <code>noImplicitThis</code>. Plus <code>noUncheckedIndexedAccess: true</code> to make array/object access return <code>T | undefined</code>.</li>
-        <li><strong>Python</strong> — <code>mypy --strict</code> (equivalent: a <code>mypy.ini</code> / <code>pyproject.toml</code> with all strict flags on: <code>disallow_untyped_defs</code>, <code>disallow_any_generics</code>, <code>warn_return_any</code>, <code>strict_equality</code>, <code>no_implicit_optional</code>). Alternative: <code>pyright</code> in strict mode for faster IDE feedback.</li>
-        <li><strong>Rust</strong> — type safety is non-optional. Add <code>#![deny(clippy::all)]</code> and <code>#![warn(clippy::pedantic)]</code> for additional rigor.</li>
-        <li><strong>Go</strong> — Go's type system is weaker than TypeScript's or Rust's. Compensate with <code>golangci-lint</code> at high strictness: <code>errcheck</code>, <code>staticcheck</code>, <code>govet</code>, <code>nilness</code>, and project-specific lints. Avoid <code>interface{}</code> / <code>any</code> at API boundaries.</li>
+        <li><strong>Strict mode on day one</strong> — TypeScript <code>"strict": true</code> + <code>noUncheckedIndexedAccess</code>; Python <code>mypy --strict</code> or <code>pyright --strict</code>; Rust by construction; Kotlin <code>kotlinOptions.allWarningsAsErrors</code>.</li>
+        <li><strong>Escape hatches require justification</strong> — <code>any</code> / <code>as unknown</code> / <code># type: ignore</code> / <code>@ts-expect-error</code> get a comment with reason + expiry date. Without expiry, escape hatches multiply forever.</li>
+        <li><strong>Generated types from external schemas</strong> — OpenAPI / GraphQL / Protobuf → typed client SDK. Practice 12 (API contract-first) is where these come from.</li>
       </ul>
-      <p>Escape hatches — <code>any</code> in TypeScript, <code>cast()</code> / <code>Any</code> / <code># type: ignore</code> in Python, <code>unsafe</code> blocks in Rust — are not banned, but each use must include a comment explaining why and a tracking issue if it should eventually be removed. A repo-wide count of escape hatches is computed in CI and must decrease (or stay flat) quarter over quarter.</p>
+      <p>The 2017 Microsoft study (Gao, Bird, Barr) found a ~15% reduction in defects per file after adding TypeScript types to JavaScript. The modern practice extends this: not just "we use types" but "strict everything, escape hatches tracked, generated where possible".</p>
     </section>
 
-    <section id="why" class="pa-section">
+    <section id="why">
       <h2>Why we need it</h2>
-      <p>The type system is the cheapest, fastest, most exhaustive code reviewer available. It runs in under thirty seconds on a typical service, checks every line, and never has a bad day. The 2017 Microsoft Research paper by Gao, Bird, and Barr — <em>To Type or Not to Type: Quantifying Detectable Bugs in JavaScript</em> — replayed real-world bug-fix commits from open-source JavaScript projects with TypeScript and Flow type annotations and showed that 15% of the bugs would have been caught at compile time. That is one in seven production incidents prevented by turning on a config flag.</p>
-      <p>Disabling type-checking because "we don't have time" is a strictly worse trade than disabling tests: tests cover a subset of paths chosen by humans; types cover all paths automatically. A repo that has accumulated <code>any</code> in critical boundaries (API requests, database rows, third-party SDK returns) has paid no upfront cost — but every bug-fix in those boundaries is now a debug session instead of a compile error.</p>
+      <p>Type bugs at runtime are the most common class of production incidents: <code>undefined is not a function</code>, null-pointer surprises, wrong-shape API responses. A strict type checker catches them at compile time, for free. Without strict mode, types are advisory; with it, the compiler is a fourth reviewer that never sleeps.</p>
+      <p>Strict typing also unlocks refactoring. A rename of a field surfaces every caller automatically. Without types, the same rename is grep + pray. Teams that adopt strict typing report higher refactoring rates and lower regression bugs; teams that adopt "loose" typing report the type checker passes but the bugs ship anyway because escape hatches let through what should have been errors.</p>
     </section>
 
-    <section id="industry" class="pa-section">
+    <section id="industry">
       <h2>How others do it</h2>
       <div class="pa-industry">
         <div class="pa-industry__card">
-          <p class="pa-industry__company">Microsoft (TypeScript at Microsoft)</p>
-          <p class="pa-industry__what">Microsoft built TypeScript at Anders Hejlsberg's instigation and migrated several internal JavaScript codebases, including parts of Office and Visual Studio, to it. The published guidance is uncompromising: enable <code>strict</code> on day one for new projects, and migrate existing projects file-by-file with <code>// @ts-check</code> first, <code>strict</code> later. The Microsoft Research paper that quantified the bug-catch rate at ~15% (Gao, Bird, Barr 2017) drove industry adoption.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Strict from day one is cheap. Retrofitting strict mode onto a non-strict codebase costs roughly one engineer-week per 10k lines, so the longer you delay, the more it costs.</p>
-          <p class="pa-industry__source">Source: <a href="https://earlbarr.com/publications/typestudy.pdf" rel="noopener">Gao, Bird, Barr (2017) — To Type or Not to Type</a></p>
+          <p class="pa-industry__company">TypeScript / Microsoft (2012, strict 2017)</p>
+          <p class="pa-industry__what">TypeScript shipped strict mode in 2017; Microsoft's research (Gao et al.) measured ~15% fewer bugs per file after the JS → TS migration. <code>"strict": true</code> turns on all strict-family flags; <code>noUncheckedIndexedAccess</code> is the additional opt-in modern teams enable.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> <code>"strict": true</code> + <code>noUncheckedIndexedAccess</code> on day one. Anything less is loose; the bugs that were supposed to be caught aren't.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.typescriptlang.org/tsconfig#strict" rel="noopener">typescriptlang.org — strict</a></p>
         </div>
         <div class="pa-industry__card">
-          <p class="pa-industry__company">Stripe (Sorbet — typed Ruby)</p>
-          <p class="pa-industry__what">Stripe's main monolith is in Ruby, a dynamically-typed language. Rather than accept the productivity tax, Stripe built and open-sourced <strong>Sorbet</strong>, a gradual type checker for Ruby. The checker now runs over millions of lines of Stripe's code, the rollout was incremental (file-by-file with explicit <code>typed: true</code>), and the engineering blog documents the migration honestly: it took years, it was hard, and the payoff was a quantifiable drop in production incidents tied to type errors.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Gradual typing works at very large scale if the migration is treated as a sustained engineering investment. File-level opt-in (<code>typed: true</code>) is the only way to move a multi-million-line codebase without a multi-quarter big-bang freeze.</p>
-          <p class="pa-industry__source">Source: <a href="https://stripe.com/blog/sorbet-stripes-type-checker-for-ruby" rel="noopener">Stripe — Sorbet: Stripe's type checker for Ruby</a></p>
+          <p class="pa-industry__company">Python — mypy / pyright (Dropbox, Microsoft)</p>
+          <p class="pa-industry__what">Python's optional typing (PEP 484, 2014) matured into strict tooling: Dropbox-built mypy and Microsoft's pyright both support strict modes. Modern Python projects (FastAPI, Pydantic, Polars) ship strict-typed. Pyright is faster and stricter than mypy by default; most new teams pick it.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> <code>pyright --strict</code> or <code>mypy --strict</code> in CI as a required check. Type stubs for untyped deps; <code># type: ignore</code> with reason + expiry only.</p>
+          <p class="pa-industry__source">Source: <a href="https://microsoft.github.io/pyright/" rel="noopener">pyright</a></p>
         </div>
         <div class="pa-industry__card">
-          <p class="pa-industry__company">Airbnb (TypeScript migration)</p>
-          <p class="pa-industry__what">Airbnb migrated its frontend codebase from JavaScript to TypeScript over a multi-year programme, documented publicly on the Airbnb Engineering blog. The migration used codemods, file-by-file conversion, and a "no new JS files" rule once a directory had any TS file. Brie Bunge's React Conf talk reported that ~38% of bugs in their post-mortems were preventable by TypeScript. The migration's biggest internal blocker was untyped third-party libraries; the team contributed types upstream and used DefinitelyTyped extensively.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> "No new untyped files" is a powerful policy. It stops the bleeding before any retro-conversion starts and naturally drives engineers to migrate adjacent files when they touch them.</p>
-          <p class="pa-industry__source">Source: <a href="https://medium.com/airbnb-engineering/ts-migrate-a-tool-for-migrating-to-typescript-at-scale-cd23bfeb5cc" rel="noopener">Airbnb Engineering — ts-migrate at scale</a></p>
+          <p class="pa-industry__company">Rust — type safety by construction</p>
+          <p class="pa-industry__what">Rust's type system + borrow checker make whole classes of bug uncompileable: null deref, use-after-free, data races. The compiler is the strictest reviewer on the team. Production Rust at Discord, Cloudflare, Dropbox, AWS.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> For new system-level code where safety matters (auth, payments, parsers), Rust is the default in 2026. The type system pays back the learning curve within a quarter.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.rust-lang.org/" rel="noopener">rust-lang.org</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Pydantic / Zod — runtime type guarding</p>
+          <p class="pa-industry__what">Static typing checks at compile time; Pydantic (Python) and Zod (TS) check at runtime — validate inputs at the boundary against the same types the rest of the code uses. Catches what static typing can't: wrong-shape inputs from JSON, env vars, user form data.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Static + runtime types together. Static checks internal calls; runtime validators (Pydantic / Zod / valibot) check boundary inputs. Both share the same type model.</p>
+          <p class="pa-industry__source">Source: <a href="https://docs.pydantic.dev/" rel="noopener">pydantic.dev</a></p>
         </div>
       </div>
-      <p class="pa-industry-pattern">The pattern: type safety is treated as infrastructure, not preference. The migration is gradual, the budget for escape hatches is finite and tracked, and "no new untyped code" is a non-negotiable rule.</p>
     </section>
 
-    <section id="anatomy" class="pa-section">
-      <h2>Anatomy of a strictly-typed codebase</h2>
+    <section id="anatomy">
+      <h2>Anatomy of strict typing</h2>
       <div class="pa-anatomy">
-        <div class="pa-anatomy__part">
-          <p class="pa-anatomy__name">Strict mode in the config</p>
-          <p class="pa-anatomy__hint"><code>tsconfig.json</code> with <code>"strict": true</code> + <code>"noUncheckedIndexedAccess": true</code>. <code>pyproject.toml</code> with <code>[tool.mypy] strict = true</code>. <code>Cargo.toml</code> with <code>#![deny(clippy::all)]</code>. Committed to the repo, no per-developer overrides.</p>
-        </div>
-        <div class="pa-anatomy__part">
-          <p class="pa-anatomy__name">CI as a required gate</p>
-          <p class="pa-anatomy__hint">The type-check step is a required PR check. A PR with a type error cannot merge. The check runs in under 60 seconds on a typical service so it is part of the normal feedback loop, not a separate slow job.</p>
-        </div>
-        <div class="pa-anatomy__part">
-          <p class="pa-anatomy__name">Typed boundaries</p>
-          <p class="pa-anatomy__hint">API requests/responses, database rows, and third-party SDK returns are typed at the boundary — never <code>any</code>. Use Zod / Pydantic / serde for runtime validation that produces a typed value. The internal code never has to second-guess what shape a value has.</p>
-        </div>
-        <div class="pa-anatomy__part">
-          <p class="pa-anatomy__name">Escape-hatch policy</p>
-          <p class="pa-anatomy__hint">Each <code>any</code> / <code>cast</code> / <code>type: ignore</code> includes an inline comment: <em>// any: third-party SDK has no types, see issue #1234</em>. A linter rule (<code>@typescript-eslint/no-explicit-any</code> as error with allowed-with-comment escape) enforces it.</p>
-        </div>
-        <div class="pa-anatomy__part">
-          <p class="pa-anatomy__name">Escape-hatch budget</p>
-          <p class="pa-anatomy__hint">A script in CI counts <code>any</code> / <code>cast</code> / <code>type: ignore</code> occurrences and stores the count. The count must be monotonically decreasing (or flat) across quarters. A PR that introduces a new one without removing another fails the gate.</p>
-        </div>
-        <div class="pa-anatomy__part">
-          <p class="pa-anatomy__name">"No new untyped files" rule</p>
-          <p class="pa-anatomy__hint">For gradual migrations: a CI check fails on any new <code>.js</code> file or any <code>.py</code> file without type annotations. Old files migrate when touched; new files are typed from inception. Within 6–12 months the codebase reaches full strict coverage with no migration sprint.</p>
-        </div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Strict mode in config</p><p class="pa-anatomy__hint"><code>"strict": true</code> + <code>noUncheckedIndexedAccess</code> (TS). <code>strict = true</code> in pyproject (pyright/mypy). Required CI check.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Escape hatch with reason + expiry</p><p class="pa-anatomy__hint"><code>// @ts-expect-error TODO(2026-08-15) library types missing</code>. Lint rule rejects bare ignores.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Generated types from schemas</p><p class="pa-anatomy__hint">OpenAPI / GraphQL / Protobuf → typed client SDK (Practice 12). No hand-rolled DTOs.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Runtime validators at boundaries</p><p class="pa-anatomy__hint">Pydantic / Zod / valibot at HTTP / queue / env boundaries. Same types shared with static checker.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Type-stub coverage for deps</p><p class="pa-anatomy__hint">DefinitelyTyped / @types-* (TS); types-* / inline-types (Py). Untyped deps wrapped in typed adapters.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Quarterly escape-hatch audit</p><p class="pa-anatomy__hint">Expired ignores fail CI. Owner reviews; either fixes or renews with new reason.</p></div>
       </div>
     </section>
 
-    <section id="pitfalls" class="pa-section">
+    <section id="how">
+      <h2>How to run it</h2>
+      <ol>
+        <li><strong>Enable strict mode.</strong> Day one for new services; staged for legacy.</li>
+        <li><strong>Add <code>noUncheckedIndexedAccess</code> (TS).</strong> Catches the array-of-undefined class of bug.</li>
+        <li><strong>Required CI check.</strong> tsc / pyright / mypy as a required status; merge blocked on error.</li>
+        <li><strong>Lint rule for bare ignores.</strong> Reject <code>any</code> / <code># type: ignore</code> without a reason + expiry.</li>
+        <li><strong>Generate types from schemas.</strong> Practice 12. OpenAPI / GraphQL / Protobuf → SDK.</li>
+        <li><strong>Runtime validators at boundaries.</strong> Pydantic / Zod / valibot.</li>
+        <li><strong>Quarterly escape-hatch audit.</strong> Expired ignores fail CI; owner fixes or renews.</li>
+        <li><strong>Stricter over time.</strong> Add new strict flags as the codebase matures.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive — what makes strict typing pay off</h2>
+      <p><strong>Strict from day one beats "we'll strict later".</strong> Adding strict mode to a 50 k-LOC TS codebase surfaces thousands of errors; the team fixes the obvious ones and adds <code>any</code> to the rest. Six months later there are 500 <code>any</code>s in the code and strict mode is decorative. Start strict on day one; pay the small cost continuously.</p>
+      <p><strong>noUncheckedIndexedAccess is the modern bump.</strong> TS's <code>"strict": true</code> doesn't cover <code>array[0]</code> returning <code>T | undefined</code> as it should. <code>noUncheckedIndexedAccess</code> does. Modern TS teams enable it; older codebases discover thousands of latent bugs the first time they try.</p>
+      <p><strong>Escape hatches need reasons and expiries.</strong> Bare <code>any</code> / <code># type: ignore</code> multiply forever. <code>// @ts-expect-error TODO(2026-08-15) library v3 lacks types</code> has a reason and a date. Lint rule rejects bare hatches; CI fails on expired ones.</p>
+      <p><strong>Generated types beat hand-rolled.</strong> OpenAPI / GraphQL / Protobuf → typed SDK. The SDK can't drift from the API by construction. Hand-rolled DTOs are the antipattern; Practice 12 covers the full pipeline.</p>
+      <p><strong>Pair static with runtime validators.</strong> Static catches internal calls; runtime catches boundary inputs (JSON, env, form). Pydantic / Zod share the same type model as the static checker. Both layers together cover what either alone misses.</p>
+      <p><strong>Untyped deps need typed wrappers.</strong> Some libs have no types. Don't <code>any</code> them — wrap in a thin typed adapter. The hatch lives in one file, not scattered across callers; the type contract you wrote is what the rest of the code sees.</p>
+      <p><strong>Pyright over mypy for new Python.</strong> Pyright is faster and stricter by default. Same type-model (PEP 484); different runtime. For new projects, pick pyright; for existing mypy installs, migrate when convenient.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle of a type</h2>
+      <div class="pa-states">
+        <div class="pa-states__item"><p class="pa-states__name">Defined</p><p class="pa-states__hint">From schema (preferred), domain model, or boundary validator. Single source.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Checked</p><p class="pa-states__hint">tsc / pyright / mypy / rustc passes in CI as required check.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Validated at boundary</p><p class="pa-states__hint">Pydantic / Zod parses external input into the type. Bad shape rejected at the door.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Refactored confidently</p><p class="pa-states__hint">Rename / extract / move guided by the type checker; every caller surfaced.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Escape-hatched (rare)</p><p class="pa-states__hint">Reason + expiry written. CI fails on expiry; owner fixes or renews.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Retired</p><p class="pa-states__hint">Type removed when its concept is gone. Compiler ensures no callers remain.</p></div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
       <h2>Common pitfalls</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
-        <table class="pa-pitfalls">
-          <thead>
-            <tr>
-              <th scope="col">Pitfall</th>
-              <th scope="col">Why it happens</th>
-              <th scope="col">What to do instead</th>
-            </tr>
-          </thead>
+      <div class="docs-table-wrap" role="region" aria-label="Common pitfalls">
+        <table class="docs-table docs-table--sticky-head">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
           <tbody>
-            <tr>
-              <td><code>any</code> / <code>cast</code> escape hatches accumulate silently</td>
-              <td>Each escape hatch feels small ("just this one to unblock the PR"). There is no budget, no tracking, and no review of existing hatches. After a year the codebase has hundreds of <code>any</code>s and the type system is decorative — the most error-prone code paths are precisely the ones with no type information.</td>
-              <td>Count escape hatches in CI on every push and store the count. Require a monotonically-decreasing budget. Lint rules (<code>@typescript-eslint/no-explicit-any</code>) make every new one a deliberate decision with a reviewer's name on it.</td>
-            </tr>
-            <tr>
-              <td>Third-party types stubbed as <code>any</code> and forgotten</td>
-              <td>A third-party SDK has no types or has incomplete types. The fastest unblock is <code>declare module "x" { export const foo: any; }</code> or <code>import x  # type: ignore</code>. The stub is committed, the engineer moves on, and the boundary to the SDK becomes a type-free zone forever.</td>
-              <td>Type the boundary, not the SDK. Wrap the SDK call in a thin adapter that returns a fully-typed domain value, even if the SDK itself is <code>any</code>-typed underneath. The <code>any</code> is contained to a single function; the rest of the codebase only sees the typed adapter.</td>
-            </tr>
-            <tr>
-              <td>Strict turned on for new code only, never finished</td>
-              <td>The team enables strict mode "going forward" but the existing 80% of the codebase stays under loose mode with per-file overrides. The migration was supposed to happen "in slack time" and three years later 65% of files are still on the override list. Engineers don't trust the type-checker because half the codebase lies to it.</td>
-              <td>Adopt the "no new untyped files" rule and the "if you touch it, you migrate it" rule together. Track the override-list size as a monotonically-decreasing metric. Assign a quarterly time-box for sustained migration work, not "whenever".</td>
-            </tr>
+            <tr><td>Strict mode added later</td><td>Codebase grows untyped; strict pass surfaces thousands of errors; team adds <code>any</code> everywhere; strict becomes decorative.</td><td>Strict from day one. For legacy, migrate file-by-file with <code>strict-include</code> patterns.</td></tr>
+            <tr><td>Bare <code>any</code> / <code># type: ignore</code></td><td>Quick fix; never revisited; multiply forever.</td><td>Lint rule requires reason + expiry. CI fails on expired ignores.</td></tr>
+            <tr><td>Hand-rolled DTOs from API</td><td>"It's simpler" — until the API changes; DTOs drift; runtime crashes.</td><td>Generated from OpenAPI / GraphQL / Protobuf (Practice 12). Drift impossible.</td></tr>
+            <tr><td>No runtime validation at boundary</td><td>Static says it's fine; runtime input doesn't match; crash deep inside.</td><td>Pydantic / Zod / valibot at HTTP / queue / env. Same type model.</td></tr>
+            <tr><td>Untyped deps with <code>any</code></td><td>Library has no types; <code>any</code> spreads through callers.</td><td>Typed wrapper. Hatch in one file; type contract visible to callers.</td></tr>
+            <tr><td>noUncheckedIndexedAccess not enabled</td><td>TS strict feels safe but <code>arr[0]</code> still returns <code>T</code> instead of <code>T | undefined</code>.</td><td>Enable the flag. Surfaces real bugs; fix them incrementally.</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <section id="page-history" class="pa-section">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead>
-            <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Change</th>
-              <th scope="col">Author</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><time datetime="2026-05-14">2026-05-14</time></td>
-              <td>Initial version: Type Safety as Default practice for Developer radar.</td>
-              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td>
-            </tr>
-          </tbody>
-        </table>
+    <section id="example">
+      <h2>Worked example — strict TS + pyright + Zod</h2>
+      <div class="pa-example">
+        <p class="pa-example__intro">Three configs for the Study App stack. TS strict + noUncheckedIndexedAccess; pyright strict; Zod at HTTP boundary.</p>
+        <pre class="pa-example__code"><code># tsconfig.json (frontend + Node)
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": true,
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true
+  }
+}
+
+# pyproject.toml (Python services)
+[tool.pyright]
+typeCheckingMode = "strict"
+reportMissingTypeStubs = true
+strictListInference = true
+strictDictionaryInference = true
+
+[tool.ruff.lint]
+extend-select = ["ANN", "TCH"]   # require type annotations
+
+# zod boundary validator (TS)
+import { z } from "zod";
+const Attempt = z.object({
+  questionId: z.string().uuid(),
+  answer:     z.string().max(4000),
+});
+type Attempt = z.infer&lt;typeof Attempt&gt;;
+
+app.post("/attempts", (req, res) =&gt; {
+  const parsed = Attempt.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error);
+  // parsed.data is fully typed as Attempt
+  return scoreAttempt(parsed.data);
+});
+
+# CI workflow (excerpt) — required checks
+- run: npx tsc --noEmit
+- run: pyright --warnings
+- run: cargo check --all-targets
+</code></pre>
+        <p class="pa-example__note">Strict everywhere; runtime validation at the HTTP boundary; CI checks block merge. <code>noUncheckedIndexedAccess</code> + <code>exactOptionalPropertyTypes</code> are the modern TS bumps; pyright strict for Python.</p>
       </div>
     </section>
+
+    <section id="quality">
+      <h2>Quality bar</h2>
+      <ul class="pa-quality">
+        <li><strong>Strict mode in config.</strong> TS strict + noUncheckedIndexedAccess; pyright/mypy strict.</li>
+        <li><strong>Type check in CI as required.</strong> Merge blocked on error.</li>
+        <li><strong>Lint rule for bare ignores.</strong> Reason + expiry required.</li>
+        <li><strong>Types generated from schemas.</strong> OpenAPI / GraphQL / Protobuf → SDK (Practice 12).</li>
+        <li><strong>Runtime validators at boundaries.</strong> Pydantic / Zod / valibot; shared type model.</li>
+        <li><strong>Typed wrappers for untyped deps.</strong> Hatch in one file, not scattered.</li>
+        <li><strong>Quarterly escape-hatch audit.</strong> Expired ignores fail CI; renewed with reason.</li>
+        <li><strong>Stricter over time.</strong> New strict flags added as codebase matures.</li>
+      </ul>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://www.typescriptlang.org/tsconfig#strict" rel="noopener">TypeScript — strict mode</a></li>
+        <li><a href="https://microsoft.github.io/pyright/" rel="noopener">pyright (Python)</a></li>
+        <li><a href="https://mypy.readthedocs.io/" rel="noopener">mypy</a></li>
+        <li><a href="https://www.rust-lang.org/" rel="noopener">Rust</a></li>
+        <li><a href="https://docs.pydantic.dev/" rel="noopener">Pydantic</a></li>
+        <li><a href="https://zod.dev/" rel="noopener">Zod</a></li>
+        <li><a href="https://earlbarr.com/publications/typestudy.pdf" rel="noopener">Gao et al. — TypeScript &amp; bug reduction (Microsoft, 2017)</a></li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <p class="docs-history__title">History</p>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-24">2026-05-24</time>
+          <span class="docs-history__change">Rewritten to SA practice-page pattern: page-head, 3-position SVG (untyped / loose / strict), expanded industry (4 cards: TS strict, pyright, Rust, Pydantic/Zod), deep-dive (strict day-one, noUncheckedIndexedAccess, escape hatch discipline, generated types, runtime validators, typed wrappers, pyright over mypy), lifecycle, TS+Python+Zod worked example, quality bar, references.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-14">2026-05-14</time>
+          <span class="docs-history__change">Initial version: type-safety practice for SWE radar.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+      </ul>
+    </footer>
   </main>
 
   <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>

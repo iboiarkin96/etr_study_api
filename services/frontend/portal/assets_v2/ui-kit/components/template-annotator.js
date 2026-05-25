@@ -98,7 +98,7 @@ const BLOCK_REGISTRY = [
 
   { block: 'history-footer',   num: 16,
     selector: 'footer.docs-history',
-    what: 'Page history footer',
+    what: 'History footer',
     desc: 'Revision changelog at the bottom of every doc page.',
     comp: 'footer.docs-history' },
 

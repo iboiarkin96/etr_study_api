@@ -50,7 +50,7 @@
             { label: "Add an API spec", path: "internal/handbook/authoring/add-an-api-spec.html" },
             { label: "Add a runbook", path: "internal/handbook/authoring/add-a-runbook.html" },
             { label: "Update sidebar", path: "internal/handbook/authoring/update-sidebar.html" },
-            { label: "Page history format", path: "internal/handbook/authoring/page-history-format.html" },
+            { label: "History format", path: "internal/handbook/authoring/history-format.html" },
           ],
         },
         {

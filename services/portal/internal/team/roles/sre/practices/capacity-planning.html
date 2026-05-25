@@ -2,7 +2,7 @@
 <html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Capacity Planning — Practice 04 · SRE</title>
+  <title>Capacity planning — forecast load, validate with tests, hold headroom — Practice 04 · SRE</title>
   <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
@@ -21,7 +21,7 @@
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
-        <li class="docs-breadcrumbs__item" aria-current="page">Capacity Planning</li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Capacity planning</li>
       </ol>
     </nav>
     <div class="topbar__spacer"></div>
@@ -33,127 +33,293 @@
   <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
   <main class="container">
-    <p class="pa-eyebrow">
-      <span class="pa-eyebrow__num">04</span>
-      <span class="pa-eyebrow__group">Group A · Reliability foundations</span>
-      <span class="pa-scorebar"><span class="pa-scorebar__asis">2.0</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">7.5</span><span class="pa-scorebar__hint">AS-IS → TO-BE</span></span>
-    </p>
-    <h1 class="pa-title">Capacity Planning — know when you'll hit the wall before the wall hits you</h1>
-    <div id="docs-top-nav"></div>
-    <p class="pa-lead">A quarterly process that projects resource consumption 6–12 months forward based on traffic growth models and feature launch calendars, translating projections into provisioning decisions before headroom runs out.</p>
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">04</span>
+        <span class="pa-eyebrow__group">Group A · Reliability foundations</span>
+      </p>
+      <h1>Capacity planning — forecast load, validate with tests, hold headroom</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Project demand six to twelve months ahead, prove the headroom claim with a real load test, and wire scaling rules that turn the projection into action. The wall stops being a surprise.</p>
+    </header>
 
     <div class="pa-tldr">
       <span class="pa-tldr__label">TL;DR</span>
-      <p class="pa-tldr__text">Capacity planning projects the consumption of 5 key resource dimensions (CPU, memory, DB connections, storage, external API quota) 6–12 months forward using historical growth trends and upcoming feature launch data. The quarterly capacity review produces three outputs: reserved capacity purchase decisions, architectural changes to remove hard limits, and load tests that validate projections against actual system behaviour. Cloud elasticity handles provisioning lag but not budget surprises, connection pool limits, or third-party rate limits.</p>
+      <p class="pa-tldr__text">Capacity planning is a quarterly cycle: forecast demand from history plus the product calendar, load-test the forecast against a production-like environment, compute headroom against the SLO budget, and wire autoscaling or schedule a manual provisioning step. Five resource dimensions are tracked — compute, memory, DB connections, storage, third-party quota — because only one of them autoscales. The target is &lt;20% probability of a budget breach over the next quarter at the modelled peak; below that, the plan ships. Above that, the architecture changes before the traffic arrives.</p>
     </div>
 
     <figure class="pa-figure" aria-label="Capacity planning cycle">
-      <svg viewBox="0 0 720 185" role="img" aria-label="Capacity planning quarterly cycle">
-        <g font-family="ui-monospace,Menlo,Consolas,monospace">
-          <rect class="pa-svg-box pa-svg-box--accent" x="20" y="50" width="140" height="75" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--accent" x="90" y="81" text-anchor="middle" font-size="11" font-weight="700">Measure</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="90" y="99" text-anchor="middle" font-size="10">6 mo historical</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="90" y="114" text-anchor="middle" font-size="10">resource data</text>
-          <path class="pa-svg-arrow" d="M160 87 L183 87 L177 83 M183 87 L177 91"></path>
-          <rect class="pa-svg-box" x="185" y="50" width="140" height="75" rx="8"></rect>
-          <text class="pa-svg-text" x="255" y="81" text-anchor="middle" font-size="11" font-weight="700">Model</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="255" y="99" text-anchor="middle" font-size="10">growth + planned</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="255" y="114" text-anchor="middle" font-size="10">feature launches</text>
-          <path class="pa-svg-arrow" d="M325 87 L348 87 L342 83 M348 87 L342 91"></path>
-          <rect class="pa-svg-box" x="350" y="50" width="140" height="75" rx="8"></rect>
-          <text class="pa-svg-text" x="420" y="81" text-anchor="middle" font-size="11" font-weight="700">Load test</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="420" y="99" text-anchor="middle" font-size="10">validate projection</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="420" y="114" text-anchor="middle" font-size="10">against system</text>
-          <path class="pa-svg-arrow" d="M490 87 L513 87 L507 83 M513 87 L507 91"></path>
-          <rect class="pa-svg-box pa-svg-box--good" x="515" y="50" width="180" height="75" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--good" x="605" y="81" text-anchor="middle" font-size="11" font-weight="700">Act</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="605" y="99" text-anchor="middle" font-size="10">purchase · re-arch</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="605" y="114" text-anchor="middle" font-size="10">raise hard limits</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="360" y="168" text-anchor="middle" font-size="10" font-style="italic">repeated quarterly — cloud elasticity handles provisioning lag, not budget surprises or architectural limits</text>
-        </g>
+      <svg viewBox="0 0 640 220" role="img" aria-label="Demand forecast to load test to headroom calculation to scaling plan" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="140" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="75" y="106" text-anchor="middle" font-weight="700">Demand forecast</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="75" y="124" text-anchor="middle" font-size="10">history + launches</text>
+
+        <rect class="pa-svg-box" x="170" y="80" width="135" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="237" y="106" text-anchor="middle" font-weight="700">Load test</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="237" y="124" text-anchor="middle" font-size="10">k6 / Locust at peak</text>
+
+        <rect class="pa-svg-box" x="330" y="80" width="135" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="397" y="106" text-anchor="middle" font-weight="700">Headroom calc</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="397" y="124" text-anchor="middle" font-size="10">p99 vs saturation</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="490" y="20" width="145" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="562" y="42" text-anchor="middle" font-weight="700">Auto-scale</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="562" y="60" text-anchor="middle" font-size="10">HPA · cluster · RDS</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="490" y="148" width="145" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="562" y="170" text-anchor="middle" font-weight="700">Manual scale</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="562" y="188" text-anchor="middle" font-size="10">PR + change ticket</text>
+
+        <path d="M145 110 L165 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M305 110 L325 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M465  98 L485  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M465 122 L485 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
       </svg>
-      <figcaption class="pa-figure__caption">Measure → Model → Load test → Act. Quarterly cadence, 6–12 month planning horizon.</figcaption>
+      <figcaption class="pa-figure__caption">Forecast → load-test → compute headroom → choose the scaling path. Auto-scale where the system has elastic primitives; schedule manual provisioning where a hard limit (DB pool, third-party quota, reserved capacity) requires lead time.</figcaption>
     </figure>
 
-    <section id="what" class="pa-section">
-      <h2>What it is</h2>
-      <p><strong>Capacity planning</strong> is the quarterly process of projecting forward resource consumption and translating projections into decisions before limits are reached. It covers five resource dimensions:</p>
+    <h2 id="what">What it is</h2>
+    <p><strong>Capacity planning</strong> is the discipline of stating, with numbers and a date, how much load the system can carry before the SLO breaks — and then doing the architectural and provisioning work to push that point past the next planning horizon. It is not the same as autoscaling. Autoscaling reacts to load that has already arrived; capacity planning is what happens months before, so that the autoscaler has a pool to scale into, the database has enough connections to hand out, and the third-party API quota has been raised in time for the launch.</p>
+    <p>A complete capacity plan covers five resource dimensions — compute, memory, DB connections, storage, third-party quota — and produces three artefacts per quarter: a forecast (what demand we expect, expressed as peak RPS or daily active sessions), a load-test report (what the system actually does at that forecast), and a decision set (auto-scale where it works, schedule manual changes where it does not, raise the budget where the architecture needs a real lift). Anything less than that triple is a wish, not a plan.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>"We'll add servers when we need them" is true for stateless CPU and false for almost everything else. DB connection pools have a hard ceiling that takes an architectural change to lift. Third-party quotas (Stripe, Twilio, Sendgrid) need a vendor negotiation with weeks of lead time. Reserved-capacity discounts have to be committed up front or the next quarter's bill arrives at on-demand pricing. The teams that hit these walls at 2 a.m. during a marketing campaign are the ones that modelled compute and forgot the other four dimensions.</p>
+    <p>The other half of the value is calibration. A team that has never load-tested its forecast does not know whether the forecast is right; it has a number on a slide that will be falsified by reality the first time peak traffic actually arrives. A 30-minute test against staging with a realistic open-model load generator is the cheapest possible falsification — far cheaper than the post-mortem of the outage that the un-validated forecast would have produced.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose capacity practice is published and copied. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Google SRE</p>
+        <p class="pa-industry__what">The SRE book dedicates a chapter to capacity planning. Every service carries a published demand forecast based on six months of historical traffic and a matching expansion plan; both are reviewed quarterly. A 20% overshoot of the forecast triggers an unplanned review rather than a quiet adjustment to the spreadsheet. Google also runs annual zone-failure simulations to validate that capacity commitments still hold from N−1 zones, not just from the full fleet.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Plan for the failure case, not only the growth case. "Handles 2× normal traffic" is a meaningful claim only if it survives the loss of an availability zone at the same time.</p>
+        <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/software-engineering-in-sre/" rel="noopener">Google SRE Book — Software Engineering in SRE (ch. 18)</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Netflix</p>
+        <p class="pa-industry__what">Netflix's Adaptive Concurrency Limits library treats every service's capacity as a runtime measurement, not a static config value. The library samples latency under load and lowers the in-flight concurrency limit when latency starts to climb — exposing the "knee" of the p99-vs-throughput curve as a live signal. The capacity number on the dashboard is the one the system just demonstrated, not the one an engineer typed in a year ago.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Capacity is a property the system reveals under load, not a constant. Anywhere a hand-tuned limit hides the real ceiling, replace it with a measurement.</p>
+        <p class="pa-industry__source">Source: <a href="https://netflixtechblog.medium.com/performance-under-load-3e6fa9a60581" rel="noopener">Netflix Tech Blog — Performance Under Load (Adaptive Concurrency)</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">AWS Well-Architected</p>
+        <p class="pa-industry__what">The Reliability pillar prescribes a four-step capacity workflow: monitor saturation against an explicit headroom target, forecast using historical demand plus business-event multipliers, run scheduled load tests against a production-like environment, and use the results to drive both automatic scaling rules and reserved-capacity purchases. The framework refuses to treat any of those steps as optional.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Pair every forecast with a load test and every load test with a written scaling decision. Skipping either step turns the practice into theatre.</p>
+        <p class="pa-industry__source">Source: <a href="https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html" rel="noopener">AWS Well-Architected — Reliability Pillar</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Brendan Gregg / Netflix performance</p>
+        <p class="pa-industry__what">The USE method (Utilisation, Saturation, Errors) gives capacity planning a structured way to find the resource that will saturate first. For every resource the system uses — CPU, memory, NIC, disk, DB connection pool — check utilisation, queue length, and error rate. The resource with the steepest saturation curve under projected load is the next bottleneck, regardless of which resource the dashboard was previously watching.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> The bottleneck moves. A capacity plan that only watches CPU misses the moment the DB connection pool became the new ceiling.</p>
+        <p class="pa-industry__source">Source: <a href="https://www.brendangregg.com/usemethod.html" rel="noopener">Brendan Gregg — The USE Method</a></p>
+      </div>
+    </div>
+    <p class="pa-industry-pattern">Across every published practice the pattern converges: forecast from history, validate with a load test, measure saturation across all resources (not just CPU), and turn the result into either an autoscaling rule or a scheduled architectural change.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete capacity practice has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Five resource dimensions</p><p class="pa-anatomy__hint">Compute, memory, DB connections, storage, third-party quota. Each carries a current headroom number (consumption ÷ limit); anything under 40% triggers a review before the next quarter.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Demand forecast</p><p class="pa-anatomy__hint">Linear regression on at least six months of traffic, multiplied by the planned-launch calendar (new course pack, marketing burst, school-year start). Expressed as peak RPS and as daily active sessions, with a confidence band.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Load test</p><p class="pa-anatomy__hint">k6 or Locust open-model run against production-like staging, executing the forecast peak for at least 30 minutes. Any limit hit becomes an architectural ticket, not an alert tweak.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Headroom calculation</p><p class="pa-anatomy__hint">Compute the p99-latency-vs-saturation curve and find the "knee". Headroom is the gap between projected peak and the knee, expressed as a percentage of the SLO budget; the target is ≥30%.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Scaling plan</p><p class="pa-anatomy__hint">For each dimension: auto-scale (HPA rule, cluster-autoscaler bound, RDS read-replica policy) where elasticity exists, or a scheduled manual change with an owner and a date where it does not.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Quarterly review meeting</p><p class="pa-anatomy__hint">30-minute meeting with the infra lead, the product lead, and the on-call lead. Three outputs: reserved-capacity purchases, architectural change items for the next quarter, hard-limit updates. Action items leave the room with named owners.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Capacity matrix tied to SLO</p><p class="pa-anatomy__hint">A single table that maps each service's peak demand to the SLO it must hold under that peak. If the forecast says the SLO will breach, the plan is to change the architecture, not to lower the SLO.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App will run capacity planning on a quarterly cadence anchored to the academic calendar — the load shape around term start and exam season dominates the year. Load tests live at <code>infra/load/</code> with two complementary tools: <strong>k6</strong> scripts for the open-model HTTP scenarios (lesson load, quiz submit, sign-in burst) and <strong>Locust</strong> scenarios for the longer stateful flows (course enrolment, payment retry). Both run against the production-like staging cluster and replay anonymised traffic shapes captured from the previous quarter's peak hours.</p>
+    <p>The capacity matrix is a single page under <code>infra/capacity/matrix.yaml</code> that maps each service to its peak demand, its current headroom across the five resource dimensions, and the SLO it must hold — see <a href="slo-error-budget.html">SLO &amp; error budget</a> for how the targets are defined. Compute scales through Kubernetes HPA backed by cluster-autoscaler for the node pool; the database scales horizontally via RDS read replicas with a connection-pool ceiling enforced in PgBouncer. Third-party quota (Stripe, Sendgrid) is tracked manually in the matrix because it does not autoscale — vendor lead time is recorded next to the limit. The quarterly review is the first Wednesday of each quarter; it produces a written decision set that lands in the engineering backlog with owners and dates.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Demand forecasting — the math behind the spreadsheet</h3>
+      <p>The simplest useful forecast is a linear regression on the last six months of daily peak traffic, projected six to twelve months forward. It works because most product traffic, away from launch events, grows close to linearly on a quarterly timescale. The regression gives a point estimate and a confidence band; the band matters as much as the point because capacity planning is a tail problem, not a mean problem.</p>
+      <p>The linear baseline gets adjusted by two corrections. Seasonality is the first: Study App's traffic has a weekly cycle (Mondays high, Saturdays low) and an academic cycle (September spike, July trough). A seasonal-naïve decomposition — same-week-last-year multiplier on top of the linear trend — captures most of it without the machinery of a full SARIMA model. The second correction is the product calendar: each planned launch (new course pack, partner integration) gets an explicit multiplier from the product team, sized against the closest historical analogue.</p>
+      <h4>Little's law — the bridge between RPS and concurrency</h4>
+      <p>Little's law states that the number of in-flight requests equals the arrival rate times the average response time: <code>L = λ × W</code>. It is the single most useful equation in capacity planning because it converts the metric the product team understands (peak RPS) into the metric the system actually limits on (concurrency, connections, threads). A service serving 500 RPS at 200 ms p99 carries 100 in-flight requests; if the connection pool tops out at 80, the service is already over its limit even though CPU is fine.</p>
+      <h4>Headroom math — the knee of the p99 curve</h4>
+      <p>Latency under load is not linear. For most services, p99 latency stays flat until utilisation reaches roughly 70–80%, then climbs sharply — the "knee" of the curve. The headroom that matters is the distance between projected peak and the knee, not the distance to 100% utilisation. A service running at 60% CPU with a knee at 70% has only 10 points of headroom; a service at 60% with a knee at 90% has 30. The load test is what locates the knee — guessing it from CPU charts alone is reliably wrong by 10–20 percentage points.</p>
+      <h4>Horizontal vs vertical scaling</h4>
+      <p>Horizontal scaling (add more replicas) is the default because it composes with autoscaling, fault tolerance, and rolling deploys. Vertical scaling (bigger boxes) is the right answer when the bottleneck is per-replica state — a database that cannot be sharded without an application rewrite, a cache whose hit rate collapses below a working-set size, a JVM heap that needs the address space. The two are not interchangeable: a horizontally-scaled service can absorb a 10× spike in minutes; a vertically-scaled one needs a maintenance window. The capacity plan picks the axis per service and writes down why.</p>
+      <h4>Load-test design — open vs closed model</h4>
+      <p>A <em>closed-model</em> load test fixes the number of virtual users; each user waits for a response before sending the next request, so the test rate falls when latency rises. A closed model hides queueing — the system looks fine because the generator self-throttles. An <em>open-model</em> test injects requests at a fixed rate regardless of response time, the way real users do; queueing shows up immediately and the test exposes the knee. Production-realistic capacity tests are open-model; k6's <code>constant-arrival-rate</code> and Locust's <code>constant_throughput</code> primitives are the right choice. Closed-model tests have their uses (longevity, soak) but they are not capacity tests.</p>
+      <h4>Trade-offs — over-provisioning vs surprise outage</h4>
       <ul>
-        <li><strong>Compute (CPU/memory):</strong> Pod/instance count and sizing projections based on traffic growth.</li>
-        <li><strong>Database connections:</strong> Connection pool saturation under projected traffic — often the first hard limit hit in a scale event.</li>
-        <li><strong>Storage:</strong> Data growth rate, retention policy impact, backup storage requirements.</li>
-        <li><strong>External API quota:</strong> Third-party rate limits (Stripe, Twilio, Sendgrid) that don't scale with your cloud spend.</li>
-        <li><strong>Network egress:</strong> Bandwidth cost and CDN capacity projections for media-heavy services.</li>
+        <li><strong>Cost of over-provisioning.</strong> Every point of headroom costs money — replicas running at 30% utilisation, reserved capacity that goes unused, read replicas whose query load could be served by the primary. The bill is real and shows up monthly.</li>
+        <li><strong>Cost of under-provisioning.</strong> A surprise outage during a marketing campaign costs revenue, trust, and a post-mortem week. The cost is non-linear: the second outage in a quarter is far more expensive than the first because the trust loss compounds.</li>
+        <li><strong>Where the line sits.</strong> The pragmatic target is ≥30% headroom against the modelled peak and a load test no older than one quarter. Below 30%, the next traffic spike eats the budget; above 60%, the cloud bill is paying for nothing. The number is not a constant — it moves with the business cost of an outage.</li>
       </ul>
-      <p>The output of the quarterly capacity review is three types of decisions: reserved capacity purchases (commit discounts), architectural changes (shard the DB, add read replicas, implement caching), and updated hard limits in configuration.</p>
-    </section>
+    </div>
 
-    <section id="why" class="pa-section">
-      <h2>Why we need it</h2>
-      <p>"We'll add more servers when we need them" is true for CPU — cloud autoscaling handles provisioning lag. But it's not true for DB connection pool limits (architectural change required), third-party API rate limits (requires vendor negotiation with lead time), or reserved capacity discounts (committed upfront). Capacity incidents in these dimensions happen because no one modelled the growth ahead of time.</p>
-      <p>Load tests are the validation step that catch the gap between the model and reality. A connection pool limit that looks fine under current load may be hit at 2× traffic — and the load test surfaces that finding in a controlled environment, not at 2 am during a marketing campaign that tripled traffic.</p>
-    </section>
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">baseline measured</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">demand forecast drafted</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">load test executed</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">headroom validated</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">autoscale wired</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">manual changes scheduled</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">reviewed quarterly</span>
+    </div>
+    <p>The cycle starts with a measured baseline — six months of traffic and saturation data, not a guess. The product team then supplies the launch calendar, the SRE owner drafts the forecast, and the load test validates it against staging at the projected peak. If the headroom calculation comes in below target, the architectural change is logged before the autoscaling is touched — autoscaling a system that has hit its knee only buys minutes. Once the architecture is sound, the autoscaler is wired (HPA bounds, cluster-autoscaler quotas, RDS replica rules) and the manual changes (third-party quota raises, reserved-capacity purchases) are scheduled with named owners. The next quarterly review either confirms the plan held or triggers an unplanned cycle.</p>
 
-    <section id="industry" class="pa-section">
-      <h2>How others do it</h2>
-      <div class="pa-industry">
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Google SRE</p>
-          <p class="pa-industry__what">Google's SRE book dedicates a chapter to capacity planning. Their model: every service has a "demand forecast" based on 6 months of historical traffic and an "expansion plan" based on the forecast. Forecasts are reviewed quarterly. Services that exceed their forecast by 20% trigger an unplanned capacity review. Google also runs annual "data center failure" simulations to validate that capacity commitments can be met from remaining capacity after a zone failure.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Capacity planning for failure scenarios — not just growth — is essential. "We can handle 2× normal traffic" is only useful if you know you can handle 2× traffic from 2 of 3 availability zones, not all three.</p>
-          <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/software-engineering-in-sre/" rel="noopener">Google SRE Book — Software Engineering in SRE</a></p>
-        </div>
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Shopify</p>
-          <p class="pa-industry__what">Shopify runs capacity planning explicitly for Black Friday / Cyber Monday, the single most important traffic event of their year. Each Black Friday, Shopify traffic can spike 10–15× normal. Their capacity planning process starts 3 months before the event: model the expected peak, run graduated load tests at 25%, 50%, 75%, and 100% of the projected peak, identify and fix limits discovered during each test, and document the final capacity state before the event.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Plan explicitly for your peak traffic event (a product launch, a sale, a seasonal spike) with graduated load tests, not just for average growth. The assumptions that break under peak load are different from the assumptions that break under steady growth.</p>
-          <p class="pa-industry__source">Source: <a href="https://shopify.engineering/" rel="noopener">Shopify Engineering Blog</a></p>
-        </div>
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Planning only for compute</strong></td>
+            <td>Autoscaling makes compute feel like a solved problem; the other dimensions are quieter and easier to forget.</td>
+            <td>Model all five dimensions — compute, memory, DB connections, storage, third-party quota. The dimensions that do not autoscale are exactly the ones that cause the outage.</td>
+          </tr>
+          <tr>
+            <td><strong>No load test — the model is assumed correct</strong></td>
+            <td>Load tests take effort and the spreadsheet "looks right".</td>
+            <td>Run at least one open-model load test per quarter against the service closest to its capacity limit. Models drift; load tests are the only honest falsification.</td>
+          </tr>
+          <tr>
+            <td><strong>Closed-model load test hides queueing</strong></td>
+            <td>The default load-test tool template uses a fixed VU count; it self-throttles when the system slows down.</td>
+            <td>Use k6 <code>constant-arrival-rate</code> or Locust <code>constant_throughput</code>. Inject requests at a fixed rate regardless of latency; queueing then shows up as real queueing, not as artificially smooth p99 charts.</td>
+          </tr>
+          <tr>
+            <td><strong>Capacity review produces no decisions</strong></td>
+            <td>The review becomes a status report meeting instead of a decision meeting.</td>
+            <td>Every quarterly review ends with at least one concrete output: a purchase order, an architectural ticket with an owner, or an explicit "fine until next quarter" sign-off. No artefact, no value.</td>
+          </tr>
+          <tr>
+            <td><strong>Headroom measured against 100% utilisation, not the knee</strong></td>
+            <td>CPU dashboards top out at 100%; the knee of the latency curve is invisible without a load test.</td>
+            <td>Measure headroom as the gap between projected peak and the knee of the p99-vs-saturation curve. The knee sits at 70–80% utilisation for most services — the last 20% is not usable capacity.</td>
+          </tr>
+          <tr>
+            <td><strong>Third-party quotas treated as elastic</strong></td>
+            <td>The cloud bill autoscales, so the team assumes everything else does too.</td>
+            <td>Track Stripe, Sendgrid, Twilio, and other vendor limits in the capacity matrix with their lead times. A quota raise that needs two weeks of vendor negotiation is the launch blocker; surface it at the quarterly review, not on launch day.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Capacity worksheet</span>
+        <p class="pa-example__title">Lessons API — Q3 forecast, p99 ≤ 250 ms, 99.9% / 28 d SLO</p>
       </div>
-    </section>
+      <div class="pa-example__body">
+        <pre><code>service:            lessons-api
+slo:                availability 99.9% / 28 d   latency p99 ≤ 250 ms
+forecast_window:    2026-07-01 → 2026-09-30  (academic year start)
 
-    <section id="anatomy" class="pa-section">
-      <h2>Anatomy</h2>
-      <div class="pa-anatomy">
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Five resource dimensions</p><p class="pa-anatomy__hint">CPU, memory, DB connections, storage, external API quota. Track current headroom (current consumption / limit) for each dimension per service. Headroom below 40% triggers a capacity review.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Growth model</p><p class="pa-anatomy__hint">Linear regression on 6 months of resource data plus planned feature launch multipliers. Expressed as "current headroom × expected at + 6 months." If headroom drops below 20% before the next quarterly review, act now.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Load test</p><p class="pa-anatomy__hint">Validate the growth model against actual system behaviour at projected peak load. Use k6, Locust, or Gatling. Run against production-like staging. Any limit hit during the load test is an architectural change item, not an alert threshold adjustment.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Quarterly review meeting</p><p class="pa-anatomy__hint">30-minute meeting: infrastructure lead + product lead + on-call lead. Three outputs: (1) reserved capacity purchase decisions, (2) architectural change items for the next quarter, (3) hard limit updates. Action items go to the engineering backlog with named owners.</p></div>
+demand:
+  baseline_peak_rps:        420
+  trend_multiplier:         1.18        # linear regression, 6 mo
+  seasonal_multiplier:      1.35        # September peak vs Aug baseline
+  launch_multiplier:        1.10        # new course pack on 2026-09-05
+  projected_peak_rps:       420 × 1.18 × 1.35 × 1.10 ≈ 736 RPS
+
+littles_law:
+  p99_latency_target_s:     0.250
+  in_flight_at_peak:        736 × 0.250 ≈ 184 concurrent requests
+
+capacity:
+  current_replicas:         8           # 4 vCPU each
+  measured_knee_per_pod:    ~120 RPS    # from k6 open-model run, 2026-05-20
+  replicas_needed_at_peak:  ceil(736 / 120) = 7   → keep 8 for headroom
+  headroom_pct:             (8×120 − 736) / (8×120) ≈ 23%   ← below 30% target
+
+db_connections:
+  pgbouncer_pool_size:      200
+  in_flight_at_peak:        184       → 92% utilisation       ← raise pool to 300
+
+third_party:
+  stripe_rps_quota:         300       → forecast 280           ← request raise to 500 (10 d lead)
+  sendgrid_send_rate:       1500/min  → forecast 1100/min      ← within limit
+
+scaling_plan:
+  hpa:                      min=8 max=14   cpu=60%   custom=p99_latency
+  cluster_autoscaler:       node_pool_max  raised to 24 vCPU bound
+  manual_changes:           pgbouncer pool 200 → 300 (PR-4821, owner @ivan, due 2026-06-15)
+                            stripe quota raise (ticket OPS-118, owner @anna, due 2026-06-20)
+
+review_by:                  2026-09-01     # one month before peak window
+</code></pre>
+        <p><strong>What this worksheet does.</strong> It turns a product calendar entry ("course pack ships in September") into a concrete plan: 736 RPS is the projected peak, 184 concurrent requests is what Little's law says will be in flight at that peak, and the capacity check shows compute is fine but the DB connection pool is the first hard wall to hit. The plan ships two artefacts — a PR raising the pool ceiling and a vendor ticket to raise the Stripe quota — both with owners and dates that land before the load actually arrives. The autoscaler rules are written down so the on-call knows what the system will do during the peak; nothing is left to "we'll figure it out at the time".</p>
       </div>
-    </section>
+    </div>
 
-    <section id="pitfalls" class="pa-section">
-      <h2>Common pitfalls</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
-        <table class="pa-pitfalls">
-          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
-          <tbody>
-            <tr><td>Planning only for compute, not for hard limits</td><td>Autoscaling makes compute planning feel solved.</td><td>DB connection pools, third-party API quotas, and storage limits don't autoscale. Model all five dimensions, not just the ones that are easy to change.</td></tr>
-            <tr><td>No load test — model assumed correct</td><td>Load tests take effort and the model "looks right."</td><td>Run at least one load test per quarter against the service closest to its capacity limit. Models diverge from reality over time; load tests catch the divergence.</td></tr>
-            <tr><td>Capacity review produces no decisions</td><td>Review becomes a status report meeting, not a decision meeting.</td><td>End every capacity review with at least one concrete action: a purchase order, a Jira ticket for an architectural change, or an explicit "we're fine until next quarter" sign-off. No output = no value.</td></tr>
-          </tbody>
-        </table>
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">All five resource dimensions tracked</p><p class="pa-quality__hint">Compute, memory, DB connections, storage, third-party quota — current headroom per service published in the capacity matrix.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Demand forecast refreshed each quarter</p><p class="pa-quality__hint">Linear trend × seasonal factor × launch multipliers, with a confidence band; signed off by infra + product leads.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Open-model load test per quarter</p><p class="pa-quality__hint">k6 or Locust with <code>constant-arrival-rate</code> against production-like staging; closed-model tests are not capacity tests.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Headroom measured against the knee, not 100%</p><p class="pa-quality__hint">Target ≥30% headroom between projected peak and the measured p99 knee; below that, the architecture changes.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Autoscaling wired where elasticity exists</p><p class="pa-quality__hint">HPA bounds, cluster-autoscaler quotas, RDS read-replica policy — all version-controlled and documented in the matrix.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Manual changes scheduled with lead time</p><p class="pa-quality__hint">Third-party quota raises, reserved-capacity purchases, pool size changes — each has an owner and a date that precedes the forecast peak.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Quarterly review produces written decisions</p><p class="pa-quality__hint">Every review ends with concrete artefacts in the backlog; "status reported" is not an output.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://sre.google/sre-book/software-engineering-in-sre/" rel="noopener">Google SRE Book — ch. 18 Software Engineering in SRE</a><span class="pa-refs__hint">The canonical reference for demand forecasts, quarterly cadence, and zone-failure capacity planning.</span></li>
+          <li><a href="https://netflixtechblog.medium.com/performance-under-load-3e6fa9a60581" rel="noopener">Netflix — Adaptive Concurrency Limits</a><span class="pa-refs__hint">Treating capacity as a runtime measurement rather than a hand-tuned constant; the "knee" as a live signal.</span></li>
+          <li><a href="https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html" rel="noopener">AWS Well-Architected — Reliability Pillar</a><span class="pa-refs__hint">The monitor → forecast → load-test → scale workflow, with each step required rather than optional.</span></li>
+          <li><a href="https://www.brendangregg.com/usemethod.html" rel="noopener">Brendan Gregg — The USE method</a><span class="pa-refs__hint">A structured way to find the resource that saturates first across utilisation, saturation, and errors.</span></li>
+        </ul>
       </div>
-    </section>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="slo-error-budget.html">SLO &amp; error budget — the target the capacity plan must hold</a><span class="pa-refs__hint">Capacity is meaningful only against an SLO; the budget is what tells you whether the headroom is enough.</span></li>
+          <li><a href="reliability-tiering.html">Reliability tiering — which services get the strict plan</a><span class="pa-refs__hint">Tier-1 services get the full quarterly cycle; lower tiers get a lighter version of the same shape.</span></li>
+          <li><a href="progressive-delivery.html">Progressive delivery — how capacity changes ship safely</a><span class="pa-refs__hint">A pool-size change or replica-count change is a deploy; it rides the same canary and rollback machinery as code.</span></li>
+          <li><a href="deployment-health.html">Deployment health — the signals that confirm a capacity change landed</a><span class="pa-refs__hint">Post-change validation that the new headroom is real, not just configured.</span></li>
+        </ul>
+      </div>
+    </div>
 
-    <section id="page-history" class="pa-section">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
-          <tbody>
-            <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
-              <td>Initial version: Capacity Planning practice for SRE radar.</td>
-              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial version: Capacity Planning practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
 
-    <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
-    <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
 
-    <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
 
-  </body></html>
+</body></html>

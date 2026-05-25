@@ -2,7 +2,7 @@
 <html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Blameless Postmortem — Practice 15 · SRE</title>
+  <title>Blameless Postmortem — systemic causes, not individual errors — Practice 15 · SRE</title>
   <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
@@ -33,127 +33,311 @@
   <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
   <main class="container">
-    <p class="pa-eyebrow">
-      <span class="pa-eyebrow__num">15</span>
-      <span class="pa-eyebrow__group">Group C · Incident response</span>
-      <span class="pa-scorebar"><span class="pa-scorebar__asis">3.5</span><span class="pa-scorebar__arr">→</span><span class="pa-scorebar__tobe">9.0</span><span class="pa-scorebar__hint">AS-IS → TO-BE</span></span>
-    </p>
-    <h1 class="pa-title">Blameless Postmortem — systemic causes, not individual errors</h1>
-    <div id="docs-top-nav"></div>
-    <p class="pa-lead">A written retrospective published within 5 business days of every P0/P1, focused on systemic causes and improvement actions rather than individual mistakes — the mechanism that converts incidents into institutional learning.</p>
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">15</span>
+        <span class="pa-eyebrow__group">Group C · Incident response</span>
+      </p>
+      <h1>Blameless Postmortem — systemic causes, not individual errors</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">A written retrospective published within 5 business days of every P0/P1, focused on systemic causes and improvement actions rather than individual mistakes — the mechanism that converts incidents into institutional learning.</p>
+    </header>
 
     <div class="pa-tldr">
       <span class="pa-tldr__label">TL;DR</span>
       <p class="pa-tldr__text">A blameless postmortem covers five sections: factual timeline, impact (quantified), what went well and why, root causes (5 Whys to systemic cause — never to an individual's error), and action items (named owner + deadline). Published to all of engineering within 5 business days. Blameless means the document never names individuals as causes of failure — it names processes, tools, and systems. When postmortems assign blame, engineers hide problems; when they're blameless, engineers contribute transparently and the organisation learns from every incident.</p>
     </div>
 
-    <figure class="pa-figure" aria-label="Postmortem five-section structure">
-      <svg viewBox="0 0 720 170" role="img" aria-label="Blameless postmortem five sections">
-        <g font-family="ui-monospace,Menlo,Consolas,monospace">
-          <rect class="pa-svg-box pa-svg-box--accent" x="20" y="30" width="120" height="100" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--accent" x="80" y="58" text-anchor="middle" font-size="10" font-weight="700">Timeline</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="80" y="76" text-anchor="middle" font-size="9">factual · timestamped</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="80" y="93" text-anchor="middle" font-size="9">no interpretation</text>
-          <rect class="pa-svg-box" x="155" y="30" width="120" height="100" rx="8"></rect>
-          <text class="pa-svg-text" x="215" y="58" text-anchor="middle" font-size="10" font-weight="700">Impact</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="215" y="76" text-anchor="middle" font-size="9">users affected</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="215" y="93" text-anchor="middle" font-size="9">revenue / SLO impact</text>
-          <rect class="pa-svg-box pa-svg-box--good" x="290" y="30" width="130" height="100" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--good" x="355" y="58" text-anchor="middle" font-size="10" font-weight="700">What went well</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="355" y="76" text-anchor="middle" font-size="9">decisions that helped</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="355" y="93" text-anchor="middle" font-size="9">and why they worked</text>
-          <rect class="pa-svg-box pa-svg-box--accent" x="435" y="30" width="130" height="100" rx="8"></rect>
-          <text class="pa-svg-text pa-svg-text--accent" x="500" y="58" text-anchor="middle" font-size="10" font-weight="700">Root causes</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="500" y="76" text-anchor="middle" font-size="9">5 Whys · systemic</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="500" y="93" text-anchor="middle" font-size="9">never individual</text>
-          <rect class="pa-svg-box" x="580" y="30" width="120" height="100" rx="8"></rect>
-          <text class="pa-svg-text" x="640" y="58" text-anchor="middle" font-size="10" font-weight="700">Actions</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="640" y="76" text-anchor="middle" font-size="9">named owner</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="640" y="93" text-anchor="middle" font-size="9">deadline per item</text>
-          <text class="pa-svg-text pa-svg-text--muted" x="360" y="153" text-anchor="middle" font-size="10" font-style="italic">postmortem without action items is a retrospective — with action items it is an improvement plan</text>
-        </g>
+    <figure class="pa-figure" aria-label="Postmortem flow from incident resolution to tracked review">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Blameless postmortem lifecycle from resolved incident to review" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="65" y="106" text-anchor="middle" font-weight="700">Resolved</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="65" y="124" text-anchor="middle" font-size="10">incident closed</text>
+
+        <rect class="pa-svg-box" x="145" y="80" width="115" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="202" y="106" text-anchor="middle" font-weight="700">Facts</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="202" y="124" text-anchor="middle" font-size="10">logs · alerts · chat</text>
+
+        <rect class="pa-svg-box" x="280" y="80" width="115" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="337" y="106" text-anchor="middle" font-weight="700">Timeline</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="337" y="124" text-anchor="middle" font-size="10">chronological</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="415" y="20" width="115" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="472" y="42" text-anchor="middle" font-weight="700">Causal tree</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="472" y="60" text-anchor="middle" font-size="10">5 Whys · systemic</text>
+
+        <rect class="pa-svg-box" x="415" y="148" width="115" height="52" rx="8"></rect>
+        <text class="pa-svg-text" x="472" y="170" text-anchor="middle" font-weight="700">Actions</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="472" y="188" text-anchor="middle" font-size="10">owner · due date</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="550" y="80" width="85" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="592" y="106" text-anchor="middle" font-weight="700">Review</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="592" y="124" text-anchor="middle" font-size="10">retro · tracked</text>
+
+        <path d="M125 110 L140 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M260 110 L275 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M395  98 L410  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M395 122 L410 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M530  46 L548  92" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M530 174 L548 128" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
       </svg>
-      <figcaption class="pa-figure__caption">Five sections: Timeline → Impact → What went well → Root causes (5 Whys) → Actions (owner + deadline).</figcaption>
+      <figcaption class="pa-figure__caption">Resolved incident → facts gathered → chronological timeline → causal tree (5 Whys to a systemic cause) → action items with owners and due dates → review meeting where the artifact becomes tracked work.</figcaption>
     </figure>
 
-    <section id="what" class="pa-section">
-      <h2>What it is</h2>
-      <p>A <strong>blameless postmortem</strong> is a written retrospective conducted after every P0 and P1 incident. It is written by the Incident Commander (with input from all responders), published within 5 business days of incident resolution, and shared across all of engineering. The document has five sections:</p>
-      <ol>
-        <li><strong>Timeline:</strong> A chronological, factual account of the incident. What happened, when, in what order. No interpretation, no attribution. "14:32: Alert fired. 14:37: IC declared P0. 14:45: DB failover initiated." Not "14:45: Alice initiated a DB failover without consulting the team."</li>
-        <li><strong>Impact:</strong> Quantified outcomes — users affected, duration, revenue impact, SLO budget consumed. Not estimates — actuals from monitoring data.</li>
-        <li><strong>What went well:</strong> Specific decisions and practices that limited the impact or accelerated recovery. Not a list of everything that wasn't a problem — specifically what decisions made a positive difference and why.</li>
-        <li><strong>Root causes:</strong> For each significant failure mode, a 5 Whys analysis that reaches the systemic cause. The root cause is always a process, a tool, or a system design — never an individual. "The engineer deployed without testing" → "The deployment process does not require integration testing before production deployment."</li>
-        <li><strong>Action items:</strong> One action item per root cause. Named owner. Specific deadline. Tracked in the engineering backlog until closed. A postmortem with no action items is a retrospective, not a learning document.</li>
-      </ol>
-    </section>
+    <h2 id="what">What it is</h2>
+    <p>A <strong>blameless postmortem</strong> is a written retrospective conducted after every P0 and P1 incident. It is written by the Incident Commander (with input from all responders), published within 5 business days of incident resolution, and shared across all of engineering. The document has five sections:</p>
+    <ol>
+      <li><strong>Timeline:</strong> A chronological, factual account of the incident. What happened, when, in what order. No interpretation, no attribution. "14:32: Alert fired. 14:37: IC declared P0. 14:45: DB failover initiated." Not "14:45: Alice initiated a DB failover without consulting the team."</li>
+      <li><strong>Impact:</strong> Quantified outcomes — users affected, duration, revenue impact, SLO budget consumed. Not estimates — actuals from monitoring data.</li>
+      <li><strong>What went well:</strong> Specific decisions and practices that limited the impact or accelerated recovery. Not a list of everything that wasn't a problem — specifically what decisions made a positive difference and why.</li>
+      <li><strong>Root causes:</strong> For each significant failure mode, a 5 Whys analysis that reaches the systemic cause. The root cause is always a process, a tool, or a system design — never an individual. "The engineer deployed without testing" → "The deployment process does not require integration testing before production deployment."</li>
+      <li><strong>Action items:</strong> One action item per root cause. Named owner. Specific deadline. Tracked in the engineering backlog until closed. A postmortem with no action items is a retrospective, not a learning document.</li>
+    </ol>
 
-    <section id="why" class="pa-section">
-      <h2>Why we need it</h2>
-      <p>Organisations that assign blame after incidents produce two outcomes: engineers hide problems and avoid transparency, and the same incident recurs because the systemic cause is never fixed. Blameless postmortems produce three outcomes: the systemic cause is identified and fixed, the team learns faster than organisations that hide failure, and individuals feel safe to surface problems early — which prevents incidents before they happen.</p>
-      <p>Google's SRE culture treats postmortem publication as the most important artifact of incident response — more important than the fix itself. The fix addresses one instance of the problem; the postmortem prevents the class of problems that caused it.</p>
-    </section>
+    <h2 id="why">Why we need it</h2>
+    <p>Organisations that assign blame after incidents produce two outcomes: engineers hide problems and avoid transparency, and the same incident recurs because the systemic cause is never fixed. Blameless postmortems produce three outcomes: the systemic cause is identified and fixed, the team learns faster than organisations that hide failure, and individuals feel safe to surface problems early — which prevents incidents before they happen.</p>
+    <p>Google's SRE culture treats postmortem publication as the most important artifact of incident response — more important than the fix itself. The fix addresses one instance of the problem; the postmortem prevents the class of problems that caused it.</p>
 
-    <section id="industry" class="pa-section">
-      <h2>How others do it</h2>
-      <div class="pa-industry">
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Google SRE</p>
-          <p class="pa-industry__what">Google pioneered blameless postmortems for software systems in the SRE Book. Their key principles: published to all of engineering (not just the team), within 48 hours for P0 incidents (5 days for others), action items tracked to completion in a public register, and a "postmortem review committee" that approves final postmortems for high-impact incidents. Google treats an incomplete postmortem (missing action items or unresolved root causes) as a higher-severity issue than the original incident.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Publish postmortems to all of engineering, not just the affected team. When every engineer reads every postmortem, the organisation learns from all incidents, not just the ones they directly experienced. The most valuable postmortems are often the ones that reveal a systemic cause shared across multiple services.</p>
-          <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/postmortem-culture/" rel="noopener">Google SRE — Postmortem Culture</a></p>
-        </div>
-        <div class="pa-industry__card">
-          <p class="pa-industry__company">Etsy</p>
-          <p class="pa-industry__what">Etsy popularised "blameless postmortems" as a cultural practice and added one question to the standard template that they consider the most productive: "What would we have needed to know on day 1 to have avoided this?" This question specifically targets the information gaps that caused the failure — which usually reveals process improvements in discovery, monitoring, or brief quality rather than execution.</p>
-          <p class="pa-industry__lesson"><strong>What we take:</strong> Add the "what would we have needed to know earlier?" question to every postmortem. It's more productive than "what went wrong?" because it focuses energy on preventive process changes rather than retrospective fault assignment. The answer is usually "we needed better monitoring" or "we needed to test X before deploying."</p>
-          <p class="pa-industry__source">Source: <a href="https://www.etsy.com/codeascraft" rel="noopener">Etsy Code as Craft</a></p>
-        </div>
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose postmortem practice is published and copied. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Google SRE</p>
+        <p class="pa-industry__what">Google pioneered blameless postmortems for software systems in the SRE Book. Their key principles: published to all of engineering (not just the team), within 48 hours for P0 incidents (5 days for others), action items tracked to completion in a public register, and a "postmortem review committee" that approves final postmortems for high-impact incidents. Google treats an incomplete postmortem (missing action items or unresolved root causes) as a higher-severity issue than the original incident.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Publish postmortems to all of engineering, not just the affected team. When every engineer reads every postmortem, the organisation learns from all incidents, not just the ones they directly experienced. The most valuable postmortems are often the ones that reveal a systemic cause shared across multiple services.</p>
+        <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/postmortem-culture/" rel="noopener">Google SRE — Postmortem Culture</a></p>
       </div>
-    </section>
-
-    <section id="anatomy" class="pa-section">
-      <h2>Anatomy</h2>
-      <div class="pa-anatomy">
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">5 Whys root cause analysis</p><p class="pa-anatomy__hint">For each significant failure: ask "why did this happen?" five times. The fifth answer is almost always the systemic root cause. The first answer is almost always the symptom. "Why did the deploy fail?" → ... → "Why is there no staging environment requirement in the DoD?" That is the root cause.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Blameless language</p><p class="pa-anatomy__hint">Review every sentence for individual attribution. "Alice pushed an untested change" → "An untested change was deployed to production." "Bob missed the alert" → "The alert routing policy did not page the on-call for this service type." The document describes systems and processes, never individuals' errors.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Action item tracking</p><p class="pa-anatomy__hint">Every action item from every postmortem goes to the engineering backlog with a named owner and a deadline. Monthly postmortem review: how many action items are overdue? Overdue action items from postmortems are the leading indicator for repeat incidents.</p></div>
-        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Publication within 5 days</p><p class="pa-anatomy__hint">The 5-day deadline is enforced. After 5 days, incident memory fades and the timeline reconstruction takes twice as long. An incomplete postmortem published within 5 days and updated once is better than a perfect postmortem published after 3 weeks.</p></div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Etsy</p>
+        <p class="pa-industry__what">Etsy popularised "blameless postmortems" as a cultural practice and added one question to the standard template that they consider the most productive: "What would we have needed to know on day 1 to have avoided this?" This question specifically targets the information gaps that caused the failure — which usually reveals process improvements in discovery, monitoring, or brief quality rather than execution.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Add the "what would we have needed to know earlier?" question to every postmortem. It's more productive than "what went wrong?" because it focuses energy on preventive process changes rather than retrospective fault assignment. The answer is usually "we needed better monitoring" or "we needed to test X before deploying."</p>
+        <p class="pa-industry__source">Source: <a href="https://www.etsy.com/codeascraft" rel="noopener">Etsy Code as Craft</a></p>
       </div>
-    </section>
+    </div>
 
-    <section id="pitfalls" class="pa-section">
-      <h2>Common pitfalls</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
-        <table class="pa-pitfalls">
-          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
-          <tbody>
-            <tr><td>Root causes stop at the first "why"</td><td>The first answer feels sufficient.</td><td>Force 5 levels. "Why did the service crash?" → "Why was the memory leak not caught in testing?" → "Why is there no memory pressure test in the test suite?" → "Why was memory pressure testing not required?" → "Why is the DoD for this service not reviewed quarterly?" That is the root cause.</td></tr>
-            <tr><td>Action items never closed</td><td>The postmortem review is treated as closure.</td><td>Review all open postmortem action items at the monthly engineering review. Any action item overdue by more than 30 days is escalated to the engineering lead. No new postmortems are published until the previous postmortem's actions are resolved or explicitly deferred.</td></tr>
-            <tr><td>Postmortem published to the team folder only</td><td>"It's embarrassing."</td><td>Embarrassment is the point. The learning is worth the temporary discomfort. Postmortems shared only within the affected team do not propagate institutional learning. Publish to the engineering wiki, #postmortems channel, and the quarterly learnings digest.</td></tr>
-          </tbody>
-        </table>
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete postmortem practice has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">5 Whys root cause analysis</p><p class="pa-anatomy__hint">For each significant failure: ask "why did this happen?" five times. The fifth answer is almost always the systemic root cause. The first answer is almost always the symptom. "Why did the deploy fail?" → ... → "Why is there no staging environment requirement in the DoD?" That is the root cause.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Blameless language</p><p class="pa-anatomy__hint">Review every sentence for individual attribution. "Alice pushed an untested change" → "An untested change was deployed to production." "Bob missed the alert" → "The alert routing policy did not page the on-call for this service type." The document describes systems and processes, never individuals' errors.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Action item tracking</p><p class="pa-anatomy__hint">Every action item from every postmortem goes to the engineering backlog with a named owner and a deadline. Monthly postmortem review: how many action items are overdue? Overdue action items from postmortems are the leading indicator for repeat incidents.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Publication within 5 days</p><p class="pa-anatomy__hint">The 5-day deadline is enforced. After 5 days, incident memory fades and the timeline reconstruction takes twice as long. An incomplete postmortem published within 5 days and updated once is better than a perfect postmortem published after 3 weeks.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App writes every P0/P1 postmortem against the shared template at <code>internal/sre/postmortem-template.md</code>. The Incident Commander owns the first draft; co-responders contribute timeline entries and corrections directly in the file. The hard deadline is <strong>5 business days</strong> after incident resolution — the IC's calendar is blocked for the writing slot the next morning, and the draft is opened for cross-team review on day three at the latest.</p>
+    <p>Finished postmortems are reviewed in the <strong>monthly SRE retro</strong>, where the team walks the causal tree, challenges the systemic framing, and signs off the action-item list. Each action item is converted into a <strong>Jira ticket</strong> tagged with the original incident ID — so the link from a follow-up commit back to the postmortem that spawned it is preserved forever. A <strong>trend dashboard</strong> at <code>internal/sre/postmortem-trends.html</code> tracks publication latency, action-item closure rate, repeat-cause clusters, and the share of incidents whose root cause was already known from a prior postmortem — the last number is the honest measure of whether the practice is actually preventing failures.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Why "blameless" is a structural choice, not a politeness rule</h3>
+      <p>Blameless postmortems are not about being nice. They are about which signals the organisation receives. A blame-assigning culture filters out exactly the information you need most — the near-misses, the "I noticed this looked weird but kept going" moments, the half-deployed fixes that almost worked. People who fear being named will not write those things down. A blameless artifact is the operational lever that keeps the channel open.</p>
+      <h4>Westrum's culture typology — pathological, bureaucratic, generative</h4>
+      <p>Ron Westrum's organisational typology classifies cultures by how they process information about failure. <em>Pathological</em> cultures suppress information ("messengers are shot"); bridges to failure stay hidden until the bridge falls down. <em>Bureaucratic</em> cultures route information through process: it is recorded, but it is also neutralised — the report goes in a binder and nothing changes. <em>Generative</em> cultures actively seek information about failure, treat the messenger as valuable, and reorganise the system in response. The DORA studies that produced the <em>Accelerate</em> book showed generative culture as the single strongest predictor of software-delivery performance. A blameless postmortem is the most visible artifact of a generative posture; if your postmortems are blameless on paper but the organisation still acts pathologically (someone gets quietly demoted after the incident), the artifact lies and the culture remains pathological.</p>
+      <h4>"5 Whys" vs causal-tree analysis — and why 5 Whys is shallow</h4>
+      <p>The 5 Whys technique is the entry-level tool: ask "why" five times until you reach a systemic cause. It is useful because it forces the writer past the first plausible answer, which is almost always a symptom. Its weakness is that it walks a single causal chain — and real incidents rarely have one chain. Two independent contributing factors usually have to occur together; the failure is at their intersection.</p>
+      <p>A <em>causal tree</em> (sometimes called a fishbone or Ishikawa diagram) widens the analysis. Each branch is a contributing factor; sub-branches are the conditions that made that factor active. The tree forces the writer to ask "what else had to be true for this to happen?" — which surfaces silent prerequisites that a linear 5 Whys would have missed. For non-trivial incidents the tree is the right tool; the 5 Whys is the introductory drill that gets a junior responder past "human error" as a stopping point.</p>
+      <h4>The new view of human error — Dekker</h4>
+      <p>Sidney Dekker's <em>Field Guide to Understanding Human Error</em> draws the canonical distinction between the <em>old view</em> ("the system would be safe if humans did not make mistakes") and the <em>new view</em> ("humans are doing reasonable work given the information and pressures available to them; errors are symptoms of conditions in the system"). Under the new view, "operator error" is never a root cause — it is the start of the investigation. The question is not <em>"why did this person make this mistake"</em> but <em>"what about the system made this mistake the most reasonable thing for this person to do at that moment"</em>. That reframing is the deep technical content under the word <em>blameless</em>; the word itself is shorthand for it.</p>
+      <h4>Action-item discipline — specific, owned, due date</h4>
+      <p>The best postmortems die on the action-item list. Three failure modes recur: items that are vague ("improve monitoring"), items with no named owner ("the team will…"), and items with no due date ("eventually"). Each one guarantees the item will not ship. The discipline is mechanical: every action item must name a specific change (a CI check, a runbook section, a config-default flip — something a reviewer could approve or reject), name an individual owner (not a team), and carry a concrete due date inside a tracked ticket. Items that fail those tests get rewritten in the review meeting or dropped; a smaller list of real commitments outperforms a long list of aspirations.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Time investment.</strong> A real postmortem is a half-day of writing plus another half-day of review for a P1 incident. Teams that try to shortcut this produce documents that read like status updates and teach nothing. The cost is real and budgeted; trying to hide it in slack time guarantees it does not get done.</li>
+        <li><strong>Cultural commitment.</strong> Leadership has to refuse to use postmortems as performance evidence. The first time a manager cites a postmortem in a one-on-one as evidence of an individual's mistake, the channel closes for everyone in earshot. The practice is fragile to that kind of leak.</li>
+        <li><strong>Action-item carrying cost.</strong> Every postmortem creates work that competes with the roadmap. Teams that take the practice seriously will accumulate a postmortem backlog; teams that don't will quietly drop items, which is worse. The honest answer is to size the roadmap with postmortem work assumed in it.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">incident resolved</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">facts captured</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">timeline drafted</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">contributing factors</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">action items proposed</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">review meeting</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">published + tracked</span>
+    </div>
+    <p>The clock starts the moment the incident is declared resolved. The IC captures raw facts first — alerts, chat transcript, dashboards, deploy log — before memory degrades. A chronological timeline is drafted next, with each entry timestamped and attribution-free. Contributing factors are listed as a causal tree or 5 Whys chain, and only then are action items proposed against each systemic cause. The draft goes to the monthly SRE retro for review; the meeting sharpens the framing and approves the action-item list. Final publication moves the document to the engineering wiki, opens Jira tickets tagged with the incident ID, and registers the postmortem on the trend dashboard. After that the postmortem is tracked, not closed — its action items have to ship before the incident is considered learned from.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Root causes stop at the first "why"</strong></td>
+            <td>The first answer feels sufficient.</td>
+            <td>Force 5 levels. "Why did the service crash?" → "Why was the memory leak not caught in testing?" → "Why is there no memory pressure test in the test suite?" → "Why was memory pressure testing not required?" → "Why is the DoD for this service not reviewed quarterly?" That is the root cause.</td>
+          </tr>
+          <tr>
+            <td><strong>Action items never closed</strong></td>
+            <td>The postmortem review is treated as closure.</td>
+            <td>Review all open postmortem action items at the monthly engineering review. Any action item overdue by more than 30 days is escalated to the engineering lead. No new postmortems are published until the previous postmortem's actions are resolved or explicitly deferred.</td>
+          </tr>
+          <tr>
+            <td><strong>Postmortem published to the team folder only</strong></td>
+            <td>"It's embarrassing."</td>
+            <td>Embarrassment is the point. The learning is worth the temporary discomfort. Postmortems shared only within the affected team do not propagate institutional learning. Publish to the engineering wiki, #postmortems channel, and the quarterly learnings digest.</td>
+          </tr>
+          <tr>
+            <td><strong>Document names individuals as causes</strong></td>
+            <td>The first-draft instinct is to describe what happened, which means describing who did what.</td>
+            <td>On review, mechanically rewrite every active-voice sentence with a person as subject into a passive-voice sentence with the system as subject. "Alice deployed a broken build" becomes "A broken build was deployed because the pre-deploy check did not run integration tests." The transformation is not cosmetic — it points the action item at the right surface.</td>
+          </tr>
+          <tr>
+            <td><strong>Action items are vague</strong></td>
+            <td>"Improve monitoring" feels like an answer.</td>
+            <td>Every item must name a specific change, an individual owner, and a concrete due date. "Add a memory-pressure alert on the lessons-api service, owner @ivan, due 2026-06-30" is shippable; "improve monitoring" is wishful thinking. Items that fail the three-part test get rewritten in the review meeting.</td>
+          </tr>
+          <tr>
+            <td><strong>Postmortem written but never re-read</strong></td>
+            <td>Publication feels like completion.</td>
+            <td>The trend dashboard tracks how often a new incident's root cause matches a published postmortem's root cause — the repeat-cause rate. A non-zero repeat-cause rate is the signal that postmortems are written and filed, not read. Surface the metric in the monthly retro.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Postmortem</span>
+        <p class="pa-example__title">INC-093 — Lessons API 5xx surge during evening peak (P1)</p>
       </div>
-    </section>
+      <div class="pa-example__body">
+        <pre><code># Postmortem · INC-093 · Lessons API 5xx surge
 
-    <section id="page-history" class="pa-section">
-      <h2>Page history</h2>
-      <div class="docs-table-scroll" role="region" aria-label="Page history">
-        <table class="docs-page-history">
-          <thead><tr><th scope="col">Date</th><th scope="col">Change</th><th scope="col">Author</th></tr></thead>
-          <tbody>
-            <tr><td><time datetime="2026-05-14">2026-05-14</time></td>
-              <td>Initial version: Blameless Postmortem practice for SRE radar.</td>
-              <td><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+Severity:     P1
+Date:         2026-05-18
+Duration:     47 minutes (19:12 → 19:59 UTC)
+Author / IC:  @ivan
+Status:       Published — action items tracked
 
-    <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
-    <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+## Summary
+The Lessons API returned elevated 5xx (peak 8.4%, SLO 0.1%) for 47 minutes
+during evening peak traffic. ~14k learners saw a failed lesson load; no data
+was lost. The 28-day error budget was burned by 38%.
 
-    <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+## Timeline (UTC)
+19:12  PrometheusBurnRate page fires — 1h × 14.4 window tripped
+19:14  IC declared P1; #inc-093 channel opened
+19:18  Dashboards show OOMKilled restarts on 3 of 8 lessons-api pods
+19:27  Hypothesis: new "recommendation sidebar" payload doubled response size
+19:34  Feature flag recommend.sidebar.v2 disabled in prod
+19:41  Pod memory returned to baseline; 5xx rate falling
+19:59  Error rate &lt; 0.1% for 10 consecutive minutes; incident resolved
 
-  </body></html>
+## Impact
+- Users affected:      ~14,000 active learners (15% of evening peak)
+- Failed lesson loads: ~38,000 (some retried successfully)
+- SLO budget burned:   38% of monthly 0.1% budget
+- Revenue impact:      none (no paid actions blocked)
+
+## What went well
+- Multi-burn-rate alert fired before the SLO was breached for the month
+- Feature flag was already wired — rollback took 7 minutes, not a deploy
+- IC handoff to dashboards was rehearsed in last quarter's GameDay
+
+## Contributing factors (causal tree)
+1. Response payload doubled by the new sidebar JSON
+   1a. The payload-size budget for /lessons/:id is not in CI
+   1b. The staging soak ran for 4 hours; OOM only triggers at peak load
+2. Memory headroom on lessons-api pods was 18% — within autoscaler floor
+   2a. Memory request was not raised when the sidebar feature shipped
+3. The recommendation sidebar feature flag was on by default at rollout
+   3a. The team default for "high-blast-radius" flags is off-then-ramp;
+       this flag was misclassified as "low-blast-radius"
+
+## Action items
+| ID  | Action                                                                | Owner    | Due        |
+|-----|-----------------------------------------------------------------------|----------|------------|
+| A1  | Add response-size CI gate (&lt;= +20% per endpoint per PR)               | @ivan    | 2026-06-14 |
+| A2  | Extend staging soak script to replay 30 min of peak traffic           | @ivan    | 2026-06-21 |
+| A3  | Raise lessons-api memory request from 384Mi → 512Mi                   | @ivan    | 2026-06-07 |
+| A4  | Document blast-radius classification rubric in flags-policy.md        | @ivan    | 2026-06-14 |
+| A5  | Audit existing flags currently classified "low-blast-radius"          | @ivan    | 2026-06-28 |
+
+## What we would have needed to know on day 1
+That the recommendation sidebar would double the /lessons/:id payload at
+peak. A payload-size budget in CI (A1) would have shown the regression in
+the same PR; instead it shipped behind a misclassified flag (A4) and only
+materialised under peak load (A2).
+</code></pre>
+        <p><strong>Why this postmortem works.</strong> Nobody is named as a cause. The timeline is timestamped and attribution-free. The contributing factors form a tree, not a linear chain — payload growth, memory headroom, and flag classification are three independent factors that had to coincide. Every action item names a specific change, an owner, and a date inside a tracked ticket. The "what we would have needed to know on day 1" answer is concrete enough to map directly onto two of the action items, which is how the question is supposed to work.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every P0/P1 has a published postmortem</p><p class="pa-quality__hint">No exceptions. The number of P0/P1 incidents and the number of published postmortems match month-over-month.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Published within 5 business days</p><p class="pa-quality__hint">Latency is tracked on the trend dashboard. A draft published on day 5 and updated on day 7 beats a perfect document published on day 21.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Document contains no individual attribution</p><p class="pa-quality__hint">Reviewer pass: every active-voice "X did Y" rewritten passive-voice with the system as subject. Names appear only in author and owner fields, never in causal chains.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Root cause is systemic, not "operator error"</p><p class="pa-quality__hint">5 Whys or causal tree reaches a process, tool, or design as the terminal cause. "Operator error" is rejected at review and sent back for one more Why.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Action items are specific, owned, and dated</p><p class="pa-quality__hint">Each item names a concrete change, an individual owner (not a team), and a calendar date inside a tracked Jira ticket. Items that fail the three-part test are rewritten in review.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Action items shipped within 90 days</p><p class="pa-quality__hint">Closure rate &gt; 80% within 90 days; items overdue by 30 days are escalated to the engineering lead at the monthly retro.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Repeat-cause rate is monitored</p><p class="pa-quality__hint">The trend dashboard surfaces incidents whose root cause matches a prior postmortem. A non-zero repeat-cause rate is the signal that postmortems are filed but not read.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://sre.google/sre-book/postmortem-culture/" rel="noopener">Google SRE Book — chapter 15, Postmortem Culture</a><span class="pa-refs__hint">The canonical reference for blameless postmortems in software operations; defines the publication, review, and action-item discipline.</span></li>
+          <li><a href="https://www.etsy.com/codeascraft/blameless-postmortems/" rel="noopener">Etsy "Just Culture" — Blameless PostMortems (John Allspaw)</a><span class="pa-refs__hint">The essay that popularised the practice outside Google and added the "what would we have needed to know on day 1?" question.</span></li>
+          <li>Sidney Dekker — <em>The Field Guide to Understanding Human Error</em><span class="pa-refs__hint">The deep technical content under the word "blameless": the old view vs new view of human error and why operator error is never a root cause.</span></li>
+          <li><a href="https://response.pagerduty.com/after/post_mortem_process/" rel="noopener">PagerDuty postmortem template &amp; process guide</a><span class="pa-refs__hint">A widely-copied template with the five-section structure and a public action-item register pattern.</span></li>
+          <li><a href="https://www.atlassian.com/incident-management/postmortem/templates" rel="noopener">Atlassian blameless postmortem template</a><span class="pa-refs__hint">A practical fill-in template with a worked example; useful for teams adopting the practice for the first time.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="incident-command.html">Incident command — who runs the response</a><span class="pa-refs__hint">The IC owns the first postmortem draft; the command structure is the prerequisite for who-writes-what.</span></li>
+          <li><a href="incident-severity.html">Incident severity — what triggers a postmortem</a><span class="pa-refs__hint">P0/P1 incidents require a postmortem; the severity matrix is the trigger condition.</span></li>
+          <li><a href="runbooks.html">Runbooks — where postmortem learnings land</a><span class="pa-refs__hint">Many action items end up as runbook edits; the runbook is the durable carrier of operational learning.</span></li>
+          <li><a href="slo-error-budget.html">SLO &amp; error budget — the impact section's units</a><span class="pa-refs__hint">The "impact" section quantifies budget burn against the same SLO that drives the paging rule.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial version: Blameless Postmortem practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

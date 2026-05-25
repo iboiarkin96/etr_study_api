@@ -749,7 +749,7 @@ function docsBreadcrumbLabelForPrefix(prefix) {
     "internal/governance/audits/docs": "DX assessments",
     "internal/governance/audits/api": "API assessments",
     backlog: "Backlog",
-    developer: "Developer guides",
+    developer: "SWE guides",
     howto: "How-to guides",
     internal: "Internal docs",
     "internal/team": "Team",
@@ -1892,31 +1892,31 @@ function injectDocsFeedbackCard() {
 }
 
 /**
- * Normalize Page history across docs:
+ * Normalize History across docs:
  * 1) keep it as the final section of main content,
  * 2) wrap content into a collapsible details block,
  * 3) enforce consistent styling hooks.
  */
-function normalizeDocsPageHistory() {
+function normalizeDocsHistory() {
   const main = document.querySelector("main.container");
   if (!main) {
     return;
   }
   const section =
-    main.querySelector("section#page-history") ||
-    main.querySelector("section#5-page-history");
+    main.querySelector("section#history") ||
+    main.querySelector("section#5-history");
   if (!section) {
     return;
   }
 
-  section.classList.add("card", "docs-page-history-fold");
+  section.classList.add("card", "docs-history-legacy-fold");
   const existingDetails = section.querySelector(":scope > details");
   if (existingDetails) {
-    existingDetails.classList.add("docs-collapse", "docs-page-history-fold__details");
+    existingDetails.classList.add("docs-collapse", "docs-history-legacy-fold__details");
     let summary = existingDetails.querySelector(":scope > summary");
     if (!summary) {
       summary = document.createElement("summary");
-      summary.textContent = "Page history";
+      summary.textContent = "History";
       existingDetails.insertAdjacentElement("afterbegin", summary);
     }
     const heading = section.querySelector(":scope > h2");
@@ -1929,13 +1929,13 @@ function normalizeDocsPageHistory() {
     }
   } else {
     const heading = section.querySelector(":scope > h2");
-    const summaryLabel = heading && heading.textContent ? heading.textContent.trim() : "Page history";
+    const summaryLabel = heading && heading.textContent ? heading.textContent.trim() : "History";
     const details = document.createElement("details");
-    details.className = "docs-collapse docs-page-history-fold__details";
+    details.className = "docs-collapse docs-history-legacy-fold__details";
     const summary = document.createElement("summary");
-    summary.textContent = summaryLabel || "Page history";
+    summary.textContent = summaryLabel || "History";
     const body = document.createElement("div");
-    body.className = "docs-collapse__body docs-page-history-fold__body";
+    body.className = "docs-collapse__body docs-history-legacy-fold__body";
 
     const children = Array.from(section.childNodes);
     children.forEach((node) => {
@@ -4772,7 +4772,7 @@ function initLevel3Breadcrumbs() {
 
   const LABELS = {
     adr: "ADR",
-    developer: "Developer",
+    developer: "SWE",
     howto: "How-to",
     runbooks: "Runbooks",
     qa: "QA",
@@ -4923,16 +4923,16 @@ document.addEventListener("DOMContentLoaded", () => {
   } else if (typeof desktopDocsPageActionsMq.addListener === "function") {
     desktopDocsPageActionsMq.addListener(syncDocsPageActionsForViewport);
   }
-  /* Run page-history normalization BEFORE the in-page TOC is built. The
-     normalization removes the inner `<h2>Page history</h2>` (it becomes the
+  /* Run history normalization BEFORE the in-page TOC is built. The
+     normalization removes the inner `<h2>History</h2>` (it becomes the
      `<summary>` of a `<details>` fold). If the TOC is built first, it captures
      a reference to that H2; once the H2 is removed from the DOM the cached
      reference is detached and `getBoundingClientRect()` returns top=0, which
      pins the scroll-spy active state to the last entry forever. */
   try {
-    normalizeDocsPageHistory();
+    normalizeDocsHistory();
   } catch {
-    // Keep docs usable if page-history normalization fails.
+    // Keep docs usable if history normalization fails.
   }
   initAutoInPageToc();
   restoreInitialHashPosition();
