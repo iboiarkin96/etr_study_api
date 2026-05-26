@@ -67,10 +67,18 @@ function saveShellCollapsed(flag) {
   }
 }
 
+// `/services/X` hrefs → `<base>/X` so Pages (where services/ is the artifact root) doesn't 404.
+function resolvePortalHref(href) {
+  if (!href || !href.startsWith("/services/")) return href;
+  const m = window.location.pathname.match(/^(.*?)\/portal\//);
+  if (!m) return href;
+  return m[1] + href.slice("/services".length);
+}
+
 function isActive(href) {
   if (!href) return false;
   const here = window.location.pathname.replace(/\/+$/, "");
-  const target = href.replace(/\/+$/, "");
+  const target = resolvePortalHref(href).replace(/\/+$/, "");
   return here === target || here.startsWith(target + "/");
 }
 
@@ -95,7 +103,7 @@ function buildBrand(brand) {
   if (brand) {
     const link = document.createElement("a");
     link.className = "docs-sidebar__wordmark";
-    link.href = brand.href || "#";
+    link.href = resolvePortalHref(brand.href) || "#";
     if (brand.ariaLabel) link.setAttribute("aria-label", brand.ariaLabel);
 
     if (brand.mark) {
@@ -176,7 +184,7 @@ function buildNode(node, expanded) {
     const a = document.createElement("a");
     a.className = "docs-sidebar__link";
     if (node.kind) a.classList.add(`docs-sidebar__link--${node.kind}`);
-    a.href = node.href;
+    a.href = resolvePortalHref(node.href);
     a.textContent = node.label;
     if (isActive(node.href)) a.setAttribute("aria-current", "page");
     row.appendChild(a);
@@ -384,17 +392,25 @@ function render(container, tree) {
   container.classList.add("docs-sidebar");
   container.innerHTML = "";
 
+  // Inner scroll wrapper: owns overflow + scrollbar so the resizer (a
+  // direct child of the outer container) sits in its own gutter and can
+  // catch pointer events without the scrollbar stealing them first.
+  const scroller = document.createElement("div");
+  scroller.className = "docs-sidebar__scroll";
+
   // Brand + collapse toggle header (brand is optional via `tree.brand`).
   const header = buildBrand(tree.brand);
-  container.appendChild(header);
+  scroller.appendChild(header);
 
   const list = document.createElement("ul");
   list.className = "docs-sidebar__list";
   tree.sections.forEach((s) => list.appendChild(buildNode(s, expanded)));
-  container.appendChild(list);
+  scroller.appendChild(list);
+
+  container.appendChild(scroller);
 
   // Restore scroll AFTER the DOM is populated so the offset is meaningful.
-  restoreScroll(container);
+  restoreScroll(scroller);
 
   // Wire the sidebar-wide collapse toggle (button is always present).
   const toggle = header.querySelector(".docs-sidebar__collapse-toggle");
