@@ -1,6 +1,6 @@
 # Optional: draft [Unreleased] bullets via OpenAI-compatible API (repository secret).
 # Does not run on forks (no secrets). Human review required before merging text into CHANGELOG.md.
-name: Changelog draft
+name: Changelog Draft
 
 on:
   workflow_dispatch:
@@ -19,25 +19,26 @@ jobs:
     if: github.event.repository.fork == false
     runs-on: ubuntu-latest
     steps:
+      - name: Require OPENAI_API_KEY secret
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "OPENAI_API_KEY secret is not configured for this repository."
+            echo "Add it under Settings → Secrets and variables → Actions before running this workflow."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: requirements.txt
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - uses: ./.github/actions/setup-venv
 
       - name: Draft changelog bullets
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          python scripts/changelog_draft.py \
+          .venv/bin/python scripts/changelog_draft.py \
             --since "${{ inputs.since }}" \
             --head "${{ inputs.head }}"
