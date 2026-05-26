@@ -2224,6 +2224,10 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "References grid · Portal UI Kit"
       },
       {
+        "path": "ui-kit/pages/components/resume-banner.html",
+        "title": "Resume banner · Portal UI Kit"
+      },
+      {
         "path": "ui-kit/pages/components/rocket.html",
         "title": "Rocket · Portal UI Kit"
       },
