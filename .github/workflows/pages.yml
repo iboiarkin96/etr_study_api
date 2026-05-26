@@ -1,0 +1,40 @@
+# Deploys the static developer portal (services/portal/) to GitHub Pages
+# via the Actions pipeline. Pages source in repo settings must be set to
+# "GitHub Actions" — the legacy "branch /docs" source will fail because no
+# docs/ directory exists.
+name: Deploy portal to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/portal/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: services/portal
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
