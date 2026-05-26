@@ -38,16 +38,35 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
-      # Stage the artifact. The portal HTML references CSS/JS via
-      # `../frontend/portal/assets[_v2]/…`, which sit OUTSIDE services/portal/.
-      # Copy services/portal/ to the artifact root, then bring in the sibling
-      # services/frontend/portal/ tree so those relative paths resolve at /.
+      # Stage the artifact. Portal HTML references CSS/JS via relative paths
+      # like `../frontend/portal/assets_v2/…` (up to 7 levels deep for pdoc
+      # output). Those paths assume the *parent* of services/portal/ is the
+      # webroot, so deploying services/portal/ alone — even with frontend/
+      # bundled inside — won't work on a project Pages URL like
+      # /etr_study_api/, because `../` from /etr_study_api/index.html would
+      # escape the project scope.
+      #
+      # Instead, mirror services/ as the artifact root: portal/ stays a
+      # subdirectory, frontend/ sits next to it, and a tiny index.html at the
+      # root redirects to portal/. All `../[../…]frontend/portal/…` chains
+      # then resolve to <pages-root>/frontend/portal/… and stay inside scope.
       - name: Stage Pages artifact
         run: |
           set -euo pipefail
-          mkdir -p _site/frontend
-          cp -a services/portal/. _site/
-          cp -a services/frontend/portal _site/frontend/portal
+          mkdir -p _site
+          cp -a services/portal _site/portal
+          cp -a services/frontend _site/frontend
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en"><head>
+            <meta charset="utf-8">
+            <title>Redirecting…</title>
+            <meta http-equiv="refresh" content="0; url=portal/">
+            <link rel="canonical" href="portal/">
+          </head><body>
+            <p><a href="portal/">Continue to the documentation portal</a></p>
+          </body></html>
+          HTML
 
       - uses: actions/upload-pages-artifact@v3
         with:
