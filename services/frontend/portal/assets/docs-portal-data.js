@@ -624,24 +624,24 @@ window.__DOCS_PORTAL_DATA__ = {
         "title": "Severity &amp; priority matrix · QA · Study App Internal"
       },
       {
-        "path": "internal/reference/qa/checklists/0001-documentation-pages-visual-checklist.html",
-        "title": "QA checklist 0001: Documentation pages visual verification · Study App Internal"
+        "path": "internal/reference/qa/checklists/accessibility.html",
+        "title": "QA checklist — Accessibility (WCAG 2.1 AA) · Study App Internal"
       },
       {
-        "path": "internal/reference/qa/checklists/0002-api-endpoint-acceptance-checklist.html",
-        "title": "QA checklist 0002: API endpoint acceptance · Study App Internal"
+        "path": "internal/reference/qa/checklists/api-endpoint-acceptance.html",
+        "title": "QA checklist — API endpoint acceptance · Study App Internal"
       },
       {
-        "path": "internal/reference/qa/checklists/0003-release-smoke-checklist.html",
-        "title": "QA checklist 0003: Release smoke · Study App Internal"
+        "path": "internal/reference/qa/checklists/documentation-visual.html",
+        "title": "QA checklist — Documentation pages visual verification · Study App Internal"
       },
       {
-        "path": "internal/reference/qa/checklists/0004-regression-checklist.html",
-        "title": "QA checklist 0004: Regression · Study App Internal"
+        "path": "internal/reference/qa/checklists/regression.html",
+        "title": "QA checklist — Regression · Study App Internal"
       },
       {
-        "path": "internal/reference/qa/checklists/0005-accessibility-checklist.html",
-        "title": "QA checklist 0005: Accessibility (WCAG 2.1 AA) · Study App Internal"
+        "path": "internal/reference/qa/checklists/release-smoke.html",
+        "title": "QA checklist — Release smoke · Study App Internal"
       },
       {
         "path": "internal/reference/qa/defect-lifecycle.html",
