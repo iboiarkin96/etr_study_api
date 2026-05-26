@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reliability tiering — not every service deserves a pager — Practice 03 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Reliability tiering</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">03</span>
+        <span class="pa-eyebrow__group">Group A · Reliability foundations</span>
+      </p>
+      <h1>Reliability tiering — not every service deserves a pager</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Classify every service by user-journey criticality, pin a tier to it, and let the tier drive the SLO target, on-call rotation, and error-budget policy. The tier is the single field every downstream decision reads from.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">Reliability tiering classifies every service into a small set of tiers — typically <strong>T0 critical</strong>, <strong>T1 important</strong>, <strong>T2 supporting</strong> — and uses the tier as the source of truth for the SLO target, on-call rotation, alerting routing, and DR commitments. The tier is set in the service descriptor; everything else derives from it. Classification follows the user journey, not the org chart: a service is T0 if its absence breaks a paid customer flow within minutes. Each successive "nine" of availability costs roughly an order of magnitude more, so over-tiering is as costly as under-tiering — and far more common.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Service classification to tier to SLO target">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Services classified into tiers, each tier mapped to a reliability budget and SLO target" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="160" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="85" y="106" text-anchor="middle" font-weight="700">Services</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="85" y="124" text-anchor="middle" font-size="10">classified by user journey</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="190" y="20" width="135" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="257" y="42" text-anchor="middle" font-weight="700">T0 · critical</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="257" y="60" text-anchor="middle" font-size="10">paid flow blocker</text>
+
+        <rect class="pa-svg-box" x="190" y="84" width="135" height="52" rx="8"></rect>
+        <text class="pa-svg-text" x="257" y="106" text-anchor="middle" font-weight="700">T1 · important</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="257" y="124" text-anchor="middle" font-size="10">degraded UX</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="190" y="148" width="135" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="257" y="170" text-anchor="middle" font-weight="700">T2 · supporting</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="257" y="188" text-anchor="middle" font-size="10">internal / back-office</text>
+
+        <rect class="pa-svg-box" x="355" y="80" width="160" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="435" y="106" text-anchor="middle" font-weight="700">Reliability budget</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="435" y="124" text-anchor="middle" font-size="10">per tier</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="540" y="80" width="95" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="587" y="106" text-anchor="middle" font-weight="700">SLO target</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="587" y="124" text-anchor="middle" font-size="10">99.5–99.95%</text>
+
+        <path d="M165 98  L185  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M165 110 L185 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M165 122 L185 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M325  46 L350  92" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M325 110 L350 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M325 174 L350 128" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M515 110 L535 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+      </svg>
+      <figcaption class="pa-figure__caption">Services are classified by user-journey criticality into T0/T1/T2; each tier carries a reliability budget; the budget resolves to a concrete SLO target. The tier is the single hand-off — everything downstream reads it.</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p><strong>Reliability tiering</strong> is the discipline of assigning every service a single tier label and using that label as the source of truth for every reliability commitment — SLO target, on-call rotation, alerting routing, error-budget policy, DR posture. The decision is not made per-service in isolation by the owning team; it is made against a shared tier matrix so that two T1 services end up with the same SLO, the same rotation, and the same budget policy. The wrong matrix produces gold-plated internal tools and under-resourced paid flows; the right matrix produces investment that tracks user pain.</p>
+    <p>A service that ships to production must declare its tier in <code>service-descriptor.yaml</code> alongside the owning team and the on-call rotation. CI validates that the declared tier exists in the matrix, that the SLO recorded for the service matches the tier's target, and that an on-call rotation of the matching shape is attached. Anything missing the tier, or carrying a tier that does not match its SLO, does not ship — the descriptor renderer enforces this.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Without tiering, every service is implicitly treated as equally critical, which is the same as saying none of them is. The visible symptom is a paging rotation that wakes the on-call for an admin dashboard outage and a deployment policy that refuses to ship a checkout fix at 4 p.m. on a Friday "because production is sensitive". The cost shows up on two sides at once: critical paths are under-resourced because DR budget is being spent on back-office tools, and back-office tools are over-engineered for reliability that the business is not paying for.</p>
+    <p>Tiering also collapses a dozen ad-hoc decisions into one. The question "does this service need a multi-region failover, a 5-minute ACK rotation, a 99.99% SLO, a quarterly DR drill?" is hard to answer service-by-service and easy to answer tier-by-tier. Once the tier is set, every downstream policy is a lookup. That is the cheapest reliability win available — it costs no infrastructure and removes most of the recurring "how reliable should this be?" debate from sprint planning.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose tiering practice is published and copied. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Google SRE</p>
+        <p class="pa-industry__what">Google's SRE Book frames reliability as a function of <em>user-visible journey criticality</em>, not service ownership. The Risk chapter argues that each successive "nine" of availability costs roughly 10× more than the previous one — moving from 99.9% to 99.99% is a different category of investment, not the same shape with more redundancy. The recommendation is to pick the lowest reliability target the business will actually pay for, and to spend the unused budget on velocity.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> The default answer to "should this service be more reliable?" is no. Over-tiering is a default failure mode of engineering teams, and the SRE Book is the canonical argument against it.</p>
+        <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/embracing-risk/" rel="noopener">Google SRE Book — Embracing Risk (ch. 3)</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">AWS Well-Architected</p>
+        <p class="pa-industry__what">The Reliability pillar of AWS Well-Architected asks every workload to declare a recovery objective tier (RTO/RPO) before any architecture decisions are made. The framework treats the tier as an input to the design, not an output of it: pick the tier from the business case, then the multi-AZ, multi-region, and backup decisions follow mechanically from the matrix. Workloads without a declared tier are flagged as a finding in every Well-Architected Review.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Tier-before-architecture. If you start with the tech stack and try to back-fit the tier later you will over-build the easy services and under-build the hard ones. The tier is the first decision in the design doc.</p>
+        <p class="pa-industry__source">Source: <a href="https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/" rel="noopener">AWS Well-Architected — Reliability pillar</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Netflix</p>
+        <p class="pa-industry__what">Netflix runs a hard binary distinction between "critical path" (services on the stream-start path) and "non-critical path" (everything else). Critical-path services get multi-region redundancy, Chaos Monkey participation, and an aggressive on-call rotation; everything else is treated as best-effort with business-hours support. The two-tier split is published and discussed in the tech blog as a deliberate refusal to add granularity that the team could not enforce.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Fewer tiers, defended strictly, beats more tiers, applied loosely. Two or three tiers are the practical maximum for a team smaller than a hundred engineers — anything finer turns into self-classification theatre.</p>
+        <p class="pa-industry__source">Source: <a href="https://netflixtechblog.com/" rel="noopener">Netflix Tech Blog</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Spotify Backstage</p>
+        <p class="pa-industry__what">Spotify's Backstage catalog treats the tier as a first-class metadata field on every component. The catalog renders the tier alongside the on-call rotation, the SLO, and the DR plan; scorecards check that the tier is set, that it matches the SLO, and that the on-call rotation matches the tier's response-time SLA. A component without a tier shows a red badge on its overview page until the owning team fills it in.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Make the tier a structural field in the service catalog, visible on every overview page. The dashboard does the policing — the engineer sees the red badge before any review meeting points it out.</p>
+        <p class="pa-industry__source">Source: <a href="https://backstage.io/docs/features/software-catalog/" rel="noopener">Backstage Software Catalog</a></p>
+      </div>
+    </div>
+    <p class="pa-industry-pattern">Across every team whose tiering practice is published, the playbook converges: a small fixed number of tiers, classification by user-journey criticality, the tier stored as structured metadata in the service catalog, and every downstream policy derived from the tier rather than negotiated per-service.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete tiering practice has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Tier matrix</p><p class="pa-anatomy__hint">A short written matrix — three rows, one per tier — that names the SLO target, on-call response SLA, DR RTO/RPO, and budget policy for each tier. The matrix is the contract; per-service negotiation happens against it, not around it.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Classification criteria</p><p class="pa-anatomy__hint">Plain-language rules that decide which tier a new service lands in: paid user flow blocked within minutes → T0; degraded UX or revenue-adjacent → T1; internal-only or back-office → T2. Criteria are user-journey-shaped, not org-chart-shaped.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Tier field in the descriptor</p><p class="pa-anatomy__hint">Every service declares its tier in <code>service-descriptor.yaml</code>. The renderer validates that the tier exists, matches the recorded SLO, and matches the attached on-call rotation. The tier is structured data, not prose.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Derived on-call rotation</p><p class="pa-anatomy__hint">T0 carries a 24×7 primary + secondary rotation with a 5-minute ACK SLA. T1 carries a business-hours rotation with a 30-minute ACK SLA. T2 is best-effort, ticket-routed, no pager. The rotation is generated from the tier, not authored separately.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Error-budget policy per tier</p><p class="pa-anatomy__hint">Each tier has its own freeze rule: T0 enters a deploy freeze when 50% of the budget is gone in any 7-day window; T1 freezes at 75%; T2 has no freeze, only a quarterly review. The budget consequences scale with the tier.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Annual re-tier review</p><p class="pa-anatomy__hint">Every tier assignment is re-examined once a year with product. Services drift up and down the criticality scale as the product evolves; an annual review catches the T2 that has quietly become a T1 and the T0 that was never as critical as the first launch suggested.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Tier cap</p><p class="pa-anatomy__hint">A hard cap — typically 20% — on the share of services that may be T0. Scarcity forces honest prioritisation; without a cap every team self-classifies as critical and the tier loses its meaning.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App uses three tiers, declared in each service's <code>service-descriptor.yaml</code>. <strong>T0</strong> services — <code>lessons-api</code> and <code>auth</code> — carry a 99.95% SLO, a 24×7 primary+secondary on-call rotation with a 5-minute ACK SLA, and a deploy freeze when 50% of the 28-day budget burns inside any 7-day window. <strong>T1</strong> services — <code>payments</code> and <code>search</code> — carry a 99.9% SLO, a business-hours rotation with a 30-minute ACK SLA, and a 75% budget freeze. <strong>T2</strong> services — <code>analytics</code> and <code>admin</code> — carry a 99.5% SLO, no pager (Slack-only routing), and a quarterly retrospective rather than a freeze rule.</p>
+    <p>The tier is the single hand-off. The descriptor renderer at <code>scripts/render_service_descriptors.py</code> reads the <code>tier</code> field and generates the SLO record, the Alertmanager routing block, and the PagerDuty rotation reference. CI rejects a descriptor whose recorded SLO disagrees with its tier or whose attached rotation does not match the tier's response SLA — the tier is the only place that information is authored. A service's tier review lives in its descriptor's <code>tier_review</code> field with the next review date; the SRE team's planning meeting on the first Monday of each quarter runs through the descriptors whose review date has passed.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Classifying by user journey, not org chart</h3>
+      <p>The first temptation when tiering a system is to copy the org chart: the team that owns the most prestigious service gets the highest tier. This produces correct-looking tiers and wrong investment. The discipline is to start from the user journey: a paid customer opens the app, signs in, starts a lesson, completes it, the streak counter updates. Every service on that path is at least T1; the ones whose absence breaks the journey within minutes are T0. Everything off the path — admin tools, internal dashboards, analytics pipelines — is T2 by default, regardless of which team owns it.</p>
+      <p>This sometimes produces uncomfortable assignments. A high-prestige internal platform may end up T2 because its outage does not visibly hurt a paying customer for a day; a quiet glue service nobody owns may end up T0 because every paid flow routes through it. The discomfort is the practice working — the journey, not the politics, sets the tier.</p>
+      <h4>The cost curve — each "nine" 10× more expensive</h4>
+      <p>Availability does not scale linearly. Moving a service from 99% to 99.9% might mean adding a load balancer; moving it from 99.9% to 99.99% requires multi-AZ replication, automated failover, and a paging rotation that wakes someone inside five minutes; moving it from 99.99% to 99.999% requires multi-region active-active, synchronous cross-region replication, and capacity to absorb a regional outage with no visible degradation. Each extra "nine" multiplies cost by roughly an order of magnitude — infrastructure, on-call burden, and the operational complexity that makes incident response slower.</p>
+      <p style="font-family:var(--font-mono); background: var(--bg-mute); padding: var(--space-2); border-radius: 6px;">cost(99.99%) ≈ 10 × cost(99.9%) ≈ 100 × cost(99%)</p>
+      <p>The implication for tiering is direct: T0 is expensive, T2 is cheap, and the gap between them is not a polish step but a different category of system. Promoting a service from T2 to T0 is not a tweak — it is a rebuild. That is why the classification matters so much up front, and why over-tiering is a far more expensive mistake than people expect.</p>
+      <h4>Tier-driven on-call rotation</h4>
+      <p>The on-call rotation is the most visible derived field. A T0 rotation needs at least eight engineers to be humane — fewer than that and the same person is on pager every fortnight, which leads to burnout and degraded ACK quality. A T1 rotation can be smaller and business-hours-only. A T2 service should not have a rotation at all; pages on T2 services are a sign the alert was mis-classified and should be demoted to a ticket. The rotation falls out of the tier mechanically; if the team is too small to staff a T0 rotation, the service is not T0 yet, regardless of how critical it feels.</p>
+      <h4>Correlation between tier and blast radius</h4>
+      <p>Tier should correlate with blast radius — a T0 service is one whose failure affects many users, many flows, or large revenue. A common failure mode is naming something T0 because it is high-profile internally (a flashy new feature, a CEO's pet project) when its actual blast radius is small. The matrix has to be specific enough to resist this: T0 is "paid flow blocker within 5 minutes for &gt; 10% of active users", not "important". Numeric criteria are harder to game than adjectives.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Up-front classification.</strong> Tiering an existing fleet of services takes a focused sprint with product. Teams that skip it keep self-classification and pay in mismatched investment for years.</li>
+        <li><strong>Political cost of demotion.</strong> Telling a team its service is T2 is harder than telling them it is T0. The honest classification is unpopular the first quarter and invisible after the second; the cowardly classification is popular forever and quietly bankrupts the on-call rotation.</li>
+        <li><strong>Resume-driven engineering.</strong> Engineers prefer to work on T0 systems because the work is more interesting and reads better on a CV. Without a hard tier cap the system drifts upward — every service becomes "critical", the cap is the only forcing function that holds.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">service proposed</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">user journeys mapped</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">tier assigned (with product)</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">SLO + rotation set from tier</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">descriptor + CI checks</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">prod, tier-routed</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">annual re-tier · retune · retire</span>
+    </div>
+    <p>A new service starts as a journey statement, not a tier assignment — "this service participates in the paid lesson-start flow" rather than "this is T0". The user journeys it touches are mapped first; the tier falls out of that map by applying the matrix. Product joins the tier assignment so that the business case is part of the record. Once the tier is set, the SLO target and on-call rotation are generated mechanically. The descriptor lands in CI, which validates that the tier exists, that the SLO matches, and that the rotation is sized for the tier. The service ships, and a year later (or sooner if the journey it serves changes materially) the tier review fires. Retired services are removed from the descriptor; demoted services migrate their rotation and SLO at the same change.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Everything is T0</strong></td>
+            <td>Every team wants their service treated as critical; absent a cap, self-classification ratchets upward.</td>
+            <td>Cap T0 at 20% of the fleet. Scarcity forces honest prioritisation: a tier where everyone fits is not a tier. Use numeric classification criteria ("blocks &gt; 10% of paid users within 5 minutes") rather than adjectives.</td>
+          </tr>
+          <tr>
+            <td><strong>Tier set, downstream policies not enforced</strong></td>
+            <td>The descriptor has a tier field but the alerting routing, SLO, and rotation are still authored separately.</td>
+            <td>Generate downstream artefacts from the tier. The Alertmanager route, the PagerDuty rotation reference, the SLO record, and the freeze policy all read the <code>tier</code> field; CI rejects descriptors where they disagree.</td>
+          </tr>
+          <tr>
+            <td><strong>Tier never reviewed</strong></td>
+            <td>The initial tier was set at launch; nothing triggers a re-look as the product evolves.</td>
+            <td>Every descriptor carries a <code>tier_review</code> date 12 months out. The SRE quarterly planning runs through descriptors whose review date has passed. Stale tiers are more dangerous than no tiers — they create false confidence.</td>
+          </tr>
+          <tr>
+            <td><strong>Classifying by org chart, not user journey</strong></td>
+            <td>The team owning the most prestigious service argues for T0; the team owning the quiet glue service does not show up to the meeting.</td>
+            <td>Start from the user journey, then apply the matrix. The classifier is the journey map, not the politics — a quiet service on every paid path is T0; a flashy service off the path is not.</td>
+          </tr>
+          <tr>
+            <td><strong>Over-tiering as resume-driven engineering</strong></td>
+            <td>Working on T0 systems is more interesting; engineers prefer the classification that lets them build the multi-region failover.</td>
+            <td>Default the answer to "should this be T0?" to no. The SRE Book argument applies — the cheapest tier the business will accept is the right tier. Promoting a service to T0 must be defended in writing against the matrix.</td>
+          </tr>
+          <tr>
+            <td><strong>Tier without a budget consequence</strong></td>
+            <td>A tier is declared but breaching the SLO has no effect on roadmap — nothing changes when the budget is gone.</td>
+            <td>Tie the tier to a freeze rule. T0 freezes deploys at 50% budget burn in any 7-day window; T1 at 75%; T2 has no freeze but a quarterly retro. A tier without a consequence is documentation, not a control.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Service descriptor</span>
+        <p class="pa-example__title">SVC-014 — <code>lessons-api</code> (T0 critical) — descriptor with tier-derived SLO, rotation, and freeze rule</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code>service:        lessons-api
+owner:          team-learning
+tier:           T0
+tier_review:    "2027-05-01"
+tier_rationale: |
+  Blocks the paid lesson-start journey for &gt; 80% of active users.
+  Median outage minute affects ~1200 paid sessions in progress.
+
+slo:
+  availability:  0.9995         # T0 target — must match tier matrix
+  latency_p95:   400ms
+  window:        28d
+
+on_call:
+  rotation:      sre-platform-t0
+  primary:       8 engineers
+  secondary:     8 engineers
+  ack_sla:       5m              # T0 SLA — derived
+  hours:         24x7            # T0 hours — derived
+
+error_budget_policy:
+  freeze_at:     0.50            # T0 freeze rule
+  freeze_window: 7d
+  exit:         "budget recovers above 30% over 24h"
+
+routing:
+  pages:         pagerduty/team-learning-t0
+  tickets:       slack/#team-learning-alerts
+  info:          grafana/lessons-api-overview
+        </code></pre>
+        <p><strong>What this descriptor does.</strong> The <code>tier: T0</code> field is the only place the criticality is authored. The renderer (<code>scripts/render_service_descriptors.py</code>) reads it and generates the SLO record, the Alertmanager routing block, and the PagerDuty rotation reference; CI rejects the PR if the recorded <code>slo.availability</code> disagrees with the T0 matrix value (<code>0.9995</code>) or if the rotation does not carry the 5-minute ACK SLA. Demoting this service to T1 next year is a one-line change to <code>tier:</code> — every derived field re-generates from the matrix at the next CI run. The descriptor is what makes the tier load-bearing rather than decorative.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Three-tier matrix published</p><p class="pa-quality__hint">T0/T1/T2 with SLO target, ACK SLA, DR RTO/RPO, and freeze rule named per tier. Lives in the SRE handbook, linked from every descriptor.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every service declares a tier</p><p class="pa-quality__hint"><code>tier</code> field present in <code>service-descriptor.yaml</code> for every active service. CI fails the descriptor render without it.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">SLO and rotation derived from tier</p><p class="pa-quality__hint">Recorded SLO matches the tier's matrix value; attached on-call rotation matches the tier's ACK SLA. CI rejects descriptors where they disagree.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">T0 share within the cap</p><p class="pa-quality__hint">No more than 20% of services classified T0. The radar dashboard surfaces the count; an over-cap month triggers a re-classification review.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Tier review cadence enforced</p><p class="pa-quality__hint">Every descriptor carries a <code>tier_review</code> date 12 months out. The SRE quarterly planning runs descriptors whose review date has passed.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Budget consequence per tier</p><p class="pa-quality__hint">T0 deploy freezes at 50% burn in 7 days, T1 at 75%, T2 has a quarterly retro. The consequence is automated, not a calendar reminder.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Classification by user journey, recorded</p><p class="pa-quality__hint">Every T0 and T1 descriptor carries a <code>tier_rationale</code> field naming the user journey and the blast radius that justifies the tier. Prose, not adjectives.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://sre.google/sre-book/embracing-risk/" rel="noopener">Google SRE Book — Embracing Risk (ch. 3)</a><span class="pa-refs__hint">The canonical argument that each "nine" costs an order of magnitude more and that the right reliability is the lowest the business will accept.</span></li>
+          <li><a href="https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/" rel="noopener">AWS Well-Architected — Reliability pillar</a><span class="pa-refs__hint">Tier-before-architecture as a formal review finding; RTO/RPO as the input to design, not the output.</span></li>
+          <li><a href="https://netflixtechblog.com/" rel="noopener">Netflix Tech Blog — critical path</a><span class="pa-refs__hint">A published two-tier system, defended strictly; useful precedent for fewer-tiers-applied-honestly.</span></li>
+          <li><a href="https://backstage.io/docs/features/software-catalog/" rel="noopener">Spotify Backstage — Software Catalog</a><span class="pa-refs__hint">The tier as a first-class metadata field on every component, surfaced as a red badge when missing.</span></li>
+          <li><a href="https://www.pagerduty.com/resources/learn/service-tiers/" rel="noopener">PagerDuty — Service Tiers</a><span class="pa-refs__hint">Operational shape of a four-tier system and the joint product+engineering review cadence.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="slo-error-budget.html">SLO &amp; error budget — the target the tier resolves to</a><span class="pa-refs__hint">The tier names the SLO; the SLO defines the budget; the budget runs the freeze rule.</span></li>
+          <li><a href="on-call-handbook.html">On-call handbook — the rotation the tier generates</a><span class="pa-refs__hint">T0 rotations are 24×7 with a 5-minute ACK SLA; T1 rotations are business-hours; T2 has no rotation. All three live here.</span></li>
+          <li><a href="capacity-planning.html">Capacity planning — how the tier drives headroom</a><span class="pa-refs__hint">T0 services carry more headroom and tighter saturation thresholds than T2; the tier feeds the capacity model.</span></li>
+          <li><a href="alerting-design.html">Alerting design — how the tier routes pages</a><span class="pa-refs__hint">The tier is the routing key in Alertmanager — T0 pages, T1 tickets, T2 dashboards. The tier closes the loop.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-14">2026-05-14</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: Reliability Tiering practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

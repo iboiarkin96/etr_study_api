@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test Pyramid Design — shape the automation portfolio · Practice 02 · QA Engineer</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">QA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Test Pyramid Design</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <div class="pa-page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">02</span>
+        <span class="pa-eyebrow__group">Group A · Test Strategy &amp; Risk</span>
+      </p>
+      <h1 class="pa-title">Test Pyramid Design — shape the automation portfolio</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">Defines the right ratio of unit, integration, and end-to-end tests — so CI stays fast and feedback loops stay tight.</p>
+    </div>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">The test pyramid (Mike Cohn, <em>Succeeding with Agile</em>, 2009) prescribes a ratio of test layers: many fast unit tests at the base, fewer integration tests in the middle, a thin layer of slow E2E at the top. Each layer trades execution speed for confidence breadth. Inverted pyramids — too many E2E — produce 40-minute suites that flake constantly. Martin Fowler's "Practical Test Pyramid," Google's testing series, and Kent Dodds' "Testing Trophy" all explore variations. For Study App the working ratio is ~70% unit / 20% integration+contract / 10% E2E+scenario, codified as ADR and reviewed quarterly.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Test pyramid">
+      <svg viewBox="0 0 760 270" role="img" aria-label="Three-layer test pyramid">
+        <defs>
+          <marker id="tpd-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#2563eb)"></path>
+          </marker>
+        </defs>
+        <text x="380" y="22" text-anchor="middle" font-weight="700" font-size="13">Test pyramid — many fast at base, few slow at top</text>
+        <g font-family="JetBrains Mono, monospace" font-size="11" text-anchor="middle">
+          <polygon points="380,50 290,110 470,110" fill="rgba(220,38,38,0.18)" stroke="#dc2626" stroke-width="1.5"></polygon>
+          <text x="380" y="82" font-weight="700">E2E + Scenario</text>
+          <text class="pa-svg-sub" x="380" y="100">~10% · slow · brittle</text>
+          <polygon points="290,110 230,170 530,170 470,110" fill="rgba(245,158,11,0.18)" stroke="#f59e0b" stroke-width="1.5"></polygon>
+          <text x="380" y="138" font-weight="700">Integration + Contract</text>
+          <text class="pa-svg-sub" x="380" y="156">~20% · medium · component seams</text>
+          <polygon points="230,170 130,230 630,230 530,170" fill="rgba(22,163,74,0.18)" stroke="#16a34a" stroke-width="1.5"></polygon>
+          <text x="380" y="198" font-weight="700">Unit</text>
+          <text class="pa-svg-sub" x="380" y="216">~70% · fast · isolated · deterministic</text>
+        </g>
+        <text class="pa-svg-sub" x="80" y="140" text-anchor="middle" transform="rotate(-90 80 140)">cost ↑ · feedback latency ↑</text>
+        <text class="pa-svg-sub" x="700" y="140" text-anchor="middle" transform="rotate(90 700 140)">confidence breadth ↑</text>
+        <text class="pa-svg-sub" x="380" y="258" text-anchor="middle" font-style="italic">inverted pyramid (E2E-heavy) = slow suite, flaky CI, expensive triage</text>
+      </svg>
+      <figcaption class="pa-figure__caption">Three-layer pyramid: many fast unit tests, fewer integration/contract tests, a thin E2E layer. Each step up trades speed for confidence breadth; the proportions are designed, not accidental.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>The test pyramid is a heuristic for the ratio of automated tests by type. Mike Cohn introduced it in <em>Succeeding with Agile</em> (2009) with three layers: unit (base, fast, many), service/integration (middle), and UI/E2E (top, slow, few). Cohn's claim: pyramids work, inverted pyramids fail. The pyramid is a design budget — the team decides the ratio explicitly and the suite is curated to stay within it.</p>
+      <p>Modern variants refine the layers: Martin Fowler's "Practical Test Pyramid" (2018) renames middle to "service tests" and emphasises contract testing; Kent Dodds' "Testing Trophy" (2018) adds static analysis as a base for typed languages; "testing diamond" inverts for microservices where unit tests have less leverage. The shape varies by context; the principle (deliberate ratio, more fast than slow) is constant.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Without explicit pyramid design, test suites drift to whatever's easy to write that quarter — often E2E. Inverted pyramids produce 40-minute CI runs, flaky tests no one trusts, and triage nightmares. The pyramid is the discipline that keeps the suite fast and feedback tight. The cost of writing the ratio down (one ADR) is negligible; the cost of an inverted pyramid is felt every PR for years.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Mike Cohn · the original pyramid</p>
+          <p class="pa-industry__what">Cohn introduced the pyramid in <em>Succeeding with Agile</em> (2009) with the canonical three layers: unit (fast, many), service/API (medium, fewer), UI (slow, fewest). Each layer up is more expensive to write, slower to run, and more brittle. Therefore most tests should be at the base. The shape is a budget — measure the actual distribution, compare to target, intervene if inverted.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> the pyramid is a budget, not a description; measure and compare quarterly.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.mountaingoatsoftware.com/blog/the-forgotten-layer-of-the-test-automation-pyramid" rel="noopener">Cohn — The Forgotten Layer of the Test Automation Pyramid</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Martin Fowler · Practical Test Pyramid</p>
+          <p class="pa-industry__what">Martin Fowler &amp; Ham Vocke's "The Practical Test Pyramid" (2018) refines the model: rename "service tests" → integration + contract; emphasise "test the boundary, not the system"; introduce specific anti-patterns (ice-cream cone — UI-heavy; cupcake — flat layers). The most-cited modern reference and the source of "test the right thing at the right layer."</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> contract tests at the integration layer replace many slow E2E tests with fast targeted tests for the same defect class.</p>
+          <p class="pa-industry__source">Source: <a href="https://martinfowler.com/articles/practical-test-pyramid.html" rel="noopener">Fowler — Practical Test Pyramid</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Google · per-size SLOs</p>
+          <p class="pa-industry__what">Google's <em>Software Engineering at Google</em> chapter 11 codifies the pyramid for monorepo-scale codebases. The ratio: ~80% small (unit, fast, hermetic), 15% medium (single process boundary), 5% large (E2E, slow). Each size has SLOs on speed, flakiness, and ownership. The discipline scales to ~150M tests/day across Google's monorepo.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> per-layer SLOs (unit ≤ 100ms, integration ≤ 1s, E2E ≤ 30s) make the pyramid enforceable, not aspirational.</p>
+          <p class="pa-industry__source">Source: <a href="https://abseil.io/resources/swe-book/html/ch11.html" rel="noopener">Software Engineering at Google — Testing Overview</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Kent Dodds · Testing Trophy</p>
+          <p class="pa-industry__what">Kent Dodds' "Testing Trophy" (2018) refines the pyramid for modern TypeScript/React apps: static analysis at the base, then unit, then integration (the largest layer — DOM-rendering tests), then E2E. The claim: integration tests with React Testing Library + jsdom catch the most defects per dollar in modern frontend; pure unit tests have less leverage when most value is in component composition.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> the shape varies by domain — frontend often has a thicker integration layer; backend keeps a wider unit base.</p>
+          <p class="pa-industry__source">Source: <a href="https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications" rel="noopener">Dodds — The Testing Trophy</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of a pyramid</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Unit layer (~70%)</p>
+          <p class="pa-anatomy__hint">Pure functions, classes, components in isolation; no I/O; sub-100ms each; hermetic.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Integration + contract (~20%)</p>
+          <p class="pa-anatomy__hint">Component boundaries — DB queries, API contracts, message-bus; real services via Testcontainers; sub-second each.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">E2E + scenario (~10%)</p>
+          <p class="pa-anatomy__hint">Full-stack user journeys; Playwright/Cypress; expensive, flaky, but irreplaceable for the integration of components.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Static layer (optional)</p>
+          <p class="pa-anatomy__hint">Typing, linting, dependency analysis; runs at edit time; catches a defect class no test can.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Per-layer SLOs</p>
+          <p class="pa-anatomy__hint">Speed and flakiness budgets per layer; tests violating SLO refactored or demoted.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Quarterly review</p>
+          <p class="pa-anatomy__hint">Measure actual distribution; compare to target; intervene if inverted.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to design and maintain a pyramid</h2>
+      <ol class="pa-how">
+        <li><strong>Pick the target ratio.</strong> Default: 70% unit / 20% integration+contract / 10% E2E for full-stack. Adjust for context.</li>
+        <li><strong>Codify in an ADR.</strong> The ratio + rationale + per-layer SLOs in <code>docs/adr/test-pyramid.md</code>; reviewed quarterly.</li>
+        <li><strong>Set per-layer SLOs.</strong> Unit ≤ 100ms each, ≤ 0.1% flake; integration ≤ 1s, ≤ 0.5% flake; E2E ≤ 30s, ≤ 1% flake.</li>
+        <li><strong>Wire test-tier tags.</strong> Decorators / pytest markers / Jest projects route each test to the right CI job and SLO budget.</li>
+        <li><strong>Measure the distribution.</strong> Quarterly: count tests per layer; compute actual ratio; compare to target.</li>
+        <li><strong>Intervene if inverted.</strong> Over-E2E: identify lowest-value E2E; replace with integration or unit equivalents.</li>
+        <li><strong>Review and tune the target.</strong> Quarterly review of ratio target; adjust as the product matures.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive</h2>
+      <p>The pyramid is fundamentally an economic argument. Each layer has a different cost profile. Unit tests cost ~100ms each, ~10 minutes each to write; integration tests cost ~1s and ~30 minutes; E2E tests cost ~30s and ~2 hours. Unit tests also fail with much higher precision — when a unit test fails, you know which function broke; when an E2E fails, you have a stack trace through ten components. The pyramid encodes these economics.</p>
+      <p>The "test the boundary, not the system" principle from Fowler distinguishes the integration layer's purpose. Integration tests cover specific seams — the database boundary, the API boundary, the message-bus boundary. At the seam, real components are used; outside the seam, the rest of the system is mocked or absent. This makes integration tests fast and targeted, instead of slow and broad.</p>
+      <p>Anti-patterns are easier to see than the right shape. The "ice cream cone" — many E2E, few unit — produces the worst possible outcome: slow CI, flaky failures, unclear root causes, and most defects still slip past. The "cupcake" — equal layers — produces a suite that's neither fast nor confident. The right shape is named "pyramid" for a reason.</p>
+      <p>Contract tests are the most underused layer. Many teams have unit + E2E and skip integration entirely; E2E does work contract tests would do faster. Schemathesis, Pact, Spring Cloud Contract generate or validate against an OpenAPI/AsyncAPI spec at the API boundary. A contract test takes ~100ms and catches the entire class of "API drift" defects. Adding the contract layer is usually the highest-leverage pyramid intervention.</p>
+      <p>The static-analysis layer (Dodds' addition) is the cheapest of all. TypeScript, Pyright/mypy, Sorbet eliminate entire defect classes at edit time. Lint rules catch style and bug-prone patterns. Sub-second per file; the value is preventing whole bug categories. Treat static analysis as the base of the pyramid for typed languages.</p>
+      <p>Per-layer SLOs make the pyramid enforceable. Without SLOs, the pyramid is aspirational. With SLOs, tests that violate are flagged for refactoring or demoted to a slower tier. The discipline: a unit test taking 500ms isn't a unit test, it's an integration test mislabelled.</p>
+      <p>The pyramid shape varies by domain. Microservices often have inverted-ish shapes because most logic lives in component boundaries — "diamond"-shaped distributions where integration dominates. Frontend-heavy apps often look like Dodds' trophy — DOM integration tests catch most defects. ML systems often have a separate evaluation layer. The principle is universal; the exact ratio is contextual.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle</h2>
+      <div class="pa-lifecycle">
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">1</span>
+          <p class="pa-lifecycle__name">Pick target ratio</p>
+          <p class="pa-lifecycle__hint">Default 70/20/10 for full-stack; adjust for domain based on context.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">2</span>
+          <p class="pa-lifecycle__name">Codify in ADR</p>
+          <p class="pa-lifecycle__hint">Target ratio + per-layer SLOs + rationale in version-controlled ADR.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">3</span>
+          <p class="pa-lifecycle__name">Tag and route</p>
+          <p class="pa-lifecycle__hint">Tests tagged by layer; CI routes to correct jobs and SLO budgets.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">4</span>
+          <p class="pa-lifecycle__name">Measure</p>
+          <p class="pa-lifecycle__hint">Distribution dashboard: actual ratio per layer with SLO compliance.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">5</span>
+          <p class="pa-lifecycle__name">Intervene</p>
+          <p class="pa-lifecycle__hint">Quarterly: rebalance if inverted; refactor slow tests; demote misrouted tests.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">6</span>
+          <p class="pa-lifecycle__name">Evolve</p>
+          <p class="pa-lifecycle__hint">Adjust target ratio as the product matures.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+        <table class="pa-pitfalls">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Ice-cream cone (E2E-heavy)</td>
+              <td>E2E feels concrete; team writes them first; suite slows to 40 minutes; flakiness compounds.</td>
+              <td>Replace lowest-value E2E with integration or unit equivalents; cap E2E count.</td>
+            </tr>
+            <tr>
+              <td>Missing integration layer</td>
+              <td>Team has unit + E2E; integration layer skipped; E2E does work integration should do.</td>
+              <td>Add contract tests (Schemathesis, Pact) and DB-boundary tests with Testcontainers.</td>
+            </tr>
+            <tr>
+              <td>Mislabelled tests</td>
+              <td>"Unit test" that hits the DB and takes 2 seconds; layer boundaries blur.</td>
+              <td>Per-layer SLOs enforce: tests violating SLO are renamed/demoted.</td>
+            </tr>
+            <tr>
+              <td>Pyramid frozen at one ratio</td>
+              <td>Target set once 3 years ago; product changed but ratio didn't.</td>
+              <td>Quarterly review of target ratio; adjust as product context shifts.</td>
+            </tr>
+            <tr>
+              <td>No static-analysis layer</td>
+              <td>Typed language but no type-checker in CI; entire defect class catchable for free is unaddressed.</td>
+              <td>TypeScript / mypy / Pyright / Sorbet in CI as a required gate.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — Study App pyramid distribution</h2>
+      <p>Study App's test pyramid is codified in <code>docs/adr/0025-test-pyramid.md</code> with target ratio 70% unit / 20% integration+contract / 10% E2E+scenario; per-layer SLOs documented.</p>
+      <p>Current distribution (week 24):</p>
+      <ul>
+        <li><strong>Unit (~70% target):</strong> 504 tests, 70.5% of suite, average run 65ms, flake rate 0.1%. Within SLO. Tools: pytest (backend), vitest (frontend).</li>
+        <li><strong>Integration + contract (~20% target):</strong> 144 tests, 20.1% of suite, average run 750ms, flake rate 0.3%. Within SLO. Tools: Testcontainers (Postgres), Schemathesis (OpenAPI contracts), Pact (frontend → backend).</li>
+        <li><strong>E2E + scenario (~10% target):</strong> 72 tests, 9.4% of suite, average run 18s, flake rate 0.4%. Slightly under target (intentional — quality over quantity). Tools: Playwright across 6 personas × top journeys.</li>
+        <li><strong>Static (base layer):</strong> TypeScript strict + mypy strict + ESLint + Ruff, runs in &lt; 30s on PR. Treated as the base layer; failures block merge.</li>
+      </ul>
+      <p>Total suite p95 wall time: 14 minutes on PR. SLO breaches in the last quarter: 3 unit tests violated the 100ms threshold (all refactored within 2 weeks). Distribution health check is part of the quarterly QA retro.</p>
+      <p>Historical context: pyramid started inverted (week 1 was ~40% E2E because the team had a manual-E2E mindset before automation). Migration ran weeks 4–12: replaced ~30 low-value E2E with integration equivalents, added Schemathesis contract layer, added unit tests for refactored modules. Suite p95 dropped from 32 minutes to 14 minutes; flake rate dropped from 8% to 0.3%. The pyramid intervention paid back in week 8.</p>
+    </section>
+
+    <section id="quality-bar">
+      <h2>Quality bar</h2>
+      <div class="pa-quality">
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Senior bar</p>
+          <p class="pa-quality__hint">Target ratio codified in ADR; per-layer SLOs; tests tagged and routed. Distribution dashboard reviewed quarterly; ratio within ±5% of target. Static-analysis base layer wired. Inverted-pyramid signals trigger remediation. Shape adjusts to domain context.</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Mid bar</p>
+          <p class="pa-quality__hint">Target ratio chosen; tests tagged by layer; per-layer SLOs in place; quarterly distribution review.</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Junior bar</p>
+          <p class="pa-quality__hint">Can identify the layer of a given test (unit / integration / E2E), can write a unit test in the project's framework, and can explain why E2E-heavy suites are anti-pattern.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://www.mountaingoatsoftware.com/blog/the-forgotten-layer-of-the-test-automation-pyramid" rel="noopener">Cohn — The Forgotten Layer of the Test Automation Pyramid</a> — original pyramid framing.</li>
+        <li><a href="https://martinfowler.com/articles/practical-test-pyramid.html" rel="noopener">Fowler — Practical Test Pyramid</a> — canonical modern reference.</li>
+        <li><a href="https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications" rel="noopener">Dodds — The Testing Trophy</a> — frontend-oriented variant.</li>
+        <li><a href="https://abseil.io/resources/swe-book/html/ch11.html" rel="noopener">Software Engineering at Google — Testing Overview</a> — per-layer SLOs at monorepo scale.</li>
+        <li><a href="https://testing.googleblog.com/" rel="noopener">Google — Testing on the Toilet</a> — long-running series with pyramid-layer guidance.</li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Rewrote to SA practice-page pattern: page-head, 3-layer pyramid SVG, 4 industry cards (Cohn, Fowler, Google, Dodds), Study App distribution week-24 example.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial version: Test Pyramid Design practice for QA Engineer radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

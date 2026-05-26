@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CI Quality Gates — automated pass/fail checks on every PR · Practice 15 · QA Engineer</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">QA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">CI Quality Gates</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <div class="pa-page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">15</span>
+        <span class="pa-eyebrow__group">Group C · Automation &amp; Tooling</span>
+      </p>
+      <h1 class="pa-title">CI Quality Gates — automated pass/fail checks on every PR</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">Blocks merging when quality criteria are not met — making quality checks automatic and consistent rather than optional acts of discipline.</p>
+    </div>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">CI quality gates are automated pass/fail checks that run on every pull request and block merging when the criteria are not met: tests pass, contract specs lint clean, accessibility audit passes, coverage threshold met, visual regression approved, performance budget held, and security scan green. Each gate is fast (&lt; 10 minutes for the merge-blocking set), reproducible, and produces an actionable failure message — not just a red build. Without automated gates, quality checks become optional under deadline pressure and the pipeline becomes decorative. Google, GitHub, Stripe, and Spotify all wire dozens of gates into branch-protection rules; for Study App, the merge-blocking set is unit + contract + lint + axe + coverage + visual + security, all running on the same Buildkite/GitHub Actions pipeline.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="CI quality gate pipeline">
+      <svg viewBox="0 0 760 260" role="img" aria-label="CI pipeline showing PR opened through merge with seven gates">
+        <defs>
+          <marker id="qg-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#2563eb)"></path>
+          </marker>
+        </defs>
+        <rect x="20" y="100" width="100" height="60" rx="10" class="pa-svg-box" style="--accent:#2563eb"></rect>
+        <text x="70" y="128" text-anchor="middle" font-weight="700">PR opened</text>
+        <text class="pa-svg-sub" x="70" y="146" text-anchor="middle">webhook</text>
+        <g font-family="JetBrains Mono, monospace" font-size="10">
+          <rect x="150" y="30" width="86" height="46" rx="8" class="pa-svg-box" style="--accent:#16a34a"></rect>
+          <text x="193" y="50" text-anchor="middle" font-weight="700">unit</text>
+          <text class="pa-svg-sub" x="193" y="66" text-anchor="middle">100% pass</text>
+          <rect x="246" y="30" width="86" height="46" rx="8" class="pa-svg-box" style="--accent:#16a34a"></rect>
+          <text x="289" y="50" text-anchor="middle" font-weight="700">contract</text>
+          <text class="pa-svg-sub" x="289" y="66" text-anchor="middle">Spectral</text>
+          <rect x="342" y="30" width="86" height="46" rx="8" class="pa-svg-box" style="--accent:#16a34a"></rect>
+          <text x="385" y="50" text-anchor="middle" font-weight="700">lint</text>
+          <text class="pa-svg-sub" x="385" y="66" text-anchor="middle">eslint+ruff</text>
+          <rect x="438" y="30" width="86" height="46" rx="8" class="pa-svg-box" style="--accent:#16a34a"></rect>
+          <text x="481" y="50" text-anchor="middle" font-weight="700">axe a11y</text>
+          <text class="pa-svg-sub" x="481" y="66" text-anchor="middle">0 violations</text>
+          <rect x="150" y="184" width="86" height="46" rx="8" class="pa-svg-box" style="--accent:#16a34a"></rect>
+          <text x="193" y="204" text-anchor="middle" font-weight="700">coverage</text>
+          <text class="pa-svg-sub" x="193" y="220" text-anchor="middle">≥ 80%</text>
+          <rect x="246" y="184" width="86" height="46" rx="8" class="pa-svg-box" style="--accent:#16a34a"></rect>
+          <text x="289" y="204" text-anchor="middle" font-weight="700">visual</text>
+          <text class="pa-svg-sub" x="289" y="220" text-anchor="middle">Chromatic</text>
+          <rect x="342" y="184" width="86" height="46" rx="8" class="pa-svg-box" style="--accent:#16a34a"></rect>
+          <text x="385" y="204" text-anchor="middle" font-weight="700">security</text>
+          <text class="pa-svg-sub" x="385" y="220" text-anchor="middle">Snyk/Dependabot</text>
+          <rect x="438" y="184" width="86" height="46" rx="8" class="pa-svg-box" style="--accent:#16a34a"></rect>
+          <text x="481" y="204" text-anchor="middle" font-weight="700">perf budget</text>
+          <text class="pa-svg-sub" x="481" y="220" text-anchor="middle">Lighthouse-CI</text>
+        </g>
+        <line x1="120" y1="120" x2="148" y2="60" stroke="var(--accent,#2563eb)" stroke-width="1.5" marker-end="url(#qg-arr)"></line>
+        <line x1="120" y1="140" x2="148" y2="200" stroke="var(--accent,#2563eb)" stroke-width="1.5" marker-end="url(#qg-arr)"></line>
+        <rect x="560" y="100" width="100" height="60" rx="10" class="pa-svg-box" style="--accent:#8b5cf6"></rect>
+        <text x="610" y="125" text-anchor="middle" font-weight="700">branch</text>
+        <text x="610" y="142" text-anchor="middle" font-weight="700">protection</text>
+        <text class="pa-svg-sub" x="610" y="156" text-anchor="middle">all required</text>
+        <line x1="524" y1="53" x2="556" y2="120" stroke="var(--accent,#2563eb)" stroke-width="1.5" marker-end="url(#qg-arr)"></line>
+        <line x1="524" y1="207" x2="556" y2="140" stroke="var(--accent,#2563eb)" stroke-width="1.5" marker-end="url(#qg-arr)"></line>
+        <rect x="680" y="100" width="70" height="60" rx="10" class="pa-svg-box" style="--accent:#16a34a"></rect>
+        <text x="715" y="135" text-anchor="middle" font-weight="700">merge</text>
+        <line x1="660" y1="130" x2="676" y2="130" stroke="var(--accent,#2563eb)" stroke-width="1.5" marker-end="url(#qg-arr)"></line>
+        <text class="pa-svg-sub" x="380" y="252" text-anchor="middle" font-style="italic">7 parallel gates · merge blocked unless every required gate passes · &lt; 10 min total wall time</text>
+      </svg>
+      <figcaption class="pa-figure__caption">A PR triggers all gates in parallel; branch protection treats each required gate as a merge prerequisite. Optional gates (smoke E2E, mutation testing) report but do not block.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>A CI quality gate is an automated check, wired into continuous integration, that produces a binary pass/fail result and is configured as a required status check in branch-protection rules. When a pull request is opened or updated, every gate runs (typically in parallel); the merge button is disabled until every required gate is green. Gates are distinct from "checks that exist in CI but aren't required" — the latter are reports, not gates. Gates encode the team's quality bar in executable form: if it isn't a gate, it isn't enforced.</p>
+      <p>The standard merge-blocking set for a modern web service: unit tests (100% pass), contract tests against OpenAPI/AsyncAPI (Spectral or Schemathesis), static analysis (ESLint, Ruff, TypeScript), accessibility (axe-core on built pages or storybook), code coverage threshold (line or branch ≥ a per-repo number), visual regression (Chromatic or Percy approval), security scanning (Snyk, Dependabot, Trivy), and performance budget (Lighthouse-CI or k6 smoke). Each gate has a single source of truth (a config file, a threshold) and an owner.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Quality checks that depend on developer discipline are skipped under deadline pressure — every team that has shipped under pressure has experienced this. Gates make discipline structural: the merge button is the only path to production, and the merge button is closed until quality criteria pass. Without gates the CI pipeline is decorative; with gates the pipeline is a control surface. The cost of a gate (10 minutes of CI time, one config commit) is dwarfed by the cost of a single defect reaching production that a gate would have caught.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Google · presubmit checks</p>
+          <p class="pa-industry__what">Google's monorepo enforces "presubmit checks" before any code can be submitted to the main branch: unit tests for affected targets, lint, format, build, and code review. The presubmit system runs on Bazel and is fully hermetic — each gate is reproducible and isolated. <em>Software Engineering at Google</em> documents the cultural rule: "if it isn't a presubmit, it isn't enforced." Google explicitly distinguishes presubmits (block submission) from periodic builds (alert but don't block) — the same distinction every modern CI setup must make.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> the binary distinction between "blocks merge" and "reports only" is the single most important quality-gate decision; ambiguity kills enforcement.</p>
+          <p class="pa-industry__source">Source: <a href="https://abseil.io/resources/swe-book/html/ch23.html" rel="noopener">Software Engineering at Google — Continuous Integration</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">GitHub · branch protection &amp; required status checks</p>
+          <p class="pa-industry__what">GitHub's branch-protection rules let repository admins designate any GitHub Actions workflow (or external check via the Checks API) as "required." The merge button is disabled until every required check is green; admins can override with an explicit bypass that is audit-logged. GitHub publishes the API spec for the Checks API so external tools (Sentry, Codecov, Chromatic) can register as required gates. The required-status-check model is now the industry default.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> wire every gate through the platform's required-status-check mechanism (GitHub Actions, GitLab Pipelines, Buildkite); never rely on "developer remembered to run it."</p>
+          <p class="pa-industry__source">Source: <a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches" rel="noopener">GitHub — About protected branches</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Stripe · keep main green</p>
+          <p class="pa-industry__what">Stripe's engineering blog documents their "keep main green" policy: main is always deployable, every PR runs the full gate set, and a failed gate on main triggers a revert (not a forward-fix). Stripe reports that aggressive gate enforcement on main reduced their MTTR from hours to minutes and made every commit a deployable artefact. The team explicitly chose gate latency (CI cycle time) as a first-class metric and invested heavily in parallelisation and test sharding to keep the gate set under 15 minutes.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> gate latency matters; aim for the merge-blocking set under 10 minutes so developers don't bypass gates "just this once."</p>
+          <p class="pa-industry__source">Source: <a href="https://stripe.com/blog/sorbet-stripes-type-checker-for-ruby" rel="noopener">Stripe Engineering Blog</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Spotify · Backstage tech-health checks</p>
+          <p class="pa-industry__what">Spotify's <em>Backstage</em> includes a "soundcheck" or tech-health system: every service has a score computed from CI quality gates plus operational signals (test coverage, vulnerability count, on-call coverage, runbook quality). The score is visible service-wide and influences platform investment. Gates are not just per-PR — they are also organisation-level inventories: which services are below the bar, who owns them, what is the remediation plan.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> expose gate pass-rates at the service level (not just per PR) so leadership can see "service X has 4 gates failing on main, owner Y" and prioritise.</p>
+          <p class="pa-industry__source">Source: <a href="https://backstage.io/blog/2022/06/22/tech-health/" rel="noopener">Backstage — Tech Health</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of a quality gate</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Trigger</p>
+          <p class="pa-anatomy__hint">The event that starts the gate — pull-request opened/updated, push to main, scheduled run. Gates that don't run on PRs aren't merge gates.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Check command</p>
+          <p class="pa-anatomy__hint">A single command that exits 0 (pass) or non-zero (fail) — no human interpretation. The command is version-controlled in <code>.github/workflows/</code> or equivalent.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Threshold</p>
+          <p class="pa-anatomy__hint">For metric-based gates (coverage, performance), the threshold is a number in a config file (<code>codecov.yml</code>, <code>lighthouserc.json</code>) — never hard-coded in scripts.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Required-status registration</p>
+          <p class="pa-anatomy__hint">The gate is named in branch-protection rules; the merge button is disabled until the named check is green. Without this, the gate is a report.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Actionable failure message</p>
+          <p class="pa-anatomy__hint">When the gate fails, the message tells the developer exactly what to do — which test, which line, which threshold, which fix. "Red build" is not enough.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Latency budget</p>
+          <p class="pa-anatomy__hint">Each gate has an owner-set time budget (e.g. unit ≤ 5 min, contract ≤ 3 min, axe ≤ 4 min); regressions trigger investigation.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to add a new gate</h2>
+      <ol class="pa-how">
+        <li><strong>Decide what failure mode the gate prevents.</strong> "Blocks PRs that drop coverage below 80%" — concrete, observable. Vague reasons ("improve quality") signal a gate that won't survive review.</li>
+        <li><strong>Pick the check command.</strong> One command, exit 0 or non-zero, reproducible locally. <code>pytest --cov --cov-fail-under=80</code> is a good command; "run the test suite and look at the output" is not.</li>
+        <li><strong>Set the threshold in a config file.</strong> <code>codecov.yml</code>, <code>lighthouserc.json</code>, <code>.spectral.yml</code> — never inline in the CI script. Thresholds change; PRs to thresholds get reviewed like code.</li>
+        <li><strong>Wire it into CI.</strong> <code>.github/workflows/ci.yml</code> with a named job. The job runs in parallel with other gates; failures produce a clear annotation.</li>
+        <li><strong>Mark it required in branch protection.</strong> The status name must match the job; without this, the gate is a report. Branch-protection changes are reviewed by the platform owner.</li>
+        <li><strong>Write the actionable error.</strong> The job's failure output explains the cause and the fix — "<code>Coverage 79.2% &lt; 80% threshold; new untested code in <code>quiz/scoring.py:34-58</code>; add tests in <code>tests/test_scoring.py</code></code>." Not just <code>exit 1</code>.</li>
+        <li><strong>Measure and tune latency.</strong> Track gate wall time over the next 2 weeks; if it climbs above the budget, shard the tests or move the gate to a nightly run.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive</h2>
+      <p>The fundamental design choice is the binary required-vs-reporting distinction. A required gate blocks the merge button; a reporting gate posts a status without blocking. Teams new to gates often hesitate to mark anything required — "what if it's flaky?" — and end up with a CI pipeline full of yellow dots that no one reads. The cure is to fix flakiness first, then mark the gate required, in that order. A flaky gate is worse than no gate (it teaches developers to ignore CI). The required/reporting line is a constant negotiation as gates are added, stabilised, and promoted.</p>
+      <p>Gate latency is the second-most-important design choice. If the merge-blocking set takes 45 minutes, developers context-switch, lose state, and start opening "small" PRs to game the suite. If it takes 8 minutes, they wait, read the result, and iterate. Stripe, Google, and Shopify all publish gate-latency as a first-class engineering metric. The standard levers are parallelisation (run all gates concurrently, not sequentially), sharding (split a 20-minute test suite into four 5-minute shards), test impact analysis (only run tests that exercise changed code), and infrastructure (more CI runners is cheaper than the eng time saved). Aim for &lt; 10 minutes on the merge-blocking set, &lt; 30 minutes on the full set including reporting checks.</p>
+      <p>Coverage as a gate has a specific failure mode: enforcing a global threshold leads developers to write tests-for-coverage rather than tests-for-confidence. The mitigation is patch coverage (coverage on the lines changed in this PR, not the whole repo) plus a strict global threshold (don't let it slip). Codecov and Coveralls both support patch coverage. The right threshold is "don't drop" (no regression) plus "patch ≥ 90%" (new code is well-tested), not "global ≥ 80% forever" which rewards stagnation.</p>
+      <p>Accessibility as a gate is a specific success story: axe-core on built pages or Storybook catches the WCAG 2.1 AA basics (colour contrast, label associations, ARIA mis-use, missing alt text) at near-zero false positive rate. Wire axe into Playwright or Cypress and run it on every PR. The output is a list of specific violations with line numbers and remediation links. The British government's GOV.UK Design System enforces axe gates and reports a 70% reduction in accessibility defects reaching production. For Study App the gate is "axe finds zero serious or critical violations on the home, search, lesson, and quiz pages."</p>
+      <p>Contract gates are the highest-leverage QA gate: every PR that changes an API spec runs Spectral (lint) and Schemathesis or Pact (contract tests), and every PR that touches API code runs the same spec checks against the live test instance. The gate prevents breaking changes from reaching consumers and prevents spec/implementation drift. Zalando publishes their REST API guidelines as a Spectral ruleset; Stripe runs their entire SDK suite as a gate against the API. The pattern: spec is source of truth, gate enforces conformance, breakage is caught at PR time not at integration time.</p>
+      <p>Security gates have a known false-positive problem. Snyk, Dependabot, Trivy, and similar tools report vulnerabilities including transitive ones that may not be exploitable in your code path. The mitigation is severity-based gating (block on critical/high, alert on medium/low) plus a documented suppression workflow (suppress with a justification, audited monthly). Without suppression, the gate either becomes noise or gets disabled. With suppression, the gate stays useful — a critical/high vulnerability blocks the merge until it is patched or suppressed with a reviewed justification.</p>
+      <p>Bypass mechanisms are non-negotiable. Every gate occasionally has a legitimate reason to be bypassed (broken external dependency, false positive that takes a day to suppress, urgent rollback). The bypass must be audit-logged, named, and reviewed. GitHub supports admin override with a recorded decision; GitLab supports "force merge" with logging. The cultural rule: bypass is permitted, repeated bypass without a fix is escalated. Without a bypass mechanism developers wedge themselves into broken states; without audit they bypass routinely. Both are bad.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle</h2>
+      <div class="pa-lifecycle">
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">1</span>
+          <p class="pa-lifecycle__name">Propose</p>
+          <p class="pa-lifecycle__hint">Engineer or QA proposes a new gate with the failure mode it prevents, the check command, and the latency budget.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">2</span>
+          <p class="pa-lifecycle__name">Pilot (reporting only)</p>
+          <p class="pa-lifecycle__hint">Wire the gate as a reporting check for 1–2 weeks; observe false-positive rate and latency before promoting.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">3</span>
+          <p class="pa-lifecycle__name">Promote to required</p>
+          <p class="pa-lifecycle__hint">Once stable (FP rate &lt; 1%, latency within budget), add to branch-protection rules as a required check.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">4</span>
+          <p class="pa-lifecycle__name">Operate</p>
+          <p class="pa-lifecycle__hint">Track pass-rate and latency weekly; investigate flaky gates within 24 hours of detection (flaky gates erode trust fast).</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">5</span>
+          <p class="pa-lifecycle__name">Tune</p>
+          <p class="pa-lifecycle__hint">Adjust thresholds via versioned PRs; new code rarely fits a threshold designed for legacy code.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">6</span>
+          <p class="pa-lifecycle__name">Retire</p>
+          <p class="pa-lifecycle__hint">When a gate's failure mode is no longer real (technology replaced, risk eliminated), remove the gate; dead gates erode signal.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+        <table class="pa-pitfalls">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Gates exist but aren't required</td>
+              <td>Team adds CI jobs but doesn't add them to branch protection — they appear as yellow dots and are routinely ignored.</td>
+              <td>Every gate is either required (blocks merge) or explicitly classified as reporting. No third category.</td>
+            </tr>
+            <tr>
+              <td>Flaky gates erode trust</td>
+              <td>A gate that fails 10% of the time for unrelated reasons trains developers to re-run CI rather than read the failure.</td>
+              <td>Treat flakiness as a P1 bug; fix within 24 hours or demote the gate to reporting until fixed. Track per-gate flakiness as a metric.</td>
+            </tr>
+            <tr>
+              <td>Slow gates encourage bypass</td>
+              <td>Merge-blocking set takes 45 minutes; developers force-merge or batch unrelated changes to amortise the wait.</td>
+              <td>Set a wall-time budget (&lt; 10 minutes) and treat overruns as a regression; parallelise, shard, or move to nightly.</td>
+            </tr>
+            <tr>
+              <td>Unactionable failure messages</td>
+              <td>Gate prints "FAILED" with no context; developer has to dig through 1,000 lines of CI log to find the actual cause.</td>
+              <td>Every gate emits a summary block: which check failed, where, the threshold, the fix. Use GitHub Actions annotations or equivalent.</td>
+            </tr>
+            <tr>
+              <td>No bypass mechanism</td>
+              <td>A broken external dependency blocks every PR; team disables the gate globally and forgets to re-enable.</td>
+              <td>Admin-bypass with audit log; bypass triggers a P2 follow-up to fix the gate; never disable a gate as the first response.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — Study App merge-blocking gate set</h2>
+      <p>The Study App monorepo runs on GitHub Actions. Branch protection on <code>main</code> requires the following named status checks (all must be green to merge):</p>
+      <ul>
+        <li><code>unit / backend</code> — pytest, 100% pass, target &lt; 4 min wall time.</li>
+        <li><code>unit / frontend</code> — vitest, 100% pass, target &lt; 3 min.</li>
+        <li><code>contract / spectral</code> — lint all OpenAPI/AsyncAPI specs against Study App ruleset (Zalando-derived), zero errors.</li>
+        <li><code>contract / schemathesis</code> — generative API tests against the spec running on the test instance, zero failures.</li>
+        <li><code>lint</code> — eslint (frontend) + ruff (backend) + tsc (frontend) + mypy (backend), zero errors.</li>
+        <li><code>axe-a11y</code> — Playwright runs axe-core on Home, Search, Lesson, Quiz pages, zero serious or critical violations.</li>
+        <li><code>coverage</code> — Codecov patch ≥ 90%, global no-regression vs. <code>main</code>.</li>
+        <li><code>visual</code> — Chromatic, designer approval required for diffs &gt; 0.1% threshold on production-tier components.</li>
+        <li><code>security</code> — Snyk on npm + pip dependencies, no critical/high CVEs unsuppressed.</li>
+      </ul>
+      <p>Reporting (non-blocking) checks: <code>perf / lighthouse-ci</code> (alerts at threshold), <code>mutation / mutmut</code> (weekly trend), <code>e2e / playwright-smoke</code> (alerts on red main). All gates run in parallel; total wall-clock latency target is 8 minutes (current p50: 7.2 min, p95: 9.8 min).</p>
+      <p>Bypass policy: only the platform-team admin can bypass a required gate, the bypass is recorded in GitHub's audit log with a justification, and every bypass triggers an automatic P2 ticket to fix the underlying gate. In the last quarter, 4 bypasses occurred (3 for flaky <code>axe-a11y</code> after a Playwright upgrade, 1 for an emergency revert), all with documented follow-ups closed within 5 days.</p>
+      <p>Outcome: in week 14, a refactor accidentally dropped <code>tracks/route.ts</code> from the build and broke the lesson page. The <code>axe-a11y</code> gate failed because Playwright couldn't load the page; the <code>visual</code> gate failed because the rendered output diverged. The PR was blocked before merge. Without the gates, the defect would have reached the next staging deploy and been found by manual exploratory testing 4 hours later.</p>
+    </section>
+
+    <section id="quality-bar">
+      <h2>Quality bar</h2>
+      <div class="pa-quality">
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Senior bar</p>
+          <p class="pa-quality__hint">All merge-blocking gates are required via branch protection; the required set is wired into CODEOWNERS and audited monthly. Gate latency &lt; 10 min p95; per-gate flakiness &lt; 0.5%; bypass policy is documented, enforced, and audit-logged. New gates go through pilot→required lifecycle with measured FP rate. Coverage, contract, accessibility, visual, security, and performance gates all live; per-service gate-pass dashboards are visible to the org.</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Mid bar</p>
+          <p class="pa-quality__hint">Unit + lint + contract + axe-a11y + coverage are required; visual and security run as reporting. Latency &lt; 15 min. Bypass requires justification but no audit log. Flakiness tracked manually.</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Junior bar</p>
+          <p class="pa-quality__hint">Unit tests and lint are required; failures block merge. Can add a new test gate via a CI workflow PR, point it at a clear pass/fail command, and explain what failure mode it catches.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://abseil.io/resources/swe-book/html/ch23.html" rel="noopener">Software Engineering at Google — Continuous Integration</a> — presubmit checks as the canonical gate model.</li>
+        <li><a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches" rel="noopener">GitHub — About protected branches</a> — required status checks and branch protection.</li>
+        <li><a href="https://docs.github.com/en/rest/checks" rel="noopener">GitHub — Checks API</a> — register external gates as required.</li>
+        <li><a href="https://www.deque.com/axe/" rel="noopener">axe-core</a> — open-source accessibility engine, the standard accessibility gate.</li>
+        <li><a href="https://docs.codecov.com/docs/commit-status" rel="noopener">Codecov — Commit Status</a> — patch coverage as a gate.</li>
+        <li><a href="https://meta.stoplight.io/docs/spectral/" rel="noopener">Spectral</a> — OpenAPI/AsyncAPI lint, the standard contract gate.</li>
+        <li><a href="https://github.com/GoogleChrome/lighthouse-ci" rel="noopener">Lighthouse-CI</a> — performance budget as a CI gate.</li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Rewrote to SA practice-page pattern: page-head, 7-gate pipeline SVG, 4 industry cards (Google presubmits, GitHub branch protection, Stripe latency, Spotify Backstage), 6-step lifecycle, Study App merge-blocking gate set.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial version: CI Quality Gates practice for QA Engineer radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

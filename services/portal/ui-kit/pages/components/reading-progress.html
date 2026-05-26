@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reading progress · Portal UI Kit</title>
+  <script>/* no-flash theme bootstrap */(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../services/frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../../services/portal/ui-kit/index.html"><span aria-hidden="true">🚀</span><span>ETR Study API</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../../services/portal/internal/index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../../services/portal/ui-kit/index.html">UI Kit</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../../services/portal/ui-kit/pages/components/index.html">Components</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Reading progress</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions"><button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button></div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-uikit.json" aria-label="UI Kit navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <h1>Reading progress</h1>
+      <div id="docs-top-nav"></div>
+      <p>Fixed 3 px gradient bar pinned to the top of the viewport that tracks how far down the page the reader has scrolled. Auto-injected on every doc page by the kit's runtime — no markup needed.</p>
+    </header>
+
+    <section aria-labelledby="rp-ex">
+      <h2 id="rp-ex">Example</h2>
+      <p>Look at the very top of this viewport — the thin accent → success gradient is the reading-progress bar tracking <em>this page</em>. Scroll up and down to watch it fill / drain. On short landing pages the bar hides itself (see <a href="#rp-states">States</a>).</p>
+      <div class="docs-example" style="padding:var(--space-4);background:var(--bg-mute);border-radius:var(--radius-md)">
+        <div style="position:relative;height:8px;background:color-mix(in srgb, var(--line) 66%, transparent);border-radius:2px;overflow:hidden">
+          <span style="position:absolute;inset:0;width:42%;background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 88%, var(--info)) 0%, color-mix(in srgb, var(--accent) 78%, var(--success)) 100%);border-radius:2px"></span>
+        </div>
+        <p style="margin:var(--space-3) 0 0;font-size:var(--fs-200);color:var(--muted)">Static preview of the bar at 42 % scroll — the real bar is 3 px tall and lives at <code>position: fixed; top: 0</code>.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="rp-inject">
+      <h2 id="rp-inject">Auto-injection</h2>
+      <p>The kit runtime calls <code>mountReadingProgress(document)</code> on boot. It:</p>
+      <ol>
+        <li>Bails out if a <code>.docs-reading-progress</code> element already exists (idempotent — safe to call twice).</li>
+        <li>Creates one <code>&lt;div class="docs-reading-progress is-hidden"&gt;</code> with a single child <code>&lt;span class="docs-reading-progress__fill"&gt;</code>, and appends it to <code>&lt;body&gt;</code>.</li>
+        <li>Wires <code>scroll</code> + <code>resize</code> listeners (passive), RAF-throttled.</li>
+        <li>On every tick, computes <code>scrollTop / (scrollHeight - innerHeight)</code> and applies it as <code>transform: scaleX(ratio)</code> on the fill.</li>
+      </ol>
+      <p><strong>There is no public JS API beyond the mount.</strong> No options object, no <code>data-*</code> opt-in / opt-out. To opt out on a specific page, you'd need to remove the runtime entry script — which is not a supported flow.</p>
+    </section>
+
+    <section aria-labelledby="rp-markup">
+      <h2 id="rp-markup">Markup (injected)</h2>
+      <p>You should not author this markup directly — included for reference / debugging.</p>
+      <pre class="docs-code"><code>&lt;div class="docs-reading-progress"
+     role="progressbar"
+     aria-label="Page reading progress"
+     aria-valuemin="0"
+     aria-valuemax="100"
+     aria-valuenow="42"&gt;
+&lt;span class="docs-reading-progress__fill"
+        aria-hidden="true"
+        style="transform: scaleX(0.42)"&gt;&lt;/span&gt;
+      &lt;/div&gt;</code></pre>
+    </section>
+
+    <section aria-labelledby="rp-states">
+      <h2 id="rp-states">States</h2>
+      <ul>
+        <li><strong>Hidden</strong> — <code>.is-hidden</code> (opacity 0) when <code>scrollHeight - innerHeight &lt; 8 px</code>. Pages that fit in the viewport (404, short landings) don't show an empty bar.</li>
+        <li><strong>Tracking</strong> — fill <code>scaleX</code> ratio updates each scroll frame; <code>aria-valuenow</code> mirrors the integer percentage.</li>
+        <li><strong>z-index 60</strong> — sits above topbar (50) but below modals / drawer overlays (80+).</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="rp-a11y">
+      <h2 id="rp-a11y">A11y</h2>
+      <ul>
+        <li><code>role="progressbar"</code> with <code>aria-valuemin="0"</code>, <code>aria-valuemax="100"</code>, and a live <code>aria-valuenow</code>. Screen readers can query it but most users will skip it (it's decorative reading aid).</li>
+        <li><code>pointer-events: none</code> — the bar cannot block clicks on the topbar / first row of content below it.</li>
+        <li><code>aria-label="Page reading progress"</code> gives the role a human name.</li>
+        <li>The inner fill is <code>aria-hidden</code> — only the outer progressbar role is exposed.</li>
+        <li><code>prefers-reduced-motion: reduce</code> removes the opacity fade transition (the bar still fills, but without the show/hide animation).</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="rp-tokens">
+      <h2 id="rp-tokens">Tokens used</h2>
+      <ul>
+        <li><code>--line</code> (track background, mixed 66 % with transparent)</li>
+        <li><code>--accent</code>, <code>--info</code>, <code>--success</code> (fill gradient stops)</li>
+        <li><code>--ease-out</code> (opacity transition)</li>
+        <li>Fixed values — <code>height: 3px</code>, <code>z-index: 60</code> (no token; intentional)</li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row"><span class="docs-history__date">2026-05-25</span><a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a><span class="docs-history__note">Initial showcase for the auto-injected <code>reading-progress</code> bar (3 px gradient, hidden on short pages, no opt-out API).</span></li>
+      </ul>
+    </footer>
+
+  </main>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+  <aside class="docs-toc" aria-label="On this page"></aside>
+
+</body></html>

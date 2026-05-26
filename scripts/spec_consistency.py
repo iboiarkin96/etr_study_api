@@ -4,7 +4,7 @@ Runs three checks:
 
 1. **operationId ↔ spec page**: every operation page declares ``data-spec-operation-id`` on
    ``<body>``; the script verifies that each declared ID is unique across pages and (unless the
-   page is in ``draft`` status) is present in ``docs/openapi/openapi-baseline.json``.
+   page is in ``draft`` status) is present in ``services/portal/openapi/openapi-baseline.json``.
 
 2. **OpenAPI → spec page**: for every ``operationId`` in the OpenAPI document, there must be
    exactly one operation page that declares it. Pages explicitly tagged
@@ -13,7 +13,7 @@ Runs three checks:
    linter ``spec_lint.py`` already flags them).
 
 3. **Error code/key ↔ catalog**: every ``code`` / ``key`` pair listed in section 12 of an
-   operation page must be registered on ``docs/internal/api/_shared/error-catalog.html``. Catalog
+   operation page must be registered on ``services/portal/internal/api/_shared/error-catalog.html``. Catalog
    entries that no operation references are reported as warnings (not failures).
 
 Exit codes:
@@ -31,9 +31,11 @@ from collections.abc import Iterable
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OPERATIONS_GLOB = "docs/internal/api/*/operations/*.html"
-ERROR_CATALOG = REPO_ROOT / "docs/internal/api/_shared/error-catalog.html"
-OPENAPI_BASELINE = REPO_ROOT / "docs/openapi/openapi-baseline.json"
+OPERATIONS_GLOB = "services/portal/internal/services/api/reference/*/operations/*.html"
+ERROR_CATALOG = (
+    REPO_ROOT / "services/portal/internal/services/api/reference/_shared/error-catalog.html"
+)
+OPENAPI_BASELINE = REPO_ROOT / "services/portal/public/reference/api/openapi-baseline.json"
 
 # A spec page in these statuses is allowed to lack a corresponding OpenAPI operation:
 # the spec is the source of truth and may precede implementation.

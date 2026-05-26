@@ -1,0 +1,1354 @@
+[
+  {
+    "id": "BL-026",
+    "title": "QA foundation: tester space, process, and full testing pyramid (FE + BE)",
+    "professions": ["qa", "sre"],
+    "group": "devops",
+    "tags": ["tech-debt"],
+    "sprint": "2026-W20",
+    "status": "todo",
+    "priority": "P0",
+    "eta_hours": 24,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Stand up a dedicated QA workspace + canonical testing pyramid (unit/integration/e2e/visual) shared by frontend and backend.",
+    "problem": "Today there is no QA hub, no agreed-on test layer ratios, and no single page that explains the difference between unit, integration, and e2e tests for this codebase. Coverage looks healthy but levels overlap and no one owns the gaps.",
+    "actions": [
+      "Create internal/qa/{overview,layers,tooling,escalation}.html",
+      "Document the pyramid: target ratios per layer + when to add a test at each level",
+      "Pick canonical tooling per layer (pytest, Playwright, Hypothesis, k6) and pin versions",
+      "Wire QA hub into nav-tree-internal.json + cross-link from roles/qa",
+      "Add a roles/qa/radar entry per layer so blind spots are visible"
+    ],
+    "acceptance": [
+      "QA overview page renders and shows the full pyramid with current coverage per layer",
+      "Each layer has its own how-to page with a runnable example",
+      "Sidebar lists the QA hub; roles/qa cross-links to it"
+    ]
+  },
+  {
+    "id": "BL-005",
+    "title": "Integration tests against the database (CI)",
+    "professions": ["qa", "dev", "sre"],
+    "group": "backend",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P1",
+    "eta_hours": 12,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Run integration tests against a real database in CI, not a mock — catch migration + concurrency regressions before merge.",
+    "problem": "Current backend tests stub the DB layer. Mock/prod divergence has bitten us; migrations pass locally but break on a fresh schema. We need a CI job that boots a throwaway Postgres and runs the full integration suite against it.",
+    "actions": [
+      "Add a Postgres service container to .github/workflows/test.yml",
+      "Bootstrap schema via the same migration command used in prod",
+      "Mark integration tests with a pytest marker so they can run separately",
+      "Add a `make test-integration` target that mirrors CI locally",
+      "Document the test-data seeding contract"
+    ],
+    "acceptance": [
+      "CI job `test-integration` runs against Postgres on every PR",
+      "Migration regressions surface in CI (verified via a known-bad seed)",
+      "Local `make test-integration` matches CI behaviour"
+    ]
+  },
+  {
+    "id": "BL-028",
+    "title": "Working Swagger for frontend validation only",
+    "professions": ["dev", "sa"],
+    "group": "frontend",
+    "tags": ["feature"],
+    "sprint": "2026-W20",
+    "status": "todo",
+    "priority": "P1",
+    "eta_hours": 8,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Mount Swagger UI in the portal so frontend devs can validate request/response shapes without spinning up the backend.",
+    "problem": "Frontend devs need a way to see live OpenAPI examples without running the backend. The current spec is static markdown; Swagger UI never finishes loading because of asset paths.",
+    "actions": [
+      "Mount Swagger UI under /reference/api/swagger with the canonical openapi.yaml as source",
+      "Pin the UI version and host the bundle locally (no CDN)",
+      "Hide write operations — frontend validation only, no `Try it out`",
+      "Add a portal nav entry under Reference > API"
+    ],
+    "acceptance": [
+      "Swagger UI loads with all endpoints and example payloads",
+      "No console errors; assets served from same origin",
+      "Reference > API > Swagger link works from the sidebar"
+    ]
+  },
+  {
+    "id": "BL-030",
+    "title": "Requirements: traceability, stakeholder map, requirement conflicts",
+    "professions": ["sa", "manager"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "2026-W21",
+    "status": "todo",
+    "priority": "P1",
+    "eta_hours": 9,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Build a traceability matrix that ties every requirement to its stakeholder, source document, and test — and flag where requirements contradict.",
+    "problem": "Requirements live scattered across RFCs, ADRs, and conversation threads. There is no single map showing who asked for what, where the requirement lives, or whether two stakeholders want incompatible things.",
+    "actions": [
+      "Author internal/sa/requirements/traceability.html with a JSON-backed matrix",
+      "Add a stakeholder map page (org chart with goals + concerns per actor)",
+      "Document the conflict-resolution protocol (RACI + escalation path)",
+      "Cross-link each ADR to the requirement(s) it satisfies"
+    ],
+    "acceptance": [
+      "Matrix renders with at least 15 real requirements traced end-to-end",
+      "Every active RFC links back to its stakeholder + source requirement",
+      "Conflict page lists at least 3 documented trade-offs with resolutions"
+    ]
+  },
+  {
+    "id": "BL-031",
+    "title": "Read-model caching strategy and fallback policy",
+    "professions": ["architect", "dev"],
+    "group": "backend",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P1",
+    "eta_hours": 10,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Define the caching strategy for read models — TTLs, invalidation triggers, and what to serve when the cache is cold or stale.",
+    "problem": "Read paths re-query the primary every time; latency is fine today but won't be at 10× load. There's no documented policy for when to cache, when to invalidate, or what to return when the cache is unavailable.",
+    "actions": [
+      "Write an ADR covering: caching tiers, TTL per read model, invalidation hooks",
+      "Define the fallback policy: serve-stale vs hard-fail per endpoint",
+      "Add a `cache-policy.yaml` SoT consumed by the runtime",
+      "Add metrics: cache hit ratio, stale-serve count, fallback count"
+    ],
+    "acceptance": [
+      "ADR merged with stakeholder sign-off",
+      "Top 3 read endpoints honour the cache-policy.yaml at runtime",
+      "Dashboard shows hit ratio per endpoint"
+    ]
+  },
+  {
+    "id": "BL-032",
+    "title": "Async REST pattern: 202 + job status + pagination/sorting",
+    "professions": ["architect", "dev"],
+    "group": "backend",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P1",
+    "eta_hours": 10,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Codify the async-REST pattern: 202 Accepted + job-status endpoint + canonical pagination/sorting query params.",
+    "problem": "Long-running endpoints currently block; some return 200 immediately and lie, some hang. Pagination/sorting params are ad-hoc per endpoint. Frontend can't predict how any new endpoint behaves.",
+    "actions": [
+      "Write an ADR fixing the 202 → /jobs/{id} → 200 contract",
+      "Standardise pagination (`?page`, `?per_page`, `Link` header)",
+      "Standardise sorting (`?sort=field,-field2`)",
+      "Add OpenAPI examples for each pattern; update existing endpoints incrementally"
+    ],
+    "acceptance": [
+      "ADR merged",
+      "At least 2 long-running endpoints follow the new contract end-to-end",
+      "OpenAPI lint rule enforces pagination/sort param naming"
+    ]
+  },
+  {
+    "id": "BL-033",
+    "title": "DB capacity + SQL performance playbook + index audit",
+    "professions": ["architect", "dev", "sre"],
+    "group": "backend",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P1",
+    "eta_hours": 14,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Capture a database capacity model + SQL-perf playbook + index audit so query regressions don't ship silently.",
+    "problem": "We have no model for `rows × access frequency × QPS` at expected growth, no runbook for diagnosing slow queries, and indexes were added reactively. The first scaling event will hurt.",
+    "actions": [
+      "Build a capacity model (table + sparkline) for top-10 tables",
+      "Write internal/sre/db-perf-playbook.html: EXPLAIN walkthrough, common pitfalls",
+      "Run an index audit; document each non-PK index with the query that justifies it",
+      "Add a periodic `pg_stat_statements` snapshot job + dashboard"
+    ],
+    "acceptance": [
+      "Capacity model published with refresh recipe",
+      "Playbook has 3 worked examples (slow query → fixed)",
+      "Index audit doc lists every index + its justification"
+    ]
+  },
+  {
+    "id": "BL-034",
+    "title": "Concurrency scenarios: ACID/isolation guide + race tests",
+    "professions": ["architect", "dev", "qa"],
+    "group": "backend",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P1",
+    "eta_hours": 14,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Document the concurrency model (ACID + isolation level + locking) and back it with race-condition tests for the top 3 write paths.",
+    "problem": "Isolation level isn't documented; nobody knows whether the system tolerates phantom reads. There are zero tests that intentionally interleave writes to verify safety. Race bugs will be hard to catch in prod.",
+    "actions": [
+      "Write internal/architect/concurrency.html: ACID, isolation levels, our choices",
+      "Identify top 3 write paths most exposed to concurrency",
+      "Add race tests (pytest-asyncio gather pattern) for each",
+      "Document the locking primitives used (row locks, advisory locks)"
+    ],
+    "acceptance": [
+      "Concurrency guide merged",
+      "3 race tests in CI; deliberately failing variant proves they're real",
+      "Each top-3 write path has its lock strategy documented inline"
+    ]
+  },
+  {
+    "id": "BL-035",
+    "title": "Security hardening: PII classification, masking, retention",
+    "professions": ["sre", "sa"],
+    "group": "devops",
+    "tags": ["feature"],
+    "sprint": "2026-W21",
+    "status": "todo",
+    "priority": "P1",
+    "eta_hours": 9,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Classify every PII field, define masking rules for logs/exports, and set retention windows per data class.",
+    "problem": "PII isn't classified; logs may leak emails; we have no documented retention policy. Compliance review would fail today.",
+    "actions": [
+      "Inventory PII fields across the schema; tag each (`pii.email`, `pii.phone`, …)",
+      "Add a masking layer for log output (structured logging hook)",
+      "Define retention windows per class; document in internal/sre/data-retention.html",
+      "Add a yearly purge job spec"
+    ],
+    "acceptance": [
+      "Field-level PII tags exist in the schema metadata",
+      "Logs sampled in CI contain no raw PII",
+      "Retention policy page published with sign-off block"
+    ]
+  },
+  {
+    "id": "BL-047",
+    "title": "Playwright visual-regression harness for component galleries",
+    "professions": ["qa", "dev"],
+    "group": "frontend",
+    "tags": ["feature"],
+    "sprint": "2026-W20",
+    "status": "todo",
+    "priority": "P1",
+    "eta_hours": 10,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Wire a Playwright visual-diff job over the UI Kit showcase pages so accidental visual regressions block merges.",
+    "problem": "UI Kit changes ripple across 100+ pages. Today regressions are caught manually in the browser — usually after merge. We need pixel-diff coverage on the canonical showcase URLs.",
+    "actions": [
+      "Add Playwright + visual-comparison dep with pinned versions",
+      "Identify the 20 most-load-bearing showcase pages",
+      "Take baseline snapshots in light + dark + mobile viewports",
+      "Add CI job that fails on > 0.1% diff with annotated artefacts"
+    ],
+    "acceptance": [
+      "`make visual-test` runs locally and produces diffs",
+      "CI fails on a deliberate visual regression",
+      "Baselines stored under tests/visual/baselines/ with refresh recipe"
+    ]
+  },
+  {
+    "id": "BL-048",
+    "title": "Public/internal documentation portal IA + governance consolidation (RFC 0004)",
+    "professions": ["sa", "architect"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "2026-W20",
+    "status": "in-progress",
+    "priority": "P1",
+    "eta_hours": 20,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Land RFC 0004: a single, audited IA for public + internal portals; consolidate governance pages under one nav root.",
+    "problem": "Pages drifted into 4 parallel taxonomies (governance/, sa/, internal/, public/). Same content lives in 2-3 places; sidebars contradict each other. RFC 0004 is mid-flight (phases E + F left).",
+    "actions": [
+      "Finish phase E: collapse governance/ into internal/governance/",
+      "Finish phase F: emit the consolidated nav-tree-internal.json from a generator",
+      "Verify with check_asset_refs.py — zero stale hrefs",
+      "Update sidebars for both portals to the new IA",
+      "Close out RFC 0004 with status=accepted + audit notes"
+    ],
+    "acceptance": [
+      "RFC 0004 marked accepted",
+      "Sidebar matches the canonical IA on both portals",
+      "check_asset_refs.py exits 0"
+    ]
+  },
+  {
+    "id": "BL-006",
+    "title": "Test pyramid: unit tests + property-based tests (Hypothesis)",
+    "professions": ["qa", "dev"],
+    "group": "backend",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 10,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Backfill unit tests + add Hypothesis property tests for the pure-function layer (validators, parsers, scoring).",
+    "problem": "Unit coverage is lopsided — service layer at 80%, pure utils at 30%. Pure functions are exactly where property-based tests pay off; we don't run any today.",
+    "actions": [
+      "Identify pure-function modules (validators, parsers, scoring)",
+      "Add Hypothesis dep + write strategies per input type",
+      "Author property tests for the top 5 functions",
+      "Document the Hypothesis pattern in qa/layers/property-based.html"
+    ],
+    "acceptance": [
+      "Unit coverage on pure-function modules ≥ 90%",
+      "At least 5 property tests in CI",
+      "Pattern doc has a runnable example"
+    ]
+  },
+  {
+    "id": "BL-007",
+    "title": "E2E: HTTP scenarios against a running application",
+    "professions": ["qa", "dev"],
+    "group": "backend",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 10,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Add HTTP-level e2e scenarios that hit a real running app (compose stack) covering the top 5 user journeys.",
+    "problem": "Our highest-value tests today stop at the service layer. Nothing exercises the actual HTTP boundary including middleware, auth, and serialisation. Regressions in middleware are invisible.",
+    "actions": [
+      "Add `make e2e-up` that boots the compose stack with seeded data",
+      "Pick 5 user journeys (login → action → result)",
+      "Write each as an HTTP-level scenario using httpx",
+      "Add CI job that runs e2e against the stack"
+    ],
+    "acceptance": [
+      "5 e2e scenarios pass locally and in CI",
+      "Failure surfaces the offending HTTP step, not a stack trace",
+      "Seed data is reproducible across runs"
+    ]
+  },
+  {
+    "id": "BL-008",
+    "title": "Mutation testing pilot for critical rules",
+    "professions": ["qa", "dev"],
+    "group": "backend",
+    "tags": ["research"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Pilot mutation testing (mutmut) on the scoring + validation rules to measure how often tests would catch a real bug.",
+    "problem": "Coverage % overstates safety — branches can be 100% covered by tests that assert nothing meaningful. Mutation testing exposes weak assertions.",
+    "actions": [
+      "Add mutmut dev dependency",
+      "Run against scoring + validation modules only (scoped pilot)",
+      "Document mutation score; convert top survivors into test gaps",
+      "Decide: roll out or shelve based on signal/cost"
+    ],
+    "acceptance": [
+      "Pilot report with mutation score per module",
+      "At least 3 test gaps converted into new tests",
+      "Decision doc (adopt/shelve) merged"
+    ]
+  },
+  {
+    "id": "BL-017",
+    "title": "Distributed tracing (OpenTelemetry) and trace context",
+    "professions": ["sre", "dev"],
+    "group": "devops",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 12,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Instrument services with OpenTelemetry so a request can be followed end-to-end across the HTTP → DB → cache hops.",
+    "problem": "Debugging latency outliers means grepping logs across 3 services and guessing causality. Trace IDs aren't propagated. SRE work is way harder than it needs to be.",
+    "actions": [
+      "Add opentelemetry-sdk + auto-instrumentation for FastAPI + SQLAlchemy",
+      "Propagate trace context via W3C traceparent header",
+      "Ship traces to a local Jaeger in compose; document setup",
+      "Add the trace ID to log output for correlation"
+    ],
+    "acceptance": [
+      "A single request shows a complete trace tree in Jaeger",
+      "Log lines carry the trace ID",
+      "SRE runbook page documents how to read a trace"
+    ]
+  },
+  {
+    "id": "BL-022",
+    "title": "Single source of truth for application / OpenAPI version metadata",
+    "professions": ["sa", "dev"],
+    "group": "docs",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 4,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Pick one source of truth for version metadata (app version, OpenAPI version, image tag) and derive every other surface from it.",
+    "problem": "Version drifts across pyproject.toml, openapi.yaml, the Docker tag, and the portal footer. Releases ship with mismatched numbers.",
+    "actions": [
+      "Pick pyproject.toml as the canonical version source",
+      "Generate openapi.yaml `info.version` from it at build time",
+      "Stamp the Docker tag + portal footer from the same source",
+      "Add a pre-commit check that fails on drift"
+    ],
+    "acceptance": [
+      "All four surfaces show the same version at all times",
+      "Pre-commit fails if any drifts",
+      "Release runbook references the single source"
+    ]
+  },
+  {
+    "id": "BL-023",
+    "title": "CI: optional HTTP smoke or load-regression job",
+    "professions": ["qa", "sre"],
+    "group": "devops",
+    "tags": ["research"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Add an opt-in CI job that runs a 60-second HTTP smoke / load regression so latency regressions surface before release.",
+    "problem": "Performance regressions are only caught when someone notices the UI feel slow. By then they're already in main. A short k6 burst on demand would prevent that.",
+    "actions": [
+      "Author a small k6 script: 100 RPS for 60s against the top endpoints",
+      "Wire it as a manual-dispatch GH workflow",
+      "Publish a baseline; fail if p95 regresses > 25%",
+      "Document how to interpret the report"
+    ],
+    "acceptance": [
+      "Manual-dispatch workflow exists and runs to completion",
+      "Baseline checked into the repo",
+      "A deliberate slowdown causes the job to fail"
+    ]
+  },
+  {
+    "id": "BL-024",
+    "title": "Redis adoption: idempotency cache and short-lived platform data",
+    "professions": ["dev", "architect"],
+    "group": "backend",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 10,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Introduce Redis for two specific use cases: idempotency keys and short-lived platform data (sessions, rate limits).",
+    "problem": "We currently fake idempotency in Postgres which costs writes. Sessions also sit in Postgres. Both are textbook Redis use cases. Adopting it now keeps the schema clean later.",
+    "actions": [
+      "Add Redis to compose + production manifest",
+      "Build an idempotency middleware backed by Redis SETNX + TTL",
+      "Migrate session store to Redis with a feature flag",
+      "Document Redis ops: persistence, eviction, backup"
+    ],
+    "acceptance": [
+      "Idempotency middleware live with a passing e2e test",
+      "Session store flag flips with zero downtime",
+      "Ops doc covers eviction + failover"
+    ]
+  },
+  {
+    "id": "BL-025",
+    "title": "Document versioning: Document Version field and change policy",
+    "professions": ["sa", "manager"],
+    "group": "docs",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Add a `Document Version` field + change policy to every governance doc so reviewers know which revision they signed off on.",
+    "problem": "Docs get edited in place without a version stamp; sign-off applies to 'whatever the page said at the time'. Hard to audit later.",
+    "actions": [
+      "Define the policy: bump major on breaking, minor on additive",
+      "Add a docs-meta block to the canonical page template",
+      "Backfill the field on the top 20 governance pages",
+      "Add a pre-commit check that warns when a page changes without a bump"
+    ],
+    "acceptance": [
+      "Policy page merged",
+      "Top 20 governance pages carry a version stamp",
+      "Pre-commit warns on un-bumped edits"
+    ]
+  },
+  {
+    "id": "BL-029",
+    "title": "PDoc: navigation and unified application theme",
+    "professions": ["sa", "dev"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 8,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Theme the pdoc-generated API reference to match the portal, with a working sidebar that mirrors the module tree.",
+    "problem": "pdoc output sits at /reference/api/python/ with default styling; the nav is broken and it looks like a different product. Users bounce.",
+    "actions": [
+      "Author a pdoc HTML template that loads the portal stylesheet",
+      "Wire pdoc's nav into the portal sidebar at build time",
+      "Verify dark mode + mobile layout still work",
+      "Add a make target so the docs rebuild deterministically"
+    ],
+    "acceptance": [
+      "Generated reference looks visually identical to a hand-authored portal page",
+      "Sidebar nav navigates between modules",
+      "Dark mode + mobile tested"
+    ]
+  },
+  {
+    "id": "BL-036",
+    "title": "Modeling pack: UML Activity + State Machine + BPMN + RACI",
+    "professions": ["sa", "manager", "architect"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 12,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Ship a 'modeling pack' page: UML Activity, State Machine, BPMN, and RACI templates with the conventions we use.",
+    "problem": "Different docs use different notations for the same things; readers waste time decoding. A canonical pack settles the question.",
+    "actions": [
+      "Author internal/sa/modeling/pack.html with one canonical example per notation",
+      "Add PlantUML source for each example (no Mermaid)",
+      "Document when to reach for each notation",
+      "Cross-link from architect onboarding"
+    ],
+    "acceptance": [
+      "Modeling pack page published with 4 worked examples",
+      "Examples render via Kroki",
+      "Architect onboarding links to the pack"
+    ]
+  },
+  {
+    "id": "BL-037",
+    "title": "Estimation governance: plan/fact, forecasting, stakeholder SLA",
+    "professions": ["manager", "sa"],
+    "group": "docs",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 8,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Document the estimation model: plan-vs-fact tracking, forecasting rules, and the SLA we commit to stakeholders.",
+    "problem": "Estimates are guesses logged nowhere. There's no plan-vs-fact loop, so the next estimate is no better than the last. Stakeholders don't know what 'P1 in W21' actually promises.",
+    "actions": [
+      "Author internal/manager/estimation/overview.html",
+      "Add a plan/fact table to each retrospective",
+      "Document the forecasting heuristic (rolling 4-sprint median)",
+      "Publish the stakeholder SLA matrix (P0..P3 → response time)"
+    ],
+    "acceptance": [
+      "Estimation overview page merged",
+      "Last 4 sprints have a plan/fact entry",
+      "SLA matrix is referenced from the public-facing roadmap"
+    ]
+  },
+  {
+    "id": "BL-038",
+    "title": "Feature flags and A/B experimentation baseline",
+    "professions": ["dev", "architect"],
+    "group": "backend",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 10,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Pick a feature-flag system + write the experimentation baseline (hypothesis → metric → readout) we expect every A/B to follow.",
+    "problem": "Risky changes either ship behind a manual env var or not at all. No team-wide pattern for A/B. The first real experiment will reinvent the wheel.",
+    "actions": [
+      "Evaluate GrowthBook vs Unleash vs a homegrown YAML flag file",
+      "Pick one and document the integration",
+      "Write the experimentation template: hypothesis → metric → readout",
+      "Run one toy A/B to validate end-to-end"
+    ],
+    "acceptance": [
+      "ADR records the choice",
+      "Library wired into one endpoint with a flag",
+      "Toy A/B has a published readout"
+    ]
+  },
+  {
+    "id": "BL-039",
+    "title": "Interactive component explorer (Storybook-tier state previews)",
+    "professions": ["sa", "dev"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 14,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Add an interactive explorer to each UI Kit component page: pick variant + state + theme + viewport and see it live.",
+    "problem": "Showcase pages render one canonical example. Reviewers can't see 'how does this button look in dark mode, disabled, on mobile?' without writing markup.",
+    "actions": [
+      "Design a `<component-explorer>` web component (variant/state/theme/viewport selectors)",
+      "Mount it on the top 10 component pages",
+      "Persist last-used state in localStorage per component",
+      "Document the contract (data-* attrs for variant axes)"
+    ],
+    "acceptance": [
+      "Explorer renders on 10 component pages",
+      "All four axes toggle independently and update the preview",
+      "State persists across reloads"
+    ]
+  },
+  {
+    "id": "BL-040",
+    "title": "Backfill screen specs for top-3 unspec'd pages",
+    "professions": ["sa"],
+    "group": "docs",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 9,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Write screen specs (purpose, states, copy, data deps, a11y) for the 3 most-trafficked pages that currently lack one.",
+    "problem": "Some flagship pages have zero spec. Any redesign starts from reverse-engineering the live page — slow, error-prone, and erases the original intent.",
+    "actions": [
+      "Identify the 3 unspec'd pages by traffic",
+      "For each: write purpose, states, copy, data deps, a11y notes, error cases",
+      "Cross-link to component explorer entries",
+      "Add to internal/sa/screens/ index"
+    ],
+    "acceptance": [
+      "3 screen-spec pages published",
+      "Each includes wireframe + state table",
+      "screens/ index sorted by traffic"
+    ]
+  },
+  {
+    "id": "BL-044",
+    "title": "Per-component testing matrix (link spec to e2e/unit tests)",
+    "professions": ["qa", "sa"],
+    "group": "docs",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Add a 'Testing' section to every UI Kit component page that links to the unit + e2e + visual tests covering it.",
+    "problem": "Spec, code, and tests live in 3 places. Component reviewers can't tell what's actually tested without grepping. Coverage gaps are invisible.",
+    "actions": [
+      "Add a `tests.json` per component listing covering test files",
+      "Render a 'Testing' section in the showcase template",
+      "Backfill the json for the top 20 components",
+      "Add a check that warns when a component has no tests linked"
+    ],
+    "acceptance": [
+      "Top 20 components show a populated Testing section",
+      "Check warns on components without test links",
+      "Section links resolve in CI"
+    ]
+  },
+  {
+    "id": "BL-045",
+    "title": "Changelog rollup automation from history tables",
+    "professions": ["sa", "dev"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Auto-generate a weekly changelog rollup by scraping every page's docs-history block.",
+    "problem": "Each page has its own history table, but there's no portal-wide view of what changed this week. Stakeholders ask 'what's new?' and the answer is 'go look around'.",
+    "actions": [
+      "Write a scraper that walks all *.html and extracts docs-history rows",
+      "Group by week; render to internal/governance/changelog.html",
+      "Add an RSS feed",
+      "Cron weekly via GitHub Actions"
+    ],
+    "acceptance": [
+      "Changelog page lists last 8 weeks of changes",
+      "RSS validates",
+      "Workflow runs Monday 09:00"
+    ]
+  },
+  {
+    "id": "BL-046",
+    "title": "Render review_slot_state_machine.svg (blocked on Kroki)",
+    "professions": ["sa", "dev"],
+    "group": "docs",
+    "tags": ["bug"],
+    "sprint": "2026-W21",
+    "status": "blocked",
+    "priority": "P2",
+    "eta_hours": 3,
+    "owner": "ivan",
+    "blocked_by": "kroki-service-down",
+    "updated": "2026-05-17",
+    "summary": "Re-render review_slot_state_machine.svg — currently a broken image because Kroki rejects the embedded PlantUML.",
+    "problem": "The diagram source uses a PlantUML feature Kroki's pinned version doesn't recognise, so the SVG ships as a broken image on every page referencing it.",
+    "actions": [
+      "Reproduce the Kroki rejection locally",
+      "Either upgrade Kroki or rewrite the diagram with supported syntax",
+      "Re-render to SVG; commit",
+      "Add a render check to pre-commit so this can't regress"
+    ],
+    "acceptance": [
+      "SVG renders in the portal",
+      "Pre-commit catches a deliberate syntax break",
+      "Issue linked to the fixed commit"
+    ]
+  },
+  {
+    "id": "BL-049",
+    "title": "RabbitMQ integration — async inter-service messaging",
+    "professions": ["architect", "dev"],
+    "group": "backend",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 12,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Stand up RabbitMQ for async inter-service messaging — publish/consume contract, DLQ, and ops runbook.",
+    "problem": "Inter-service calls are HTTP-synchronous today. Long-running flows block the caller; failures cascade. A broker decouples them but we have no chosen tech, no contract, no runbook.",
+    "actions": [
+      "Add RabbitMQ to compose + production manifest",
+      "Define the message contract (envelope, headers, idempotency key)",
+      "Implement a publisher + consumer for one real flow",
+      "Document DLQ behaviour and the SRE runbook"
+    ],
+    "acceptance": [
+      "One real flow runs through RabbitMQ end-to-end",
+      "DLQ exists and is monitored",
+      "Runbook covers: stuck consumer, full queue, broker down"
+    ]
+  },
+  {
+    "id": "BL-009",
+    "title": "Distributed rate limiting with Redis (multi-instance)",
+    "professions": ["sre", "dev"],
+    "group": "devops",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P3",
+    "eta_hours": 8,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Replace per-instance in-memory rate limiting with a Redis-backed shared counter so limits actually hold under multi-instance deploys.",
+    "problem": "Rate limit lives in process memory; with 3 instances a client gets 3× the limit. A misbehaving caller can still take us down.",
+    "actions": [
+      "Pick the algorithm: token bucket vs sliding window",
+      "Implement on Redis with Lua for atomicity",
+      "Replace the in-memory middleware",
+      "Add a chaos test: 3 instances + 1 abusive client"
+    ],
+    "acceptance": [
+      "Aggregate limit holds across instances under load",
+      "Chaos test passes",
+      "Per-route limits documented in the API reference"
+    ]
+  },
+  {
+    "id": "BL-010",
+    "title": "PostgreSQL as primary database and migration path from SQLite",
+    "professions": ["sre", "dev", "architect"],
+    "group": "devops",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P3",
+    "eta_hours": 14,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Make Postgres the primary; document and rehearse the SQLite → Postgres migration path so dev can stay on SQLite if they want.",
+    "problem": "SQLite has carried us this far but blocks concurrency work, real index audits, and many ORM features. We need a clean cutover with a documented rollback.",
+    "actions": [
+      "Add Postgres to compose; make it the default DSN",
+      "Migrate the test suite + CI to Postgres",
+      "Document the data export/import procedure",
+      "Rehearse the cutover on a staging snapshot"
+    ],
+    "acceptance": [
+      "CI runs against Postgres",
+      "Staging cutover rehearsal documented with timing",
+      "Rollback path tested"
+    ]
+  },
+  {
+    "id": "BL-012",
+    "title": "Test data: seeds, fixtures, runbook",
+    "professions": ["qa", "dev"],
+    "group": "backend",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P3",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Build a canonical test-data set + fixtures + the runbook for refreshing it after a schema change.",
+    "problem": "Every test file rolls its own fixtures. Schema changes break tests in surprising places because nobody owns the seed data.",
+    "actions": [
+      "Pick a fixture pattern (factory-boy or hand-rolled SQL)",
+      "Author a canonical seed set covering all entity types",
+      "Document the refresh runbook for schema changes",
+      "Migrate at least 3 noisy test files to the shared fixtures"
+    ],
+    "acceptance": [
+      "Shared fixtures used by ≥ 3 test files",
+      "Seed runbook merged",
+      "A deliberate schema change updates fixtures in one place"
+    ]
+  },
+  {
+    "id": "BL-013",
+    "title": "Feature flags (safe rollout)",
+    "professions": ["dev", "sre"],
+    "group": "backend",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P3",
+    "eta_hours": 8,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Production-grade feature-flag plumbing (separate from the A/B baseline) — percentage rollouts, kill switches, audit log.",
+    "problem": "BL-038 picks the tech. This task is the production plumbing: percentage rollouts, kill switches, audit log of who flipped what when.",
+    "actions": [
+      "Wire the chosen flag system into the runtime",
+      "Add a percentage-rollout primitive",
+      "Add an audit log of flag changes",
+      "Document the on-call kill-switch procedure"
+    ],
+    "acceptance": [
+      "Flag flips are logged with actor + timestamp",
+      "Percentage rollout works in a smoke test",
+      "On-call procedure documented + tested"
+    ]
+  },
+  {
+    "id": "BL-014",
+    "title": "Architecture fitness: enforced layer boundaries",
+    "professions": ["architect", "dev"],
+    "group": "backend",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P3",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Add architecture-fitness checks (import-linter) that fail CI when a layer imports across the boundary.",
+    "problem": "We have a layered architecture in our heads. Nothing enforces it. Domain code already reaches into the HTTP layer in 2 places.",
+    "actions": [
+      "Add import-linter with rules per layer",
+      "Fix existing violations",
+      "Wire into pre-commit + CI",
+      "Document the layer contract"
+    ],
+    "acceptance": [
+      "import-linter passes on main",
+      "Deliberate violation fails CI",
+      "Layer contract page merged"
+    ]
+  },
+  {
+    "id": "BL-019",
+    "title": "CI: container image SBOM and vulnerability scan",
+    "professions": ["sre"],
+    "group": "devops",
+    "tags": ["tech-debt"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P3",
+    "eta_hours": 4,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Emit an SBOM per container image and fail CI on HIGH/CRITICAL vulns.",
+    "problem": "We ship containers without an SBOM and without a vuln scan. A known-CVE base image could ship to prod today and we wouldn't know.",
+    "actions": [
+      "Add syft to produce the SBOM",
+      "Add grype/trivy to scan; fail on HIGH+",
+      "Attach SBOM as a release artefact",
+      "Document the override path for false positives"
+    ],
+    "acceptance": [
+      "Every release has an SBOM",
+      "Vuln scan blocks merge on HIGH/CRITICAL",
+      "Override path tested"
+    ]
+  },
+  {
+    "id": "BL-041",
+    "title": "Deprecation framework and migration guide template",
+    "professions": ["sa", "architect"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P3",
+    "eta_hours": 5,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Adopt a deprecation framework: lifecycle stages, deprecation notice format, migration-guide template.",
+    "problem": "Deprecations are announced inconsistently — sometimes in a release note, sometimes nowhere. Consumers find out by breakage. We need a predictable shape.",
+    "actions": [
+      "Define lifecycle stages (active/deprecated/sunset/removed)",
+      "Author the migration-guide template",
+      "Add a docs-meta `deprecation` block",
+      "Backfill on 3 already-deprecated endpoints"
+    ],
+    "acceptance": [
+      "Framework page merged",
+      "3 deprecation notices in the new format",
+      "Template used for the next real migration"
+    ]
+  },
+  {
+    "id": "BL-042",
+    "title": "Component dependency graph (auto-generated)",
+    "professions": ["sa", "dev"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P3",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Auto-generate a component dependency graph from import statements + CSS @imports so impact analysis becomes a click.",
+    "problem": "Touching a UI Kit primitive can ripple to 30+ pages. Today the only way to know is `grep -r`. A dependency graph would make this obvious.",
+    "actions": [
+      "Walk JS imports + CSS @imports across the UI Kit",
+      "Emit a JSON graph",
+      "Render with a force-directed layout (D3 or cytoscape)",
+      "Add 'used by' badge to each component page"
+    ],
+    "acceptance": [
+      "Graph page renders for the full UI Kit",
+      "Each component page shows its 'used by' list",
+      "Graph regenerates in CI"
+    ]
+  },
+  {
+    "id": "BL-043",
+    "title": "Motion specs with frame-by-frame video / Lottie reference",
+    "professions": ["sa", "dev"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P3",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-17",
+    "summary": "Add motion specs to every animated component: easing curve, duration, frame-by-frame reference or Lottie file.",
+    "problem": "Animation curves and durations live in CSS but nowhere in the spec; reviewers can't say 'this feels off' with specifics. Cross-team handoff is verbal.",
+    "actions": [
+      "Document the canonical easings + durations in a motion-tokens page",
+      "Add a Motion section to each animated component page",
+      "Where useful, capture a frame-by-frame reference video",
+      "Cross-link from prefers-reduced-motion guidance"
+    ],
+    "acceptance": [
+      "Motion-tokens page merged",
+      "Top 10 animated components have a Motion section",
+      "Reduced-motion guidance links each spec"
+    ]
+  },
+  {
+    "id": "BL-001",
+    "title": "CI pipeline: quality gates, coverage, docs-check",
+    "professions": ["sre", "qa"],
+    "group": "devops",
+    "tags": ["tech-debt"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P0",
+    "eta_hours": 16,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "CI pipeline with quality gates: ruff, mypy, pytest coverage threshold, docs link-check.",
+    "problem": "Every PR added drift — formatting, types, broken links. Without an enforced gate, reviewers became human linters.",
+    "actions": [
+      "Wire ruff + mypy + pytest into GH Actions",
+      "Pin coverage threshold (75% min, fail-under)",
+      "Add docs-check (check_asset_refs.py)",
+      "Cache deps for speed"
+    ],
+    "acceptance": [
+      "All gates run on every PR",
+      "Coverage below threshold blocks merge",
+      "Pipeline completes in < 5 min on warm cache"
+    ]
+  },
+  {
+    "id": "BL-002",
+    "title": "SLOs / SLAs, error budget, monitoring alerts",
+    "professions": ["sre", "architect"],
+    "group": "devops",
+    "tags": ["feature"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P0",
+    "eta_hours": 14,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "Defined the public SLOs/SLAs, an error budget, and the alert routing for budget burn.",
+    "problem": "Nothing defined 'is the service healthy?'; alerts fired on CPU spikes, not user-visible degradation.",
+    "actions": [
+      "Author SLO doc per service (latency, availability)",
+      "Define error budget + burn-rate alerts",
+      "Wire Prometheus rules + Alertmanager",
+      "Document the on-call response"
+    ],
+    "acceptance": [
+      "SLO page published per service",
+      "Burn-rate alerts fire on a synthetic load",
+      "On-call runbook merged"
+    ]
+  },
+  {
+    "id": "BL-003",
+    "title": "DB uniqueness + race safety + concurrency notes",
+    "professions": ["dev", "architect"],
+    "group": "backend",
+    "tags": ["tech-debt"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P1",
+    "eta_hours": 8,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "Added unique constraints + lock strategy for the duplicate-prone write paths; documented the concurrency notes.",
+    "problem": "Two of the heavy write endpoints could create duplicates under contention; no constraint, no row lock.",
+    "actions": [
+      "Identify duplicate-prone paths",
+      "Add unique constraints in a backward-compatible migration",
+      "Pick lock strategy per path (advisory vs row)",
+      "Document the choice"
+    ],
+    "acceptance": [
+      "Constraints in place; backfilled cleanly",
+      "Race test verifies no duplicate under load",
+      "Concurrency notes merged"
+    ]
+  },
+  {
+    "id": "BL-004",
+    "title": "Dependency security (pip-audit) + update policy",
+    "professions": ["sre", "dev"],
+    "group": "devops",
+    "tags": ["tech-debt"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P1",
+    "eta_hours": 4,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "pip-audit on every CI run + a stated update cadence + exception policy.",
+    "problem": "Dependencies aged silently; CVEs were unknown unknowns. No agreed cadence.",
+    "actions": [
+      "Add pip-audit to CI",
+      "Document the update cadence (monthly minor, weekly security)",
+      "Define exception policy for unfixable CVEs",
+      "Add owner per dep class"
+    ],
+    "acceptance": [
+      "pip-audit runs on every PR",
+      "Update cadence honoured for 2 cycles",
+      "Exception entries log the rationale"
+    ]
+  },
+  {
+    "id": "BL-020",
+    "title": "OpenAPI governance: lint + baseline + contract test",
+    "professions": ["sa", "dev"],
+    "group": "docs",
+    "tags": ["tech-debt"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P1",
+    "eta_hours": 10,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "Spectral lint + a baseline diff + contract test (Schemathesis) gating OpenAPI changes.",
+    "problem": "OpenAPI spec drifted from the live API; reviewers had no signal that a change was breaking.",
+    "actions": [
+      "Add Spectral with a custom ruleset",
+      "Snapshot the baseline; diff on PR",
+      "Wire Schemathesis as a contract test against the running app",
+      "Document the breaking-change escape hatch"
+    ],
+    "acceptance": [
+      "Lint blocks malformed specs",
+      "Diff comment posted on every PR touching openapi.yaml",
+      "Schemathesis passes on main"
+    ]
+  },
+  {
+    "id": "BL-021",
+    "title": "Continuous delivery: publish image to GHCR",
+    "professions": ["sre", "dev"],
+    "group": "devops",
+    "tags": ["feature"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P1",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "Tagged container images published to GHCR on every main merge + on tag.",
+    "problem": "Releases were built locally and pushed manually; no immutable artefact, no clear rollback target.",
+    "actions": [
+      "Add the build+push workflow",
+      "Tag with `main-<sha>` + semver on releases",
+      "Add image attestation (provenance)",
+      "Document the pull URL"
+    ],
+    "acceptance": [
+      "Image appears in GHCR for every merge",
+      "Semver tag exists for every release",
+      "Pull URL documented"
+    ]
+  },
+  {
+    "id": "BL-027",
+    "title": "Mobile docs UX (iPhone 17 Pro Max + adaptive layout)",
+    "professions": ["dev", "sa"],
+    "group": "frontend",
+    "tags": ["bug"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P1",
+    "eta_hours": 12,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-01",
+    "summary": "Adopted the unified mobile contract (≥1025 / 761-1024 / ≤760), removed viewport-conditional font sizes, tested on iPhone 17 Pro Max.",
+    "problem": "Docs broke on phones — overlapping sidebars, tiny fonts under width-conditional media. No canonical breakpoint set.",
+    "actions": [
+      "Pick canonical tiers and document in #mobile-contract",
+      "Strip width-conditional font-size rules",
+      "Build the mobile drawer that mirrors the desktop sidebar",
+      "Verify on real device + 3 viewport widths"
+    ],
+    "acceptance": [
+      "Mobile contract page is normative",
+      "No regressions across 3 widths",
+      "Real-device pass logged"
+    ]
+  },
+  {
+    "id": "BL-000",
+    "title": "Backlog page and layout (baseline)",
+    "professions": ["sa", "dev"],
+    "group": "docs",
+    "tags": ["tech-debt"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P3",
+    "eta_hours": 4,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-04-21",
+    "summary": "Original static backlog page — title, rows, status pills. Replaced by the cockpit in May 2026.",
+    "problem": "No live backlog existed; tickets lived in chat threads.",
+    "actions": [
+      "Author the static page with 50 rows",
+      "Wire into the sidebar",
+      "Add basic status pills"
+    ],
+    "acceptance": [
+      "Page exists",
+      "All 50 tasks listed",
+      "Sidebar entry resolves"
+    ]
+  },
+  {
+    "id": "BL-011",
+    "title": "Load testing (k6 / Locust) + SLO validation",
+    "professions": ["qa", "sre"],
+    "group": "devops",
+    "tags": ["research"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P3",
+    "eta_hours": 8,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "k6 scripts + a load profile per critical endpoint validating the SLO under expected and 2× load.",
+    "problem": "SLOs were asserted but never measured under load; no evidence we'd meet them.",
+    "actions": [
+      "Pick k6 over Locust (single-binary, easier CI)",
+      "Author scripts per critical endpoint",
+      "Run 1× + 2× expected load against staging",
+      "Publish results + recommendations"
+    ],
+    "acceptance": [
+      "k6 scripts checked in",
+      "Report published with p50/p95/p99",
+      "Recommendations turned into follow-up tickets"
+    ]
+  },
+  {
+    "id": "BL-015",
+    "title": "Changelog and release-time verification",
+    "professions": ["sa", "sre"],
+    "group": "docs",
+    "tags": ["feature"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P3",
+    "eta_hours": 5,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "CHANGELOG.md + a release-time check that fails if the new version has no entry.",
+    "problem": "Releases shipped without changelog entries; users couldn't tell what changed.",
+    "actions": [
+      "Pick the Keep-A-Changelog format",
+      "Add a release-time check",
+      "Backfill entries for the last 3 releases",
+      "Document the contribution flow"
+    ],
+    "acceptance": [
+      "CHANGELOG.md follows the format",
+      "Release fails without an entry",
+      "Last 3 releases backfilled"
+    ]
+  },
+  {
+    "id": "BL-016",
+    "title": "Repository cleanup + dead code removal",
+    "professions": ["dev"],
+    "group": "backend",
+    "tags": ["tech-debt"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P3",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "Removed dead modules, unused dependencies, stale dirs. Repo footprint down 18%.",
+    "problem": "Repo accumulated orphan files from earlier experiments; navigating got harder every month.",
+    "actions": [
+      "Run vulture for dead-code candidates",
+      "Audit deps with pip-tools' unused detector",
+      "Delete agreed-on files in batches",
+      "Verify tests + docs still pass"
+    ],
+    "acceptance": [
+      "Repo size reduced",
+      "No tests removed without deliberate intent",
+      "Audit log entry per deletion batch"
+    ]
+  },
+  {
+    "id": "BL-018",
+    "title": "Structured logging (JSON) + correlation IDs",
+    "professions": ["sre", "dev"],
+    "group": "devops",
+    "tags": ["feature"],
+    "sprint": "2026-W18",
+    "status": "done",
+    "priority": "P3",
+    "eta_hours": 6,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-08",
+    "summary": "Switched to structured JSON logging + per-request correlation ID propagated through middleware.",
+    "problem": "Logs were unstructured strings; impossible to filter or correlate across services.",
+    "actions": [
+      "Adopt structlog with JSON renderer",
+      "Generate correlation ID in middleware; pass via context",
+      "Include in every log call automatically",
+      "Update the SRE log query examples"
+    ],
+    "acceptance": [
+      "All log lines parse as JSON",
+      "Correlation ID present on every line of a request",
+      "Log query examples updated"
+    ]
+  }
+]

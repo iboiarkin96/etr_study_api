@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate cross-references in `docs/adr/*.html` and `docs/rfc/*.html`.
+"""Validate cross-references in `services/portal/internal/governance/adr/*.html` and `services/portal/internal/governance/rfc/*.html`.
 
 Three strict checks (any failure exits with status 1):
     1. Every relative `href`/`src` resolves to an existing file on disk.
@@ -22,9 +22,10 @@ from urllib.parse import unquote
 
 SCRIPT = Path(__file__).resolve()
 ROOT = SCRIPT.parent.parent
-DOCS = ROOT / "docs"
-ADR = DOCS / "adr"
-RFC = DOCS / "rfc"
+DOCS = ROOT / "services" / "portal"
+GOV = DOCS / "internal" / "governance"
+ADR = GOV / "adr"
+RFC = GOV / "rfc"
 
 HREF_RE = re.compile(r'(?:href|src)\s*=\s*"([^"]+)"', re.IGNORECASE)
 ID_RE = re.compile(r'\bid\s*=\s*"([^"]+)"', re.IGNORECASE)
@@ -170,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if not ADR.exists() or not RFC.exists():
-        print(f"adr/rfc directory missing: {ADR} / {RFC}", file=sys.stderr)
+        print(f"internal/governance/adr/rfc directory missing: {ADR} / {RFC}", file=sys.stderr)
         return 1
 
     pages = collect_pages()

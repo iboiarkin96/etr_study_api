@@ -1,7 +1,7 @@
 """Add default Page editors (data-maintainer-ids + mount + scripts) to hand-written docs HTML.
 
-Skips ``docs/pdoc/**`` (pdoc regenerates) and ``docs/assets/**`` (fragments).
-Skips ``docs/internal/portal/people/*/index.html`` (person profiles).
+Skips ``services/portal/internal/catalog/api/code-reference/**`` (pdoc regenerates) and ``services/frontend/portal/assets/**`` (fragments).
+Skips ``services/portal/internal/team/people/*/index.html`` (person profiles).
 
 Run from repo root: ``python scripts/apply_default_page_editor_to_docs.py``
 """
@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DOCS = PROJECT_ROOT / "docs"
+DOCS = PROJECT_ROOT / "services" / "frontend" / "portal"
 
 DEFAULT_MAINTAINER_ID = "16fc8b78537109162984a2fdbef6e142"
 
@@ -118,9 +118,13 @@ def main() -> int:
     n_changed = 0
     for path in sorted(DOCS.rglob("*.html")):
         rel = path.relative_to(DOCS).as_posix()
-        if rel.startswith("assets/") or rel.startswith("pdoc/"):
+        if (
+            rel.startswith("assets/")
+            or rel.startswith("pdoc/")
+            or rel.startswith("internal/services/api/code-reference/")
+        ):
             continue
-        if re.match(r"internal/portal/people/[^/]+/index\.html$", rel):
+        if re.match(r"internal/team/people/[^/]+/index\.html$", rel):
             continue
         try:
             if process_file(path, rel):

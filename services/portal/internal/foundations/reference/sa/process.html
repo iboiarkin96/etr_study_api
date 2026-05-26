@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>🔁 Process — how docs ship · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <style>
+    /* Local overlays for process.html — same shapes as diataxis.html / catalog.html
+    (steps list, anti-pattern list, tradeoff cards). All tokens v3 → dark theme is automatic. */
+
+    /* Numbered step list — each step is a card */
+    .steps { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; counter-reset: step; }
+    .steps li {
+    display: grid;
+    grid-template-columns: 2.6rem 1fr;
+    gap: var(--space-3);
+    align-items: baseline;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-left: var(--rail-w) solid var(--accent);
+    border-radius: var(--radius-md);
+    background: var(--bg-elev);
+    counter-increment: step;
+    }
+    .steps li::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: var(--font-mono);
+    font-size: var(--fs-300);
+    font-weight: var(--fw-bold);
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    }
+    .steps li strong { color: var(--text-strong); }
+    .steps li p { margin: 0; color: var(--muted); font-size: var(--fs-300); line-height: var(--lh-base); }
+
+    /* DoD check list — multi-column grid that fills the full content width.
+    Each <li> has THREE children logically: the ✓ glyph, the gate-pill, and
+    the prose. We give the <li> a 2-column grid (✓ | body) and wrap the
+    pill + prose inside `.dod__body` as one grid cell, so the text doesn't
+    fall into the narrow ✓ column. */
+    .dod {
+    display: grid;
+    gap: var(--space-2);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    }
+    .dod li {
+    display: grid;
+    grid-template-columns: 1.7rem 1fr;
+    gap: var(--space-3);
+    align-items: start;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--success) 4%, var(--bg-elev));
+    line-height: var(--lh-base);
+    }
+    .dod li::before {
+    content: "✓";
+    color: var(--success);
+    font-weight: var(--fw-bold);
+    text-align: center;
+    line-height: inherit;
+    }
+    .dod__body {
+    min-width: 0;                /* let the body cell shrink instead of forcing overflow */
+    }
+
+    /* Legend block — visually separates the two gate kinds so the
+    reader knows what AUTO / REVIEW mean before scanning the list. */
+    .gate-legend {
+    display: grid;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--bg-elev);
+    }
+    .gate-legend__row {
+    display: grid;
+    grid-template-columns: 4.6rem 1fr;
+    gap: var(--space-3);
+    align-items: baseline;
+    font-size: var(--fs-300);
+    line-height: var(--lh-base);
+    }
+    .gate-legend__pill {
+    display: flex;
+    justify-content: flex-start;
+    }
+    .gate-legend__text { color: var(--muted); }
+    .gate-legend__text strong { color: var(--text-strong); }
+
+    @media (max-width: 760px) {
+    .gate-legend__row { grid-template-columns: 1fr; gap: var(--space-1); }
+    }
+    /* Inline code in DoD items: keep the whole token on one line so the rounded
+    background-pill stays intact. The previous default let the browser break
+    mid-token (e.g. `data-*` → `data-` ⏎ `*`) leaving half-empty pills. */
+    .dod li code {
+    font-size: var(--fs-200);
+    padding: 1px 5px;
+    background: var(--bg-mute);
+    border-radius: var(--radius-xs);
+    white-space: nowrap;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    }
+
+    /* Anti-pattern list — rose-tinted */
+    .anti-list { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+    .anti-list li {
+    padding: var(--space-3) var(--space-4);
+    border-left: var(--rail-w) solid var(--rose);
+    background: color-mix(in srgb, var(--rose) 4%, var(--bg-mute));
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    }
+    .anti-list strong { color: var(--text-strong); }
+
+    /* Tradeoff cards — same as diataxis/catalog */
+    .tradeoff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+    .tradeoff { padding: var(--space-4) var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--bg-elev); }
+    .tradeoff--up   { border-left: var(--rail-w) solid var(--success); }
+    .tradeoff--down { border-left: var(--rail-w) solid var(--warn); }
+    .tradeoff__head { font-family: var(--font-mono); font-size: var(--fs-100); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-soft); margin: 0 0 var(--space-2); }
+    .tradeoff h3 { margin: 0 0 var(--space-2); color: var(--text-strong); font-size: var(--fs-400); }
+    .tradeoff p  { margin: 0; color: var(--muted); font-size: var(--fs-300); line-height: var(--lh-base); }
+
+    @media (max-width: 760px) {
+    .tradeoff-grid { grid-template-columns: 1fr; }
+    .steps li { grid-template-columns: 1fr; gap: var(--space-1); }
+    .steps li::before { font-size: var(--fs-200); }
+    }
+
+    /* ─── Gate pills · automated vs manual ───────────────────────────
+    Tags every DoD item / audit-cadence row / lifecycle step with
+    the kind of gate that catches it.  v3 tokens → dark theme auto. */
+    .gate-pill {
+    display: inline-flex; align-items: center;
+    padding: 1px 6px;
+    margin-right: var(--space-1);
+    border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
+    font-size: var(--fs-100);
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.05em;
+    vertical-align: baseline;
+    white-space: nowrap;
+    }
+    .gate-pill--auto {
+    background: color-mix(in srgb, var(--success) 14%, transparent);
+    color: var(--success);
+    border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+    }
+    .gate-pill--review {
+    background: color-mix(in srgb, var(--warn) 14%, transparent);
+    color: var(--warn);
+    border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+    }
+
+    /* Gates section — two-column split */
+    .gates-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    }
+    .gates-col {
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-elev);
+    }
+    .gates-col--auto   { border-left: var(--rail-w) solid var(--success); }
+    .gates-col--review { border-left: var(--rail-w) solid var(--warn); }
+    .gates-col h3 {
+    margin: 0 0 var(--space-3);
+    font-size: var(--fs-400);
+    color: var(--text-strong);
+    }
+    .gates-col__meta {
+    display: block;
+    margin: -0.6rem 0 var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--fs-100);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-soft);
+    }
+    .gate-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+    .gate-list li {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--bg-mute);
+    font-size: var(--fs-300);
+    line-height: var(--lh-base);
+    }
+    .gate-list code {
+    font-size: var(--fs-200);
+    padding: 1px 5px;
+    background: var(--bg-elev);
+    border-radius: var(--radius-xs);
+    white-space: nowrap;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    }
+    .gate-list strong { color: var(--text-strong); }
+
+    @media (max-width: 900px) {
+    .gates-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Foundations</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="principles.html">Principles</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">🔁 Process</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+
+    <article class="docs-prose">
+
+      <header class="page-hero page-head">
+        <p class="page-hero__eyebrow">🔁 Principle 03 · Lifecycle</p>
+        <h1 class="page-hero__h1">Process — <span class="accent">how docs ship &amp; stay alive</span></h1>
+        <div id="docs-top-nav"></div>
+        <p class="page-hero__lede">
+          Pages live in this repository and ship through the same pipeline as the code they describe. This is the
+          procedural deep-dive of <a href="principles.html">Principle 03</a> — eight operating rules, the ten-step
+          lifecycle, the Definition of Done, the audit cadence, and the anti-patterns that break the loop.
+        </p>
+      </header>
+
+      <div class="gate-legend" role="note" aria-label="Gate legend">
+        <p>Gate legend</p>
+        <div class="gate-legend__row">
+          <span class="gate-legend__pill"><span class="gate-pill gate-pill--auto">AUTO</span></span>
+
+          <span class="gate-legend__text"><strong>Mechanical gate.</strong> A script catches the violation in pre-commit or CI — before any human looks at the PR.</span>
+        </div>
+        <div class="gate-legend__row">
+          <span class="gate-legend__pill"><span class="gate-pill gate-pill--review">REVIEW</span></span>
+          <span class="gate-legend__text"><strong>Judgement gate.</strong> A reviewer rejects the PR in code review if the item is missing or unclear.</span>
+        </div>
+      </div>
+
+      <!-- 01 · OPERATING PRINCIPLES -->
+      <section class="numbered-section" aria-labelledby="ops-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="stance"><span class="lens-chip__dot"></span>Stance</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">01</span>
+          <h2 id="ops-h">Operating principles</h2>
+        </div>
+        <p class="numbered-section__lede">
+          Eight rules. Each rule answers «why does this process look the way it does?»
+        </p>
+        <ol>
+          <li><strong>Single source of truth.</strong> One topic = one canonical page. Other pages link to it; they never re-state it. If two pages contradict, fix the canonical one and update the others to point at it.</li>
+          <li><strong>Co-located with code.</strong> Docs live in the same repository, on the same branch, and change in the same PR as the code they describe. There is no separate doc CMS or wiki.</li>
+          <li><strong>Living, not archived.</strong> A page is either current or replaced. No «deprecated but kept around» pages — outdated content is removed in the same change that supersedes it.</li>
+          <li><strong>Plain language.</strong> Pages are read by engineers whose first language is rarely English. Short sentences, common words, one idea per sentence — see <a href="style-guide.html">🗣️ Style guide</a>.</li>
+          <li><strong>Glossary first.</strong> No new domain term lands without a definition added to <a href="../../../onboarding/glossary.html">the glossary</a> in the same PR. Term consistency is the foundation of every other doc.</li>
+          <li><strong>History is required.</strong> Every page ends with a History block. Every meaningful edit appends a row — the ledger that lets a future reader see when something was last verified.</li>
+          <li><strong>Diagrams are PlantUML.</strong> Every diagram is authored as a <code>.puml</code> source and rendered to SVG. No Mermaid, no draw.io, no screenshot-as-diagram — see <a href="../../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>.</li>
+          <li><strong>Definition of Done includes docs.</strong> A code change that touches user-visible behaviour is not done until the corresponding doc is updated in the same PR. See § 03 below.</li>
+        </ol>
+      </section>
+
+      <!-- 02 · LIFECYCLE -->
+      <section class="numbered-section" aria-labelledby="lifecycle-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Apply</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">02</span>
+          <h2 id="lifecycle-h">Lifecycle of a doc change — 10 steps</h2>
+        </div>
+        <p class="numbered-section__lede">
+          From «something changed» to «merged into <code>main</code>». Every doc edit walks these ten steps;
+          if you skip one, the gate at the end catches it.
+        </p>
+        <ol class="steps">
+          <li><div>
+            <strong>Trigger.</strong>
+            <p>A change happens in code (new endpoint, behaviour tweak), an audit flags drift between docs and reality, or the team decides to start documenting an area that wasn't covered.</p>
+          </div></li>
+          <li><div>
+            <strong>Identify the canonical page.</strong>
+            <p>Find the existing page that owns the topic; if no canonical page exists, create one from a <a href="templates/index.html">template</a>.</p>
+          </div></li>
+          <li><div>
+            <strong>Cut a feature branch.</strong>
+            <p><code>git switch -c docs/&lt;slug&gt;</code>. The draft lives there, no one else sees it yet.</p>
+          </div></li>
+          <li><div>
+            <strong>Edit only what changed.</strong>
+            <p>Preserve the page skeleton (Hero → sections → History). Plain language; reference the <a href="style-guide.html">style guide</a> when in doubt.</p>
+          </div></li>
+          <li><div>
+            <strong>Update the glossary if any new term appears.</strong>
+            <p>Add a row with a plain-language definition in the same PR. Cross-link from the page.</p>
+          </div></li>
+          <li><div>
+            <strong>Append a History row.</strong>
+            <p>One sentence summarising what changed; today's date in <code>YYYY-MM-DD</code>; link to the maintainer's portal page.</p>
+          </div></li>
+          <li><div>
+            <strong>Self-audit against the Definition of Done.</strong>
+            <p>Walk § 03 below before requesting review. If any item is «not sure», stop and fix that first.</p>
+          </div></li>
+          <li><div>
+            <strong>Open a pull request.</strong>
+            <p><code>gh pr create</code>. The <a href="#gates-h">automated gate set</a> runs in pre-commit and CI — every <span class="gate-pill gate-pill--auto">AUTO</span> check below must pass before a reviewer engages.</p>
+          </div></li>
+          <li><div>
+            <strong>Review &amp; audit.</strong>
+            <p>The <a href="#gates-h">manual gate set</a> runs here — an LLM walks canned audit prompts and a human reviewer signs off every <span class="gate-pill gate-pill--review">REVIEW</span> check below.</p>
+          </div></li>
+          <li><div>
+            <strong>Merge into <code>main</code>.</strong>
+            <p>Squash-merge. The page is live on the portal, <code>build_docs_search_index.py</code> rebuilds the search index, and the history block records the change.</p>
+          </div></li>
+        </ol>
+      </section>
+
+      <!-- 03 · GATES · automated vs manual -->
+      <section class="numbered-section" aria-labelledby="gates-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Rules</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">03</span>
+          <h2 id="gates-h">Gates — automated &amp; manual</h2>
+        </div>
+        <p class="numbered-section__lede">
+          Every doc PR walks two gate sets. <span class="gate-pill gate-pill--auto">AUTO</span> gates are mechanical
+          checks — they run in pre-commit and CI, fast, deterministic, no human required. <span class="gate-pill gate-pill--review">REVIEW</span> gates need judgement — quadrant fit, tone, tradeoff honesty —
+          and live in the PR review thread. Both gate sets must pass before merge.
+        </p>
+
+        <div class="gates-grid">
+
+          <div class="gates-col gates-col--auto">
+            <h3><span class="gate-pill gate-pill--auto">AUTO</span> Mechanical gates</h3>
+            <span class="gates-col__meta">pre-commit + CI · scripts/check_*.py</span>
+            <ul class="gate-list">
+              <li><strong>Page structure.</strong> <code>check_h1_structure.py</code> · <code>validate_docs_html.py</code> · <code>ensure_docs_page_history.py</code> · <code>ensure_docs_maintainers.py</code> — exactly one <code>&lt;h1&gt;</code>, breadcrumb chain, history block, maintainer attribution.</li>
+              <li><strong>Links &amp; references.</strong> <code>check_asset_refs.py</code> · <code>check_adr_rfc_links.py</code> · <code>check_path_literals.py</code> · <code>audit_front_docs_links.py</code> — every <code>href</code> / <code>src</code> resolves; ADR/RFC anchors are valid; no stringly-typed paths in JS/JSON/CSS.</li>
+              <li><strong>Visual contract.</strong> <code>validate_docs_design.py</code> · <code>check_css_vars.py</code> — pages use UI Kit components and v3 tokens; no rogue hex codes, no missing CSS variables.</li>
+              <li><strong>Accessibility.</strong> <code>validate_docs_a11y.py</code> — WCAG 2.1 AA: alt text, ARIA, focus order, contrast, reduced-motion handling.</li>
+              <li><strong>Catalog spine.</strong> <code>check_spine_completeness.py</code> — every <code>lifecycle: production</code> entity carries every ✅ page from the <a href="spine-matrix.html">spine matrix</a>; rejects pages forbidden for the kind (e.g. a runbook on a Library).</li>
+              <li><strong>Discoverability.</strong> <code>build_docs_search_index.py</code> · <code>check_search_index_subset.py</code> — search index regenerated on merge; internal/public split is consistent.</li>
+              <li><strong>Hygiene.</strong> <code>format_docs_html.py</code> · <code>link_page_history_authors.py</code> — HTML normalised; author chips wired to portal profiles.</li>
+            </ul>
+          </div>
+
+          <div class="gates-col gates-col--review">
+            <h3><span class="gate-pill gate-pill--review">REVIEW</span> Judgement gates</h3>
+            <span class="gates-col__meta">PR review · LLM prompts + human</span>
+            <ul class="gate-list">
+              <li><strong>Diátaxis fit.</strong> The page satisfies exactly one quadrant — Tutorial · How-to · Reference · Explanation. If it straddles two, the reviewer asks for a split.</li>
+              <li><strong>Voice.</strong> The first paragraph reads aloud cleanly — short sentences, active voice, common words. No noun stacks, no marketing language.</li>
+              <li><strong>Glossary discipline.</strong> Every new domain term is defined in the <a href="../../../onboarding/glossary.html">glossary</a> in the same PR. Reviewer flags any acronym that lacks a glossary entry.</li>
+              <li><strong>Tradeoffs honesty.</strong> For Explanation pages, the «cost» section is as visible as «wins». Pages that argue only the upside are sent back.</li>
+              <li><strong>LLM audit.</strong> The canonical audit prompt from <a href="style-guide.html#llm-checklist-h">Style guide § Audit</a> runs against the changed pages; the LLM's findings land as PR comments.</li>
+              <li><strong>Substance sign-off.</strong> A human reviewer confirms the page matches reality — runbooks actually recover the failure mode they claim, API spec matches the code, etc.</li>
+            </ul>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 04 · DEFINITION OF DONE -->
+      <section class="numbered-section" aria-labelledby="dod-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Apply</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">04</span>
+          <h2 id="dod-h">Definition of Done</h2>
+        </div>
+        <p class="numbered-section__lede">
+          A change is not «done» until every item below is green. Each item declares which gate enforces it:
+        </p>
+        <ol class="dod">
+          <li><div class="dod__body"><span class="gate-pill gate-pill--review">REVIEW</span> The behaviour change is implemented and tested in code.</div></li>
+          <li><div class="dod__body"><span class="gate-pill gate-pill--review">REVIEW</span> The relevant doc page is updated in the same PR — no «docs follow-up» allowed.</div></li>
+          <li><div class="dod__body"><span class="gate-pill gate-pill--auto">AUTO</span> A Page-history row is appended on every page that was edited — today's date, one-sentence description.</div></li>
+          <li><div class="dod__body"><span class="gate-pill gate-pill--auto">AUTO</span> Every diagram has a <code>.puml</code> source with a rendered SVG checked in.</div></li>
+          <li><div class="dod__body"><span class="gate-pill gate-pill--auto">AUTO</span> No links are broken; <code>data-*</code> attribute names match between markup and runtime.</div></li>
+          <li><div class="dod__body"><span class="gate-pill gate-pill--review">REVIEW</span> Plain-language self-check: short sentences, common words, no unexplained jargon.</div></li>
+          <li><div class="dod__body"><span class="gate-pill gate-pill--auto">AUTO</span> The page has exactly one <code>&lt;h1&gt;</code> and a working in-page TOC.</div></li>
+          <li><div class="dod__body"><span class="gate-pill gate-pill--auto">AUTO</span> For new pages: hero + sections (with kicker) + Page-history footer + <code>#mobile-contract</code> block are present.</div></li>
+          <li><div class="dod__body"><span class="gate-pill gate-pill--review">REVIEW</span> Any new domain term is defined in the <a href="../../../onboarding/glossary.html">glossary</a> in the same PR.</div></li>
+          <li><div class="dod__body"><span class="gate-pill gate-pill--review">REVIEW</span> The PR description mentions both the code change and the doc change.</div></li>
+        </ol>
+      </section>
+
+      <!-- 05 · AUDIT CADENCE -->
+      <section class="numbered-section" aria-labelledby="audit-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Apply</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">05</span>
+          <h2 id="audit-h">Audit cadence</h2>
+        </div>
+        <p class="numbered-section__lede">
+          Docs drift even behind the PR gates. Four cadences catch drift before it becomes wrong-by-default — every
+          audit lands under <code>governance/audits/</code>.
+        </p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Cadence</th>
+                <th>What gets checked</th>
+                <th>Output</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Per PR</strong></td>
+                <td>
+                  <span class="gate-pill gate-pill--auto">AUTO</span> Full mechanical gate set runs in pre-commit + CI (links · h1 · a11y · visual contract · spine).<br>
+                  <span class="gate-pill gate-pill--review">REVIEW</span> Diátaxis fit · voice · glossary · tradeoff honesty · LLM audit prompt.
+                </td>
+                <td>Inline PR comments; «request changes» on any failed gate.</td>
+              </tr>
+              <tr>
+                <td><strong>Quarterly · per service</strong></td>
+                <td>
+                  <span class="gate-pill gate-pill--review">REVIEW</span> The listed owner re-runs the acceptance checklist of each owned service spec and verifies the <a href="spine-matrix.html">spine matrix</a> still matches reality.
+                </td>
+                <td>Audit PR fixing any divergence; row in <code>governance/audits/maturity/</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Per release</strong></td>
+                <td>
+                  <span class="gate-pill gate-pill--auto">AUTO</span> Search index rebuilt + sub-set check.<br>
+                  <span class="gate-pill gate-pill--review">REVIEW</span> Grep new code for unfamiliar terms; add to glossary or fix the naming.
+                </td>
+                <td>Glossary PR in the same release branch.</td>
+              </tr>
+              <tr>
+                <td><strong>Annual</strong></td>
+                <td>
+                  <span class="gate-pill gate-pill--review">REVIEW</span> Architecture map cleanup — retire features that no longer exist, reassign ownership, audit broken cross-links.
+                </td>
+                <td>Maturity audit under <code>governance/audits/maturity/</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 06 · ANTI-PATTERNS -->
+      <section class="numbered-section" aria-labelledby="anti-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Apply</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">06</span>
+          <h2 id="anti-h">Anti-patterns to avoid</h2>
+        </div>
+        <p class="numbered-section__lede">
+          The most common ways the process breaks. Catch them in review, not next quarter's audit.
+        </p>
+        <ul class="anti-list">
+          <li><strong>«Docs PR follows.»</strong> Code merges with the promise that docs will land later. The follow-up almost never ships. Always bundle.</li>
+          <li><strong>Two pages, same topic.</strong> Splitting a topic across two pages because each one is «almost about it» creates contradictions. Merge or pick one canonical home.</li>
+          <li><strong>Stale screenshots / diagrams.</strong> A diagram of a screen or architecture that no longer looks like that. Either refresh in the same PR or remove.</li>
+          <li><strong>Empty History.</strong> A page with no history block is invisible to future maintainers and quietly rots. Always add the block, even on the first commit.</li>
+          <li><strong>Jargon without a glossary entry.</strong> A page introduces «the conspectus orchestrator» with no definition → future readers either guess or ask. Define it.</li>
+          <li><strong>«TBD» / «WIP» in shipped docs.</strong> If a section isn't ready, omit it. Placeholder text encodes ambiguity.</li>
+          <li><strong>Inconsistent terminology.</strong> Same thing called three different names across three pages. Pick one and unify in a single PR.</li>
+          <li><strong>Hand-edited generated content.</strong> If the page is generated from OpenAPI / pdoc, never hand-edit the output — fix the source.</li>
+        </ul>
+      </section>
+
+      <!-- 07 · TRADEOFFS -->
+      <section class="numbered-section" aria-labelledby="tradeoffs-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rationale"><span class="lens-chip__dot"></span>Rationale</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">07</span>
+          <h2 id="tradeoffs-h">Tradeoffs of the docs-as-code process</h2>
+        </div>
+        <p class="numbered-section__lede">
+          The question an engineering lead will ask: «what does this process cost us in delivery speed?»
+          The honest answer:
+        </p>
+        <div class="tradeoff-grid">
+          <article class="tradeoff tradeoff--up">
+            <p class="tradeoff__head">Wins</p>
+            <h3>Drift is bounded</h3>
+            <p>A code change without a doc change fails the gate. The window where docs can lie about reality is one PR-review-cycle long, not «however many quarters until someone notices».</p>
+          </article>
+          <article class="tradeoff tradeoff--down">
+            <p class="tradeoff__head">Cost</p>
+            <h3>Every PR is slower</h3>
+            <p>A 20-line code change with a doc update is genuinely heavier than a 20-line code change. We accept ~15% PR-cycle overhead; below that the gate isn't worth the friction, above that the docs would lie.</p>
+          </article>
+          <article class="tradeoff tradeoff--up">
+            <p class="tradeoff__head">Wins</p>
+            <h3>No separate doc system to learn</h3>
+            <p>Authoring is git + HTML + the templates folder. Anyone who can ship code can ship docs. No CMS login, no separate review tool.</p>
+          </article>
+          <article class="tradeoff tradeoff--down">
+            <p class="tradeoff__head">Cost</p>
+            <h3>Non-engineers can't edit easily</h3>
+            <p>A PM or designer who wants to fix a typo has to open a PR. We mitigate with «typo» labels that bypass review, but the floor is still git literacy.</p>
+          </article>
+        </div>
+      </section>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Applied the handbook lens-chip pattern (chip vocabulary decoded via tooltip on hover/focus). Section chips: § 01 Operating principles → <strong>Stance</strong>, § 02 Lifecycle 10 steps → <strong>Apply</strong>, § 03 Gates → <strong>Rules</strong>, §§ 04–06 DoD / Audit cadence / Anti-patterns → <strong>Apply</strong>, § 07 Tradeoffs → <strong>Rationale</strong>. Added a <strong>Sources</strong> footer (canonical home · parent · related deep-dives · CI gates list · related ADRs · glossary · owner · last-reviewed).</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-24</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">
+            Phase 1 truth alignment — replaced the «CI runs <code>make docs-check</code>» hand-wave with an explicit two-set gate model. New § 03 «Gates — automated &amp; manual» names every check by script path: seven <span class="gate-pill gate-pill--auto">AUTO</span> groups (page structure, links, visual contract, a11y, catalog spine, discoverability, hygiene) and six <span class="gate-pill gate-pill--review">REVIEW</span> gates (Diátaxis fit, voice, glossary, tradeoffs, LLM audit, substance sign-off). Every DoD item now carries its gate tag so a reader knows whether a script catches the violation or whether a reviewer does. Lifecycle steps 8 / 9 cross-link to the gate section instead of repeating script names. Audit-cadence table's «What gets checked» column now splits rows into auto + review parts. Renumbered sections 03→04 (DoD), 04→05 (Audit), 05→06 (Anti-patterns), 06→07 (Tradeoffs). TOC updated.
+          </span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-24</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">
+            Rebuilt as the deep-dive page of Principle 03 (Lifecycle / 🔁 Docs as Code), in the same UI Kit shape as <code>diataxis.html</code> / <code>catalog.html</code> / <code>topology.html</code>: <code>.page-hero</code> with emoji kicker, six numbered <code>.numbered-section</code> blocks, anti-patterns list, tradeoff cards. Dropped six big chunks that overlapped other pages — Industry references table (covered by § 01 Operating principles), Information architecture (covered by <code>topology.html</code>), Document types (covered by <code>templates/</code>), Screen-spec policy (covered by <code>style-guide.html</code> + <code>templates/</code>), Visual evidence policy (covered by <code>style-guide.html</code>), Page-history rules (covered by <code>style-guide.html</code>), Onboarding (covered by <code>onboarding/index.html</code>). Updated breadcrumb (Internal → Foundations → Reference → SA → Principles → 🔁 Process) and <code>&lt;title&gt;</code>. Removed the duplicate <code>&lt;section id="history"&gt;</code> block. All colours via v3 tokens — dark theme is automatic. Total: 535 → ~310 lines.
+          </span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> article + <code>page-head</code> + <code>docs-table--sticky-head</code>; legacy <code>card</code> / <code>internal-*</code> classes replaced by BEM <code>docs-*</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-04-29</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created documentation maintenance process page: operating principles, industry references, document type catalog, change lifecycle, screen-spec policy, visual evidence policy, history rules, audit cadence, Definition of Done, anti-patterns, onboarding steps.</span>
+        </li>
+      </ul>
+    </footer>
+
+    <section id="mobile-contract" aria-hidden="true" hidden="">
+      <h2>Mobile contract</h2>
+      <ul>
+        <li><strong>≥1025</strong> — tradeoffs in 2×2, steps in two-column (number + body).</li>
+        <li><strong>761–1024</strong> — tradeoffs in 2×2 retained.</li>
+        <li><strong>≤760</strong> — tradeoffs stack to 1-up; step numbers move above body; audit table scrolls horizontally.</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#ops-h">Operating principles</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lifecycle-h">Lifecycle — 10 steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#gates-h">Gates — auto &amp; manual</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#dod-h">Definition of Done</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#audit-h">Audit cadence</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-h">Anti-patterns</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs-h">Tradeoffs</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

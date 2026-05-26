@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0027 · High-relevance client-side docs search · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0027</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0027</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <h1>High-relevance client-side docs search (inverted index, IDF, and ranking boosts)</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+          Replace the simple field-presence scorer with an inverted-index lexical model — IDF, length-normalized TF, and precision boosts — plus append-only telemetry for query and click events.
+        </p>
+      </header>
+
+      <section aria-labelledby="ratification-h">
+        <h2 id="ratification-h">Ratification</h2>
+        <article class="docs-card">
+          <div class="docs-card__body">
+            <ul>
+              <li>Discussion Issue: N/A (implemented as architecture improvement for docs UX)</li>
+              <li>Merge PR: pending</li>
+              <li>Accepted: 2026-04-17</li>
+            </ul>
+          </div>
+        </article>
+      </section>
+
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p>Docs are hosted as static files. We need fast, useful search across ADRs, runbooks, internal guides, developer pages, and API docs.</p>
+        <p>A simple "word present or not" scorer is easy to maintain but weak on large sites: common words win too often, long pages rank too high, and prefix search while typing needs better behavior.</p>
+      </section>
+
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <p>We replace the old scorer with an <strong>inverted-index lexical model</strong> that combines:</p>
+        <ol>
+          <li>Per-field term frequencies at build time (title, URL, section, content).</li>
+          <li>IDF-based weighting at query time.</li>
+          <li>Log-scaled TF and document length normalization.</li>
+          <li>High-precision boosts for exact phrase, all-token coverage, and title prefix matches.</li>
+          <li>Prefix expansion only for the last query token for good type-ahead UX.</li>
+        </ol>
+        <p>We also add <strong>search telemetry</strong> (append-only) in the app SQLite database so local runs stay simple and we can verify behavior.</p>
+      </section>
+
+      <section aria-labelledby="theory-h">
+        <h2 id="theory-h">Theoretical basis</h2>
+
+        <h3>Representation</h3>
+        <p>Each document is represented as:</p>
+        <pre><code>d = (title, url, section, preview, content_len, tf_title, tf_url, tf_section, tf_content)</code></pre>
+        <p>where <code>tf_field(term, d)</code> is term frequency in that field.</p>
+
+        <h3>Normalization</h3>
+        <p>Input text is lowercased, punctuation-normalized, and whitespace-collapsed:</p>
+        <pre><code>N(x) = trim(collapseSpaces(lowercase(x)))</code></pre>
+        <p>Tokens are alphanumeric terms extracted from normalized text.</p>
+
+        <h3>Core ranking formula</h3>
+        <p>For query tokens <code>T</code>, base score is:</p>
+        <pre><code>score_base(d, T) = Σ over t in T:
+idf(t) * (
+w_title   * log(1 + tf_title(t, d))
++ w_url     * log(1 + tf_url(t, d))
++ w_section * log(1 + tf_section(t, d))
++ w_content * log(1 + tf_content(t, d))
+        )</code></pre>
+        <p>Weights are tuned for precision-first behavior:</p>
+        <pre><code>w_title = 8.0
+w_url = 4.0
+w_section = 2.0
+        w_content = 1.4</code></pre>
+
+        <h3>IDF and length normalization</h3>
+        <pre><code>idf(t) = log(1 + (N + 1) / (df(t) + 0.5))
+
+len_ratio(d) = content_len(d) / avg_content_len
+norm(d) = 1 / (1 + 0.08 * max(0, len_ratio(d) - 1))
+
+        score_norm(d, T) = score_base(d, T) * norm(d)</code></pre>
+        <p>This downweights very common tokens and prevents long pages from winning by volume alone.</p>
+
+        <h3>Precision boosts</h3>
+        <p>Final score adds deterministic bonuses:</p>
+        <pre><code>score_final = score_norm
++ B_all_tokens_in_title
++ B_all_tokens_in_url
++ B_exact_phrase_in_title
++ B_exact_phrase_in_url
++ B_title_prefix
+        + B_exact_section</code></pre>
+        <p>These bonuses enforce intuitive ranking for navigational queries and short phrase queries.</p>
+
+        <h3>Complexity model</h3>
+        <p>With an inverted index, query complexity becomes proportional to postings, not all documents:</p>
+        <pre><code>Build: O(total_tokens)
+Query: O(sum_postings_for_query_terms + rerank_candidates)
+        Space: O(vocabulary + postings + doc_metadata)</code></pre>
+        <p>This is substantially faster than scanning every document on each query.</p>
+      </section>
+
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li>In scope: all HTML pages under <code>services/portal/</code>, including <code>services/portal/pdoc/</code> and <code>services/portal/public/reference/api/</code>.</li>
+          <li>Out of scope: neural/vector search, typo-edit-distance search, multilingual morphology.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Simple field-presence scoring</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> tiny implementation.</p>
+              <p><strong>Cons:</strong> weak ranking on larger corpora; limited precision control.</p>
+            </div>
+          </article>
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Hosted search providers</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> rich relevance and analytics.</p>
+              <p><strong>Cons:</strong> external dependency, operational overhead, crawler governance.</p>
+            </div>
+          </article>
+          <article class="docs-card">
+            <div class="docs-card__head"><h3 class="docs-card__title">Client-side third-party full-text libraries</h3></div>
+            <div class="docs-card__body">
+              <p><strong>Pros:</strong> mature ranking options.</p>
+              <p><strong>Cons:</strong> larger runtime dependency surface than needed.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Higher relevance for exact and navigational queries.</li>
+                <li>Predictable and debuggable ranking math.</li>
+                <li>Fast query path via postings-based candidate generation.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Larger index compared to minimal list-based format.</li>
+                <li>More ranking parameters to maintain.</li>
+                <li>Still lexical: no semantic similarity understanding.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="compat-h">
+        <h2 id="compat-h">Compatibility and migration</h2>
+        <ul>
+          <li>Backward-compatibility impact: low (search implementation change only).</li>
+          <li>Migration plan: generate new index version in existing docs pipeline.</li>
+          <li>Rollback strategy: revert to previous scorer and simple index schema.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="impl-h">
+        <h2 id="impl-h">Implementation mapping</h2>
+        <ul>
+          <li>Index builder: <code>scripts/build_docs_search_index.py</code></li>
+          <li>Runtime search and reranking: <code>services/frontend/portal/assets/docs-nav.js</code></li>
+          <li>UI styling and snippets: <code>services/frontend/portal/assets/docs.css</code></li>
+          <li>Artifact: <code>services/frontend/portal/assets/search-index.json</code> (schema version 2)</li>
+          <li>Telemetry ingest API: <code>POST /internal/telemetry/docs-search</code></li>
+          <li>Telemetry metrics API: <code>GET /internal/telemetry/docs-search/metrics</code></li>
+          <li>Telemetry store module: <code>app/core/docs_search_telemetry.py</code></li>
+          <li>Telemetry database file: same SQLite file configured by <code>SQLITE_DB_PATH</code></li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="telemetry-h">
+        <h2 id="telemetry-h">Telemetry events and storage</h2>
+        <h3>Client events</h3>
+        <ul>
+          <li><code>search_query</code>: one emitted query execution with query length, token count, result count, latency, and top-N impressions.</li>
+          <li><code>search_result_click</code>: click-through on a result (mouse/keyboard), including rank and URL.</li>
+          <li><code>search_success</code>: first successful click in a search session; includes time-to-success and time-to-click.</li>
+          <li><code>search_query_error</code>: client-side index-load failure for observability and diagnostics.</li>
+        </ul>
+        <h3>Persistence model</h3>
+        <ul>
+          <li>All events are written append-only to <code>docs_search_events</code> in the current application SQLite DB.</li>
+          <li>Telemetry data and business data share one DB file to simplify local setup.</li>
+          <li>SQLite runs in WAL mode to reduce writer contention for frequent event inserts.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="metrics-h">
+        <h2 id="metrics-h">Metric definitions (canonical formulas)</h2>
+        <p>Let <code>Q</code> be all <code>search_query</code> events in a time window, and <code>S</code> be first <code>search_success</code> per session in the same window.</p>
+        <h3>Zero-result rate</h3>
+        <pre><code>zero_result_rate = count(q in Q where q.results_count = 0) / count(Q)</code></pre>
+        <h3>Query CTR</h3>
+        <pre><code>query_ctr = count(distinct query_id in Q with at least one search_result_click) / count(Q)</code></pre>
+        <h3>Time-to-first-success</h3>
+        <pre><code>TTFS = distribution of s.time_to_success_ms for s in S
+        reported as p50 and p75</code></pre>
+        <p>For this ADR, dashboard defaults are: <strong>p50</strong> and <strong>p75</strong> over the selected rolling window.</p>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li>Run <code>make docs-fix</code> and verify index generation step succeeds.</li>
+          <li>Smoke-test queries across ADR/internal/developer/runbooks/api paths.</li>
+          <li>Verify keyboard UX: up/down/enter/escape.</li>
+          <li>Track payload size and first-query latency after docs growth.</li>
+          <li>Send a search event and verify row creation in telemetry DB (<code>docs_search_events</code>).</li>
+          <li>Call <code>GET /internal/telemetry/docs-search/metrics</code> and verify non-zero aggregates.</li>
+        </ul>
+      </section>
+
+      <footer class="docs-history" aria-label="History">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Migrated to UI Kit v3.</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

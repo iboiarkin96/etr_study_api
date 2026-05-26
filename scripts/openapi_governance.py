@@ -12,7 +12,9 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
-BASELINE_PATH = ROOT / "docs" / "openapi" / "openapi-baseline.json"
+BASELINE_PATH = (
+    ROOT / "services" / "portal" / "public" / "reference" / "api" / "openapi-baseline.json"
+)
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 
 

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SLO · SLI · error budgets — Practice 16 · Systems analysis</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">SLO · SLI · error budgets</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="pa-eyebrow">
+          <span class="pa-eyebrow__num">16</span>
+          <span class="pa-eyebrow__group">Group D · Reliability &amp; operations</span>
+        </p>
+        <h1>SLO · SLI · error budgets</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">A measurable target for each user-facing service, with a budget that slows releases when reliability dips.</p>
+      </header>
+
+      <div class="pa-tldr">
+        <span class="pa-tldr__label">TL;DR</span>
+        <p class="pa-tldr__text">An SLO is a number the team agrees on — 'sessions endpoint responds with 2xx within 800 ms, 99.9% of the time'. SLIs are the metrics that measure that number. The error budget is the gap between the target and 100%; when the budget runs out, releases slow down until reliability recovers.</p>
+      </div>
+
+      <figure class="pa-figure" aria-label="Hero diagram">
+        <svg viewBox="0 0 640 240" role="img" aria-label="Error-budget burn" style="display:block;max-width:600px;margin:0 auto;height:auto">
+          <line class="pa-svg-line" x1="60" y1="200" x2="620" y2="200"></line>
+          <line class="pa-svg-line" x1="60" y1="200" x2="60" y2="40"></line>
+          <line class="pa-svg-line pa-svg-line--dash" x1="60" y1="60" x2="620" y2="60"></line>
+          <text class="pa-svg-text pa-svg-text--muted" x="55" y="64" text-anchor="end" font-size="11">SLO 99.9%</text>
+          <polyline points="60,80 130,90 200,98 270,128 340,158 410,182 480,194 550,198 620,200" class="pa-svg-line" style="stroke:#dc2626;stroke-width:2"></polyline>
+          <text class="pa-svg-text pa-svg-text--bad" x="380" y="146" font-size="12" font-weight="700">burn through budget</text>
+          <text class="pa-svg-text" x="340" y="222" text-anchor="middle" font-size="11">day</text>
+          <rect class="pa-svg-box pa-svg-box--bad" x="440" y="20" width="170" height="34" rx="8"></rect>
+          <text class="pa-svg-text pa-svg-text--bad" x="525" y="42" text-anchor="middle" font-weight="700" font-size="12">freeze releases @ 0%</text>
+        </svg>
+        <figcaption class="pa-figure__caption">When the budget burns out, the policy is automatic — no debate at 2 AM.</figcaption>
+      </figure>
+
+      <h2 id="what">What it is</h2>
+      <p><strong>SLO</strong> (Service Level Objective) is a target — for example, 99.9% of requests to <code>POST /sessions</code> return a 2xx within 800 ms over a rolling 30-day window.</p>
+      <p><strong>SLI</strong> (Service Level Indicator) is the metric that measures the SLO. For the example above, the SLI is the ratio of 'good' requests over 'total' requests, where 'good' is defined precisely.</p>
+      <p><strong>Error budget</strong> is what's left of the target. 99.9% over 30 days = 43 minutes of allowed downtime per month. As long as the budget has time left, the team can ship. When the budget is spent, the team focuses on reliability until it recovers.</p>
+
+      <h2 id="why">Why we need it</h2>
+      <p>'Is the service good enough?' is a feeling without numbers. With SLOs it becomes a calculation. Product and ops share one frame: they argue about the SLO, not about how the service is doing this week.</p>
+      <p>The error budget is what makes the SLO operational. Without a budget, an SLO is decoration; with one, the team has a clear rule for when to ship features and when to fix reliability. The argument shifts from 'should we?' to 'do we have budget?' — much easier to settle.</p>
+
+      <h2 id="industry">How others do it</h2>
+      <p>Short tour of how teams known for the practice apply it. Each card is one company, what they do, and what we take from it.</p>
+      <div class="pa-industry">
+        <div class="pa-industry__card"><p class="pa-industry__company">Google</p><p class="pa-industry__what">Codified SLO/SLI/Error Budget in the SRE Book (2016) and the SRE Workbook (2018). Multi-burn-rate alerting was the most influential single chapter.</p><p class="pa-industry__lesson"><strong>What we take:</strong> An SLO without an enforced budget is decoration. The policy ('what happens when the budget is gone') is what makes it real.</p><p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/service-level-objectives/" rel="noopener">Google SRE — Service Level Objectives</a></p></div>
+        <div class="pa-industry__card"><p class="pa-industry__company">LinkedIn</p><p class="pa-industry__what">Public talks describe how 200+ services use a common SLO platform; each service owns its SLO; reliability work is prioritised against the budget.</p><p class="pa-industry__lesson"><strong>What we take:</strong> Centralised SLO tooling means engineers don't reinvent Prometheus rules per service.</p><p class="pa-industry__source">Source: <a href="https://engineering.linkedin.com/blog/topic/site-reliability-engineering" rel="noopener">LinkedIn Engineering — SLO</a></p></div>
+        <div class="pa-industry__card"><p class="pa-industry__company">Sloth (open-source)</p><p class="pa-industry__what">Open-source CLI that generates Prometheus SLO rules from a small YAML spec. Used by hundreds of teams.</p><p class="pa-industry__lesson"><strong>What we take:</strong> You don't have to write Prometheus rules by hand. The YAML format is the source; the rules are derived.</p><p class="pa-industry__source">Source: <a href="https://sloth.dev/" rel="noopener">Sloth — SLO generator</a></p></div>
+        <div class="pa-industry__card"><p class="pa-industry__company">Nobl9</p><p class="pa-industry__what">Commercial SLO platform built by ex-Google SREs; centralises SLO definitions, dashboards, budget burns, and policy.</p><p class="pa-industry__lesson"><strong>What we take:</strong> When the team grows past ~50 services, a dedicated SLO tool pays back; per-team spreadsheets stop scaling.</p><p class="pa-industry__source">Source: <a href="https://www.nobl9.com/" rel="noopener">Nobl9</a></p></div>
+      </div>
+      <p class="pa-industry-pattern">Across companies: pick a small set of SLIs per service; aim for the lowest defensible objective; alert on burn rate, not on raw failures; write the policy before you hit the budget.</p>
+
+      <h2 id="anatomy">Anatomy</h2>
+      <p>The parts a complete practice has, with one sentence on each. None of these are optional.</p>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">SLI definition</p><p class="pa-anatomy__hint">The exact query: which metric, which filter, which thresholds. Stored as YAML next to the service.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">SLO target</p><p class="pa-anatomy__hint">99.9%, 99.95%, or 99.5% — pick one. Higher numbers cost more, not less.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Window</p><p class="pa-anatomy__hint">Usually 28 or 30 days, rolling. Quarterly is too slow; weekly is too noisy.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Budget</p><p class="pa-anatomy__hint">100% − target. Tracked as 'remaining' on a dashboard.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Burn rate</p><p class="pa-anatomy__hint">Speed at which the budget is being consumed. Alerts fire on burn rate, not on raw failures.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Policy</p><p class="pa-anatomy__hint">What the team does when the budget is at 50%, 25%, 0%. Written down before it happens.</p></div>
+      </div>
+
+      <h2 id="how">How it works in this project</h2>
+      <p>The project has none of this today. The rollout starts with one critical endpoint — most likely <code>POST /sessions</code> — and defines availability and latency SLOs for it. Prometheus rules express the SLIs; Grafana shows the budget burn.</p>
+      <p>Once one SLO is in place and watched in the weekly engineering sync for a month, the practice expands. Each new SLO requires an ADR that names the target, the window, and the policy.</p>
+
+      <h2 id="deep-dive">Deep dive — the theory you need</h2>
+      <div class="pa-deepdive">
+        <h3>Error budget math — concrete numbers</h3>
+        <p>Error budget = (1 − SLO) × time window. For a 28-day window:</p>
+        <div class="docs-table-wrap" role="region" tabindex="0" aria-label="Error budget by SLO">
+          <table class="docs-table docs-table--sticky-head">
+            <thead><tr><th scope="col">SLO</th><th scope="col">Allowed downtime in 28 days</th></tr></thead>
+            <tbody>
+              <tr><td>99%</td><td>6 h 43 min</td></tr>
+              <tr><td>99.5%</td><td>3 h 22 min</td></tr>
+              <tr><td>99.9%</td><td>40 min</td></tr>
+              <tr><td>99.95%</td><td>20 min</td></tr>
+              <tr><td>99.99%</td><td>4 min</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Read the table as cost: every extra 9 cuts the allowed downtime by ~10×. The cost of meeting it grows faster than that — adding a 9 typically doubles the infrastructure spend.</p>
+        <h4>Multi-burn-rate alerts — the formula</h4>
+        <p>The naïve approach — page when the error rate is high right now — gives too many false alerts. Multi-burn-rate alerts fire only when the rate is high <em>and</em> sustained:</p>
+        <pre><code>Burn rate = (error rate in window) / (1 − SLO)
+
+Page when:
+burn_rate &gt; 14.4 in a 1-hour window     # fast page: spending 2% of monthly budget in 1 h
+AND burn_rate &gt; 14.4 in a 5-minute window  # filter: not just one short spike
+
+Or:
+burn_rate &gt; 6 in a 6-hour window        # slower page
+        AND burn_rate &gt; 6 in a 30-minute window</code></pre>
+        <p>The 14.4× constant comes from 2% / (1 h × 1/720 h-per-month) — the exact rate at which a 1-hour outage would consume 2% of the monthly error budget at SLO 99.9%. The point is: the alert fires only when the trend is bad enough that the budget will run out unless you act.</p>
+        <h4>Trade-offs — what this practice costs</h4>
+        <ul>
+          <li><strong>Per-endpoint SLOs don't scale.</strong> 200 services × 5 SLOs each = 1 000 SLOs, none of them watched. Combine into <em>user-journey SLOs</em> (login → first session → first review) that span services; one journey covers a real user outcome.</li>
+          <li><strong>Defining good SLIs is hard.</strong> 'Success' is rarely just 2xx; many endpoints have business-level failure modes (the request returned 200 with an empty result). The SLI definition is the bottleneck — budget a week per critical SLO.</li>
+          <li><strong>The policy must be honored.</strong> An SLO with a 'freeze releases at 0% budget' policy that gets overridden by leadership the first time it fires is theatre. Pre-commit at the VP level before publishing the policy.</li>
+        </ul>
+      </div>
+
+      <h2 id="lifecycle">Lifecycle</h2>
+      <div class="pa-states">
+        <span class="pa-state">defined</span>
+        <span class="pa-state__arrow">→</span>
+        <span class="pa-state">measured</span>
+        <span class="pa-state__arrow">→</span>
+        <span class="pa-state">alerting on burn</span>
+        <span class="pa-state__arrow">→</span>
+        <span class="pa-state">policy applied</span>
+        <span class="pa-state__arrow">→</span>
+        <span class="pa-state">reviewed quarterly</span>
+      </div>
+      <p>An SLO starts as a defined target. The SLI is wired; the dashboard shows the burn. Alerts fire on burn rate (multi-window, multi-burn-rate; not on every single failure). The policy kicks in at preset thresholds. Each quarter, the team reviews whether the target is still right.</p>
+
+      <h2 id="pitfalls">Common pitfalls</h2>
+      <div class="docs-table-wrap" role="region" tabindex="0" aria-label="Common pitfalls">
+        <table class="docs-table docs-table--sticky-head">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr><td>SLO is decoration</td><td>Number on a dashboard; nothing happens when it's missed.</td><td>Write the policy first; the policy is what makes the SLO real.</td></tr>
+            <tr><td>SLI is fuzzy</td><td>'Good response' is not defined exactly; numbers move when the definition shifts.</td><td>Write the SLI as a Prometheus query. The query <em>is</em> the definition.</td></tr>
+            <tr><td>Targets are too high</td><td>Team picks 99.99% because it sounds right; can't ship anything.</td><td>Pick the lowest target the team can defend. Raise later, never lower in panic.</td></tr>
+            <tr><td>Alerting on every failure</td><td>Pager fires on each 5xx; on-call burns out.</td><td>Alert on burn rate over a window, not on count over a minute. Multi-burn-rate rules from the Google SRE workbook.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="example">Worked example</h2>
+      <div class="pa-example">
+        <div class="pa-example__head"><span class="pa-example__tag">SLO definition</span><p class="pa-example__title">POST /sessions latency SLO</p></div>
+        <div class="pa-example__body">
+          <pre><code>service: sessions
+slo: post_sessions_latency
+objective: 0.999
+window: 28d
+sli:
+good: |
+sum(rate(http_request_duration_seconds_count{
+service="sessions", method="POST", path="/api/v1/sessions",
+status=~"2..", le="0.8"
+}[5m]))
+total: |
+sum(rate(http_request_duration_seconds_count{
+service="sessions", method="POST", path="/api/v1/sessions"
+}[5m]))
+policy:
+at_50_percent_left: 'Discuss in weekly engineering sync.'
+at_25_percent_left: 'Freeze non-critical changes to the sessions service.'
+          at_0_percent_left:  'All hands on reliability until budget recovers.'</code></pre>
+          <p>The YAML is the source. From it, CI generates Prometheus rules and a Grafana panel; the policy is rendered on the service page in the catalog.</p>
+        </div>
+      </div>
+
+      <h2 id="quality">Quality bar — what good looks like</h2>
+      <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+      <ul class="pa-quality">
+        <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">One SLO is defined and measured</p><p class="pa-quality__hint">No SLOs today.</p></div></li>
+        <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Alerts fire on burn rate, not raw failures</p><p class="pa-quality__hint">Today: page on count, which causes alert fatigue.</p></div></li>
+        <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Policy is written before the budget runs out</p><p class="pa-quality__hint">Don't decide what to do in the middle of an incident.</p></div></li>
+        <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Quarterly review of every SLO</p><p class="pa-quality__hint">Targets drift; the review keeps them honest.</p></div></li>
+        <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">SLO YAML in the repo</p><p class="pa-quality__hint">Source of truth for both alert rules and the dashboard.</p></div></li>
+      </ul>
+
+      <h2 id="references">References</h2>
+      <div class="pa-refs">
+        <div class="pa-refs__column">
+          <h3>Industry sources</h3>
+          <ul>
+            <li><a href="https://sre.google/sre-book/service-level-objectives/" rel="noopener">Google SRE Book — Service Level Objectives</a><span class="pa-refs__hint">The canonical chapter; read first.</span></li>
+            <li><a href="https://sre.google/workbook/alerting-on-slos/" rel="noopener">Google SRE Workbook — Alerting on SLOs</a><span class="pa-refs__hint">Multi-burn-rate alerting formulas; the most-cited chapter.</span></li>
+            <li><a href="https://sloth.dev/" rel="noopener">Sloth — SLO generator</a><span class="pa-refs__hint">Open-source; turns YAML into Prometheus rules.</span></li>
+            <li><a href="https://www.nobl9.com/" rel="noopener">Nobl9</a><span class="pa-refs__hint">Commercial SLO platform built by ex-Google SREs.</span></li>
+          </ul>
+        </div>
+        <div class="pa-refs__column">
+          <h3>Inside the project</h3>
+          <ul>
+            <li><a href="runbooks.html">Runbooks — sibling practice</a><span class="pa-refs__hint">The SLO defines the alert; the runbook says what to do when it fires.</span></li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-17">2026-05-17</time></span>
+          <span class="docs-history__change">Restructured to the canonical practice-page pattern: removed scorebar, <code>.pa-section</code> wrappers, See-also, and the history table; compact hero SVG; pitfalls and budget-math tables on the canonical <code>.docs-table</code> component.</span>
+          <span class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142"></span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-13">2026-05-13</time></span>
+          <span class="docs-history__change">Self-contained version of practice 16 (SLO · SLI · error budgets): added Industry experience + Deep dive; refs split into Industry / Inside the project.</span>
+          <span class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142"></span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

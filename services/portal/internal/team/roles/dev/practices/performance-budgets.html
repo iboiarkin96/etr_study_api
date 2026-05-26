@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Performance budgets — Practice 20 · SWE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SWE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Performance budgets</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">20</span>
+        <span class="pa-eyebrow__group">Group D · Observability &amp; operability</span>
+      </p>
+      <h1 class="pa-title">Performance budgets — measured, not assumed</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">Lighthouse-CI on the changed page, bundlesize on the changed package, k6 on the changed endpoint — merge stays grey until the numbers are inside the line in <code>perf-budget.json</code>.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">Tim Kadlec popularised performance budgets in <em>Setting a Performance Budget</em> (2013); web.dev's "Performance Budgets 101" is the official guidance. Pick a small set of metrics (LCP, API p99, bundle size); set a numeric target; measure on every PR; fail the build above the target. Lighthouse-CI for the web, k6 / Artillery for APIs, bundlesize / size-limit for JS bundles. Budgets must be enforced on real-user metrics, not on dev hardware — otherwise you ship a slow site to a fast laptop.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Performance budget pipeline">
+      <svg viewBox="0 0 760 220" role="img" aria-label="Budget defined → measured per PR → enforced → tracked" style="display:block;max-width:720px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="pb-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="380" y="20" text-anchor="middle" font-size="10" letter-spacing="0.6">BUDGET FILE · MEASURE PER PR · FAIL ABOVE · TRACK RUM TREND</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="20" y="50" width="170" height="140" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="105" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 1</text>
+        <text class="pa-svg-text pa-svg-text--accent" x="105" y="96" text-anchor="middle" font-weight="700" font-size="14">Define</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="105" y="120" text-anchor="middle" font-size="10">perf-budget.json</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="105" y="136" text-anchor="middle" font-size="10">LCP · p99 · bundle</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="105" y="160" text-anchor="middle" font-size="9">numeric targets</text>
+
+        <rect class="pa-svg-box" x="205" y="50" width="170" height="140" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="290" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 2</text>
+        <text class="pa-svg-text" x="290" y="96" text-anchor="middle" font-weight="700" font-size="14">Measure</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="290" y="120" text-anchor="middle" font-size="10">Lighthouse-CI</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="290" y="136" text-anchor="middle" font-size="10">k6 · bundlesize</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="290" y="160" text-anchor="middle" font-size="9">on every PR</text>
+
+        <rect class="pa-svg-box" x="390" y="50" width="170" height="140" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="475" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 3</text>
+        <text class="pa-svg-text" x="475" y="96" text-anchor="middle" font-weight="700" font-size="14">Enforce</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="475" y="120" text-anchor="middle" font-size="10">fail above target</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="475" y="136" text-anchor="middle" font-size="10">required check</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="475" y="160" text-anchor="middle" font-size="9">merge blocked</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="575" y="50" width="165" height="140" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="657" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 4</text>
+        <text class="pa-svg-text pa-svg-text--good" x="657" y="96" text-anchor="middle" font-weight="700" font-size="14">RUM trend</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="657" y="120" text-anchor="middle" font-size="10">real-user CWV</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="657" y="136" text-anchor="middle" font-size="10">monthly review</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="657" y="160" text-anchor="middle" font-size="9">CrUX baseline</text>
+
+        <path d="M190 120 L203 120" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#pb-arrow)"></path>
+        <path d="M375 120 L388 120" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#pb-arrow)"></path>
+        <path d="M560 120 L573 120" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#pb-arrow)"></path>
+
+        <text class="pa-svg-text pa-svg-text--muted" x="380" y="210" text-anchor="middle" font-size="11" font-style="italic">"enforce in CI on every PR; calibrate the budget against real-user metrics"</text>
+      </svg>
+      <figcaption class="pa-figure__caption">Four-step pipeline: declare budget, measure per PR, enforce as a required gate, calibrate against real-user metrics monthly. Without the RUM feedback loop, the CI budget drifts from reality.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>A performance budget is a numeric constraint on a measurable perf metric, enforced in CI on every change. Three common kinds:</p>
+      <ul>
+        <li><strong>Frontend metrics</strong> — Largest Contentful Paint (LCP), Interaction to Next Paint (INP), Cumulative Layout Shift (CLS), JS bundle size. Measured by Lighthouse-CI in CI; calibrated against CrUX (Chrome's real-user dataset) or your own RUM.</li>
+        <li><strong>Backend metrics</strong> — endpoint p95 / p99 latency, throughput at target load, allocation count per request. Measured by k6 / Artillery / wrk in CI against a staging environment; calibrated against production traces (Practice 17).</li>
+        <li><strong>Asset metrics</strong> — JS bundle size per chunk, image size budgets, font-file count. Measured by bundlesize / size-limit in CI on every PR that touches frontend.</li>
+      </ul>
+      <p>The budgets live in a versioned file (<code>perf-budget.json</code>, <code>lighthouse-budgets.json</code>, k6 threshold config). PR changes that breach the budget fail the build; the engineer either fixes the perf regression or files an exception with an expiry date.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Without budgets, perf regresses one PR at a time. Each PR is "only 50 ms"; over a year the home page is 4 seconds slower than it started. The team notices when a customer complains; by then the regression is hundreds of merged changes deep and impossible to bisect cheaply.</p>
+      <p>Budgets invert the curve: every PR that breaches the budget is the one PR that has to defend the slowdown. The conversation happens at the cheapest moment — at the diff. The team learns to think about perf as a first-class constraint rather than something to clean up later. CrUX / RUM data calibrates the budget against reality so the team isn't chasing a number nobody on real hardware experiences.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Tim Kadlec — pattern originator</p>
+          <p class="pa-industry__what">Kadlec's 2013 <em>Setting a Performance Budget</em> framed the concept and made it actionable. Two key ideas: budget per metric (not "make it fast"), and budget enforced in CI (not aspirational). His blog (timkadlec.com) and the Smashing-Magazine essay are the canonical references.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Budget per metric with numeric target. "Be fast" is not a budget; "LCP ≤ 2.5 s on mobile" is.</p>
+          <p class="pa-industry__source">Source: <a href="https://timkadlec.com/" rel="noopener">timkadlec.com</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">web.dev / Google — Core Web Vitals</p>
+          <p class="pa-industry__what">Google's Core Web Vitals (LCP, INP, CLS) and the web.dev guidance set the modern frontend baseline. Lighthouse, Lighthouse-CI, PageSpeed Insights, and CrUX all use the same metric set. The thresholds (LCP ≤ 2.5 s good, ≤ 4 s needs-improvement) are now the de-facto industry standard.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Use Core Web Vitals as the frontend metric set. Industry-standard, RUM-comparable, and aligned with what your customers experience.</p>
+          <p class="pa-industry__source">Source: <a href="https://web.dev/articles/performance-budgets-101" rel="noopener">web.dev — Performance Budgets 101</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">k6 / Grafana — backend budgets as code</p>
+          <p class="pa-industry__what">k6 (now Grafana k6) ships "thresholds" — assertions like <code>p(95) &lt; 250</code> in the test script. The k6 run fails if the assertion isn't met. Same syntax for HTTP, gRPC, WebSocket, browser scripts. The thresholds make k6 the de-facto backend perf-budget tool.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Write backend perf assertions in k6 thresholds. The test is the budget; merge fails if thresholds fail. No separate "perf review" step needed.</p>
+          <p class="pa-industry__source">Source: <a href="https://k6.io/docs/using-k6/thresholds/" rel="noopener">k6 thresholds docs</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Shopify — RUM-calibrated budgets</p>
+          <p class="pa-industry__what">Shopify's engineering blog describes their approach: budgets in CI are calibrated against real-user metrics from their RUM pipeline. The CI gate uses a generous-enough number that real-user p75 stays inside Core Web Vitals "good"; the RUM dashboard tracks the trend; the budget tightens as the team improves.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Calibrate CI budgets against RUM, not against dev hardware. Otherwise you ship a slow site to a fast laptop.</p>
+          <p class="pa-industry__source">Source: <a href="https://shopify.engineering/" rel="noopener">shopify.engineering</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of a perf-budget pipeline</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Versioned budget file</p><p class="pa-anatomy__hint"><code>perf-budget.json</code> / <code>lighthouse-budgets.json</code> / k6 threshold block. Numeric targets per metric per route or endpoint.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Per-PR measurement</p><p class="pa-anatomy__hint">Lighthouse-CI on changed pages; k6 on changed endpoints; bundlesize on changed packages. Skip-path filters keep the gate fast.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Required CI check</p><p class="pa-anatomy__hint">Branch protection: perf-budget check is required. Merge blocked on regression. Exception workflow with expiry date.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Real-user calibration</p><p class="pa-anatomy__hint">RUM (CrUX / Datadog / Honeycomb) feeds a monthly dashboard. Budget tightens as p75 improves; loosens if reality forces it.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Mobile-class CI hardware</p><p class="pa-anatomy__hint">Lighthouse-CI configured with "Slow 4G" + 4× CPU throttling to mirror real users. Without throttling, the gate passes on dev hardware while real users feel slow.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Monthly perf review</p><p class="pa-anatomy__hint">30 min: top-5 regressions, top-5 wins, budget vs RUM. Engineers see where they stand; budget gets tuned.</p></div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to run it</h2>
+      <ol>
+        <li><strong>Pick the metric set.</strong> Frontend: LCP, INP, CLS + bundle. Backend: p95 / p99 + throughput + error rate. Asset: bundle size + image weight.</li>
+        <li><strong>Set numeric targets.</strong> Per route / endpoint. Start with web.dev "good" thresholds; tighten as the team improves.</li>
+        <li><strong>Wire CI tools.</strong> Lighthouse-CI (frontend); k6 thresholds (backend); bundlesize / size-limit (JS).</li>
+        <li><strong>Throttle to mobile-class hardware.</strong> Slow 4G + 4× CPU on Lighthouse-CI; "mobile" preset.</li>
+        <li><strong>Make checks required.</strong> Branch protection on main; merge blocked above budget.</li>
+        <li><strong>Stand up RUM.</strong> CrUX / Datadog Web Vitals / SpeedCurve. Monthly dashboard.</li>
+        <li><strong>Monthly perf review.</strong> 30 min: top-5 regressions + wins; calibrate budget against RUM p75.</li>
+        <li><strong>Exception workflow.</strong> If a budget breach is justified, add an exception with expiry date; CI re-fails on expiry.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive — what makes budgets bite</h2>
+      <p><strong>Budgets must be enforced in CI, not aspirational.</strong> A budget in a doc is a wish. A required CI check that blocks merge is a budget. The transition from "we should be fast" to "this PR can't merge because LCP regressed 200 ms" is what changes team behaviour.</p>
+      <p><strong>Throttle CI hardware to mobile.</strong> The single most common mistake is running Lighthouse-CI on the default GitHub Actions runner (a beefy desktop) and getting "everything is fine". Configure Slow 4G + 4× CPU throttling so the CI number resembles the median user's experience. Otherwise the budget is fiction.</p>
+      <p><strong>RUM calibrates the CI budget.</strong> The CI number is synthetic; RUM is reality. The two diverge: a perfect CI score with real-user p75 = 5 s means the budget is wrong. Monthly review aligns CI with RUM; the budget tightens when RUM improves and loosens when reality says it must.</p>
+      <p><strong>Bundle size is the cheapest battle.</strong> Frontend perf regressions usually start as bundle growth. A budget of "main bundle ≤ 200 kB gzipped" + bundlesize in CI catches "engineer imported lodash for one function" the same day, when fixing takes 5 minutes.</p>
+      <p><strong>Backend p99 over p95.</strong> p95 hides the slow tail that hurts real users. Budget the p99 (or p99.9) — the tail is what produces the customer-complaints latency.</p>
+      <p><strong>Per-route budgets, not global.</strong> A homepage budget of 2 s LCP is reasonable; a deep "lesson player" budget of 2 s isn't because the content is heavier. Set budgets per route / endpoint, not globally. Lighthouse-CI supports this natively.</p>
+      <p><strong>Exceptions need expiry dates.</strong> "Breach allowed for this PR" turns into "breach allowed forever" without an expiry. Every exception has a date; CI fails again on the date; the team either fixes or renews with justification.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle of a perf budget</h2>
+      <div class="pa-states">
+        <div class="pa-states__item"><p class="pa-states__name">Drafted</p><p class="pa-states__hint">Initial targets in <code>perf-budget.json</code>. Start with web.dev "good" thresholds + 25% slack while team calibrates.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Enforced</p><p class="pa-states__hint">Required CI check. Merge blocked on breach. Exception workflow defined.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Calibrated</p><p class="pa-states__hint">RUM dashboard live. Monthly review aligns CI budget with reality.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Tightened</p><p class="pa-states__hint">As team improves, budget tightens. Pressure stays constant — slack is reclaimed for new optimisation work.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Excepted</p><p class="pa-states__hint">Justified breach with expiry date. CI re-fails on expiry; team fixes or renews with new reason.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Retired</p><p class="pa-states__hint">Route / endpoint removed; budget entry removed in the same PR. Stale entries flagged at monthly review.</p></div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Common pitfalls">
+        <table class="docs-table docs-table--sticky-head">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr><td>Budget in a doc, not in CI</td><td>"We aim for &lt; 200 kB" written in the team handbook; never enforced. Bundle drifts; nobody notices.</td><td>Budget in CI as a required check. Doc is the explanation; CI is the gate.</td></tr>
+            <tr><td>Dev-hardware Lighthouse runs</td><td>CI uses default fast runner; LCP looks great; real users on mobile experience 5 s loads.</td><td>Throttle to Slow 4G + 4× CPU. Mirror median user hardware. Otherwise the budget is fiction.</td></tr>
+            <tr><td>p95 budgets miss the tail</td><td>p95 is comfortable; p99/p99.9 is awful; customer complaints all come from the tail.</td><td>Budget p99 (or p99.9) for the metrics customers feel. p95 is fine for diagnostics, not for budgets.</td></tr>
+            <tr><td>One global budget for everything</td><td>Homepage and deep app share one LCP budget. Homepage easily passes; deep app constantly breaches; budget gets loosened to accommodate; signal lost.</td><td>Per-route / per-endpoint budgets. Lighthouse-CI supports this; use it.</td></tr>
+            <tr><td>Exceptions never expire</td><td>"Breach allowed for now" becomes "allowed forever". Budgets become advisory.</td><td>Every exception has an expiry date. CI fails on expiry; team fixes or renews with new reason.</td></tr>
+            <tr><td>No RUM → CI drifts from reality</td><td>CI passes; users complain; team has no signal of the gap. Budget is unanchored from real experience.</td><td>RUM (CrUX / Datadog / SpeedCurve) feeds a monthly dashboard. CI calibrated against RUM p75.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — Study App perf budgets</h2>
+      <div class="pa-example">
+        <p class="pa-example__intro">Per-route Lighthouse-CI budget + k6 backend thresholds + bundlesize config. All three enforced as required CI checks.</p>
+        <pre class="pa-example__code"><code># perf/lighthouse-budgets.json (per-route)
+[
+  { "path": "/",                 "resourceSizes": [{ "resourceType": "script", "budget": 180 }],
+                                  "timings": [{ "metric": "interactive", "budget": 3000 },
+                                              { "metric": "largest-contentful-paint", "budget": 2500 }] },
+  { "path": "/lessons/*",        "timings": [{ "metric": "largest-contentful-paint", "budget": 3500 }] },
+  { "path": "/billing/*",        "timings": [{ "metric": "largest-contentful-paint", "budget": 3000 }] }
+]
+
+# perf/lighthouse-ci.yml
+ci:
+  collect:
+    settings:
+      preset: mobile             # 1.6 Mbps · 4x CPU throttle
+      formFactor: mobile
+    numberOfRuns: 5              # median to reduce flakiness
+  assert:
+    budgetsFile: perf/lighthouse-budgets.json
+
+# perf/k6/lesson-state.js (backend)
+import http from 'k6/http';
+export const options = {
+  thresholds: {
+    'http_req_duration{endpoint:state}': ['p(99)&lt;200', 'p(99.9)&lt;500'],
+    'http_req_failed{endpoint:state}':   ['rate&lt;0.001'],
+  },
+  scenarios: {
+    sustained: { executor: 'constant-arrival-rate', rate: 100, duration: '5m' },
+  },
+};
+export default function () {
+  http.get('https://staging/lessons/abc/state', { tags: { endpoint: 'state' } });
+}
+
+# package.json (bundlesize, frontend)
+"bundlesize": [
+  { "path": "dist/main.*.js",      "maxSize": "200 kB", "compression": "gzip" },
+  { "path": "dist/vendor.*.js",    "maxSize": "350 kB", "compression": "gzip" },
+  { "path": "dist/runtime.*.js",   "maxSize": "20 kB",  "compression": "gzip" }
+]
+
+# .github/workflows/perf.yml (excerpt)
+jobs:
+  perf:
+    steps:
+      - uses: treosh/lighthouse-ci-action@v11
+        with: { configPath: perf/lighthouse-ci.yml }
+      - uses: grafana/k6-action@v0.3.1
+        with: { filename: perf/k6/lesson-state.js }
+      - run: npx bundlesize
+        </code></pre>
+        <p class="pa-example__note">Three tools, three budget files, one perf workflow. Per-route LCP budgets for the frontend; p99 + p99.9 thresholds in k6 for the backend; gzipped-bundle limits per chunk. All three are required checks; merge is blocked on breach.</p>
+      </div>
+    </section>
+
+    <section id="quality">
+      <h2>Quality bar</h2>
+      <ul class="pa-quality">
+        <li><strong>Budget in CI as a required check.</strong> Merge blocked on breach.</li>
+        <li><strong>Per-route / per-endpoint targets.</strong> No global "fast" goal.</li>
+        <li><strong>Mobile-throttled Lighthouse.</strong> Slow 4G + 4× CPU; "mobile" preset.</li>
+        <li><strong>p99 / p99.9 backend.</strong> Tail is what customers feel.</li>
+        <li><strong>RUM calibration.</strong> Monthly review aligns CI budget with reality.</li>
+        <li><strong>Exception workflow with expiry.</strong> No permanent breaches.</li>
+        <li><strong>Bundle size budgeted per chunk.</strong> Gzipped; required check.</li>
+        <li><strong>Monthly perf review.</strong> 30 min; top-5 regressions + wins.</li>
+      </ul>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://timkadlec.com/" rel="noopener">Tim Kadlec — original perf-budget essays</a></li>
+        <li><a href="https://web.dev/articles/performance-budgets-101" rel="noopener">web.dev — Performance Budgets 101</a></li>
+        <li><a href="https://github.com/GoogleChrome/lighthouse-ci" rel="noopener">Lighthouse-CI</a></li>
+        <li><a href="https://k6.io/docs/using-k6/thresholds/" rel="noopener">k6 — thresholds docs</a></li>
+        <li><a href="https://github.com/siddharthkp/bundlesize" rel="noopener">bundlesize</a></li>
+        <li><a href="https://github.com/ai/size-limit" rel="noopener">size-limit</a></li>
+        <li><a href="https://developer.chrome.com/docs/crux" rel="noopener">CrUX — Chrome real-user dataset</a></li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <p class="docs-history__title">History</p>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-24">2026-05-24</time>
+          <span class="docs-history__change">Rewritten to SA practice-page pattern: page-head, 4-step SVG (Define / Measure / Enforce / RUM trend), expanded industry (4 cards: Kadlec, web.dev CWV, k6 thresholds, Shopify RUM calibration), deep-dive (CI not aspirational, mobile throttle, RUM calibration, bundle is cheapest battle, p99, per-route, exception expiry), lifecycle, lighthouse + k6 + bundlesize worked example, quality bar, references.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-14">2026-05-14</time>
+          <span class="docs-history__change">Initial version: performance-budgets practice for SWE radar.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

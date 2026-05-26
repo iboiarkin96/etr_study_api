@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en" data-portal="public" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API versioning · Explanation · ETR Study API</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/public/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🚀</span><span>ETR Study API</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Developer Documentation</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">API versioning</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-public.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1>API versioning</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          How the HTTP surface of the ETR Study API evolves over time — what changes you can rely on
+          inside a major version, what counts as breaking, and how to lock your client to a known
+          shape.
+        </p>
+      </header>
+
+      <h2 id="the-promise">The promise</h2>
+      <p>
+        The HTTP surface is versioned via the URL path: every endpoint lives under <code>/api/v1</code>.
+        Within a major version, the contract evolves <em>additively</em> — new fields, new endpoints,
+        new error codes, new optional headers — but does not break what was already published.
+      </p>
+
+      <h2 id="additive-vs-breaking">Additive vs. breaking</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead>
+            <tr>
+              <th scope="col">Change kind</th>
+              <th scope="col">Allowed in <code>v1</code>?</th>
+              <th scope="col">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">New endpoint added</th>
+              <td>Allowed</td>
+              <td>Existing endpoints unchanged.</td>
+            </tr>
+            <tr>
+              <th scope="row">New optional request field</th>
+              <td>Allowed</td>
+              <td>Default behaviour preserved when the field is absent.</td>
+            </tr>
+            <tr>
+              <th scope="row">New response field</th>
+              <td>Allowed</td>
+              <td>Clients must ignore unknown fields; that is the integrator's contract.</td>
+            </tr>
+            <tr>
+              <th scope="row">New error <code>code</code> value</th>
+              <td>Allowed</td>
+              <td>Surfaces as the existing HTTP status; integrators that switch on the new code opt in deliberately.</td>
+            </tr>
+            <tr>
+              <th scope="row">Tighter validation on an existing field</th>
+              <td>Breaking</td>
+              <td>Requires <code>v2</code>. Loosening validation is additive.</td>
+            </tr>
+            <tr>
+              <th scope="row">Renamed / removed field</th>
+              <td>Breaking</td>
+              <td>Requires <code>v2</code>.</td>
+            </tr>
+            <tr>
+              <th scope="row">Status-code change for the same condition</th>
+              <td>Breaking</td>
+              <td>Requires <code>v2</code>.</td>
+            </tr>
+            <tr>
+              <th scope="row">Removed / repurposed error <code>code</code></th>
+              <td>Breaking</td>
+              <td>Codes are stable for the lifetime of <code>v1</code>; deprecation is announced separately.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Compatibility is enforced by an automated check against the committed
+        <code>openapi-baseline.json</code>: the build fails on any breaking diff.
+      </p>
+
+      <h2 id="new-major-version">When a new major version ships</h2>
+      <p>
+        If a breaking change is unavoidable, it lands behind a new prefix (<code>/api/v2</code>) —
+        <code>v1</code> continues to serve. Both versions are documented in the
+        <a href="../reference/api/index.html">OpenAPI explorer</a> until the deprecation window for
+        <code>v1</code> closes. The plan, dates, and migration guide live in a release note;
+        integrators get at least one full release of overlap before retirement.
+      </p>
+
+      <h2 id="lock-to-known-shape">How to lock to a known shape</h2>
+      <ul>
+        <li>Pin against a snapshot of <code>openapi-baseline.json</code> in your client repo and regenerate models on a schedule.</li>
+        <li>Surface the API's emitted <code>request_id</code> in your client logs — it is the fastest way to correlate a problem report with a server-side trace.</li>
+        <li>Read the public CHANGELOG (top of the docs portal) before upgrading the pinned schema.</li>
+      </ul>
+    </article>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/public/entry.js"></script>
+
+</body></html>

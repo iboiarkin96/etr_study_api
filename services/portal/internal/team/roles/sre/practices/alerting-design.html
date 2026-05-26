@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alerting design — fewer alerts, each one actionable — Practice 09 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Alerting design</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">09</span>
+        <span class="pa-eyebrow__group">Group B · Observability</span>
+      </p>
+      <h1>Alerting design — fewer alerts, each one actionable</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Alert on symptoms, not causes. Every page has a runbook, a named owner, and a decision the on-call can make inside five minutes — anything else is a dashboard annotation.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">A good alert is symptom-based, actionable inside 5 minutes, owned by a named team, and linked to a runbook. Severity collapses to three tiers: <strong>P0/P1</strong> pages, <strong>P2</strong> opens a ticket, <strong>Info</strong> only annotates a dashboard — nothing in between exists. Quality is measured: target ≤5 pages per on-call shift and a noise ratio below 20%. Any alert that fires and needs no action is deleted or demoted, not silenced.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Symptom-driven alert routing">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Symptom signal to severity to routing action" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="160" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="85" y="106" text-anchor="middle" font-weight="700">Symptom</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="85" y="124" text-anchor="middle" font-size="10">SLO burn, user 5xx, p95</text>
+
+        <rect class="pa-svg-box" x="190" y="80" width="135" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="257" y="106" text-anchor="middle" font-weight="700">Classify</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="257" y="124" text-anchor="middle" font-size="10">burn × window</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="355" y="20" width="160" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="435" y="42" text-anchor="middle" font-weight="700">P0 / P1</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="435" y="60" text-anchor="middle" font-size="10">page · 5-min ACK</text>
+
+        <rect class="pa-svg-box" x="355" y="84" width="160" height="52" rx="8"></rect>
+        <text class="pa-svg-text" x="435" y="106" text-anchor="middle" font-weight="700">P2</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="435" y="124" text-anchor="middle" font-size="10">ticket + Slack</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="355" y="148" width="160" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="435" y="170" text-anchor="middle" font-weight="700">Info</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="435" y="188" text-anchor="middle" font-size="10">dashboard only</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="540" y="80" width="95" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="587" y="106" text-anchor="middle" font-weight="700">Runbook</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="587" y="124" text-anchor="middle" font-size="10">required</text>
+
+        <path d="M165 110 L185 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M325  98 L350  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M325 110 L350 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M325 122 L350 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M515  46 L535  92" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M515 110 L535 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+      </svg>
+      <figcaption class="pa-figure__caption">Symptom → classify by burn × window → route. P0/P1 pages, P2 tickets, Info annotates. The runbook gate applies to every page tier; without one the rule does not ship.</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p><strong>Alerting design</strong> is the discipline of deciding which conditions wake a human, which create a ticket, and which only appear on a dashboard. The decision is not made per-alert in isolation — it is made against a shared policy so that every rule in the repository plays by the same rules. The wrong policy produces 60 pages per shift and a team that has learned to ignore them; the right policy produces 3 pages a shift, each one ending in an action.</p>
+    <p>A rule that ships to production must satisfy five mandatory properties: it fires on a <em>symptom</em> the user actually feels (latency, errors, SLO burn) and not on a cause that may or may not matter (CPU, disk, queue depth); it points at exactly one <em>action</em> the on-call can take inside the response SLA; it carries a <em>runbook</em> link in its annotation; it names an owning <em>service and team</em>; and it has a <em>review-by date</em> after which it is re-validated or deleted. Anything missing one of the five does not ship — CI in the alert repo enforces this.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Alert fatigue is the most reliably documented on-call pathology. The clinical literature on alarm fatigue in ICU nursing shows the same effect that engineering teams hit: when the base rate of meaningful alerts drops below ~20%, response time and acknowledgement quality collapse together — humans stop treating the signal as a signal. A team paged 60 times a shift learns to swipe-acknowledge without reading; the one real page in that batch gets the same muscle-memory dismissal as the 59 noisy ones before it.</p>
+    <p>The engineering target is the inverse. Google's published SRE practice puts every page through the question <em>"is this actionable inside 5 minutes by the person who will receive it?"</em> If the answer is no, it is not a page. That single filter, applied honestly, removes most of an average team's existing alert volume — and it is the cheapest reliability win available, because it costs no infrastructure and frees the on-call's attention for the failures that matter.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose alerting practice is published and copied. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Google SRE (multi-burn-rate)</p>
+        <p class="pa-industry__what">The SRE Workbook prescribes multi-window, multi-burn-rate alerts as the default for any SLO-driven service. Two windows fire together — short (1 h, burn × 14.4) and long (6 h, burn × 6) — so that fast budget burn pages immediately while slow burn still pages before the budget is gone. The AND-of-two-windows logic catches both modes and rejects the transient spikes that the single-window approach pages on.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Stop writing threshold alerts on raw metrics. Every SLO gets a multi-burn-rate rule. The precision improvement (fewer false positives, earlier real warnings) is worth a migration sprint on its own.</p>
+        <p class="pa-industry__source">Source: <a href="https://sre.google/workbook/alerting-on-slos/" rel="noopener">Google SRE Workbook — Alerting on SLOs</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">PagerDuty</p>
+        <p class="pa-industry__what">PagerDuty's Operational Maturity Model exposes three measurable alert-quality metrics: MTTA (mean time to acknowledge), MTTR (mean time to resolve), and noise ratio (pages that needed no action ÷ total). Their guidance: a team whose noise ratio is above 30% should run an alert audit before adding a single new rule — new alerts on a noisy foundation make the signal-to-noise ratio worse, not better.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Alert quality must be measured, not asserted. Pages per shift, MTTA, and noise ratio go on a dashboard reviewed monthly; the team without those numbers does not know whether its alerting work is working.</p>
+        <p class="pa-industry__source">Source: <a href="https://response.pagerduty.com/" rel="noopener">PagerDuty Incident Response Guide</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Honeycomb</p>
+        <p class="pa-industry__what">Honeycomb pages on SLO burn-rate exclusively, never on raw metric thresholds. The platform refuses to attach a paging policy to a rule that does not reference an SLO; raw metrics can drive dashboards but cannot wake a human. The published rationale is that burn-rate alerts give a precise statement of urgency ("budget will be gone in 24 h") that a threshold cannot.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> The platform itself can carry the policy. Make "paging requires an SLO" a structural rule, not a guideline — once it is in CI the rest of the team's discipline is automatic.</p>
+        <p class="pa-industry__source">Source: <a href="https://docs.honeycomb.io/working-with-your-data/slos/" rel="noopener">Honeycomb SLO documentation</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Slack</p>
+        <p class="pa-industry__what">Slack publishes a public alert-design playbook with a brutal rule: every alert that fires and produces no action is auto-tagged in the post-mortem and reviewed in the next on-call retro. Alerts that fail the test twice in a quarter are deleted by default — keeping them requires a written defence by the owning team. The default is delete, not silence.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Reversing the default closes the entropy gap. Adding alerts is easy and feels productive; removing them feels risky, so without a forcing function the count only grows. Make deletion the default outcome of a noisy alert.</p>
+        <p class="pa-industry__source">Source: <a href="https://slack.engineering/" rel="noopener">Slack Engineering Blog</a></p>
+      </div>
+    </div>
+    <p class="pa-industry-pattern">Across every team whose alerting practice is public, the playbook converges: symptom-only paging, burn-rate over thresholds, mandatory runbook links, explicit quality metrics on a dashboard, and an automatic deletion default for noisy rules.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete alerting practice has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Symptom-only paging</p><p class="pa-anatomy__hint">Pages fire on user-visible impact — SLO burn rate, user-visible error rate, p95 latency. CPU and disk are dashboard signals, not paging signals.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Three severity tiers</p><p class="pa-anatomy__hint">P0/P1 pages with a 5-minute ACK SLA. P2 opens a ticket and pings Slack. Info annotates a dashboard. Anything that does not fit these three is deleted, not kept as "just in case".</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Runbook annotation</p><p class="pa-anatomy__hint">Every rule carries a <code>runbook_url</code> annotation that resolves to a written page. CI rejects the PR if the URL returns 404 or contains the literal string <code>TODO</code>.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Owner declaration</p><p class="pa-anatomy__hint">Every rule names a service (label <code>service</code>) and a routing team (label <code>team</code>). The escalation policy uses those labels — ownerless alerts route to <code>#alerts-unowned</code> and are deleted weekly.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Multi-burn-rate page rule</p><p class="pa-anatomy__hint">SLO pages use the 1 h × 14.4 AND 6 h × 6 windows. Both must trip for the page to fire — neither window alone is the source of truth.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Quality dashboard</p><p class="pa-anatomy__hint">Four numbers reviewed monthly: pages-per-shift, MTTA, MTTR, noise ratio. Target ≤5 pages per shift and noise ratio &lt;20%.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Review-by date</p><p class="pa-anatomy__hint">Every rule has a <code>review_by</code> label set 90 days ahead. After expiry the rule is auto-disabled unless explicitly renewed; entropy favours accumulation and the process has to fight it.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App will define its symptom signals in <strong>Prometheus</strong> and route them through <strong>Alertmanager</strong> to <strong>PagerDuty</strong> (paging tiers) and <strong>Slack</strong> (ticket tier). The alert repository lives at <code>infra/alerts/</code> with one YAML file per service; CI checks that every rule has a runbook URL, an owning team, a severity label, and a <code>review_by</code> date no further than 90 days out. Rules that fail any of those checks block the PR.</p>
+    <p>The first generation of paging rules will be SLO burn-rate alerts derived from the SLOs in <code>infra/slo/</code> — see <a href="slo-error-budget.html">SLO &amp; error budget</a> for how those are defined. The standard SLO page is the 1 h × 14.4 AND 6 h × 6 multi-window rule. The four golden signals (latency, traffic, errors, saturation) are exposed on the service overview dashboard but only the user-visible ones drive pages; saturation drives capacity tickets, not pages, unless it is already causing a latency regression. The alert-quality dashboard at <code>internal/sre/alert-quality.html</code> tracks pages-per-shift, MTTA, MTTR, and noise ratio month-over-month and is reviewed in the SRE retro on the first Monday of each month.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Multi-window, multi-burn-rate alerts — the math behind the rule</h3>
+      <p>An SLO of 99.9% over 28 days yields an error budget of 0.1% — about 40 minutes of complete failure per month, distributed however the system feels like distributing it. A <em>burn rate</em> is the multiple of the steady-state error rate the system is currently producing. Burn rate 1 means the budget will be spent exactly on time; burn rate 14.4 means the entire 28-day budget will be spent in 2 hours.</p>
+      <p style="font-family:var(--font-mono); background: var(--bg-mute); padding: var(--space-2); border-radius: 6px;">budget_consumed_fraction = burn_rate × window / (28 days × (1 − SLO))</p>
+      <p>The two canonical windows are 1 h × 14.4 (catches a 2% blow-up of the budget inside an hour) and 6 h × 6 (catches a 5% blow-up over six hours). Both must trip together for the page to fire — that is what kills the false-positive rate of a single-window alert that pages on every transient spike. The slower 6 h window also serves as the natural reset: when the burn rate returns to normal, the alert clears within six hours rather than the moment errors stop.</p>
+      <h4>Symptoms vs causes — the four golden signals</h4>
+      <p>Google's four golden signals (latency, traffic, errors, saturation) cover almost every paging case. Three of them — latency, traffic, errors — are <em>symptoms</em>: the user feels them directly. Saturation is a <em>cause</em>: high CPU, full disk, queue depth. Causes are noisy on their own (CPU at 90% might be the system working as designed) and they only matter when they translate into a symptom. The rule is: page on the symptom, dashboard the cause; if the symptom is firing, the cause shows up next to it in the runbook.</p>
+      <h4>The cost matrix — false positives vs false negatives</h4>
+      <p>Every alert lives somewhere on a precision/recall trade-off. A false positive (FP) costs one human-interrupt — call it 30 minutes of attention, possibly at 3 a.m. A false negative (FN) costs an outage that breaches the SLO before anyone notices — typically hours of user pain plus a post-mortem. The two are not symmetric, but their ratio is bounded: a team that runs at 80% FP rate will eventually treat the 20% real signal as noise too, and the FP cost effectively becomes FN cost. The practical target is FP rate &lt;20%, recall &gt;95% on actual SLO breaches, validated against the historical incident log every quarter.</p>
+      <h4>Flapping and hysteresis</h4>
+      <p>A rule that fires, clears, fires, clears in a 30-minute window is worse than no alert — it pages the on-call multiple times for one underlying problem. Two mitigations: a <code>for:</code> duration that requires the condition to hold for N minutes before paging (5 m for P0, 15 m for P2 is a safe default), and asymmetric thresholds (fire at 5% error rate, clear at 3%). Both add hysteresis; both reduce noise without hiding real incidents.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Up-front investment.</strong> Defining symptom signals, SLOs, and burn-rate rules takes a sprint per service before any value lands. Teams that skip this step keep the easy-to-write threshold alerts and pay the cost in alert fatigue.</li>
+        <li><strong>Discipline at PR time.</strong> CI rejecting alerts without runbooks is unpopular the first week and invisible after the second. Without the gate, "Runbook: TODO" appears in every PR and ships to production.</li>
+        <li><strong>Cultural reversal.</strong> Adding alerts feels productive ("we caught a thing"); deleting noisy alerts feels risky ("what if we miss a thing"). The forcing function is the noise-ratio metric — once it is on the dashboard and reviewed, deletion becomes the natural reaction to a noisy rule.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">symptom proposed</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">SLO + tier chosen</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">runbook written</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">PR + CI checks</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">soak in staging</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">prod, tier-routed</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">quarterly review · retune · retire</span>
+    </div>
+    <p>A new alert starts as a symptom statement, not a rule expression — "users see 5xx above SLO" rather than "<code>rate(errors[5m]) &gt; 0.05</code>". The team picks the SLO it maps to and the tier it deserves. The runbook is written next, and only then does the rule expression get attached. CI validates the runbook URL, the owner labels, the severity, and the <code>review_by</code> date. The rule soaks in staging for one full business cycle — long enough to see weekend traffic — and only then ships to production. After ninety days, or sooner if the noise ratio crosses 20%, the rule is reviewed: retuned or retired. Retired alerts are deleted, not commented out.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Paging on causes (CPU, disk) instead of symptoms</strong></td>
+            <td>Infrastructure metrics are easy to instrument; user-visible symptoms require defining an SLO first.</td>
+            <td>Adopt the four golden signals and SLO burn rate as the paging surface. CPU at 90% is dashboard territory; if it is actually hurting users, the latency alert fires too. Cause metrics belong in the runbook, not in the page rule.</td>
+          </tr>
+          <tr>
+            <td><strong>Single-window threshold alert</strong></td>
+            <td>Easier to write — one expression, one threshold.</td>
+            <td>Use the 1 h × 14.4 AND 6 h × 6 multi-burn-rate pattern. Single-window thresholds either fire on every transient spike or miss the slow burns that quietly eat the budget overnight; the two-window AND rejects both failure modes.</td>
+          </tr>
+          <tr>
+            <td><strong>Alert added, never reviewed</strong></td>
+            <td>Adding rules is easy; deleting them feels risky.</td>
+            <td>Every rule carries a <code>review_by</code> label, 90 days out. After expiry CI auto-disables it unless explicitly renewed. The default is removal; keeping a noisy rule requires a written defence from the owning team.</td>
+          </tr>
+          <tr>
+            <td><strong>Runbook is a stub</strong></td>
+            <td>"We'll write the runbook later" — and later never arrives.</td>
+            <td>CI parses the runbook URL and rejects the PR if it 404s or contains <code>TODO</code>. The rule does not ship without a real runbook; the runbook is part of the rule, not an aspiration around it.</td>
+          </tr>
+          <tr>
+            <td><strong>No named owner</strong></td>
+            <td>"The platform team handles all alerts" — no specific human is on the hook.</td>
+            <td>Every rule carries a <code>service</code> and <code>team</code> label and Alertmanager routes on them. Ownerless rules route to <code>#alerts-unowned</code> and are deleted at the next weekly clean-up; orphans are not silently tolerated.</td>
+          </tr>
+          <tr>
+            <td><strong>Flapping fires repeatedly</strong></td>
+            <td>The condition oscillates around the threshold; no <code>for:</code> duration or hysteresis.</td>
+            <td>Add a <code>for:</code> requirement (5 m for P0, 15 m for P2) and asymmetric fire/clear thresholds. Page once per incident, not once per oscillation.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Alert rule</span>
+        <p class="pa-example__title">SLO-001 — Lessons API availability (99.9% / 28 d) — multi-burn-rate page</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code>alert:       LessonsApiSLOBurn
+expr:        |
+  (
+    job:slo_error_rate:rate1h{service="lessons-api"}    &gt; (14.4 * 0.001)
+    and
+    job:slo_error_rate:rate6h{service="lessons-api"}    &gt; ( 6.0 * 0.001)
+  )
+for:         5m
+labels:
+  severity:    page
+  tier:        P1
+  service:     lessons-api
+  team:        sre-platform
+  review_by:   "2026-08-22"
+annotations:
+  summary:     "Lessons API burning 28-day error budget &gt;14× over 1 h"
+  description: |
+    Both 1 h (×14.4) and 6 h (×6) burn-rate windows are tripped. At this rate
+    the 28-day budget will be exhausted in &lt; 2 hours. User-visible 5xx is the
+    primary symptom.
+  runbook_url: https://internal.studyapp/runbooks/lessons-api-slo-burn
+  dashboard:   https://grafana.studyapp/d/lessons-api-overview
+        </code></pre>
+        <p><strong>What this rule does.</strong> It pages PagerDuty on-call SRE Platform when, and only when, both burn-rate windows agree the SLO budget is draining far faster than steady state. The 5-minute <code>for:</code> guard removes flap. The runbook is the on-call's first stop; the dashboard is the second. If the rule had been written as <code>rate(http_5xx[5m]) &gt; 0.05</code> instead, it would have paged twelve times last week — eleven of them transient — and the one real degradation on Thursday would have arrived as the twelfth swipe-dismiss of the shift.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every page is symptom-based</p><p class="pa-quality__hint">Raw infrastructure metrics drive dashboards, not pages. No cause alert without a paired symptom alert.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Multi-burn-rate rules on every SLO</p><p class="pa-quality__hint">1 h × 14.4 AND 6 h × 6 windows; single-window threshold pages are migrated out.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Runbook link enforced by CI</p><p class="pa-quality__hint">PR rejected if the URL 404s or contains <code>TODO</code>. The runbook ships with the rule, not after it.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Owner labels on every rule</p><p class="pa-quality__hint"><code>service</code> and <code>team</code> resolve through Alertmanager routing. Ownerless alerts auto-deleted weekly.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Alert-quality dashboard published</p><p class="pa-quality__hint">Pages-per-shift, MTTA, MTTR, noise ratio month-over-month. Reviewed in the monthly SRE retro.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Pages per on-call shift ≤ 5</p><p class="pa-quality__hint">Trend is downward; an upward month triggers an alert audit before any new rule lands.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Review-by date enforced</p><p class="pa-quality__hint">90-day expiry on every rule; auto-disable on expiry unless explicitly renewed.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://sre.google/workbook/alerting-on-slos/" rel="noopener">Google SRE Workbook — Alerting on SLOs</a><span class="pa-refs__hint">The canonical reference for multi-window, multi-burn-rate alerts; chapter 5 has the math.</span></li>
+          <li><a href="https://sre.google/sre-book/monitoring-distributed-systems/" rel="noopener">Google SRE Book — Monitoring distributed systems</a><span class="pa-refs__hint">Four golden signals; symptom-vs-cause distinction in its original form.</span></li>
+          <li><a href="https://response.pagerduty.com/" rel="noopener">PagerDuty Incident Response Guide</a><span class="pa-refs__hint">MTTA / MTTR / noise-ratio definitions and the operational maturity model.</span></li>
+          <li><a href="https://docs.honeycomb.io/working-with-your-data/slos/" rel="noopener">Honeycomb SLO documentation</a><span class="pa-refs__hint">A platform that refuses paging policies on non-SLO rules — a worked example of policy-in-the-tool.</span></li>
+          <li><a href="https://prometheus.io/docs/practices/alerting/" rel="noopener">Prometheus alerting best practices</a><span class="pa-refs__hint">The reference for symptom-based paging at the rule-engine level.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="slo-error-budget.html">SLO &amp; error budget — what the burn-rate alert measures</a><span class="pa-refs__hint">Without an SLO there is no burn rate; the SLO is the prerequisite for every paging rule.</span></li>
+          <li><a href="runbooks.html">Runbooks — the link every alert must carry</a><span class="pa-refs__hint">A page without a runbook is half-built; this is the other half.</span></li>
+          <li><a href="on-call-handbook.html">On-call handbook — who receives the page</a><span class="pa-refs__hint">Routing, ACK SLAs, escalation policy — the human side of the rule.</span></li>
+          <li><a href="incident-severity.html">Incident severity — how P0/P1/P2 are defined</a><span class="pa-refs__hint">The severity tier in the alert label maps directly to the incident-severity matrix.</span></li>
+          <li><a href="metrics-dashboards.html">Metrics &amp; dashboards — where Info-tier alerts live</a><span class="pa-refs__hint">The dashboard is where causes are shown and where Info-tier signals are annotated.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-14">2026-05-14</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: Alerting Design practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

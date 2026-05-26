@@ -31,19 +31,19 @@ Bullet points or a link to the proposed ADR text (or draft PR).
 
 When ready, open a PR that:
 
-- Adds or updates the ADR under `docs/adr/`
-- Updates `docs/adr/README.html` if the ADR is new
-- Adds an entry under `[Unreleased]` in `docs/CHANGELOG.md` when readers should know
+- Adds or updates the ADR under `services/portal/internal/governance/adr/`
+- Updates `services/portal/internal/governance/adr/index.html` if the ADR is new
+- Adds an entry under `[Unreleased]` in `services/portal/CHANGELOG.md` when readers should know
 - Fills **Ratification** (link to **this** Issue, merge PR, acceptance date) and sets `data-adr-weight` on `<main>`
 
 ### Example: Ratification block on the merged ADR page
 
-After merge, the HTML under `docs/adr/` should include a **Ratification** section similar to:
+After merge, the HTML under `services/portal/internal/governance/adr/` should include a **Ratification** section similar to:
 
 - **Discussion Issue:** URL of this Issue (the thread you are reading now).
 - **Merge PR:** URL of the PR that merged the ADR.
 - **Accepted:** `YYYY-MM-DD` (merge or explicit acceptance date).
 
-ADRs adopted before ADR 0018 use a shorter ratification note; see `docs/adr/0018-adr-lifecycle-ratification-and-badges.html` and older numbered ADRs.
+ADRs adopted before ADR 0018 use a shorter ratification note; see `services/portal/internal/governance/adr/0018-adr-lifecycle-ratification-and-badges.html` and older numbered ADRs.
 
 Close this Issue after the ADR PR is merged (or when the proposal is withdrawn).

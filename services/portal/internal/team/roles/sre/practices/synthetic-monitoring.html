@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synthetic monitoring — detect outages before users do — Practice 10 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Synthetic monitoring</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">10</span>
+        <span class="pa-eyebrow__group">Group B · Observability</span>
+      </p>
+      <h1>Synthetic monitoring — detect outages before users do</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Scheduled scripts that drive the golden user journeys from multiple regions, every minute, regardless of real traffic. The first signal of an outage should be the probe failing, not a user complaint on social media.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">Synthetic monitoring runs scheduled k6 or browser scripts that drive the three most critical user journeys (signup, lesson-render, payment) every 60 seconds from three geographic regions. Unlike passive monitoring — which only fires when real users hit errors — synthetics detect outages in low-traffic regions, CDN/DNS/TLS failures, and full-journey regressions before users feel them. Failures wire into PagerDuty at P2 and contribute to the journey-level SLO as synthetic SLIs. Alert only on two consecutive failures from the same region; never page on a single probe blip.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Synthetic probe pipeline">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Scheduled probe drives a golden journey URL, asserts the response, emits a metric, and routes the alert" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="140" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="75" y="106" text-anchor="middle" font-weight="700">Scheduled probe</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="75" y="124" text-anchor="middle" font-size="10">every 60 s · 3 regions</text>
+
+        <rect class="pa-svg-box" x="170" y="80" width="140" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="240" y="106" text-anchor="middle" font-weight="700">Golden journey</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="240" y="124" text-anchor="middle" font-size="10">signup · lesson · pay</text>
+
+        <rect class="pa-svg-box" x="335" y="80" width="135" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="402" y="106" text-anchor="middle" font-weight="700">Assert</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="402" y="124" text-anchor="middle" font-size="10">status · body · p95 ms</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="495" y="20" width="140" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="565" y="42" text-anchor="middle" font-weight="700">Metric · SLI</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="565" y="60" text-anchor="middle" font-size="10">success · latency</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="495" y="148" width="140" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="565" y="170" text-anchor="middle" font-weight="700">PagerDuty</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="565" y="188" text-anchor="middle" font-size="10">P2 · 2 consec. fails</text>
+
+        <path d="M145 110 L165 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M310 110 L330 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M470  98 L490  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M470 122 L490 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+      </svg>
+      <figcaption class="pa-figure__caption">Scheduled probe → hit a golden user journey URL → assert the response → emit metric/SLI and route the alert. Real users never run this path; the probe does, every minute, from every region.</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p><strong>Synthetic monitoring</strong> is the discipline of running scripted, scheduled test scenarios against production from multiple geographic locations, treating their pass/fail rate as a first-class availability signal. Where passive monitoring observes whatever traffic real users generate, synthetics generate traffic the team chooses — the journeys that matter most — so the absence of real users does not also mean the absence of a signal. A synthetic SLI is a deliberate sample, not a hope that the right users will hit the right endpoint at the right time.</p>
+    <p>A rule that ships to production must satisfy five properties: it drives a <em>complete user journey</em> end-to-end and not a single endpoint; it runs on a <em>schedule</em> measured in minutes, not hours; it executes from <em>multiple regions</em> that mirror the real user distribution; it emits both a <em>success bit and per-step latency</em> as metrics; and it routes to a <em>paging tier</em> with a 2-of-N consecutive-failure guard. Anything missing one of the five is a smoke test, not a synthetic monitor — useful in CI but not load-bearing in production.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Passive monitoring has a structural limit: it needs real user traffic to detect failures. In a low-traffic region — APAC at 3 a.m., a new market with a hundred users — a complete outage may never generate enough error volume to breach a threshold alert. The first signal arrives as a customer tweet, hours after the incident started, and the post-mortem records the same finding every time: <em>we had no monitoring that did not depend on a user being online</em>. Synthetics close that gap by generating the traffic themselves.</p>
+    <p>Synthetics also catch a class of failures passive monitoring is blind to by construction. A misconfigured CDN, a DNS record pointed at the wrong origin, a TLS certificate that expired at midnight — these stop users from reaching the service at all, so they produce zero events in the application monitoring stack. A synthetic probe trying to complete the full journey sees the failure immediately. That single capability is why every published SRE practice keeps synthetics in the stack even after a mature SLO programme is in place: they cover the journeys, the regions, and the network layers that passive metrics structurally cannot.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose synthetic-monitoring practice is published and copied. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Cloudflare</p>
+        <p class="pa-industry__what">Cloudflare runs synthetic probes from their global PoP network — 300+ locations — and decomposes every probe into per-phase metrics: DNS resolution, TCP connect, TLS handshake, time-to-first-byte, full page load. When a probe fails, the phase breakdown tells the on-call exactly where in the network stack the failure happened, with no further investigation needed. The fanout also means geographic degradation is visible at a granularity a three-region setup cannot match.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Break every synthetic check into phases and emit each as its own metric. The phase view is what turns a "the journey failed" page into a "DNS resolution timed out in APAC" runbook entry — without it the on-call still has to rediscover where in the stack the failure lives.</p>
+        <p class="pa-industry__source">Source: <a href="https://developers.cloudflare.com/cloudflare-one/insights/dex/" rel="noopener">Cloudflare DEX Monitoring</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">New Relic</p>
+        <p class="pa-industry__what">New Relic's synthetic monitoring runs two layers side by side: lightweight API probes that fire every minute as the fast-feedback alerting tier, and full scripted-browser journeys that run every five minutes as the SLI input. The browser tests render JavaScript and interact with the DOM, so they catch frontend regressions the API probe never sees; the API probes catch backend outages before the slower browser test completes its cycle. Alerts require two-of-N consecutive failures — never one.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Run synthetics in two layers, not one. API probes for fast paging and uptime; full browser journeys for SLO and regression coverage. The two-of-N consecutive guard removes probe-level flakiness without adding latency to genuine outages.</p>
+        <p class="pa-industry__source">Source: <a href="https://docs.newrelic.com/docs/synthetics/" rel="noopener">New Relic Synthetic Monitoring</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Datadog</p>
+        <p class="pa-industry__what">Datadog Synthetics binds every synthetic test to an SLO definition so test failures consume the same error budget that real-user errors do. Test runs are SLI events: a failing probe in APAC at 3 a.m. burns budget exactly as a real user's failed request would. The platform exposes the failure as a journey-level SLI rather than as a separate "synthetic uptime" metric — there is one availability number per journey, computed from real plus synthetic events.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Synthetic results feed the journey SLO, not a separate vanity number. One availability metric per journey, real and synthetic events combined, with the synthetic contribution dominating the low-traffic windows where real users are absent.</p>
+        <p class="pa-industry__source">Source: <a href="https://docs.datadoghq.com/synthetics/" rel="noopener">Datadog Synthetic Monitoring</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Grafana Labs</p>
+        <p class="pa-industry__what">Grafana Synthetic Monitoring (the hosted service backing k6 probes) treats the probe schedule, region set, and assertion list as code in a Git-backed configuration repo. Adding a probe is a pull request, not a UI click; the review covers the journey choice, the region selection, and the alert threshold together. Probes that fire and produce no action are flagged in the monthly synthetic-quality review and either retuned or retired.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Probes live in a Git repo next to the alert rules. The journey, schedule, regions, assertions, and paging policy are all under the same review gate — so the practice scales the same way alert rules do.</p>
+        <p class="pa-industry__source">Source: <a href="https://grafana.com/docs/grafana-cloud/monitor-public-endpoints/" rel="noopener">Grafana Synthetic Monitoring</a></p>
+      </div>
+    </div>
+    <p class="pa-industry-pattern">Across every team whose synthetic practice is public, the playbook converges: probe the golden journeys end-to-end, run from multiple regions every minute, decompose into per-phase metrics, feed the journey SLO directly, and require two-of-N consecutive failures before paging.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete synthetic-monitoring practice has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Golden journey selection</p><p class="pa-anatomy__hint">Three to five journeys that together cover &gt;80% of the revenue path — for Study App: signup, lesson-render, payment. Endpoints are not journeys; the journey is the user's intent, scripted end-to-end.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Multi-region probe network</p><p class="pa-anatomy__hint">At least three regions chosen to mirror the real user distribution. If 30% of users are in APAC, one probe is in APAC. A failure invisible from the EU probe is still a real outage for those users.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Probe schedule</p><p class="pa-anatomy__hint">Every 60 seconds for API probes, every 5 minutes for browser journeys. Slower schedules mean the outage runs longer before the probe trips; faster schedules add cost without adding signal.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Two-of-N consecutive guard</p><p class="pa-anatomy__hint">Alert only after two consecutive failures from the same region. Single failures are almost always probe-level network noise; treating them as pages destroys on-call signal-to-noise immediately.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Per-phase metrics</p><p class="pa-anatomy__hint">Decompose every probe into DNS, TCP connect, TLS, time-to-first-byte, full journey latency. Each phase is its own metric so the on-call can read the runbook entry instead of starting an investigation from zero.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Synthetic SLI contribution</p><p class="pa-anatomy__hint">Test results feed the journey-level SLO directly. Every successful probe is a good event; every failure burns budget. There is one availability number per journey, not a separate synthetic vanity metric.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Probes-as-code</p><p class="pa-anatomy__hint">Journey, schedule, regions, assertions, and routing live in a Git repo reviewed the same way alert rules are. Adding a probe is a PR; CI checks the journey owner, the routing labels, and the runbook URL.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Dedicated test credentials</p><p class="pa-anatomy__hint">Synthetic accounts have their own emails, tokens, and rotation schedule. Never share with developer logins — a password change must not silently break every probe at once.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App will run its synthetic probes through <strong>k6 Cloud</strong> (HTTP and scripted-browser) with <strong>Grafana Synthetic Monitoring</strong> as the hosted probe network — both are k6-native, so the journey scripts are the same artefact regardless of where they execute. Probes live at <code>infra/synthetics/</code> with one script per golden journey; the schedule, regions, and assertion thresholds are declared alongside in <code>journey.yaml</code> and reviewed in the same PR. CI checks that every probe has an owning team, a runbook URL, a routing label, and a <code>review_by</code> date no further than 90 days out.</p>
+    <p>The first generation of probes covers the three revenue-critical journeys: <strong>signup</strong> (anonymous → account created → first lesson visible), <strong>lesson-render</strong> (sign-in → list courses → open lesson → assert content within p95 budget), and <strong>payment</strong> (sign-in → checkout → confirmation). Each runs every 60 seconds from three regions (us-east, eu-west, ap-south) to match the user distribution. Failures route to PagerDuty at <strong>P2</strong> with a two-consecutive-failures-from-the-same-region guard; per-phase metrics land in Prometheus and feed the journey SLO defined in <code>infra/slo/</code> — see <a href="slo-error-budget.html">SLO &amp; error budget</a> for how the SLI events are combined.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Why synthetics exist — the gap they close</h3>
+      <p>Every monitoring stack has a coverage matrix indexed by two axes: the <em>signal source</em> (real-user traffic vs scripted traffic) and the <em>fault domain</em> (application code, network path, third-party dependency, geographic region). Passive monitoring covers most of the application-code column well — if a real user is generating traffic. It covers the network-path column poorly, because most CDN/DNS/TLS failures prevent the user from reaching the application monitoring at all. And it covers low-traffic geographic regions essentially not at all, because there is no traffic for the metrics to be computed from. Synthetics fill those cells: scripted traffic, every region, every minute, full network path included.</p>
+      <h4>Golden journey selection — the 80/20 rule applied honestly</h4>
+      <p>The mistake every team makes on the first iteration is treating "synthetic monitoring" as "monitor every endpoint we have". The right unit is the <em>journey</em>: the user's intent end-to-end. For Study App, three journeys cover &gt;80% of the revenue path — signup, lesson-render, payment. Adding a fourth produces marginal coverage at a real maintenance cost (every probe is one more script to keep in sync with the UI). The honest test of a candidate journey is to ask: <em>if this journey is broken for an hour, does the business lose money?</em> If yes, it earns a probe; if no, the existing application-level metrics are enough.</p>
+      <h4>Check types — HTTP probe, scripted browser, API contract</h4>
+      <p>Three layers of synthetic check exist, each with a different cost and coverage profile. The cheapest is the <em>HTTP probe</em>: a k6 script that hits an endpoint and asserts status, latency, and body shape. It catches backend outages in seconds and costs cents per region per day. Above it sits the <em>scripted browser</em> probe: a full headless browser that renders JavaScript, interacts with the DOM, and follows redirects — the only check that catches frontend regressions, broken CDN paths, and CSP misconfigurations. It is 10–30× the cost of an HTTP probe. The third layer is the <em>API contract probe</em>: a synthetic that exercises the public API surface against the published OpenAPI/AsyncAPI contract, catching contract drift the application monitoring would not detect.</p>
+      <h4>Multi-region geography — why three is the minimum</h4>
+      <p>A single-region probe network has a single point of failure: the probe's own region. If the AWS region hosting the probe degrades, every probe fails and the on-call gets paged for an incident that does not exist. Two regions is better but still fragile — one region down looks like a service outage. Three regions provides quorum: if two of three agree the journey is failing, it is failing. The region choice is not symmetric — pick regions that mirror the real user distribution (one in each of the top-three user geographies) so a regional degradation that hurts users is also visible to a probe nearby.</p>
+      <h4>Blind spots — what synthetics structurally cannot see</h4>
+      <p>Synthetics are not a replacement for real-user monitoring. They cannot see what real users see, by construction: their device mix is uniform (always the same headless Chrome), their network conditions are clean (datacentre uplink, not a flaky 4G connection), their account is the same dedicated test user every time. A regression that only manifests on a specific device class, or on a slow network, or on an account in a specific state, is invisible to a synthetic and visible only in real-user metrics (RUM). The right mental model is <em>complement, not replace</em>: synthetics cover availability and journey health; RUM covers experience quality and long-tail device diagnostics.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Maintenance burden.</strong> Every UI change to the golden journey is a synthetic-script change. Without a "synthetic update required" entry in the feature DoD, synthetics drift out of date within two sprints and start firing for the wrong reasons.</li>
+        <li><strong>Test-account hygiene.</strong> Synthetic accounts need their own credentials, their own rotation schedule, and their own access policy. Sharing them with developer logins guarantees a password change will silently break every probe at once.</li>
+        <li><strong>Probe cost.</strong> Browser-based probes from three regions at five-minute intervals cost real money on hosted platforms (k6 Cloud, Grafana SM, Datadog). The cost is bounded — but it is not zero, and the practice does not scale to one probe per endpoint without a budget conversation.</li>
+        <li><strong>False reassurance.</strong> A green probe is not a green service; it is one journey passing for one synthetic user. Teams that conflate the two end up paged less but surprised more. The probe is the floor of availability monitoring, not the ceiling.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">journey selected</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">script + assertions written</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">test creds provisioned</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">PR + CI checks</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">soak in staging</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">prod, multi-region</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">quarterly review · retune · retire</span>
+    </div>
+    <p>A new probe starts as a journey statement, not a script — "the user signs up, opens a lesson, and sees content within 3 s" rather than "GET /api/lesson". The team agrees the journey earns a probe (revenue-critical, owner identified, runbook drafted) and only then does the k6 script get written, with per-phase assertions and an explicit latency budget. Dedicated synthetic credentials are provisioned with their own rotation policy. CI validates the runbook URL, the owner labels, the routing tier, and the <code>review_by</code> date. The probe soaks in staging for one full business cycle — long enough to see weekend traffic patterns — and only then ships to production across three regions. After ninety days, or sooner if the probe fires noisily without surfacing real issues, it is reviewed: retuned or retired. Retired probes are deleted, not commented out.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Probing every endpoint instead of golden journeys</strong></td>
+            <td>"Synthetic monitoring" is misread as "monitor everything"; endpoints are easier to enumerate than journeys.</td>
+            <td>Pick three to five revenue-critical journeys and probe them end-to-end. Endpoint health is what application metrics are for; the synthetic is the user's intent, not the API surface. A team probing every endpoint ends up maintaining fifty scripts and trusting none of them.</td>
+          </tr>
+          <tr>
+            <td><strong>Alerting on single failures</strong></td>
+            <td>"One failure means it is down" — and a script that hit a one-off network blip looks like an outage.</td>
+            <td>Require two consecutive failures from the same region before paging. Probe-level network noise is constant; pages on single failures train the on-call to swipe-dismiss within a week and the real outage gets the same dismissal.</td>
+          </tr>
+          <tr>
+            <td><strong>Shared developer credentials in the probe</strong></td>
+            <td>"We have a test account, let's just use it" — the same one the developers log in with.</td>
+            <td>Use dedicated synthetic accounts with synthetic-specific email addresses and tokens, on a separate rotation schedule. A developer password reset must not silently break every probe at once. Treat the synthetic credential as a service account, not a shared login.</td>
+          </tr>
+          <tr>
+            <td><strong>Single-region probe network</strong></td>
+            <td>"One probe is enough to see if it's up" — cheaper, and looks like quorum.</td>
+            <td>Run from at least three regions chosen to mirror the user distribution. One region looks like quorum until the region itself degrades and every probe fails for a non-incident. Two regions cannot tell a regional issue from a service outage. Three gives quorum.</td>
+          </tr>
+          <tr>
+            <td><strong>Probe drift — UI changed, script did not</strong></td>
+            <td>The login flow gets a new step; the synthetic still expects the old form. Nobody updates the probe with the feature PR.</td>
+            <td>Make synthetic-script update part of the DoD for any user-facing change to a golden journey. Assign each probe a named owner. A probe that always fails because the UI moved is worse than no probe — it teaches the on-call the alert is meaningless.</td>
+          </tr>
+          <tr>
+            <td><strong>Synthetic as a separate vanity metric</strong></td>
+            <td>The probe reports its own uptime number; the service reports a different SLO; the two never reconcile.</td>
+            <td>Feed synthetic results into the journey-level SLO directly. One availability number per journey, real and synthetic events combined. The synthetic dominates the low-traffic windows; real users dominate the busy ones. A separate "synthetic uptime" dashboard is a smell.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">k6 probe</span>
+        <p class="pa-example__title">SYN-002 — Lesson-render golden journey (sign-in → list courses → open lesson → assert content within p95 budget)</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code>import http from 'k6/http';
+import { check, group, sleep } from 'k6';
+import { Trend, Rate } from 'k6/metrics';
+
+export const options = {
+  scenarios: {
+    lesson_render: {
+      executor:    'constant-vus',
+      vus:         1,
+      duration:    '30s',
+      exec:        'lessonRender',
+    },
+  },
+  thresholds: {
+    'checks{journey:lesson_render}':       ['rate&gt;0.99'],
+    'http_req_duration{step:open_lesson}': ['p(95)&lt;1500'],
+  },
+  tags: { journey: 'lesson_render', owner: 'sre-platform', tier: 'P2' },
+};
+
+const lessonStepLatency = new Trend('synthetic_step_ms', true);
+const lessonStepSuccess = new Rate('synthetic_step_ok');
+
+export function lessonRender() {
+  const base   = __ENV.BASE_URL || 'https://app.studyapp/';
+  const email  = __ENV.SYN_EMAIL;
+  const token  = __ENV.SYN_TOKEN;
+
+  group('sign_in', () =&gt; {
+    const r = http.post(`${base}api/auth/login`,
+      JSON.stringify({ email, token }),
+      { headers: { 'content-type': 'application/json' }, tags: { step: 'sign_in' } });
+    lessonStepLatency.add(r.timings.duration, { step: 'sign_in' });
+    lessonStepSuccess.add(check(r, { 'signed in':  res =&gt; res.status === 200 }),
+      { step: 'sign_in' });
+  });
+
+  group('list_courses', () =&gt; {
+    const r = http.get(`${base}api/courses`, { tags: { step: 'list_courses' } });
+    lessonStepLatency.add(r.timings.duration, { step: 'list_courses' });
+    lessonStepSuccess.add(check(r, {
+      'courses 200':       res =&gt; res.status === 200,
+      'courses non-empty': res =&gt; (res.json('items') || []).length &gt; 0,
+    }), { step: 'list_courses' });
+  });
+
+  group('open_lesson', () =&gt; {
+    const r = http.get(`${base}api/lessons/canary-001`, { tags: { step: 'open_lesson' } });
+    lessonStepLatency.add(r.timings.duration, { step: 'open_lesson' });
+    lessonStepSuccess.add(check(r, {
+      'lesson 200':       res =&gt; res.status === 200,
+      'lesson under 1.5s': res =&gt; res.timings.duration &lt; 1500,
+      'lesson has body':  res =&gt; (res.json('content') || '').length &gt; 0,
+    }), { step: 'open_lesson' });
+  });
+
+  sleep(1);
+}
+        </code></pre>
+        <p><strong>What this probe does.</strong> Every 60 seconds, from each of us-east, eu-west, and ap-south, k6 runs the three-step journey and emits per-step latency and success metrics tagged with the step name. The <code>thresholds</code> block fails the run if the per-step success rate drops below 99% or the open-lesson p95 exceeds 1.5 s. Alertmanager pages PagerDuty at P2 only after two consecutive failed runs from the same region — a single regional blip clears itself before the page fires. If the probe had been a single <code>GET /healthz</code> instead, the lesson-render outage on 2026-04-12 — which left every health endpoint green while the lesson body returned empty — would have been first reported by a customer in APAC, not by the on-call.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Three to five golden journeys covered end-to-end</p><p class="pa-quality__hint">Signup, lesson-render, payment — &gt;80% of the revenue path. Endpoint-only probes are migrated out or demoted to application metrics.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Three-region probe network</p><p class="pa-quality__hint">us-east, eu-west, ap-south at minimum; matches the real user distribution within 10 percentage points.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">60-second cadence on API probes, 5-minute on browser journeys</p><p class="pa-quality__hint">Schedules declared in <code>journey.yaml</code> and reviewed in the same PR as the script.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Two-of-N consecutive failure guard before paging</p><p class="pa-quality__hint">Single-failure pages are removed; PagerDuty routes only on two consecutive failures from the same region.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Per-phase metrics on every probe</p><p class="pa-quality__hint">DNS, TCP, TLS, time-to-first-byte, full journey latency emitted as separate Prometheus series.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Synthetic SLI feeds the journey SLO</p><p class="pa-quality__hint">One availability number per journey, real and synthetic events combined. No separate "synthetic uptime" vanity metric.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Dedicated synthetic credentials with their own rotation</p><p class="pa-quality__hint">Service-account model; no shared developer logins; rotation policy documented in the probe owner's runbook.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://grafana.com/docs/k6/latest/" rel="noopener">k6 documentation</a><span class="pa-refs__hint">The scripting model the Study App probes are written against — thresholds, checks, scenarios, and metric emission.</span></li>
+          <li><a href="https://grafana.com/docs/grafana-cloud/monitor-public-endpoints/" rel="noopener">Grafana Synthetic Monitoring docs</a><span class="pa-refs__hint">Hosted k6 probe network — region selection, probe scheduling, and as-code configuration patterns.</span></li>
+          <li><a href="https://docs.datadoghq.com/synthetics/" rel="noopener">Datadog Synthetic Monitoring</a><span class="pa-refs__hint">Worked example of feeding synthetic results into journey-level SLOs as first-class SLI events.</span></li>
+          <li><a href="https://sre.google/sre-book/monitoring-distributed-systems/" rel="noopener">Google SRE Book — Monitoring distributed systems (ch. 6)</a><span class="pa-refs__hint">The original symptom-vs-cause framing; synthetics are the symptom-side coverage for low-traffic windows.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="slo-error-budget.html">SLO &amp; error budget — what the synthetic SLI feeds</a><span class="pa-refs__hint">The journey SLO is the calculation that combines real-user and synthetic events into one availability number.</span></li>
+          <li><a href="alerting-design.html">Alerting design — how a synthetic failure becomes a page</a><span class="pa-refs__hint">Symptom-only paging, multi-burn-rate windows, and runbook-mandatory annotations apply equally to synthetic-driven alerts.</span></li>
+          <li><a href="metrics-dashboards.html">Metrics &amp; dashboards — where per-phase synthetic metrics live</a><span class="pa-refs__hint">DNS / TCP / TLS / TTFB / journey-latency series land on the service overview dashboard alongside passive metrics.</span></li>
+          <li><a href="incident-severity.html">Incident severity — how P2 maps to a synthetic page</a><span class="pa-refs__hint">Synthetic failures route at P2 by default; the severity matrix defines the response SLA and escalation path.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-14">2026-05-14</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: Synthetic Monitoring practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

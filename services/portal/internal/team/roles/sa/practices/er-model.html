@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ER model — the data domain, table by table — Practice 07 · Systems analysis</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">ER model</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">07</span>
+        <span class="pa-eyebrow__group">Group B · Architecture &amp; modeling</span>
+      </p>
+      <h1>ER model — the data domain, table by table</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">The database is documented one table at a time; the ER diagram is regenerated from the metadata on every migration.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">Most data questions — 'is this PII?', 'what's the retention?', 'who owns this column?' — are answered once at schema time, then asked over and over by compliance, support, and analytics. An ER model with table-level metadata answers them once.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="ER pipeline">
+      <svg viewBox="0 0 640 240" role="img" aria-label="Migration plus metadata feed a CI step that emits a table page, an ER diagram, and a cleanup job config" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="10" y="30" width="160" height="64" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="90" y="58" text-anchor="middle" font-weight="700">Migration .sql</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="90" y="78" text-anchor="middle" font-size="10">+ column comments</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="10" y="146" width="160" height="64" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="90" y="174" text-anchor="middle" font-weight="700">Table metadata .yaml</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="90" y="194" text-anchor="middle" font-size="10">purpose, PII, retention</text>
+
+        <rect class="pa-svg-box" x="240" y="88" width="160" height="64" rx="8"></rect>
+        <text class="pa-svg-text" x="320" y="116" text-anchor="middle" font-weight="600">build_table_docs.py</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="320" y="136" text-anchor="middle" font-size="10">CI step</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="470" y="20" width="160" height="48" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="550" y="48" text-anchor="middle" font-size="11">Per-table HTML page</text>
+        <rect class="pa-svg-box pa-svg-box--good" x="470" y="96" width="160" height="48" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="550" y="124" text-anchor="middle" font-size="11">ER diagram (SVG)</text>
+        <rect class="pa-svg-box pa-svg-box--good" x="470" y="172" width="160" height="48" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="550" y="200" text-anchor="middle" font-size="11">Cleanup job config</text>
+
+        <path d="M170 64  L238 108" style="stroke:var(--muted);stroke-width:1.2;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M170 176 L238 134" style="stroke:var(--muted);stroke-width:1.2;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M402 108 L468 44" style="stroke:var(--muted);stroke-width:1.2;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M402 120 L468 120" style="stroke:var(--muted);stroke-width:1.2;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M402 132 L468 196" style="stroke:var(--muted);stroke-width:1.2;fill:none" marker-end="url(#arrow)"></path>
+      </svg>
+      <figcaption class="pa-figure__caption">Two inputs, one CI step, three outputs — all derived, none hand-edited.</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p>An <strong>ER model</strong> is two things together: a diagram and a set of table pages. The diagram shows tables and the foreign-key edges between them; each table page lists purpose, owner, PII tags, retention rule, indexes, columns with types, and enum values.</p>
+    <p>Both come from the same source: the SQL migrations plus a small YAML metadata file per table. CI extracts the structure, runs a Graphviz/PlantUML pass to draw the diagram, and writes a page per table.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Compliance, security, and analytics all ask the same kinds of questions about the schema — and they ask them often. Without table docs, every question turns into a Slack thread that ends in a code-walk by whoever wrote the table.</p>
+    <p>With table docs, the answer is one click away. The PR that adds a column also adds its metadata; if it doesn't, CI fails. The schema becomes self-describing.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of how teams known for the practice apply it. Each card is one company, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card"><p class="pa-industry__company">dbt Labs</p><p class="pa-industry__what">Made <code>.yml</code> column documentation the standard in the modern data stack; every dbt model carries column descriptions, tests, and tags in YAML next to the SQL.</p><p class="pa-industry__lesson"><strong>What we take:</strong> Put the column docs in the same PR as the schema change — CI fails the build when a column lacks a description.</p><p class="pa-industry__source">Source: <a href="https://docs.getdbt.com/reference/resource-properties/columns" rel="noopener">dbt — column properties</a></p></div>
+      <div class="pa-industry__card"><p class="pa-industry__company">Airbnb (Dataportal)</p><p class="pa-industry__what">Built an internal portal that crawls warehouse metadata, links every table to its owner, downstream consumers, and the dashboards that depend on it.</p><p class="pa-industry__lesson"><strong>What we take:</strong> An ER diagram is useful; a queryable graph of tables-and-consumers is what stops the next 'who uses this column?' Slack thread.</p><p class="pa-industry__source">Source: <a href="https://medium.com/airbnb-engineering/democratizing-data-at-airbnb-852d76c51770" rel="noopener">Airbnb Engineering — Democratizing data at Airbnb</a></p></div>
+      <div class="pa-industry__card"><p class="pa-industry__company">Lyft (Amundsen, open-source)</p><p class="pa-industry__what">Open-sourced their data discovery tool: tables, columns, owners, freshness, lineage, all from machine-readable metadata.</p><p class="pa-industry__lesson"><strong>What we take:</strong> Once metadata is structured, the same source feeds humans (search) and tools (lineage); it stops being 'documentation' and becomes infrastructure.</p><p class="pa-industry__source">Source: <a href="https://www.amundsen.io/" rel="noopener">Amundsen (Lyft) — open-source</a></p></div>
+      <div class="pa-industry__card"><p class="pa-industry__company">LinkedIn (DataHub, open-source)</p><p class="pa-industry__what">Schema + ownership + lineage for tens of thousands of datasets; powers governance, compliance, and onboarding.</p><p class="pa-industry__lesson"><strong>What we take:</strong> At company scale, every PII tag, every retention rule, every dependency must be machine-checkable. Manual lists do not survive.</p><p class="pa-industry__source">Source: <a href="https://datahubproject.io/" rel="noopener">DataHub project</a></p></div>
+    </div>
+    <p class="pa-industry-pattern">Data teams converged on the same recipe: structured metadata next to the SQL, generated docs and graphs from the same source, and a CI gate so missing descriptions fail the build.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete practice has, with one sentence on each. None of these are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Migration files</p><p class="pa-anatomy__hint">The SQL. The source of truth for the structure.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Per-table YAML</p><p class="pa-anatomy__hint">Purpose, owner, PII tags, retention, an enum-values block when relevant.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Column comments</p><p class="pa-anatomy__hint">Each column has a one-sentence comment in the SQL itself.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">ER diagram</p><p class="pa-anatomy__hint">Generated from FK edges plus the migration list.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Table page</p><p class="pa-anatomy__hint">One HTML page per table; columns rendered as a table; FK edges link to the related table page.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Tables live under <code>migrations/</code>; metadata under <code>services/portal/internal/catalog/api/data/_metadata/</code>. CI runs <code>scripts/build_table_docs.py</code>, which writes <code>catalog/api/data/&lt;table&gt;.html</code> and updates <code>catalog/api/data/er-diagram.svg</code>.</p>
+    <p>The contract is in <a href="../../../../governance/adr/0029-database-table-documentation.html">ADR 0029</a>: a new column without an updated YAML entry fails the build. There is no way to silently ship a column that the docs don't know about.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Column metadata — three categories you should always capture</h3>
+      <p>Not all metadata is the same. Three categories cover almost every legitimate question:</p>
+      <div class="docs-table-wrap" role="region" aria-label="Metadata categories" tabindex="0">
+        <table class="docs-table docs-table--sticky-head">
+          <thead><tr><th scope="col">Category</th><th scope="col">Fields</th><th scope="col">Asked by</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Technical</strong></td><td>Type, nullability, default, indexes, foreign keys</td><td>Engineers writing queries</td></tr>
+            <tr><td><strong>Business</strong></td><td>Description, examples, source of truth, derivation rule</td><td>Analysts, product, support</td></tr>
+            <tr><td><strong>Governance</strong></td><td>Owner, PII tags, retention rule, classification</td><td>Compliance, security, legal</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The three questions an ER document must answer</h4>
+      <ol>
+        <li><em>What does this column mean?</em> — Business category.</li>
+        <li><em>Can I store an email here?</em> — Governance (PII tag).</li>
+        <li><em>What breaks if I drop this column?</em> — Technical + lineage graph.</li>
+      </ol>
+      <p>An ER page that answers all three needs about 15 lines of YAML per table. A page that answers only one of the three is a partial product; readers will keep asking the other two in chat.</p>
+
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Migration friction.</strong> The schema linter that requires a YAML entry per new table will reject migrations that used to ship in minutes. Worth it for tables that store user data; overkill for ephemeral analytics tables. Carve out the latter explicitly.</li>
+        <li><strong>Diagram readability.</strong> An ER diagram with 50+ tables is unreadable as one picture. Split by bounded context; render one diagram per context. Resist the urge to draw 'the whole schema' — nobody reads it.</li>
+        <li><strong>PII tags are someone's job.</strong> Without an owner who reviews PII tags, they drift towards 'no, this isn't PII'. Compliance must be a CODEOWNERS reviewer on any change to the metadata.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">migration written</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">metadata updated</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">CI extracts</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">page regenerated</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">ER diagram updated</span>
+    </div>
+    <p>A SWE writes the migration and updates the YAML in the same PR. CI reads both, regenerates the table page, and the ER diagram. The PR review shows the diff in all three places: SQL, metadata, generated page.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Columns without comments</strong></td><td>SWE adds the column and forgets the comment.</td><td>CI fails on any column without a comment; pre-commit hook can catch it earlier.</td></tr>
+          <tr><td><strong>PII tags are wrong</strong></td><td>The author guesses.</td><td>Compliance reviews the PII tag in every migration PR. Add a CODEOWNERS rule.</td></tr>
+          <tr><td><strong>ER diagram becomes unreadable</strong></td><td>Too many tables in one diagram.</td><td>Cap each sub-diagram at 15 tables; group by bounded context. The architecture page links to the sub-diagrams instead of rendering a 50-table picture.</td></tr>
+          <tr><td><strong>Retention rules drift</strong></td><td>The YAML says 30 days; the cleanup job deletes after 90.</td><td>Single source: the cleanup job reads the YAML; mismatch fails the deploy.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">YAML metadata</span>
+        <p class="pa-example__title">sessions table — one record</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code>table: sessions
+purpose: One row per study sitting.
+owner: backend-team
+retention: 365d  # purged by daily cleanup job
+pii: false
+indexes:
+- { name: idx_sessions_user_started, on: [user_id, started_at] }
+columns:
+- { name: id,             type: uuid,       null: false, pii: false, note: server-assigned }
+- { name: user_id,        type: uuid,       null: false, pii: false, fk: users.id }
+- { name: deck_id,        type: uuid,       null: false, pii: false, fk: decks.id }
+- { name: started_at,     type: timestamp,  null: false, pii: false }
+- { name: ended_at,       type: timestamp,  null: true,  pii: false }
+- { name: cards_reviewed, type: int,        null: false, pii: false }
+        - { name: tags,           type: text[],     null: true,  pii: false }</code></pre>
+        <p>From this single YAML, CI writes: the HTML table page (with each column rendered as a row), the entry in <code>er-diagram.svg</code>, and the row in the data-retention summary on the security audit.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--partial"><span class="pa-quality__mark" aria-label="partial">◐</span><div><p class="pa-quality__title">Every table has a YAML record</p><p class="pa-quality__hint">Top 10 done; ~30 remaining.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--partial"><span class="pa-quality__mark" aria-label="partial">◐</span><div><p class="pa-quality__title">Every column has a comment</p><p class="pa-quality__hint">Pre-commit hook lands next week.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">ER diagram is auto-regenerated</p><p class="pa-quality__hint">Today it is hand-drawn and stale.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">PII flag goes through a compliance reviewer</p><p class="pa-quality__hint">CODEOWNERS rule for any PR touching the YAML.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Retention is enforced by the cleanup job</p><p class="pa-quality__hint">Today the rule and the job can disagree.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://docs.getdbt.com/reference/resource-properties/columns" rel="noopener">dbt — column properties</a><span class="pa-refs__hint">De-facto standard for column docs in the modern data stack.</span></li>
+          <li><a href="https://www.amundsen.io/" rel="noopener">Amundsen (Lyft)</a><span class="pa-refs__hint">Open-source data discovery with metadata-first design.</span></li>
+          <li><a href="https://datahubproject.io/" rel="noopener">DataHub (LinkedIn)</a><span class="pa-refs__hint">Larger-scale alternative with rich lineage.</span></li>
+          <li><a href="https://medium.com/airbnb-engineering/democratizing-data-at-airbnb-852d76c51770" rel="noopener">Airbnb — Democratizing data</a><span class="pa-refs__hint">Original case study; explains the why before the tooling.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="../../../../governance/adr/0029-database-table-documentation.html">ADR 0029 — Database table documentation</a><span class="pa-refs__hint">Codifies the YAML-as-source rule for this project.</span></li>
+          <li><a href="ssot.html">SSOT — sibling practice</a><span class="pa-refs__hint">Why the schema is the canonical record.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-17">2026-05-17</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Practice-page pattern pass: dropped <code>.pa-section</code> wrappers, removed scorebar / "See also" block, compact pipeline SVG with <code>marker-end</code> arrows, metadata + pitfalls reshaped into canonical <code>.docs-table--sticky-head</code>; rich blocks (industry / anatomy / states / deep-dive / example / quality / refs) kept.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-13">2026-05-13</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Self-contained version of practice 07 (ER model): added Industry experience + Deep dive; refs split into Industry / Inside the project.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

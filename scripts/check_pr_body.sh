@@ -38,7 +38,7 @@ create_template() {
 ## Changelog
 
 - [ ] Updated `CHANGELOG.md` (user-facing changes).
-- [ ] Updated `docs/CHANGELOG.md` (documentation-facing changes).
+- [ ] Updated `services/portal/CHANGELOG.md` (documentation-facing changes).
 - [ ] No changelog update needed (`[skip changelog]` rationale is explicit).
 EOF
   fi

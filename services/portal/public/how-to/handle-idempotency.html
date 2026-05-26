@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" data-portal="public" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Handle idempotency · How-to · ETR Study API</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/public/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🚀</span><span>ETR Study API</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Developer Documentation</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Handle idempotency</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-public.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+        </div>
+        <h1>Handle idempotency</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Network failures and timeouts make it unsafe to retry a write blindly. The Study API uses an
+          <code>Idempotency-Key</code> contract so a retried <code>POST</code> returns the original
+          outcome instead of duplicating work.
+        </p>
+      </header>
+
+      <h2 id="why-it-matters">Why it matters</h2>
+      <p>
+        Without a stable idempotency key, you can create two users for one request after a single
+        retry. The contract on this page protects you from that class of bug end-to-end.
+      </p>
+
+      <h2 id="recipe">The recipe</h2>
+      <ol>
+        <li>Generate a unique key per <em>logical</em> operation (UUID v4 is fine).</li>
+        <li>Send the same key on the original request and on every retry of the same request.</li>
+        <li>Send a fresh key when the operation is genuinely new.</li>
+        <li>Store the key locally with the request payload until you receive a definitive response.</li>
+      </ol>
+      <pre><code class="language-bash">KEY=$(uuidgen)
+curl -X POST "$BASE_URL/api/v1/user" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Idempotency-Key: $KEY" \
+  -H "Content-Type: application/json" \
+      -d '{"system_user_id":"42","system_uuid":"b2c3…","full_name":"Ivan"}'</code></pre>
+      <p>
+        If you retry the same call within the TTL window, the server replies with the original
+        <code>201</code> and original response body — no duplicate row, no extra side effect.
+      </p>
+
+      <h2 id="contract">The contract</h2>
+      <ul>
+        <li><strong>Header:</strong> <code>Idempotency-Key</code>. Required on every <code>POST</code> under <code>/api/v1</code>.</li>
+        <li><strong>Key composition:</strong> a string ≤ 64 characters; UUID v4 strongly recommended. Free-form is permitted but the namespace is per-route, so keep keys globally unique to be safe across endpoints.</li>
+        <li><strong>Replay:</strong> the <em>original</em> response (status + body) is returned. The server compares the SHA-256 of the canonicalised request body to detect mismatches.</li>
+        <li><strong>TTL:</strong> 24 hours. After that, the same key may be reused with different payloads.</li>
+        <li><strong>Conflict (<code>409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD</code>, <code>COMMON_409</code>):</strong> the server has seen this key before, but the body is different — you have either reused a key by mistake or sent a non-canonical body. Generate a fresh key.</li>
+        <li><strong>Missing key (<code>400 IDEMPOTENCY_KEY_REQUIRED</code>, <code>COMMON_400</code>):</strong> writes without the header are rejected up front; there is no implicit fallback.</li>
+      </ul>
+
+      <h2 id="logical-operation">What "logical operation" means</h2>
+      <p>
+        One key per intent, not one key per HTTP call. If your code retries on transient failure
+        (timeout, 5xx, connection reset), reuse the key. If a human user clicks "Create" twice in a
+        UI, that is two intents — two keys. If you need to recreate the same row after a soft-delete,
+        that too is a new intent — a new key.
+      </p>
+    </article>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/public/entry.js"></script>
+
+</body></html>

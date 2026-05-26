@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Acceptance Testing — Practice 12 · QA</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">QA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">API Acceptance Testing</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">12</span>
+        <span class="pa-eyebrow__group">Group C · Automation &amp; Tooling</span>
+      </p>
+      <h1 class="pa-title">API Acceptance Testing — per-endpoint sign-off</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">A structured checklist pass that verifies every HTTP endpoint against its specification across six dimensions before it is marked QA-verified.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">API acceptance testing is the QA sign-off gate for every HTTP endpoint, verifying six dimensions: contract conformance, happy-path responses, error codes (4xx/5xx), authentication gates, idempotency, observability. Driven by the OpenAPI spec (SWE Practice 12) — Schemathesis runs the contract fuzz; hand-written tests cover business edge cases; checklist 0002 is the acceptance criterion. Without it, endpoints reach production missing auth edges, with wrong error shapes, or dropped correlation IDs.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Six acceptance dimensions">
+      <svg viewBox="0 0 760 240" role="img" aria-label="Contract / happy / errors / auth / idempotency / observability dimensions" style="display:block;max-width:720px;margin:0 auto;height:auto">
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="380" y="20" text-anchor="middle" font-size="10" letter-spacing="0.6">CONTRACT · HAPPY · ERRORS · AUTH · IDEMPOTENCY · OBSERVABILITY</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="20" y="50" width="115" height="170" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="77" y="72" text-anchor="middle" font-weight="700" font-size="9">DIM 1</text>
+        <text class="pa-svg-text pa-svg-text--accent" x="77" y="98" text-anchor="middle" font-weight="700" font-size="13">Contract</text>
+        <line x1="30" y1="112" x2="125" y2="112" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="77" y="132" text-anchor="middle" font-size="10">OpenAPI match</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="77" y="148" text-anchor="middle" font-size="10">Schemathesis</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="77" y="164" text-anchor="middle" font-size="10">fuzz inputs</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="77" y="196" text-anchor="middle" font-weight="700" font-size="9">automated</text>
+
+        <rect class="pa-svg-box" x="145" y="50" width="115" height="170" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="202" y="72" text-anchor="middle" font-weight="700" font-size="9">DIM 2</text>
+        <text class="pa-svg-text" x="202" y="98" text-anchor="middle" font-weight="700" font-size="13">Happy</text>
+        <line x1="155" y1="112" x2="250" y2="112" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="202" y="132" text-anchor="middle" font-size="10">2xx shape</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="202" y="148" text-anchor="middle" font-size="10">field semantics</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="202" y="164" text-anchor="middle" font-size="10">pagination</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="202" y="196" text-anchor="middle" font-weight="700" font-size="9">hand-written</text>
+
+        <rect class="pa-svg-box" x="270" y="50" width="115" height="170" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="327" y="72" text-anchor="middle" font-weight="700" font-size="9">DIM 3</text>
+        <text class="pa-svg-text" x="327" y="98" text-anchor="middle" font-weight="700" font-size="13">Errors</text>
+        <line x1="280" y1="112" x2="375" y2="112" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="327" y="132" text-anchor="middle" font-size="10">4xx + 5xx</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="327" y="148" text-anchor="middle" font-size="10">RFC 7807 shape</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="327" y="164" text-anchor="middle" font-size="10">stable codes</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="327" y="196" text-anchor="middle" font-weight="700" font-size="9">checklist</text>
+
+        <rect class="pa-svg-box" x="395" y="50" width="115" height="170" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="452" y="72" text-anchor="middle" font-weight="700" font-size="9">DIM 4</text>
+        <text class="pa-svg-text" x="452" y="98" text-anchor="middle" font-weight="700" font-size="13">Auth</text>
+        <line x1="405" y1="112" x2="500" y2="112" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="452" y="132" text-anchor="middle" font-size="10">401 / 403</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="452" y="148" text-anchor="middle" font-size="10">tenant isolation</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="452" y="164" text-anchor="middle" font-size="10">scope checks</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="452" y="196" text-anchor="middle" font-weight="700" font-size="9">security</text>
+
+        <rect class="pa-svg-box" x="520" y="50" width="115" height="170" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="577" y="72" text-anchor="middle" font-weight="700" font-size="9">DIM 5</text>
+        <text class="pa-svg-text" x="577" y="98" text-anchor="middle" font-weight="700" font-size="13">Idempotent</text>
+        <line x1="530" y1="112" x2="625" y2="112" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="577" y="132" text-anchor="middle" font-size="10">Idempotency-Key</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="577" y="148" text-anchor="middle" font-size="10">retry-safe</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="577" y="164" text-anchor="middle" font-size="10">dup detection</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="577" y="196" text-anchor="middle" font-weight="700" font-size="9">writes only</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="645" y="50" width="95" height="170" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="692" y="72" text-anchor="middle" font-weight="700" font-size="9">DIM 6</text>
+        <text class="pa-svg-text pa-svg-text--good" x="692" y="98" text-anchor="middle" font-weight="700" font-size="13">Obs.</text>
+        <line x1="655" y1="112" x2="730" y2="112" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="692" y="132" text-anchor="middle" font-size="10">trace_id</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="692" y="148" text-anchor="middle" font-size="10">structured log</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="692" y="164" text-anchor="middle" font-size="10">metric labels</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="692" y="196" text-anchor="middle" font-weight="700" font-size="9">required</text>
+
+        <text class="pa-svg-text pa-svg-text--muted" x="380" y="232" text-anchor="middle" font-size="11" font-style="italic">"six dimensions per endpoint · all pass before QA-verified"</text>
+      </svg>
+      <figcaption class="pa-figure__caption">Six acceptance dimensions per endpoint. Contract is fully automated (Schemathesis); the rest mix automation + handwritten + checklist review. All six must pass before an endpoint is marked QA-verified.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>API acceptance testing is a per-endpoint sign-off that verifies six dimensions before QA marks the endpoint verified:</p>
+      <ul>
+        <li><strong>Contract conformance</strong> — response shape matches the OpenAPI schema. Schemathesis / Dredd fuzz the endpoint with valid + invalid inputs; assertion: every response validates against the declared schema.</li>
+        <li><strong>Happy-path responses</strong> — 2xx shape correct, field semantics right, pagination cursors stable, timestamps in ISO-8601. Hand-written; covers business meaning the schema can't.</li>
+        <li><strong>Error codes</strong> — 400 / 401 / 403 / 404 / 409 / 422 / 429 / 500 returned correctly; bodies follow RFC 7807 problem-details shape; error codes stable.</li>
+        <li><strong>Authentication / authorisation</strong> — 401 without token, 403 with wrong scope, tenant isolation verified (user A can't read user B's data).</li>
+        <li><strong>Idempotency</strong> — write endpoints accept <code>Idempotency-Key</code> header; same key returns same response; retry-safe for partial failures.</li>
+        <li><strong>Observability</strong> — <code>X-Request-ID</code> in request flows to logs + traces; <code>trace_id</code> attribute on every log line; metric labels include endpoint + tenant.</li>
+      </ul>
+      <p>Driven by the OpenAPI spec (SWE Practice 12 — contract-first). Schemathesis automates the contract dimension; the other five mix automation + hand-written tests + checklist review.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Endpoints reach production with subtle bugs in the dimensions developers aren't optimising for. The happy path works; everything else might not. Auth bypass for tenant B; 500 instead of 422 on validation failure; missing <code>trace_id</code> so incident MTTR balloons; idempotency-key not enforced so a retried checkout charges twice.</p>
+      <p>The six-dimension checklist forces every endpoint through the same systematic review. Schemathesis catches the contract dimension automatically; the checklist forces the human to look at the other five. Without it, each endpoint's edge-case coverage depends on the engineer's mood that week. With it, the bar is uniform across the API surface.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Stripe — API testing at scale</p>
+          <p class="pa-industry__what">Stripe's engineering blog documents the per-endpoint acceptance discipline: every endpoint has happy + error + auth + idempotency tests; the public Idempotency-Key header pattern Stripe popularised is now the industry default for safe retries on payments-like APIs.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Adopt Stripe's <code>Idempotency-Key</code> contract for every write endpoint. Same key → same response, even after partial failures. RFC 9457 / IETF draft codifies the pattern.</p>
+          <p class="pa-industry__source">Source: <a href="https://stripe.com/blog/idempotency" rel="noopener">stripe.com/blog/idempotency</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Schemathesis — property-based fuzz</p>
+          <p class="pa-industry__what">Schemathesis (Dmitry Dygalo, OSS) fuzz-tests a running service against its OpenAPI spec. Generates valid and invalid inputs; asserts every response validates against the declared schema; reports contract drift automatically. The canonical tool for the contract dimension in 2026.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Run Schemathesis in CI against staging for every PR. Drift between handler and spec caught before merge.</p>
+          <p class="pa-industry__source">Source: <a href="https://schemathesis.readthedocs.io/" rel="noopener">schemathesis.readthedocs.io</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Zalando — RFC 7807 problem-details</p>
+          <p class="pa-industry__what">Zalando's API guidelines mandate RFC 7807 problem-details for every 4xx/5xx body. Stable shape, machine-readable; clients parse error codes reliably across services. Now the de-facto industry default for new HTTP APIs.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Adopt RFC 7807 error shape. Acceptance test asserts every 4xx/5xx body conforms; clients build on the shape, not on prose messages.</p>
+          <p class="pa-industry__source">Source: <a href="https://opensource.zalando.com/restful-api-guidelines/" rel="noopener">Zalando RESTful guidelines</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Postman / Bruno — collection runners</p>
+          <p class="pa-industry__what">Postman collections (and the OSS Bruno alternative) host hand-written acceptance scenarios per endpoint. Newman runs them in CI; collections double as living documentation. Used by Twilio, GitHub, SendGrid for public-API acceptance + customer-facing examples.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Maintain a Postman / Bruno collection alongside the OpenAPI spec. Hand-written happy + error + auth scenarios; Newman in CI; collection also serves as docs.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.postman.com/" rel="noopener">postman.com</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of API acceptance</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">OpenAPI spec as source</p><p class="pa-anatomy__hint">Contract-first (SWE Practice 12). Acceptance tests derive from the spec; drift fails the build.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Schemathesis contract fuzz</p><p class="pa-anatomy__hint">Property-based generation of valid + invalid inputs; assertion on response-schema match. Runs in CI against staging.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Six-dimension checklist (0002)</p><p class="pa-anatomy__hint">Contract, happy, errors, auth, idempotency, observability. QA reviewer signs off per endpoint.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">RFC 7807 error contract</p><p class="pa-anatomy__hint">Every 4xx/5xx body conforms. Acceptance test asserts shape; clients build on machine-readable codes.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Idempotency-Key tests</p><p class="pa-anatomy__hint">Write endpoints: same key → same response. Retry-safe on partial failure. Test simulates network drop after server write.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Observability assertions</p><p class="pa-anatomy__hint"><code>X-Request-ID</code> echoes back; flows to logs + traces. Per Practice 16 (SWE) on structured logging.</p></div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to run it</h2>
+      <ol>
+        <li><strong>Start from the OpenAPI spec.</strong> Contract-first (SWE Practice 12). Spec is the source.</li>
+        <li><strong>Wire Schemathesis in CI.</strong> Fuzz against staging on every PR.</li>
+        <li><strong>Author hand-written tests per dimension.</strong> Happy / errors / auth / idempotency / observability. Postman or in-language tests.</li>
+        <li><strong>Run the checklist per endpoint.</strong> Sign-off gate; QA reviewer signs the row before "verified".</li>
+        <li><strong>Adopt RFC 7807 + Idempotency-Key contracts.</strong> Standard shapes; reusable test helpers.</li>
+        <li><strong>Wire observability assertions.</strong> Tests check <code>X-Request-ID</code> + trace propagation.</li>
+        <li><strong>Quarterly review.</strong> Endpoints retroactively re-checked; checklist refined.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive — what makes the gate work</h2>
+      <p><strong>Schemathesis automates the contract dimension fully.</strong> Property-based input generation hits edge cases hand-written tests miss (empty strings, max-length, unicode, deeply-nested null). The schema is the source of truth; the running service is verified against it. Without this layer, schema drift is invisible until customers hit it.</p>
+      <p><strong>RFC 7807 is the load-bearing default for errors.</strong> A consistent error shape lets clients build retry / display / triage logic against machine-readable fields, not prose. Hand-rolled error formats fragment the surface; clients special-case per endpoint. Adopt 7807 once; the entire client ecosystem benefits.</p>
+      <p><strong>Idempotency-Key is non-negotiable for write endpoints.</strong> Network retries are inevitable. Without idempotency, a retried POST charges the user twice. Stripe popularised the header; the IETF draft has crystallised it. Acceptance test simulates partial failure (server write commits, network drops before response) and verifies the retry returns the same result.</p>
+      <p><strong>Tenant-isolation auth tests are the highest-ROI security check.</strong> User A authenticating and reading user B's resource is the most common multi-tenant bug. Acceptance test mints A's token; calls the endpoint for B's resource; asserts 403. Cheap to write; catches a real class of incidents.</p>
+      <p><strong>Observability assertions catch silent breakage.</strong> Missing <code>trace_id</code> in logs doesn't break a feature; it just makes incidents 10× slower to debug. Acceptance test asserts <code>X-Request-ID</code> echoes back and shows up in the log line for the request. Cheap; catches regression.</p>
+      <p><strong>Checklist 0002 makes the bar uniform.</strong> Without it, each engineer's coverage depends on memory + mood. With it, the same six questions get asked per endpoint. The questions look obvious until you find the endpoint that missed three of them.</p>
+      <p><strong>Pair acceptance with contract tests in SWE radar.</strong> SWE Practice 12 (contract-first) makes acceptance much cheaper — the schema already exists; the SDK is generated; the mock is available. QA acceptance is the final human review on top.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle of acceptance</h2>
+      <div class="pa-states">
+        <div class="pa-states__item"><p class="pa-states__name">Schema landed</p><p class="pa-states__hint">OpenAPI changes merged. Contract-first PR (SWE Practice 12). Generated SDK + mock available.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Schemathesis green</p><p class="pa-states__hint">Contract fuzz passes against staging. No schema drift; no unexpected response shapes.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Hand-written tests pass</p><p class="pa-states__hint">Happy / errors / auth / idempotency / observability scenarios green. Postman / in-language.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Checklist signed</p><p class="pa-states__hint">QA reviewer walks checklist 0002 per endpoint; signs the row.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Verified</p><p class="pa-states__hint">Endpoint marked QA-verified in the API catalogue; release sign-off can include it.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Re-checked on change</p><p class="pa-states__hint">Schema change triggers re-acceptance. Quarterly retroactive sweep catches drift.</p></div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Common pitfalls">
+        <table class="docs-table docs-table--sticky-head">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr><td>Only happy-path tests</td><td>Engineer writes 200-status test; ships. Error / auth / idempotency / observability skipped.</td><td>Checklist 0002. Six dimensions per endpoint; QA reviewer signs the row.</td></tr>
+            <tr><td>Hand-rolled error format</td><td>Each endpoint invents an error shape; clients special-case; surface fragments.</td><td>RFC 7807 problem-details for every 4xx/5xx. Reusable test helper asserts shape.</td></tr>
+            <tr><td>No idempotency on writes</td><td>Retry charges the user twice; partial failures double-process.</td><td>Idempotency-Key per write endpoint. Test simulates partial failure + retry; asserts single effect.</td></tr>
+            <tr><td>No tenant-isolation test</td><td>User A reads user B's data; security incident waiting to happen.</td><td>Tenant-isolation test in every acceptance suite. A's token → B's resource → expect 403.</td></tr>
+            <tr><td>Missing trace_id propagation</td><td><code>X-Request-ID</code> arrives but doesn't flow to logs / traces; incidents 10× slower to debug.</td><td>Acceptance test asserts trace_id on log line for the request. Cheap; high MTTR payoff.</td></tr>
+            <tr><td>Schemathesis not in CI</td><td>Spec drift caught at customer integration time, not at PR time.</td><td>Schemathesis as required CI check against staging. Drift fails the build.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — Schemathesis + acceptance suite</h2>
+      <div class="pa-example">
+        <p class="pa-example__intro">Pipeline for the lesson-player API: contract fuzz via Schemathesis + hand-written Postman acceptance scenarios + checklist 0002 sign-off.</p>
+        <pre class="pa-example__code"><code># .github/workflows/api-acceptance.yml (excerpt)
+jobs:
+  contract:
+    steps:
+      - run: schemathesis run \
+          https://staging/openapi.yaml \
+          --base-url https://staging \
+          --checks all \
+          --hypothesis-deadline=500
+  acceptance:
+    steps:
+      - run: newman run postman/lesson-player.json \
+          --env-var BASE=https://staging \
+          --reporters cli,junit
+
+# postman/lesson-player.json (excerpts — six dimensions)
+- name: "happy · GET /lessons/{id}/state · 200"
+  tests: |
+    pm.test("schema match", () =&gt; pm.response.to.have.jsonSchema(state200));
+
+- name: "errors · GET /lessons/{id}/state · 404"
+  tests: |
+    pm.test("RFC 7807", () =&gt; {
+      const body = pm.response.json();
+      pm.expect(body).to.have.property("type");
+      pm.expect(body).to.have.property("title");
+      pm.expect(body.status).to.eql(404);
+    });
+
+- name: "auth · GET /lessons/{id}/state · 401 / 403"
+  tests: |
+    pm.test("401 without token", () =&gt; pm.response.to.have.status(401));
+    pm.test("403 cross-tenant", () =&gt; ...);
+
+- name: "idempotency · POST /attempts · key replay"
+  tests: |
+    pm.test("same key → same response", () =&gt; ...);
+
+- name: "observability · X-Request-ID echo"
+  tests: |
+    pm.test("X-Request-ID echoed", () =&gt; {
+      pm.expect(pm.response.headers.get("X-Request-ID"))
+        .to.eql(pm.environment.get("req-id"));
+    });
+        </code></pre>
+        <p class="pa-example__note">Contract fuzz + hand-written six-dimension scenarios in one CI workflow. Newman exports JUnit for the release dashboard; checklist 0002 is signed by QA reviewer per endpoint before "verified".</p>
+      </div>
+    </section>
+
+    <section id="quality">
+      <h2>Quality bar</h2>
+      <ul class="pa-quality">
+        <li><strong>OpenAPI as source.</strong> Contract-first (SWE Practice 12).</li>
+        <li><strong>Schemathesis in CI.</strong> Required check; drift fails the build.</li>
+        <li><strong>Six-dimension checklist per endpoint.</strong> Checklist 0002; QA reviewer signs.</li>
+        <li><strong>RFC 7807 error shape.</strong> Every 4xx/5xx conforms; reusable test helper.</li>
+        <li><strong>Idempotency-Key on writes.</strong> Test simulates partial failure; verifies single effect.</li>
+        <li><strong>Tenant-isolation test.</strong> A's token → B's resource → expect 403.</li>
+        <li><strong>Observability assertions.</strong> X-Request-ID echoes; trace_id on log line.</li>
+        <li><strong>Quarterly re-check.</strong> Endpoints retroactively re-accepted on schema change.</li>
+      </ul>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://schemathesis.readthedocs.io/" rel="noopener">Schemathesis — OpenAPI fuzz testing</a></li>
+        <li><a href="https://datatracker.ietf.org/doc/html/rfc7807" rel="noopener">RFC 7807 — problem-details</a></li>
+        <li><a href="https://stripe.com/blog/idempotency" rel="noopener">Stripe — Idempotency keys</a></li>
+        <li><a href="https://opensource.zalando.com/restful-api-guidelines/" rel="noopener">Zalando RESTful API guidelines</a></li>
+        <li><a href="https://www.postman.com/" rel="noopener">Postman / Newman</a></li>
+        <li><a href="https://www.usebruno.com/" rel="noopener">Bruno — OSS API client</a></li>
+        <li><a href="https://github.com/Tufin/oasdiff" rel="noopener">oasdiff — OpenAPI breaking-change detection</a></li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <p class="docs-history__title">History</p>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-24">2026-05-24</time>
+          <span class="docs-history__change">Rewritten to SA practice-page pattern: page-head, 6-dimension SVG, expanded industry (4 cards: Stripe, Schemathesis, Zalando 7807, Postman), deep-dive (Schemathesis automates contract, 7807, idempotency, tenant-isolation, observability, checklist uniformity, pair with SWE contract-first), lifecycle, Schemathesis+Postman worked example, quality bar, references.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-14">2026-05-14</time>
+          <span class="docs-history__change">Initial version: API acceptance testing practice for QA radar.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

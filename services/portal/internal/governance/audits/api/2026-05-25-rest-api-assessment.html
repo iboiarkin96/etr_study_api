@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REST API Assessment — 2026-05-25 · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Audits</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">REST API</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">2026-05-25</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--neutral">Assessment</span>
+          <span class="docs-pill docs-pill--info">REST API</span>
+          <span class="docs-pill docs-pill--success">2026-05-25</span>
+        </div>
+        <h1>REST API Assessment — 2026-05-25</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Maturity assessment of the Study App HTTP API surface — contract, idempotency, security headers, observability, and CI quality — against common good practice. Scoring uses an unweighted mean across Table 2 rows; the Top-5 gaps drive the next remediation slice.</p>
+      </header>
+
+      <h2 id="overview">Overview</h2>
+      <p>Assessment type: REST API. Formation date: 2026-05-25.<br>Compare the HTTP surface to good practice (Table 1), score current state (Table 2), and track prioritized gaps (§ Scoring summary).</p>
+
+      <h2 id="scope-and-methodology">Scope and methodology</h2>
+      <h3>Scope</h3>
+      <p>In scope: the OpenAPI 3.1 contracts under <code>services/*/openapi/</code>, the gateway handlers, error envelope, idempotency, rate-limit and security headers, metrics emission, and CI gates that protect them. Out of scope: gRPC internal traffic, browser-side rendering, the docs portal itself (covered by the DX and UI/UX assessments).</p>
+      <h3>Methodology</h3>
+      <p>Scores are assigned by inspecting the OpenAPI spec, gateway middleware, <code>make api-validate</code> output, Spectral / vacuum lint configuration, and the Prometheus scrape. Each Table 2 row carries a justification cell. Final score is the arithmetic mean of Table 2 rows.</p>
+
+      <h2 id="table-1-reference-practices">Table 1: Reference practices</h2>
+      <p>What "good" looks like for a public REST API. One row per practice.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Reference practices">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Practice</th>
+              <th scope="col">Why it matters</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>OpenAPI 3.1 contract checked into the repo</td><td>Single source of truth for clients, docs, and tests.</td></tr>
+            <tr><td>2</td><td>Spec is linted in CI (Spectral / vacuum)</td><td>Catches drift, missing descriptions, undocumented codes before merge.</td></tr>
+            <tr><td>3</td><td>Examples for every request and response body</td><td>SDKs and docs render with realistic payloads; review burden drops.</td></tr>
+            <tr><td>4</td><td>Stable error envelope (RFC 7807 problem+json)</td><td>Clients can branch on machine-readable <code>type</code>/<code>code</code>, not free-text.</td></tr>
+            <tr><td>5</td><td>Idempotency keys on all unsafe writes</td><td>Safe retries under network partitions; no duplicated charges/orders.</td></tr>
+            <tr><td>6</td><td>Cursor-based pagination with stable ordering</td><td>Predictable scans; large lists do not break under inserts.</td></tr>
+            <tr><td>7</td><td>Filtering, sorting, sparse fieldsets documented</td><td>Avoids ad-hoc query strings; matches JSON:API / Stripe norms.</td></tr>
+            <tr><td>8</td><td>Resource-oriented URLs and HTTP verbs</td><td>Predictable surface; caches, proxies, and tooling behave correctly.</td></tr>
+            <tr><td>9</td><td>Versioning policy (URL or header) is documented</td><td>Breaking changes are explicit and discoverable.</td></tr>
+            <tr><td>10</td><td>Deprecation policy with <code>Sunset</code> header</td><td>Clients have a programmatic signal before endpoints disappear.</td></tr>
+            <tr><td>11</td><td>Authentication uses OAuth 2.1 / OIDC bearer tokens</td><td>Industry default; integrates with existing identity providers.</td></tr>
+            <tr><td>12</td><td>Authorization is scope/role-checked at the edge and the service</td><td>Defense in depth; gateway misconfig cannot grant access.</td></tr>
+            <tr><td>13</td><td>Per-key and per-IP rate limiting with <code>RateLimit-*</code> headers</td><td>Protects shared resources; clients can back off cleanly.</td></tr>
+            <tr><td>14</td><td>Security headers (HSTS, CSP, X-Content-Type-Options)</td><td>Reduces blast radius of common browser-vector exploits.</td></tr>
+            <tr><td>15</td><td>TLS-only with HSTS preload and modern ciphers</td><td>Eliminates downgrade attacks; required by app-store and SOC 2 audits.</td></tr>
+            <tr><td>16</td><td>Structured request/response logging with trace IDs</td><td>End-to-end debugging across services; correlatable to traces and metrics.</td></tr>
+            <tr><td>17</td><td>RED metrics (rate / errors / duration) per route</td><td>Standard observability shape; supports SLOs and capacity planning.</td></tr>
+            <tr><td>18</td><td>Distributed tracing on every external call</td><td>Latency hotspots are visible without printf-debugging.</td></tr>
+            <tr><td>19</td><td>Contract tests run on every PR</td><td>Spec and implementation cannot drift silently.</td></tr>
+            <tr><td>20</td><td>SDKs generated from the spec on tag</td><td>Consumers always have a typed client; cuts integration time.</td></tr>
+            <tr><td>21</td><td>Public changelog tied to spec versions</td><td>Customers see what changed without diffing the spec.</td></tr>
+            <tr><td>22</td><td>Webhooks documented with retry semantics and HMAC signing</td><td>Async surface is treated as first-class API, not an afterthought.</td></tr>
+            <tr><td>23</td><td>Performance budget per endpoint (p50/p95 SLO)</td><td>Regressions are caught in CI, not by paging customers.</td></tr>
+            <tr><td>24</td><td>OWASP API Top-10 review in the release checklist</td><td>Catches BOLA / mass assignment / SSRF before shipping.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="table-2-as-is-scores">Table 2: AS-IS situation</h2>
+      <p>One row per Table 1 practice. Score cells use <code>docs-pill</code> tone variants for visual scale: <code>--success</code> excellent, <code>--info</code> good, <code>--warn</code> needs attention.</p>
+      <div class="docs-table-wrap" role="region" aria-label="AS-IS assessment scores">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Practice</th>
+              <th scope="col">Evidence / notes</th>
+              <th scope="col">Justification</th>
+              <th scope="col">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>OpenAPI 3.1 contract in repo</td><td><code>services/*/openapi/openapi.yaml</code></td><td>Spec exists, kept in version control, covers all public routes.</td><td><span class="docs-pill docs-pill--success">9 / 10</span></td></tr>
+            <tr><td>2</td><td>Spec linted in CI</td><td><code>make spec-lint</code> runs vacuum with custom ruleset</td><td>Rules tuned but not yet blocking on warnings; one waiver still active.</td><td><span class="docs-pill docs-pill--info">7 / 10</span></td></tr>
+            <tr><td>3</td><td>Examples on every payload</td><td>Spot-check across <code>/orders</code>, <code>/users</code>, <code>/payments</code></td><td>~70% of bodies carry examples; error envelopes are sparser.</td><td><span class="docs-pill docs-pill--info">6 / 10</span></td></tr>
+            <tr><td>4</td><td>Stable error envelope</td><td>Custom envelope; not yet RFC 7807</td><td>Shape is consistent but uses <code>application/json</code> + custom <code>code</code>; not <code>application/problem+json</code>.</td><td><span class="docs-pill docs-pill--warn">5 / 10</span></td></tr>
+            <tr><td>5</td><td>Idempotency keys on unsafe writes</td><td>Middleware on <code>POST /orders</code>, <code>POST /payments</code></td><td>Implemented on payments; not yet enforced on all <code>POST</code> / <code>PATCH</code>.</td><td><span class="docs-pill docs-pill--warn">5 / 10</span></td></tr>
+            <tr><td>6</td><td>Cursor-based pagination</td><td>List endpoints accept <code>?cursor=</code></td><td>Cursor implemented; total counts removed to keep responses fast.</td><td><span class="docs-pill docs-pill--success">8 / 10</span></td></tr>
+            <tr><td>7</td><td>Filtering / sorting / sparse fieldsets</td><td>Documented for <code>/orders</code>; ad-hoc elsewhere</td><td>Pattern exists but not applied consistently across resources.</td><td><span class="docs-pill docs-pill--warn">5 / 10</span></td></tr>
+            <tr><td>8</td><td>Resource URLs &amp; HTTP verbs</td><td>Surface follows REST conventions</td><td>Two legacy RPC-style routes remain (<code>/run-*</code>); rest is clean.</td><td><span class="docs-pill docs-pill--info">7 / 10</span></td></tr>
+            <tr><td>9</td><td>Versioning policy</td><td><code>/v1</code> prefix; ADR 0017 documents policy</td><td>Versioning documented and enforced via path prefix.</td><td><span class="docs-pill docs-pill--success">8 / 10</span></td></tr>
+            <tr><td>10</td><td>Deprecation &amp; <code>Sunset</code></td><td>No <code>Sunset</code> header issued today</td><td>Deprecation runbook exists in prose but no programmatic signal.</td><td><span class="docs-pill docs-pill--warn">3 / 10</span></td></tr>
+            <tr><td>11</td><td>OAuth 2.1 / OIDC bearer</td><td>Gateway validates JWT against Auth0 JWKS</td><td>Standard JWT/JWKS path; mTLS only on internal hops.</td><td><span class="docs-pill docs-pill--success">8 / 10</span></td></tr>
+            <tr><td>12</td><td>Edge + service scope check</td><td>Gateway enforces scope; service revalidates ownership</td><td>Defense-in-depth in place on critical routes; some read-only endpoints still trust the edge.</td><td><span class="docs-pill docs-pill--info">6 / 10</span></td></tr>
+            <tr><td>13</td><td>Rate limiting</td><td>Per-key bucket; no <code>RateLimit-*</code> headers</td><td>Limiter works but clients learn quota only by hitting 429.</td><td><span class="docs-pill docs-pill--warn">4 / 10</span></td></tr>
+            <tr><td>14</td><td>Security headers</td><td>HSTS + nosniff set; CSP scoped to docs only</td><td>JSON responses do not need CSP; HSTS preload ready.</td><td><span class="docs-pill docs-pill--success">8 / 10</span></td></tr>
+            <tr><td>15</td><td>TLS-only / HSTS preload</td><td>TLS 1.2+ enforced at the LB; preload pending</td><td>Modern ciphers; HSTS preload submission scheduled.</td><td><span class="docs-pill docs-pill--info">7 / 10</span></td></tr>
+            <tr><td>16</td><td>Structured logging with trace IDs</td><td>JSON logs; OTEL trace ID propagated via <code>traceparent</code></td><td>End-to-end correlation across gateway and downstreams.</td><td><span class="docs-pill docs-pill--success">8 / 10</span></td></tr>
+            <tr><td>17</td><td>RED metrics per route</td><td>Prometheus histograms on every handler</td><td>Cardinality is bounded by route template; SLO panels render off these.</td><td><span class="docs-pill docs-pill--success">8 / 10</span></td></tr>
+            <tr><td>18</td><td>Distributed tracing</td><td>OTEL SDK in all services; spans on DB and outbound HTTP</td><td>Spans cover the hot path; ad-hoc internal queues still untraced.</td><td><span class="docs-pill docs-pill--info">7 / 10</span></td></tr>
+            <tr><td>19</td><td>Contract tests on PR</td><td><code>make api-contract</code> diffs spec vs. handlers</td><td>Diff runs in CI; failures block merge.</td><td><span class="docs-pill docs-pill--success">8 / 10</span></td></tr>
+            <tr><td>20</td><td>Generated SDKs on tag</td><td>None published today</td><td>No SDK pipeline; clients hand-roll requests.</td><td><span class="docs-pill docs-pill--warn">2 / 10</span></td></tr>
+            <tr><td>21</td><td>Public changelog</td><td>Internal CHANGELOG only</td><td>No customer-facing API changelog page.</td><td><span class="docs-pill docs-pill--warn">3 / 10</span></td></tr>
+            <tr><td>22</td><td>Webhooks documented</td><td>Signing in code; docs incomplete</td><td>HMAC implemented; retry semantics not surfaced to consumers.</td><td><span class="docs-pill docs-pill--warn">4 / 10</span></td></tr>
+            <tr><td>23</td><td>Per-endpoint perf budget</td><td>p95 SLO panels exist; no CI gate</td><td>Observed in dashboards but not enforced before merge.</td><td><span class="docs-pill docs-pill--warn">4 / 10</span></td></tr>
+            <tr><td>24</td><td>OWASP API Top-10 review</td><td>Ad-hoc per release</td><td>No formal checklist baked into the release template.</td><td><span class="docs-pill docs-pill--warn">5 / 10</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="scoring-summary">Scoring summary</h2>
+
+      <h3 id="narrative-overall">Narrative overall</h3>
+      <p><strong>Overall:</strong> about <strong>6.0 / 10</strong>.<br><strong>To move toward top decile:</strong> finish RFC 7807 envelope, ship SDKs and a public changelog, expose <code>RateLimit-*</code> headers, and bake OWASP API Top-10 + perf budgets into CI.</p>
+
+      <h3 id="weighted-axis-model">Weighted axis model</h3>
+      <p>Unweighted mean of all 24 Table 2 rows.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Unweighted mean">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead>
+            <tr>
+              <th scope="col">Step</th>
+              <th scope="col">Operation</th>
+              <th scope="col">Figures</th>
+              <th scope="col">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Sum of Table 2 scores</td><td>9+7+6+5+5+8+5+7+8+3+8+6+4+8+7+8+8+7+8+2+3+4+4+5</td><td>145</td></tr>
+            <tr><td>2</td><td>Divide by row count</td><td>145 / 24</td><td>≈ 6.04</td></tr>
+            <tr><td><strong>Total</strong></td><td><strong>Arithmetic mean</strong></td><td>—</td><td><strong>≈ 6.0 / 10</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="top-five-gaps">Top five gaps — priority and workflow status</h3>
+      <p><strong>TODO</strong> — not started. <strong>IN PROGRESS</strong> — owned work in flight. <strong>DONE</strong> — accepted in main. Update Started / Closed / PR when picking up or finishing work.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Top five gaps">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead>
+            <tr>
+              <th scope="col">Priority</th>
+              <th scope="col">Gap</th>
+              <th scope="col">Status</th>
+              <th scope="col">Started</th>
+              <th scope="col">Closed</th>
+              <th scope="col">PR / reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>P0</td><td>No generated SDKs; clients hand-roll requests (Table 2 row 20).</td><td><span class="docs-pill docs-pill--neutral">TODO</span></td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>P0</td><td>No public API changelog tied to spec versions (row 21).</td><td><span class="docs-pill docs-pill--neutral">TODO</span></td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>P1</td><td>Migrate custom error envelope to RFC 7807 <code>application/problem+json</code> (row 4).</td><td><span class="docs-pill docs-pill--neutral">TODO</span></td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>P1</td><td>Expose <code>RateLimit-*</code> headers and document quota policy (row 13).</td><td><span class="docs-pill docs-pill--neutral">TODO</span></td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>P2</td><td>Enforce idempotency keys on all unsafe writes (row 5) and add OWASP API Top-10 checklist to release template (row 24).</td><td><span class="docs-pill docs-pill--neutral">TODO</span></td><td>—</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm"></a>
+          <span class="docs-history__note">Initial REST API assessment under the canonical audit template (Overview → Scope → Table 1 → Table 2 → Scoring summary → History). Replaces all prior api/ reports.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#overview">Overview</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scope-and-methodology">Scope &amp; methodology</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#table-1-reference-practices">Reference practices</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#table-2-as-is-scores">AS-IS scores</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scoring-summary">Scoring summary</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

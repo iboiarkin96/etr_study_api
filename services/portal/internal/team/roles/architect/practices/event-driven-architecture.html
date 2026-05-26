@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Event-driven architecture — Practice 02 · Architect</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Architect</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Event-driven architecture</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">02</span>
+        <span class="pa-eyebrow__group">Group A · System design &amp; patterns</span>
+      </p>
+      <h1 class="pa-title">Event-driven architecture — decouple through events</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">Replace synchronous point-to-point calls with immutable domain events to achieve temporal decoupling and resilient integration.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">Event-driven architecture (EDA) is a style where services communicate by publishing and consuming immutable domain events rather than calling each other directly. CQRS separates write and read models; Event Sourcing stores the full state history as an ordered log. Together they enable temporal decoupling, free audit trails, and independent service scaling. Netflix, Uber, LinkedIn all run core systems on event-driven backbones. The cost is real (eventual consistency, idempotency, schema discipline), so apply selectively — not as a default for every CRUD endpoint.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Event flow diagram">
+      <svg viewBox="0 0 760 280" role="img" aria-label="Producer publishes to broker; multiple consumers subscribe independently" style="display:block;max-width:740px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="eda-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="380" y="22" text-anchor="middle" font-size="10" letter-spacing="0.6">PRODUCER → BROKER → N CONSUMERS · TEMPORAL DECOUPLING</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="20" y="100" width="170" height="90" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="105" y="122" text-anchor="middle" font-weight="700" font-size="9">PRODUCER</text>
+        <text class="pa-svg-text pa-svg-text--accent" x="105" y="148" text-anchor="middle" font-weight="700" font-size="14">Lesson API</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="105" y="168" text-anchor="middle" font-size="10">emits domain</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="105" y="182" text-anchor="middle" font-size="10">events; never</text>
+
+        <rect class="pa-svg-box" x="240" y="70" width="240" height="150" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="360" y="92" text-anchor="middle" font-weight="700" font-size="9">EVENT BROKER</text>
+        <text class="pa-svg-text" x="360" y="118" text-anchor="middle" font-weight="700" font-size="14">Kafka / SQS / Pub-Sub</text>
+        <line x1="260" y1="132" x2="460" y2="132" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="360" y="152" text-anchor="middle" font-size="11">topic: lesson.events</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="360" y="170" text-anchor="middle" font-size="11">retention: 7 days</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="360" y="188" text-anchor="middle" font-size="11">schema-registry validated</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="360" y="208" text-anchor="middle" font-size="9">LessonCompleted · AttemptScored</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="530" y="55" width="210" height="60" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="635" y="74" text-anchor="middle" font-weight="700" font-size="9">CONSUMER GROUP A</text>
+        <text class="pa-svg-text pa-svg-text--good" x="635" y="98" text-anchor="middle" font-weight="700" font-size="13">Mastery projector</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="530" y="125" width="210" height="60" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="635" y="144" text-anchor="middle" font-weight="700" font-size="9">CONSUMER GROUP B</text>
+        <text class="pa-svg-text pa-svg-text--good" x="635" y="168" text-anchor="middle" font-weight="700" font-size="13">Analytics warehouse</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="530" y="195" width="210" height="60" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="635" y="214" text-anchor="middle" font-weight="700" font-size="9">CONSUMER GROUP C</text>
+        <text class="pa-svg-text pa-svg-text--good" x="635" y="238" text-anchor="middle" font-weight="700" font-size="13">Email / push notifier</text>
+
+        <path d="M190 145 L238 145" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#eda-arrow)"></path>
+
+        <path d="M480 130 L528 85" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#eda-arrow)"></path>
+        <path d="M480 145 L528 155" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#eda-arrow)"></path>
+        <path d="M480 160 L528 225" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#eda-arrow)"></path>
+
+        <text class="pa-svg-text pa-svg-text--muted" x="380" y="270" text-anchor="middle" font-size="11" font-style="italic">"producer does not know its consumers — adding a new consumer requires no change upstream"</text>
+      </svg>
+      <figcaption class="pa-figure__caption">A single domain event (LessonCompleted) fans out to three independent consumer groups. Each consumer group has its own offset, retries, and DLQ. The producer never changes when a new consumer joins — that decoupling is the whole point.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>Event-driven architecture is a system-integration style where components communicate by publishing and consuming events. An event is an immutable record of something that happened in the domain: <code>OrderPlaced</code>, <code>PaymentFailed</code>, <code>LessonCompleted</code>. The producer does not know who will consume the event.</p>
+      <p>Three related patterns that often appear together:</p>
+      <ul>
+        <li><strong>Pub-Sub</strong> — a broker (Kafka, SQS/SNS, Google Pub/Sub) delivers events from producers to one or more consumer groups. Each consumer group processes every event independently with its own offset.</li>
+        <li><strong>CQRS</strong> (Command Query Responsibility Segregation) — separates the write model (commands that change state) from the read model (queries on projections). Greg Young and Martin Fowler popularised it around 2009. Read models are eventually consistent with the write model.</li>
+        <li><strong>Event sourcing</strong> — stores every state change as an immutable event in an append-only log. Current state is the result of replaying the log. First described by Fowler in 2005. Enables time travel, audit trails, and replayable migrations.</li>
+      </ul>
+      <p>EDA does not require all three: pub-sub alone is the most common entry point; CQRS adds when read/write patterns diverge; event sourcing only when the audit log or replay genuinely earns its complexity cost.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Synchronous point-to-point calls create two failure modes at startup speed. First, <em>availability coupling</em>: when Service A calls Service B synchronously, A's uptime is bounded by B's uptime. A slow B cascades into a full A outage. Second, <em>team coupling</em>: adding a new consumer of data from Service A requires a contract negotiation with A's team and an API change.</p>
+      <p>Events eliminate both. A producer publishes to a broker and moves on. Consumers subscribe independently; failure in one consumer does not propagate upstream. The producer team never needs to know about new consumers. The event log also provides a free audit trail — a regulatory requirement that is expensive to retrofit after the fact. The cost is real (eventual consistency, idempotency, schema discipline) so EDA is not the default for every CRUD endpoint — it earns its place where decoupling genuinely matters.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">LinkedIn — Kafka origin</p>
+          <p class="pa-industry__what">Apache Kafka was created at LinkedIn around 2010 by Jay Kreps, Neha Narkhede, and Jun Rao to handle LinkedIn's activity feed and operational metrics. The original problem: every team wanted a copy of every event stream and the point-to-point integrations had become unmanageable. Kafka became the central commit log for LinkedIn and was open-sourced through the Apache Foundation in 2011. Jay Kreps's 2013 essay <em>The Log</em> is the canonical articulation of why a distributed commit log is a unifying abstraction.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> A central, durable, replayable log is more useful than its individual consumers realise. Treat the event log as a first-class system, not as a side effect of messaging.</p>
+          <p class="pa-industry__source">Source: <a href="https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying" rel="noopener">Jay Kreps — The Log</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Netflix — Keystone pipeline</p>
+          <p class="pa-industry__what">Netflix processes over 1 trillion events per day through its Keystone pipeline (Kafka-based). Every user interaction — play, pause, search — is an event. Consumers include the recommendation engine, A/B testing, billing, fraud detection. The entire analytics and personalisation stack is event-driven; no service polls another for state.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Events as the primary integration primitive from day one, not as a migration from RPC. Designing for replay lets the recommendation engine be retrained on any historical window.</p>
+          <p class="pa-industry__source">Source: <a href="https://netflixtechblog.com/keystone-real-time-stream-processing-platform-a3ee651812a" rel="noopener">Netflix Tech Blog — Keystone</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Uber — Kafka as nervous system</p>
+          <p class="pa-industry__what">Uber uses Apache Kafka as the central nervous system for its real-time systems. Every trip-state change (requested, matched, started, completed) is published as a domain event. Over 1 million messages per second at peak. The driver-location system, ETA calculation, and surge pricing all consume the same event stream independently. Uber publishes its Kafka patterns via the open-source uReplicator project.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Make the trip/order lifecycle an event stream from day one. Every business question ("how many active rides at 3 pm?") becomes a stream query rather than an expensive DB aggregation.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.uber.com/en-US/blog/apache-kafka-uber-use-case/" rel="noopener">Uber Engineering — Kafka use case</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Fowler / Young — CQRS &amp; event sourcing</p>
+          <p class="pa-industry__what">Greg Young formalised CQRS as a pattern in 2009 and popularised event sourcing for financial systems where immutable audit trails are a regulatory requirement. His EventStore is the canonical reference implementation. Martin Fowler codified the patterns on martinfowler.com. The canonical guidance is restraint: "Do not use event sourcing unless you genuinely need the audit log or replay capability — the complexity cost is real."</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Apply event sourcing selectively to core-domain aggregates with regulatory audit requirements. Do not use it as a default persistence mechanism — the query complexity is significant.</p>
+          <p class="pa-industry__source">Source: <a href="https://martinfowler.com/eaaDev/EventSourcing.html" rel="noopener">Fowler — Event Sourcing</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of an event-driven system</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Domain-event schema</p>
+          <p class="pa-anatomy__hint">Every event has: eventId (UUID), eventType (namespaced), occurredAt (ISO-8601), correlationId, typed payload. Defined in AsyncAPI 2.x. Breaking changes follow a versioning policy (new topic per major version). Schema registry validates compatibility before deployment.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Event broker</p>
+          <p class="pa-anatomy__hint">Delivery infrastructure (Kafka, SQS/SNS, Google Pub/Sub). Retention: ≥ 7 days for replay. Consumer groups: each downstream system has its own group so it can replay independently. Partition count sized to expected peak with 2× headroom.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Idempotent consumer</p>
+          <p class="pa-anatomy__hint">Every consumer must be idempotent — processing the same event twice produces the same result. Implemented via deduplication on eventId with 24-h TTL. Required for at-least-once delivery. Non-idempotent consumers cause duplicate charges, emails, inventory decrements.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Dead-letter queue (DLQ)</p>
+          <p class="pa-anatomy__hint">Events that fail after 3 retries are routed to a DLQ. DLQ is monitored and alerted. Messages are investigated and replayed manually or by a retry job. Without a DLQ, failed events are silently lost.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Outbox pattern</p>
+          <p class="pa-anatomy__hint">To guarantee a DB write and an event publish happen atomically, the event is written to an "outbox" table in the same transaction; a relay process publishes it to the broker. Prevents the dual-write problem. Required for any event that drives financial or inventory state.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Schema registry</p>
+          <p class="pa-anatomy__hint">Central registry (Confluent Schema Registry, AWS Glue) that stores and validates event schemas. CI rejects breaking changes (removed fields, renamed required fields). Backward-compatible additions (new optional fields) are allowed without consumer redeploy.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to run it</h2>
+      <ol>
+        <li><strong>Pick one flow that earns it (Week 1).</strong> A flow with ≥ 3 downstream consumers, regulatory audit need, or independent scaling demand. CRUD endpoints with one consumer do not earn EDA — keep them synchronous.</li>
+        <li><strong>Define event schemas (Week 2).</strong> AsyncAPI 2.x. Past-tense names (LessonCompleted, not CompleteLesson). Required fields: eventId, eventType, occurredAt, correlationId, payload. Reviewed by the consumer teams.</li>
+        <li><strong>Stand up the broker + schema registry (Week 2–3).</strong> Kafka / SQS / Pub-Sub with ≥ 7-day retention. Schema registry wired to CI; breaking changes blocked at PR time.</li>
+        <li><strong>Implement outbox in the producer (Week 3–4).</strong> Outbox table + relay. Same transaction as the DB write. No "send event after commit" — that is the dual-write problem dressed up.</li>
+        <li><strong>Implement consumers idempotently (Week 4–6).</strong> Dedup table on eventId. Inject duplicate events in CI to verify idempotency. DLQ wired and alerted.</li>
+        <li><strong>Run the first replay (Week 6).</strong> Replay the topic from the start into a new consumer. Confirm projections match. Replay is the load-bearing capability — verify it works before you need it.</li>
+        <li><strong>Add consumers without changing the producer (Week 6+).</strong> The third and fourth consumer are the proof. If adding them requires producer changes, the design failed somewhere — review.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive — what makes EDA work</h2>
+      <p><strong>Thin events, not fat events.</strong> A common mistake is to put the entire entity state in the event payload so consumers do not have to call back. The result is that every schema change becomes a breaking change and consumers become coupled to the full data model. Publish thin events (IDs and key facts), let consumers fetch detail from the source or maintain their own projections. "Notification + fetch" or "event-carried state transfer" — pick the one that fits the consumer, not the producer.</p>
+      <p><strong>Idempotency is the consumer's job, always.</strong> At-most-once delivery does not exist at scale; at-least-once is the default. Network retries, consumer restarts, broker rebalancing all produce duplicates. Every consumer dedups on eventId with a 24-hour TTL or longer. CI injects duplicate events to verify idempotency. Skip this and you ship duplicate charges to customers.</p>
+      <p><strong>The outbox pattern solves the dual-write problem.</strong> "Write to the DB, then publish the event" is wrong — the second step can fail and the system is now inconsistent. The outbox pattern writes the event to an outbox table <em>in the same transaction</em> as the DB write; a relay publishes the outbox to the broker asynchronously. Producer is now atomically consistent with the broker for the cost of one extra table and one relay process.</p>
+      <p><strong>Schema discipline is the long-term value.</strong> A schema registry that blocks breaking changes at PR time prevents the most common EDA failure: a producer renames a field, three consumers silently break, the team discovers it at month-end when reports are wrong. Backward-compatible changes only — add optional fields, never remove or rename required ones. Major-version breaks live on a new topic; consumers migrate explicitly.</p>
+      <p><strong>Replay is the test of decoupling.</strong> The first replay — pointing a fresh consumer at the beginning of the topic — proves the design works. If the projection matches the live state, the producer is honestly decoupled from the consumer. If not, there is hidden state somewhere the event log does not capture; find it and fix it. Replay capability is also the cheapest disaster-recovery mechanism for projections.</p>
+      <p><strong>EDA is not free — be selective.</strong> The complexity cost (eventual consistency, idempotency, outbox, DLQs, schema registry, operational broker) is real. Apply EDA where decoupling earns it: cross-domain integration, audit-required flows, ≥ 3 consumers, independent scaling. Keep CRUD endpoints synchronous when one team owns both ends and the data does not need to fan out.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle of a domain event</h2>
+      <div class="pa-states">
+        <div class="pa-states__item">
+          <p class="pa-states__name">Defined</p>
+          <p class="pa-states__hint">Event named (past tense), schema drafted in AsyncAPI, reviewed by consumer teams, registered in schema registry.</p>
+        </div>
+        <div class="pa-states__item">
+          <p class="pa-states__name">Produced</p>
+          <p class="pa-states__hint">Producer writes via the outbox pattern. Atomic with the DB write. Relay publishes to the broker; partition key derived from a stable aggregate ID.</p>
+        </div>
+        <div class="pa-states__item">
+          <p class="pa-states__name">Delivered</p>
+          <p class="pa-states__hint">Broker fans out to each consumer group. Each group has its own offset. At-least-once delivery; ordered within a partition.</p>
+        </div>
+        <div class="pa-states__item">
+          <p class="pa-states__name">Consumed</p>
+          <p class="pa-states__hint">Consumer dedups on eventId, applies the projection or side effect, commits offset. Failures retried 3× then routed to DLQ.</p>
+        </div>
+        <div class="pa-states__item">
+          <p class="pa-states__name">Replayed</p>
+          <p class="pa-states__hint">A consumer (new or recovering) is pointed at an earlier offset and reprocesses the topic. Idempotency keeps the projection correct.</p>
+        </div>
+        <div class="pa-states__item">
+          <p class="pa-states__name">Deprecated</p>
+          <p class="pa-states__hint">Breaking schema change requires a new event type or a new topic version. Old topic kept until all consumers migrate; sunset date published in the schema registry.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Common pitfalls">
+        <table class="docs-table docs-table--sticky-head">
+          <thead>
+            <tr>
+              <th scope="col">Pitfall</th>
+              <th scope="col">Why it happens</th>
+              <th scope="col">What to do instead</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Fat events — full entity state in the payload</td>
+              <td>Teams include the entire entity in the event to avoid follow-up calls. Consumers become coupled to the full data model; every schema change is breaking.</td>
+              <td>Publish thin events (IDs + key facts). Consumers fetch detail from the source or maintain their own projections. Notification + fetch beats fat events for evolution.</td>
+            </tr>
+            <tr>
+              <td>Non-idempotent consumers — duplicate side effects</td>
+              <td>SWEs assume at-most-once delivery. Network retries and consumer restarts cause duplicate delivery. Duplicate emails, duplicate charges, duplicate inventory decrements follow.</td>
+              <td>Design every consumer for idempotency from day one. Deduplication store keyed on eventId. CI injects duplicate events to verify.</td>
+            </tr>
+            <tr>
+              <td>Schema changes break consumers silently</td>
+              <td>Producer adds or renames a field. Consumers in other teams do not know until processing silently fails or produces wrong results. No contract enforcement.</td>
+              <td>Schema registry (Confluent or Glue). Enforce backward-compatible changes only. Separate topics for breaking major versions. CI blocks incompatible PRs.</td>
+            </tr>
+            <tr>
+              <td>Dual-write — DB and broker not atomic</td>
+              <td>"Write to DB, then publish event." Second step can fail. System is now inconsistent: a state change exists in the DB but no event was published, or vice versa.</td>
+              <td>Outbox pattern. Event written to outbox table in the same transaction as the DB write. Relay publishes asynchronously. Producer is atomically consistent with the broker.</td>
+            </tr>
+            <tr>
+              <td>No DLQ — failures silently lost</td>
+              <td>Consumer fails to process an event. Retries exhausted. Event is dropped. Nobody notices until a customer complains.</td>
+              <td>Every consumer has a DLQ. DLQ monitored and alerted. Messages investigated and replayed by a retry job. DLQ depth is a first-class metric.</td>
+            </tr>
+            <tr>
+              <td>EDA applied to every CRUD endpoint as default</td>
+              <td>Team treats EDA as the new RPC. Every endpoint becomes an event. Complexity cost dominates; no decoupling benefit because consumers and producers belong to the same team.</td>
+              <td>Apply selectively. EDA earns its complexity when ≥ 3 consumers, regulatory audit, or independent scaling are real. Keep single-consumer CRUD synchronous.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — lesson-completed event</h2>
+      <div class="pa-example">
+        <p class="pa-example__intro">An AsyncAPI fragment defining the LessonCompleted event plus the outbox row format. Three consumers subscribe: mastery projector, analytics warehouse, notification service.</p>
+        <pre class="pa-example__code"><code># asyncapi/lesson.events.yaml
+asyncapi: 2.6.0
+info:
+  title: Lesson events
+  version: 1.0.0
+channels:
+  lesson.events:
+    description: Lesson lifecycle events (past-tense, immutable)
+    subscribe:
+      message:
+        oneOf:
+          - $ref: "#/components/messages/LessonCompleted"
+          - $ref: "#/components/messages/AttemptScored"
+
+components:
+  messages:
+    LessonCompleted:
+      name: LessonCompleted
+      contentType: application/json
+      headers:
+        type: object
+        required: [eventId, eventType, occurredAt, correlationId]
+        properties:
+          eventId:        { type: string, format: uuid }
+          eventType:      { const: "lesson.LessonCompleted.v1" }
+          occurredAt:     { type: string, format: date-time }
+          correlationId:  { type: string, format: uuid }
+      payload:
+        type: object
+        required: [lessonId, userId, score]
+        properties:
+          lessonId: { type: string, format: uuid }
+          userId:   { type: string, format: uuid }
+          score:    { type: number, minimum: 0, maximum: 1 }
+          # NOTE: thin event. Full lesson detail fetched by consumers
+          # from the lesson API using lessonId. Schema-stable forever.
+
+---
+-- producer outbox (same transaction as the lesson-completion write):
+
+INSERT INTO lessons (id, user_id, completed_at, score) VALUES (...);
+INSERT INTO outbox (
+  event_id, event_type, occurred_at, correlation_id,
+  payload_json, status
+) VALUES (
+  gen_random_uuid(),
+  'lesson.LessonCompleted.v1',
+  now(),
+  :correlation_id,
+  jsonb_build_object(
+    'lessonId', :lesson_id,
+    'userId',   :user_id,
+    'score',    :score
+  ),
+  'PENDING'
+);
+
+-- relay process (separate worker):
+--   SELECT * FROM outbox WHERE status = 'PENDING' ORDER BY occurred_at;
+--   publish to Kafka; UPDATE outbox SET status='PUBLISHED' WHERE id=:id;
+        </code></pre>
+        <p class="pa-example__note">The schema is registered before any producer or consumer ships. The outbox row is written in the same transaction as the lesson write — no dual-write window. Three consumer groups subscribe; each dedups on eventId and replays from offset 0 when re-initialised.</p>
+      </div>
+    </section>
+
+    <section id="quality">
+      <h2>Quality bar</h2>
+      <ul class="pa-quality">
+        <li><strong>Every event defined in AsyncAPI and registered.</strong> Schema registry blocks breaking changes at PR time. Backward-compatible additions only.</li>
+        <li><strong>Past-tense event names.</strong> LessonCompleted, not CompleteLesson. The event records that something happened.</li>
+        <li><strong>Thin events.</strong> IDs + key facts only. Consumers fetch detail from the source. Schema stays small.</li>
+        <li><strong>Producer uses the outbox pattern.</strong> Event row written in the same transaction as the state change. Relay publishes asynchronously.</li>
+        <li><strong>Every consumer is idempotent.</strong> Dedup on eventId with ≥ 24-h TTL. CI verifies via duplicate-event injection.</li>
+        <li><strong>DLQ wired and monitored.</strong> 3 retries then DLQ. DLQ depth alerted. Messages investigated and replayed.</li>
+        <li><strong>Replay tested.</strong> At least once per topic, a fresh consumer is pointed at offset 0 and the projection is verified to match live state.</li>
+        <li><strong>EDA applied selectively.</strong> Synchronous CRUD endpoints remain CRUD. EDA earns its complexity where decoupling is real.</li>
+      </ul>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying" rel="noopener">Jay Kreps — The Log (LinkedIn)</a></li>
+        <li><a href="https://netflixtechblog.com/keystone-real-time-stream-processing-platform-a3ee651812a" rel="noopener">Netflix Tech Blog — Keystone pipeline</a></li>
+        <li><a href="https://www.uber.com/en-US/blog/apache-kafka-uber-use-case/" rel="noopener">Uber Engineering — Kafka use case</a></li>
+        <li><a href="https://martinfowler.com/eaaDev/EventSourcing.html" rel="noopener">Martin Fowler — Event Sourcing</a></li>
+        <li><a href="https://martinfowler.com/bliki/CQRS.html" rel="noopener">Martin Fowler — CQRS</a></li>
+        <li><a href="https://microservices.io/patterns/data/transactional-outbox.html" rel="noopener">Chris Richardson — Transactional Outbox</a></li>
+        <li><a href="https://www.asyncapi.com/" rel="noopener">AsyncAPI specification</a></li>
+        <li><a href="https://docs.confluent.io/platform/current/schema-registry/index.html" rel="noopener">Confluent Schema Registry</a></li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <p class="docs-history__title">History</p>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-23">2026-05-23</time>
+          <span class="docs-history__change">Rewritten to SA practice-page pattern: page-head, redesigned producer→broker→3-consumer SVG, expanded industry (4 cards: LinkedIn/Kafka, Netflix, Uber, Fowler/Young), deep-dive (thin events, idempotency, outbox, schema discipline, replay, selectivity), lifecycle, AsyncAPI + outbox worked example, quality bar, references.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-14">2026-05-14</time>
+          <span class="docs-history__change">Initial version: event-driven architecture practice for Architect radar.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

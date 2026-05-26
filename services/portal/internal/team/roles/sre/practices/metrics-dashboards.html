@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metrics &amp; dashboards — four golden signals, versioned as code — Practice 07 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Metrics &amp; dashboards</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">07</span>
+        <span class="pa-eyebrow__group">Group B · Observability</span>
+      </p>
+      <h1>Metrics &amp; dashboards — four golden signals, versioned as code</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Every service exposes the four golden signals. Every dashboard is stored in git, reviewed before merge, and linked from the runbook. A service without a canonical dashboard is a service without observability.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">The four golden signals (latency, traffic, errors, saturation) are the minimum viable metric set for any user-facing service. Every service exposes them via a standard Prometheus client library scraped through <code>/metrics</code>. Dashboards are versioned as Grafana JSON in <code>infra/grafana/dashboards/</code>, reviewed by at least one other engineer before merge, and linked from the service runbook. Every service ships with two canonical dashboards — a RED panel (rate, errors, duration) and a service-overview that drills down — and the SLO dashboards are generated automatically from <code>infra/slo/</code>. A dashboard built during an incident is too late; a dashboard reviewed before production is what enables fast diagnosis when it matters.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Signal scrape to dashboard pipeline">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Signal scraped, metric stored, query, panel, dashboard layout" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="115" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="62" y="106" text-anchor="middle" font-weight="700">Signal</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="62" y="124" text-anchor="middle" font-size="10">scraped /metrics</text>
+
+        <rect class="pa-svg-box" x="140" y="80" width="115" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="197" y="106" text-anchor="middle" font-weight="700">Metric</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="197" y="124" text-anchor="middle" font-size="10">stored TSDB</text>
+
+        <rect class="pa-svg-box" x="275" y="80" width="110" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="330" y="106" text-anchor="middle" font-weight="700">Query</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="330" y="124" text-anchor="middle" font-size="10">PromQL / rule</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="405" y="80" width="110" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="460" y="106" text-anchor="middle" font-weight="700">Panel</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="460" y="124" text-anchor="middle" font-size="10">visualisation</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="535" y="20" width="100" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="585" y="42" text-anchor="middle" font-weight="700">RED</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="585" y="60" text-anchor="middle" font-size="10">rate · err · dur</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="535" y="148" width="100" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="585" y="170" text-anchor="middle" font-weight="700">USE</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="585" y="188" text-anchor="middle" font-size="10">util · sat · err</text>
+
+        <path d="M120 110 L135 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M255 110 L270 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M385 110 L400 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M515  98 L530  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M515 122 L530 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+      </svg>
+      <figcaption class="pa-figure__caption">Signal scraped from <code>/metrics</code> → stored in the TSDB → queried via PromQL or a recording rule → rendered as a panel → composed into a dashboard layout (RED for request services, USE for resources).</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p><strong>Metrics &amp; dashboards</strong> is the discipline of deciding which numerical signals a service emits, how those signals are stored and queried, and how they are arranged into a small number of canonical dashboards that the team actually opens during an incident. The work is upstream of alerting and downstream of instrumentation: the metric has to exist before a dashboard can show it, and the dashboard has to exist before an on-call engineer can use it. A dashboard invented during an incident is built by the wrong person under the wrong conditions and almost always retired the week after.</p>
+    <p>Google SRE identified the <em>four golden signals</em> — latency, traffic, errors, saturation — as the minimum viable metric set for any user-facing service. Latency is measured at multiple quantiles (p50, p95, p99) and split between success and error paths so a failing endpoint cannot hide inside an aggregate. Traffic is the demand the system is taking. Errors are the rate of failed requests, both explicit (5xx) and implicit (200 with an error payload). Saturation is how full the most constrained resource is. If all four look normal, the service is almost certainly healthy; if any one is degraded, that is where investigation starts. Dashboards-as-code means every Grafana panel lives as JSON in git, is reviewed before merge, and is deployed by pipeline — not poked into the Grafana UI by hand.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Ad-hoc dashboards built during an incident are too late. They are constructed under stress by an engineer who is simultaneously diagnosing the problem, and they are never maintained afterwards. The same shop will have forty half-broken dashboards from forty old incidents and no canonical view of any service. Dashboards-as-code enforce a different discipline: the dashboard is reviewed before the service reaches production, by engineers who are not in crisis mode, and it is reproducible across environments. When the page fires at 3 a.m., the on-call opens the runbook, clicks through to the canonical dashboard, and reads the four signals — not a search bar.</p>
+    <p>The simplicity matters as much as the discipline. Forty-panel dashboards are noise; on-call attention is the scarcest resource in the system, and a layout that takes five minutes to read costs five minutes of an incident. The canonical dashboard for a service has eight to twelve panels — the golden signals plus SLO burn rate plus two or three service-specific signals — and anything more detailed lives in linked sub-dashboards. The point of a dashboard is not to show everything; it is to answer the one question the on-call needs answered in twenty seconds.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose monitoring practice is published and copied. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Google SRE</p>
+        <p class="pa-industry__what">Google codified the four golden signals in the SRE Book and built their internal monitoring infrastructure around them. Every Google service has a canonical monitoring dashboard that shows the four signals plus SLO burn rate. The dashboard is linked from the service's on-call runbook and is the first artifact an on-call engineer opens when paged — the routing is part of the rule, not part of the operator's memory.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Link the canonical dashboard from the runbook and from every alert annotation. When the page fires, the dashboard is one click away. The runbook and the dashboard are the same artifact in two views.</p>
+        <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/monitoring-distributed-systems/" rel="noopener">Google SRE Book — Monitoring distributed systems</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Weaveworks (RED method)</p>
+        <p class="pa-industry__what">Tom Wilkie at Weaveworks distilled the golden signals for request-driven services into <em>RED</em>: rate, errors, duration. Three panels per service, identical layout across the fleet, so an on-call engineer who has read one RED dashboard can read every RED dashboard. The pattern is now the de-facto template for microservice observability and is built into the Grafana service-graph view by default.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Every service ships with a RED dashboard generated from a shared template. Operators never have to learn a new layout per service — the three panels are always in the same positions, with the same units, on the same time range.</p>
+        <p class="pa-industry__source">Source: <a href="https://www.weave.works/blog/the-red-method-key-metrics-for-microservices-architecture/" rel="noopener">Tom Wilkie — The RED method</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Brendan Gregg (USE method)</p>
+        <p class="pa-industry__what">For resources rather than requests, Brendan Gregg's <em>USE</em> method (utilization, saturation, errors) is the canonical analysis. For every resource — CPU, memory, disk, network — measure the three. USE is how a host or queue is diagnosed; RED is how a service is diagnosed. The two methods cover the system end-to-end without overlap.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> RED dashboards for services, USE dashboards for the infrastructure they depend on. The on-call starts with the service RED to see whether users are affected, and drills into the USE board for the suspected resource only when the symptom points there.</p>
+        <p class="pa-industry__source">Source: <a href="https://www.brendangregg.com/usemethod.html" rel="noopener">Brendan Gregg — The USE method</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Grafana Labs</p>
+        <p class="pa-industry__what">Grafana Labs ships <em>mixins</em>: packages that bundle Grafana dashboards, Prometheus alerts, and recording rules for a specific service or library as code. Teams import the mixin for PostgreSQL, Redis, or NGINX and get production-quality dashboards built by the people who maintain those systems, without rebuilding from scratch.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Use the published mixins for infrastructure services. Spending three days hand-rolling a Postgres dashboard when <code>postgres-mixin</code> already exists is wasted engineering. Our own service dashboards are generated from an internal mixin template so they stay consistent.</p>
+        <p class="pa-industry__source">Source: <a href="https://grafana.com/docs/grafana/latest/dashboards/" rel="noopener">Grafana dashboard documentation</a></p>
+      </div>
+    </div>
+    <p class="pa-industry-pattern">Across every team whose monitoring practice is public, the playbook converges: a tiny canonical metric set (golden signals / RED / USE), shared dashboard templates so layouts are identical across the fleet, versioned-in-git Grafana JSON, and every dashboard linked from the runbook of the service it monitors.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete metrics-and-dashboards practice has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Shared instrumentation library</p><p class="pa-anatomy__hint">One Prometheus client per language, pre-configured to expose the four golden signals with consistent metric names and label schemas. Services import it; they do not register counters by hand.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Canonical <code>/metrics</code> endpoint</p><p class="pa-anatomy__hint">Every service exposes <code>/metrics</code> on the admin port. Prometheus scrapes on a fixed schedule. The endpoint contract is enforced by a smoke test in CI — a service that does not expose it does not deploy.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Dashboard-as-code</p><p class="pa-anatomy__hint">Grafana JSON stored in <code>infra/grafana/dashboards/</code>, reviewed by at least one other engineer before merge, and deployed via a CI pipeline that pushes to Grafana via the API. Direct UI edits on canonical dashboards are blocked by Grafana RBAC.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">RED + service-overview pair</p><p class="pa-anatomy__hint">Every service has two dashboards: a RED panel (rate, errors, duration) for the at-a-glance view, and a service-overview that drills down into dependencies, queue depths, and saturation signals.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Generated SLO dashboards</p><p class="pa-anatomy__hint">SLO dashboards are auto-generated from <code>infra/slo/</code> at deploy time so the SLO definition and its dashboard never drift. No hand-edited burn-rate panels.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Runbook link</p><p class="pa-anatomy__hint">Every canonical dashboard is linked from the service's runbook; every alert annotation includes the dashboard URL. There is never a step "find the right dashboard" inside an incident.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Quarterly dashboard review</p><p class="pa-anatomy__hint">Stale panels are removed, new signals added, thresholds recalibrated. A dashboard with 40% stale panels erodes trust in the panels that are still accurate.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App services expose metrics on a Prometheus-scraped <code>/metrics</code> endpoint published by the shared instrumentation library. Prometheus runs in the platform namespace and scrapes every service on a 15-second cadence; the labels (<code>service</code>, <code>environment</code>, <code>region</code>, <code>version</code>) are stamped on every series so cross-service aggregation works without surprises. Recording rules pre-compute the heavy expressions — RED rates, p95/p99 quantiles, SLO error fractions — so dashboard load times stay below a second even at incident-shift query volume.</p>
+    <p>Dashboards live in <code>infra/grafana/dashboards/</code>, one folder per service, one JSON file per board. Every service ships with two canonical dashboards: a <strong>RED</strong> dashboard (rate, errors, duration) generated from the shared template and a <strong>service-overview</strong> that drills down into dependencies, saturation, and queue depths. The SLO dashboards are auto-generated from the SLO definitions in <code>infra/slo/</code> — see <a href="slo-error-budget.html">SLO &amp; error budget</a> for how those are written — so the SLO and its dashboard cannot drift. Direct edits to canonical dashboards via the Grafana UI are blocked by RBAC; the canonical folder is read-only and every change goes through PR review.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>RED vs USE — different methods for different objects</h3>
+      <p>The two canonical analyses solve different problems and apply to different things. <em>RED</em> — rate, errors, duration — describes a <strong>request-driven service</strong>: how many requests is it handling, how many fail, and how long do they take. <em>USE</em> — utilization, saturation, errors — describes a <strong>resource</strong>: how busy is it, how queued is it, and how often does it fault. For an HTTP service the right view is RED; for the CPU, disk, or queue it runs on, the right view is USE. The mistake is mixing them: a service "RED" board cluttered with CPU graphs becomes hard to read, and a host "USE" board with request rates becomes hard to maintain.</p>
+      <h4>When each applies</h4>
+      <p>RED applies whenever the unit of work is a request — HTTP handler, gRPC method, message consumer, background job. USE applies whenever the unit of analysis is a resource that can be saturated — CPU core, memory pool, disk volume, connection pool, thread pool, Kafka partition. In practice every service has a RED dashboard for itself and links to USE dashboards for the resources it depends on. The on-call starts on RED to see whether users are affected; if errors or duration are bad, they jump to the USE board for the resource the runbook flags first.</p>
+      <h4>Histograms vs summaries — and the quantile-aggregation trap</h4>
+      <p>Prometheus offers two ways to record a latency distribution: <em>histograms</em> (buckets stored on each instance, quantiles computed at query time) and <em>summaries</em> (quantiles pre-computed on the instance). The temptation is summaries — they are cheaper to query — but they have a fatal flaw: <strong>summary quantiles cannot be aggregated</strong>. The 99th percentile across three instances is not the average or max of each instance's 99th percentile; it is a property of the combined distribution. Summaries throw that distribution away. Histograms keep the buckets, so <code>histogram_quantile</code> over a sum across instances returns a correct global quantile. Rule of thumb: anything you need to roll up across instances must be a histogram, full stop. Summaries are acceptable only for per-instance debugging where global aggregation is never needed.</p>
+      <h4>Cardinality budgets — why high-cardinality labels are death</h4>
+      <p>Every unique combination of label values on a Prometheus metric creates a new time series. A counter labelled with <code>(service, endpoint, status)</code> on a service with 20 endpoints and 5 status codes is 100 series — manageable. Add <code>user_id</code> and on a million users it is a hundred million series, and the TSDB falls over. The same trap waits in <code>request_id</code>, <code>trace_id</code>, raw URL paths with embedded IDs, and any label sourced from user input. The rule is: label values must be drawn from a small, bounded set known at deploy time. High-cardinality identifiers belong in <a href="distributed-tracing.html">traces</a> and <a href="structured-logging.html">logs</a>, not in metrics. Honeycomb's writing on the cardinality wall is the best public reference for what happens when this rule is broken at scale.</p>
+      <h4>Dashboard design — overview → drilldown layering</h4>
+      <p>A canonical dashboard has at most twelve panels, arranged top-to-bottom in priority order: golden signals first (the answer to "is anything wrong"), SLO burn rate second (the answer to "how bad"), service-specific signals third (the answer to "where to look next"). Detail panels — per-endpoint breakdowns, dependency latencies, queue depths — live in a linked <em>drilldown</em> dashboard, not on the main board. The overview answers questions in twenty seconds; the drilldown answers them in five minutes. Mixing the two means neither works during an incident.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Up-front template investment.</strong> Writing the shared instrumentation library and the RED dashboard template takes a sprint before any service benefits. Teams that skip it end up with 30 hand-rolled dashboards in 30 different layouts and a steep learning curve per service.</li>
+        <li><strong>Discipline at PR time.</strong> Dashboards-as-code means every dashboard change is a PR. The first month is friction; after that it is the only way anyone wants to work because rollbacks are <code>git revert</code> and not "remember the panel from Tuesday".</li>
+        <li><strong>Cardinality discipline.</strong> Engineers reach for "just add a label" reflexively. A linting step in CI that flags new labels against a known schema is the cheapest way to keep the TSDB alive.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">instrument in code</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">scrape via /metrics</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">recording rules</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">panel authored</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">dashboard versioned in repo</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">linked from runbook</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">reviewed quarterly · retuned · retired</span>
+    </div>
+    <p>A new metric starts in application code via the shared instrumentation library — never with a hand-rolled counter. Prometheus picks it up automatically on the next scrape because the service exposes <code>/metrics</code> as a contract. If the metric is queried often enough to be expensive, it gets promoted to a recording rule so the dashboard does not recompute it on every load. A panel is authored against the rule, the dashboard JSON is committed to <code>infra/grafana/dashboards/</code>, a PR is opened, and at least one other engineer reviews it. Once merged, the CI pipeline pushes the dashboard to Grafana via the API and the service runbook is updated with the link. Every quarter the dashboard is reviewed against the panels people actually use — stale ones are deleted, drift is corrected, and the layout is brought back in line with the canonical template.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Forty-panel dashboards no one reads</strong></td>
+            <td>"More data is better." The author adds a panel for every signal they can think of and never deletes any.</td>
+            <td>The canonical dashboard has eight to twelve panels: golden signals + SLO burn rate + two or three service-specific signals. Additional detail lives in a linked drilldown, not on the main board. The overview answers the on-call's question in twenty seconds; anything that costs more than that gets moved.</td>
+          </tr>
+          <tr>
+            <td><strong>Dashboards built in the UI, never in code</strong></td>
+            <td>Grafana's UI is easy; git is friction. The first dashboard ships from a browser tab and the pattern sticks.</td>
+            <td>Lock down direct UI edits on canonical dashboards via Grafana RBAC. Exploration uses a sandbox folder; sandbox dashboards are never linked from runbooks or alerts. All canonical dashboards live in <code>infra/grafana/dashboards/</code> and ship via PR.</td>
+          </tr>
+          <tr>
+            <td><strong>High-cardinality labels (<code>user_id</code>, <code>request_id</code>)</strong></td>
+            <td>"It would be useful to slice by user." Each new label value creates a new series; the TSDB silently bloats until it falls over.</td>
+            <td>Label values must be from a small, bounded set known at deploy time. CI lint blocks any new label not on the approved schema. User-level identifiers belong in traces and logs, not metrics.</td>
+          </tr>
+          <tr>
+            <td><strong>Summary quantiles aggregated across instances</strong></td>
+            <td>Summaries look cheaper than histograms; the bug is invisible until p99 across the fleet stops matching reality.</td>
+            <td>Use histograms for anything that has to roll up across instances. <code>histogram_quantile</code> over a summed bucket vector returns a correct global quantile; summaries cannot do that and there is no workaround.</td>
+          </tr>
+          <tr>
+            <td><strong>Per-team metric namespaces with no shared schema</strong></td>
+            <td>Each team picks their own label names; cross-service queries become impossible.</td>
+            <td>Enforce a canonical label schema: <code>service</code>, <code>environment</code>, <code>region</code>, <code>version</code>. Without it the SLO calculations break the first time you try to aggregate two services that named the same dimension differently.</td>
+          </tr>
+          <tr>
+            <td><strong>SLO dashboards diverge from SLO definitions</strong></td>
+            <td>The SLO is updated in <code>infra/slo/</code> but the dashboard panel was hand-built and nobody touches it.</td>
+            <td>Generate SLO dashboards from <code>infra/slo/</code> at deploy time. The definition is the single source of truth; the dashboard is its rendering. Hand-edited burn-rate panels are deleted on sight.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Grafana panel JSON</span>
+        <p class="pa-example__title">Lessons API — RED panel (rate, errors, p95 / p99 latency)</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code>{
+  "title": "Lessons API — RED",
+  "uid": "lessons-api-red",
+  "tags": ["service:lessons-api", "method:red", "owner:sre-platform"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request rate",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "sum by (status) (rate(http_requests_total{service=\"lessons-api\"}[1m]))",
+        "legendFormat": "{{status}}"
+      }],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 2,
+      "title": "Error rate",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "sum(rate(http_requests_total{service=\"lessons-api\",status=~\"5..\"}[1m])) / sum(rate(http_requests_total{service=\"lessons-api\"}[1m]))",
+        "legendFormat": "5xx ratio"
+      }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 0.05 } }
+    },
+    {
+      "id": 3,
+      "title": "Duration — p95 / p99",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"lessons-api\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"lessons-api\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    }
+  ],
+  "links": [
+    { "title": "Runbook", "url": "https://internal.studyapp/runbooks/lessons-api" },
+    { "title": "SLO board", "url": "https://grafana.studyapp/d/lessons-api-slo" }
+  ]
+}
+        </code></pre>
+        <p><strong>What this dashboard does.</strong> Three panels, top-to-bottom: rate split by status (so the on-call sees green vs red traffic at a glance), error ratio with a 5% display ceiling (anything above is clearly off the chart), and p95/p99 duration computed by <code>histogram_quantile</code> over a summed bucket vector so the quantiles aggregate correctly across instances. The dashboard is generated from the shared RED template — every service in the fleet looks identical, in the same panel order, so an on-call who has read one has read them all. Runbook and SLO board are linked from the dashboard header; the alert annotation for any page on this service points directly here.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Shared instrumentation library used by every service</p><p class="pa-quality__hint">No hand-rolled counters. The library exposes the four golden signals with a consistent label schema across the fleet.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every service exposes <code>/metrics</code></p><p class="pa-quality__hint">Smoke-tested in CI; a service that does not expose it does not deploy. Scraped on a 15 s cadence by the platform Prometheus.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">RED + service-overview pair for every service</p><p class="pa-quality__hint">Two canonical dashboards per service, generated from a shared template, identical layouts across the fleet.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">SLO dashboards generated from <code>infra/slo/</code></p><p class="pa-quality__hint">Definitions are the source of truth; dashboards are their rendering. No hand-edited burn-rate panels.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Dashboards versioned in <code>infra/grafana/dashboards/</code></p><p class="pa-quality__hint">All changes ship by PR. Direct UI edits on canonical dashboards blocked by RBAC.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Cardinality budget enforced by CI</p><p class="pa-quality__hint">New labels must be on the approved schema. User-level identifiers stay in traces and logs.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Quarterly dashboard review</p><p class="pa-quality__hint">Stale panels removed, thresholds recalibrated, drift from the template corrected. Reviewed in the SRE retro.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://www.weave.works/blog/the-red-method-key-metrics-for-microservices-architecture/" rel="noopener">Tom Wilkie — The RED method</a><span class="pa-refs__hint">The original distillation of golden signals into rate, errors, duration for request-driven services.</span></li>
+          <li><a href="https://www.brendangregg.com/usemethod.html" rel="noopener">Brendan Gregg — The USE method</a><span class="pa-refs__hint">Utilization, saturation, errors for resources; the companion to RED for hosts and queues.</span></li>
+          <li><a href="https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/best-practices/" rel="noopener">Grafana — Dashboard best practices</a><span class="pa-refs__hint">Layout patterns, panel design, drilldown structure, what to keep off the main board.</span></li>
+          <li><a href="https://prometheus.io/docs/practices/histograms/" rel="noopener">Prometheus best practices — Histograms and summaries</a><span class="pa-refs__hint">Why histograms aggregate and summaries do not; the quantile-aggregation trap in one page.</span></li>
+          <li><a href="https://www.honeycomb.io/blog/cardinality-the-coin-of-the-observability-realm" rel="noopener">Honeycomb — Cardinality: the coin of the observability realm</a><span class="pa-refs__hint">The public reference for what happens when a metrics TSDB hits the cardinality wall, and where high-cardinality data should live instead.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="alerting-design.html">Alerting design — what fires off these signals</a><span class="pa-refs__hint">The dashboard is the on-call's destination; the alert is the trigger. Both reference the same metric set.</span></li>
+          <li><a href="slo-error-budget.html">SLO &amp; error budget — the source of the auto-generated SLO boards</a><span class="pa-refs__hint">SLO dashboards are rendered from these definitions; the dashboard cannot drift from the SLO.</span></li>
+          <li><a href="structured-logging.html">Structured logging — where high-cardinality data goes</a><span class="pa-refs__hint">User-level identifiers belong in logs, not in metric labels.</span></li>
+          <li><a href="distributed-tracing.html">Distributed tracing — request-level identifiers</a><span class="pa-refs__hint">Trace and request IDs live here, never as metric labels.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-14">2026-05-14</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: Metrics &amp; Dashboards practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

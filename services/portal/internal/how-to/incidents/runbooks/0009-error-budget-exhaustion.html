@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runbook 0009 · Error budget exhaustion · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Runbooks</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0009 · Error budget exhaustion</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--danger">Runbook</span>
+          <span class="docs-pill docs-pill--info">SLO</span>
+        </div>
+        <h1>0009 — Error budget exhaustion and SLO alerts</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">SLO alerts firing — sustained 5xx burn, latency violations, or readiness probe failures. Incident response and feature-freeze rules.</p>
+      </header>
+
+      <h2 id="trigger">Trigger</h2>
+      <ul>
+        <li>Prometheus alerts <code>StudyAppErrorBudgetExhausted</code>, <code>StudyAppErrorBudgetCritical</code>, <code>StudyAppFast5xxBurn</code>, <code>StudyAppHighHttp5xxRate</code>, <code>StudyAppLatencySLOViolation</code>, or <code>StudyAppReadyProbeFailing</code> are firing.</li>
+        <li>Grafana shows error budget burn over 1, a high 5xx rate, or readiness at 0.</li>
+        <li>Users see an outage or you breach an external SLA at the same time.</li>
+      </ul>
+
+      <h2 id="meaning">What "error budget exhausted" means</h2>
+      <p>For this API we allow at most <strong>0.1%</strong> of requests to return HTTP 5xx in a rolling 30-day window (99.9% success). The rule <code>job:study_app:http_5xx:burn30d</code> compares real 5xx share to that allowance. When burn is <strong>above 1</strong>, you have used more errors than budget for that window.</p>
+      <p>Full policy and SLI text: <a href="../../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011: SLOs, SLAs, error budget, and monitoring alerts</a>.</p>
+
+      <h2 id="triage">Fast triage (order)</h2>
+      <ol>
+        <li><strong>Readiness / dependencies</strong> — If <code>StudyAppReadyProbeFailing</code> fires, use <a href="0008-observability-scrape-failing.html">Observability scrape failing</a>: API up, DB reachable, <code>curl -i http://127.0.0.1:8000/ready</code> returns <code>200</code>.</li>
+        <li><strong>5xx and latency</strong> — Open Grafana dashboard <a href="http://127.0.0.1:3001/d/study-app-observability/study-app-observability?orgId=1">Study App Observability</a> and Prometheus <a href="http://127.0.0.1:9090/alerts">Alerts</a> / <a href="http://127.0.0.1:9090/graph">Graph</a>.</li>
+        <li><strong>Recent change</strong> — Look for deploys, config edits, migrations, or traffic spikes in that window.</li>
+        <li><strong>Rollback</strong> — If a new release is likely the cause, roll back to the last good version.</li>
+        <li><strong>Saturation</strong> — If latency SLO fires but 5xx are low, check CPU, memory, pools, and rate limits.</li>
+      </ol>
+
+      <h2 id="response">Response when budget is exhausted or critical</h2>
+      <ul>
+        <li><strong>Incident</strong> — Sustained burn or user impact: name a lead, use one channel, write a short timeline.</li>
+        <li><strong>Feature freeze</strong> — Until things are stable, pause non-urgent releases; ship only fixes for the incident.</li>
+        <li><strong>Root cause</strong> — After mitigation, record cause and follow-ups (tests, alerts, ADR if needed).</li>
+        <li><strong>External SLA</strong> — If you have a published SLA, follow its customer comms and escalation steps.</li>
+      </ul>
+
+      <h2 id="links">Useful links (local defaults)</h2>
+      <ul>
+        <li>Grafana: <a href="http://127.0.0.1:3001/d/study-app-observability/study-app-observability?orgId=1">Study App Observability</a></li>
+        <li>Prometheus alerts: <a href="http://127.0.0.1:9090/alerts">http://127.0.0.1:9090/alerts</a></li>
+        <li>ADR 0011: <a href="../../../governance/adr/0011-slo-sla-error-budget.html">SLOs, SLAs, error budget</a></li>
+        <li>Observability baseline: <a href="../../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009</a></li>
+      </ul>
+
+      <h2 id="exit">Exit criteria</h2>
+      <ul>
+        <li>Firing alerts are resolved or acknowledged with a documented exception.</li>
+        <li>5xx rate and latency panels are back within SLO targets on the Grafana dashboard.</li>
+        <li>Error budget burn is going down, or the team agreed a new window rule in writing.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; h2 sections with id anchors.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#trigger">Trigger</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#meaning">What it means</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#triage">Fast triage</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#response">Response</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#links">Useful links</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#exit">Exit criteria</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

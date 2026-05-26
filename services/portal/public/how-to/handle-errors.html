@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" data-portal="public" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Handle errors · How-to · ETR Study API</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/public/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🚀</span><span>ETR Study API</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Developer Documentation</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Handle errors</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-public.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+        </div>
+        <h1>Handle errors</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Every non-2xx response uses one envelope shape, regardless of which endpoint failed. Switch
+          on <code>code</code> — never on <code>detail</code> (the human message can change between
+          releases).
+        </p>
+      </header>
+
+      <h2 id="envelope">The error envelope</h2>
+      <pre><code class="language-json">{
+  "type": "about:blank",
+  "title": "Validation failed",
+  "status": 422,
+  "code": "USER_CREATE_FULL_NAME_REQUIRED",
+  "detail": "Field `full_name` is required.",
+  "request_id": "01HE…",
+  "errors": [
+    {"field": "full_name", "code": "USER_CREATE_FULL_NAME_REQUIRED", "message": "Field is required"}
+  ]
+      }</code></pre>
+      <p>Fields:</p>
+      <ul>
+        <li><code>status</code> — HTTP status; matches the response status line.</li>
+        <li><code>code</code> — stable string identifier (e.g. <code>USER_CREATE_FULL_NAME_REQUIRED</code>). Switch on this in client code.</li>
+        <li><code>detail</code> — human-readable, English-only, may change phrasing across releases.</li>
+        <li><code>request_id</code> — server-issued correlation id; always present, always include in support tickets.</li>
+        <li><code>errors[]</code> — only on <code>422</code> validation responses; one entry per failed field.</li>
+      </ul>
+
+      <h2 id="per-status-class">What to do per status class</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead>
+            <tr><th>Status</th><th>Class</th><th>Retry?</th><th>What client does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>400</code></td><td>Bad request — missing header / framing</td><td>No</td><td>Fix the request; common cause: missing <code>Idempotency-Key</code>.</td></tr>
+            <tr><td><code>401</code></td><td>Auth required</td><td>No</td><td>Check the <code>X-API-Key</code> header; do not retry the same key.</td></tr>
+            <tr><td><code>404</code></td><td>Resource not found</td><td>No</td><td>The composite key did not match; surface to user as "not found".</td></tr>
+            <tr><td><code>409</code></td><td>Conflict (uniqueness, idempotency mismatch)</td><td>No</td><td>Treat as final; surface to user with the message from <code>code</code>.</td></tr>
+            <tr><td><code>413</code></td><td>Payload too large</td><td>No</td><td>Trim the body or split the operation.</td></tr>
+            <tr><td><code>422</code></td><td>Validation failed</td><td>No</td><td>Read <code>errors[]</code>; surface per-field messages.</td></tr>
+            <tr><td><code>429</code></td><td>Rate limit exceeded</td><td>Yes, backoff</td><td>Honor <code>Retry-After</code> when present; exponential backoff otherwise.</td></tr>
+            <tr><td><code>5xx</code></td><td>Server-side</td><td>Yes, with <code>Idempotency-Key</code></td><td>Retry the original request with the same idempotency key (max ~3 attempts, exponential backoff).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="retry-pseudocode">Retry pseudocode</h2>
+      <pre><code class="language-python">import uuid, time, random, requests
+key = str(uuid.uuid4())
+for attempt in range(3):
+    r = requests.post(
+        f"{base_url}/api/v1/user",
+        headers={"X-API-Key": api_key, "Idempotency-Key": key},
+        json=payload,
+    )
+    if r.status_code &lt; 500 and r.status_code != 429:
+        break
+    time.sleep((2 ** attempt) + random.random())
+      return r</code></pre>
+      <p>
+        Always retry with the <em>same</em> <code>Idempotency-Key</code> so a partially-applied first
+        attempt does not create a duplicate. See
+        <a href="handle-idempotency.html">handle idempotency</a>.
+      </p>
+
+      <h2 id="where-to-look">Where to look up codes</h2>
+      <ul>
+        <li><a href="../reference/errors/index.html">Error catalogue</a> — every code, what it means, what to do.</li>
+        <li><a href="../reference/api/index.html">OpenAPI explorer</a> — per-endpoint examples for each error response.</li>
+      </ul>
+    </article>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/public/entry.js"></script>
+
+</body></html>

@@ -1,0 +1,199 @@
+/* ui-kit/components/test-pyramid.css
+   Canonical test pyramid — 5 stacked tiers narrowing toward the apex, with
+   a right-side annotation column whose rows line up with the tiers.
+
+   The pyramid shape carries the meaning: the wide base = many cheap tests,
+   the narrow apex = few expensive ones. Tiers are CSS clip-path trapezoids,
+   each setting `--t-top` / `--t-bot` as 0..1 fractions of the column width.
+
+   Markup outline:
+     <div class="docs-test-pyramid">
+       <ol class="docs-test-pyramid__stack" aria-label="…">
+         <li class="docs-test-pyramid__tier" data-tier="1" data-tone="rose">
+           <span class="docs-test-pyramid__label">Manual</span>
+         </li>
+         …
+       </ol>
+       <ul class="docs-test-pyramid__notes" aria-label="…">
+         <li class="docs-test-pyramid__note" data-tier="1">
+           <span class="docs-test-pyramid__note-title">Manual / exploratory</span>
+           <span class="docs-test-pyramid__note-rule">minutes per session, charter-based</span>
+         </li>
+         …
+       </ul>
+     </div>
+*/
+
+.docs-test-pyramid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: stretch;
+  margin: var(--space-5) 0;
+}
+
+/* Scoped reset so prose.css `ol/ul { padding-left: space-5; margin: 0 0 space-4 }`
+   loses on specificity. */
+.docs-test-pyramid .docs-test-pyramid__stack,
+.docs-test-pyramid .docs-test-pyramid__notes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.docs-test-pyramid .docs-test-pyramid__stack {
+  gap: 2px;
+  align-items: stretch;
+}
+
+.docs-test-pyramid .docs-test-pyramid__stack > li + li,
+.docs-test-pyramid .docs-test-pyramid__notes > li + li {
+  margin-top: 0;
+}
+
+/* ─── Tier (trapezoid) ───────────────────────────────────────────── */
+
+.docs-test-pyramid__tier {
+  --tier-tone: var(--accent);
+  --t-top: 1;
+  --t-bot: 1;
+  --tier-h: 60px;
+
+  position: relative;
+  height: var(--tier-h);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-3);
+  margin: 0;
+  color: var(--text-strong);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tier-tone) 24%, var(--bg-elev)),
+    color-mix(in srgb, var(--tier-tone) 16%, var(--bg-elev))
+  );
+  /* Trapezoid: top edge spans --t-top of the box width, bottom edge spans
+     --t-bot; both centered horizontally. Multiplying a unitless fraction by
+     a percentage is allowed in modern CSS calc(). */
+  clip-path: polygon(
+    calc(50% - var(--t-top) * 50%) 0,
+    calc(50% + var(--t-top) * 50%) 0,
+    calc(50% + var(--t-bot) * 50%) 100%,
+    calc(50% - var(--t-bot) * 50%) 100%
+  );
+  transition: filter 160ms var(--ease-out);
+}
+
+.docs-test-pyramid__tier:hover {
+  filter: brightness(1.05);
+}
+
+/* Per-tier widths — tier="1" is the apex, tier="5" is the base.
+   Progression 1.00 → 0.25 across 5 tiers (step 0.15). */
+.docs-test-pyramid__tier[data-tier="1"] { --t-top: 0.25; --t-bot: 0.40; }
+.docs-test-pyramid__tier[data-tier="2"] { --t-top: 0.40; --t-bot: 0.55; }
+.docs-test-pyramid__tier[data-tier="3"] { --t-top: 0.55; --t-bot: 0.70; }
+.docs-test-pyramid__tier[data-tier="4"] { --t-top: 0.70; --t-bot: 0.85; }
+.docs-test-pyramid__tier[data-tier="5"] { --t-top: 0.85; --t-bot: 1.00; }
+
+/* Per-tier tones — palette goes warm-at-top (rare, expensive) to cool-at-base
+   (frequent, cheap). */
+.docs-test-pyramid__tier[data-tone="rose"]   { --tier-tone: var(--rose); }
+.docs-test-pyramid__tier[data-tone="warn"]   { --tier-tone: var(--warn); }
+.docs-test-pyramid__tier[data-tone="accent"] { --tier-tone: var(--accent); }
+.docs-test-pyramid__tier[data-tone="info"]   { --tier-tone: var(--info); }
+.docs-test-pyramid__tier[data-tone="teal"]   { --tier-tone: var(--teal); }
+
+.docs-test-pyramid__label {
+  font-size: var(--fs-300);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--bg-elev) 60%, transparent);
+}
+
+/* ─── Annotation column ──────────────────────────────────────────── */
+
+.docs-test-pyramid__notes {
+  /* Align each note with its tier — tiers have a 2px gap, so we mirror that
+     and equal tier heights so rows line up vertically. */
+  gap: 2px;
+}
+
+.docs-test-pyramid__note {
+  --note-tone: var(--accent);
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  border-left: var(--rail-w) solid color-mix(in srgb, var(--note-tone) 55%, var(--line));
+  background: color-mix(in srgb, var(--note-tone) 4%, var(--bg-elev));
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin: 0;
+}
+
+.docs-test-pyramid__note[data-tier="1"] { --note-tone: var(--rose); }
+.docs-test-pyramid__note[data-tier="2"] { --note-tone: var(--warn); }
+.docs-test-pyramid__note[data-tier="3"] { --note-tone: var(--accent); }
+.docs-test-pyramid__note[data-tier="4"] { --note-tone: var(--info); }
+.docs-test-pyramid__note[data-tier="5"] { --note-tone: var(--teal); }
+
+.docs-test-pyramid__note-title {
+  font-size: var(--fs-300);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  line-height: var(--lh-snug);
+}
+
+.docs-test-pyramid__note-rule {
+  font-size: var(--fs-200);
+  color: var(--muted);
+  line-height: var(--lh-snug);
+}
+
+.docs-test-pyramid__note-rule code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-mute);
+}
+
+/* ─── Tablet (761–1024) — keep side-by-side, tighten ─────────────── */
+
+@media (max-width: 1024px) {
+  .docs-test-pyramid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+}
+
+/* ─── Mobile (≤760) — pyramid above, notes below ─────────────────── */
+
+@media (max-width: 760px) {
+  .docs-test-pyramid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .docs-test-pyramid__tier {
+    --tier-h: 52px;
+  }
+
+  .docs-test-pyramid__note {
+    height: auto;
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-test-pyramid__tier {
+    transition: none;
+  }
+}

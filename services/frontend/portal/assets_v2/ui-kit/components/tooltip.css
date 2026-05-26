@@ -1,0 +1,164 @@
+/* ui-kit/components/tooltip.css — premium inline tooltip surface.
+
+   Anatomy: a trigger element (any focusable / hover-able element with
+   [data-tooltip]) reveals a single body-portalled bubble managed by
+   tooltip.js. The bubble lives at the document root so it never gets
+   clipped by overflow:hidden ancestors (tables, scrolling regions,
+   sticky chrome).
+
+   Two visual flavours:
+     • Default (`[data-tooltip]` only)        — compact label/affordance hint.
+     • Glossary (`.docs-tooltip` modifier)    — dotted underline on the
+                                                trigger, inverted dark bubble,
+                                                signals "definition lookup".
+
+   The bubble element is appended once and reused. Positioning is set
+   inline by the script. Theme via tokens only (no hard-coded colours). */
+
+/* ---------- Trigger styles ---------------------------------------------- */
+
+/* Bare [data-tooltip] triggers stay visually unchanged — just become
+   a hover/focus target. The cursor hint helps reveal affordance on UI
+   chrome (icon buttons, badges, chips). */
+[data-tooltip] {
+  cursor: help;
+}
+
+/* Native interactive elements keep their own affordance cursor. */
+button[data-tooltip],
+a[data-tooltip],
+[role="button"][data-tooltip],
+input[data-tooltip],
+select[data-tooltip],
+textarea[data-tooltip] {
+  cursor: pointer;
+}
+input[data-tooltip],
+textarea[data-tooltip] {
+  cursor: text;
+}
+
+/* Disabled native buttons still get the help cursor, since the tooltip
+   often explains *why* they are disabled. */
+button[data-tooltip][disabled],
+button[data-tooltip][aria-disabled="true"] {
+  cursor: help;
+}
+
+/* Glossary trigger — dotted underline, inherits text colour. */
+.docs-tooltip {
+  text-decoration: underline dotted currentColor;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  cursor: help;
+}
+
+.docs-tooltip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* ---------- Bubble (body-portalled) ------------------------------------- */
+
+.docs-tooltip-bubble {
+  /* Positioned by tooltip.js using inline top/left. */
+  position: fixed;
+  z-index: 2000;
+  max-width: 260px;
+  padding: 8px 10px;
+
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+
+  font-size: var(--fs-200, 0.75rem);
+  line-height: var(--lh-snug, 1.4);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+  text-align: left;
+
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(2px) scale(0.985);
+  transition:
+    opacity 140ms var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+.docs-tooltip-bubble.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Arrow — caret pointing at the trigger. Filled with the same surface
+   colour; the border is drawn via a sibling pseudo so the seam between
+   bubble and arrow disappears. */
+.docs-tooltip-bubble__arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+/* Placement modifiers — arrow position + seam hiding. */
+.docs-tooltip-bubble[data-placement="top"] .docs-tooltip-bubble__arrow {
+  bottom: -6px;
+  border-top: 0;
+  border-left: 0;
+}
+.docs-tooltip-bubble[data-placement="bottom"] .docs-tooltip-bubble__arrow {
+  top: -6px;
+  border-bottom: 0;
+  border-right: 0;
+}
+.docs-tooltip-bubble[data-placement="left"] .docs-tooltip-bubble__arrow {
+  right: -6px;
+  border-bottom: 0;
+  border-left: 0;
+}
+.docs-tooltip-bubble[data-placement="right"] .docs-tooltip-bubble__arrow {
+  left: -6px;
+  border-top: 0;
+  border-right: 0;
+}
+
+/* Glossary variant — invert the surface so readers immediately recognise
+   a definition lookup vs a UI hint. Triggered by the script copying the
+   trigger's `docs-tooltip` class onto the bubble. */
+.docs-tooltip-bubble.is-glossary {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.docs-tooltip-bubble.is-glossary .docs-tooltip-bubble__arrow {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+/* Reduced motion — no fade/slide, just opacity flip. */
+@media (prefers-reduced-motion: reduce) {
+  .docs-tooltip-bubble {
+    transition: none;
+    transform: none;
+  }
+  .docs-tooltip-bubble.is-visible {
+    transform: none;
+  }
+}
+
+/* Mobile: bubble can occupy a bit more width on small screens
+   so two-line hints don't get cramped. */
+@media (max-width: 760px) {
+  .docs-tooltip-bubble {
+    max-width: min(280px, calc(100vw - 24px));
+  }
+}

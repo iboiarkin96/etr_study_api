@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Distributed tracing — Practice 17 · SWE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SWE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Distributed tracing</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">17</span>
+        <span class="pa-eyebrow__group">Group D · Observability &amp; operability</span>
+      </p>
+      <h1 class="pa-title">Distributed tracing — OpenTelemetry spans on every call</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">Wrap the interesting business operation in a span and add attributes for the inputs that matter — get an end-to-end waterfall showing exactly which call burned the 800 ms.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">OpenTelemetry (CNCF, 2019 merger of OpenTracing + OpenCensus) is the universal wire format for distributed traces. Ancestor: Google's Dapper paper (2010), turned into product by Honeycomb. Auto-instrumentation gives HTTP/DB spans for free; <em>manual spans on the interesting business operations</em> are what turn "the request was slow" into "the third call to pricing.compute_quote took 820 ms because the FX cache missed". W3C trace-context propagates the trace ID across services; the backend (Honeycomb, Jaeger, Tempo, Datadog) renders the waterfall.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Trace waterfall flow">
+      <svg viewBox="0 0 760 230" role="img" aria-label="Service → manual span → propagated context → backend waterfall" style="display:block;max-width:720px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="dt-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="380" y="20" text-anchor="middle" font-size="10" letter-spacing="0.6">AUTO + MANUAL SPANS · W3C TRACE-CONTEXT · BACKEND RENDERS WATERFALL</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="20" y="50" width="170" height="150" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="105" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 1 · INSTRUMENT</text>
+        <text class="pa-svg-text pa-svg-text--accent" x="105" y="96" text-anchor="middle" font-weight="700" font-size="14">Spans</text>
+        <line x1="35" y1="110" x2="175" y2="110" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="105" y="130" text-anchor="middle" font-size="10">auto: HTTP / DB</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="105" y="146" text-anchor="middle" font-size="10">manual: business ops</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="105" y="162" text-anchor="middle" font-size="10">attrs for inputs</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="105" y="184" text-anchor="middle" font-weight="700" font-size="9">OpenTelemetry SDK</text>
+
+        <rect class="pa-svg-box" x="205" y="50" width="170" height="150" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="290" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 2 · PROPAGATE</text>
+        <text class="pa-svg-text" x="290" y="96" text-anchor="middle" font-weight="700" font-size="14">W3C context</text>
+        <line x1="220" y1="110" x2="360" y2="110" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="290" y="130" text-anchor="middle" font-size="10">traceparent header</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="290" y="146" text-anchor="middle" font-size="10">cross-service</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="290" y="162" text-anchor="middle" font-size="10">in Kafka headers too</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="290" y="184" text-anchor="middle" font-weight="700" font-size="9">w3.org/TR/trace-context</text>
+
+        <rect class="pa-svg-box" x="390" y="50" width="170" height="150" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="475" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 3 · EXPORT</text>
+        <text class="pa-svg-text" x="475" y="96" text-anchor="middle" font-weight="700" font-size="14">OTel collector</text>
+        <line x1="405" y1="110" x2="545" y2="110" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="475" y="130" text-anchor="middle" font-size="10">batching · sampling</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="475" y="146" text-anchor="middle" font-size="10">tail-based sampler</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="475" y="162" text-anchor="middle" font-size="10">vendor-neutral</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="475" y="184" text-anchor="middle" font-weight="700" font-size="9">OTLP protocol</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="575" y="50" width="165" height="150" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="657" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 4 · VISUALISE</text>
+        <text class="pa-svg-text pa-svg-text--good" x="657" y="96" text-anchor="middle" font-weight="700" font-size="14">Waterfall</text>
+        <line x1="590" y1="110" x2="725" y2="110" style="stroke:var(--line);stroke-width:1"></line>
+        <text class="pa-svg-text pa-svg-text--muted" x="657" y="130" text-anchor="middle" font-size="10">Honeycomb · Jaeger</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="657" y="146" text-anchor="middle" font-size="10">Tempo · Datadog</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="657" y="162" text-anchor="middle" font-size="10">find the 820 ms call</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="657" y="184" text-anchor="middle" font-weight="700" font-size="9">debug in minutes</text>
+
+        <path d="M190 125 L203 125" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#dt-arrow)"></path>
+        <path d="M375 125 L388 125" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#dt-arrow)"></path>
+        <path d="M560 125 L573 125" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#dt-arrow)"></path>
+
+        <text class="pa-svg-text pa-svg-text--muted" x="380" y="220" text-anchor="middle" font-size="11" font-style="italic">"manual spans on business ops are what turn 'slow' into 'this specific call burned the time'"</text>
+      </svg>
+      <figcaption class="pa-figure__caption">Four stages: SDK instruments spans, W3C context propagates the trace ID, the OTel collector exports OTLP to whichever backend, the backend renders the waterfall. Manual spans on business operations are the load-bearing instrumentation.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>Distributed tracing models a request as a tree of <em>spans</em>. Each span has a start, an end, a name, and a bag of attributes; spans are linked by parent-child relationships. The whole tree is a <em>trace</em>, identified by a 16-byte trace ID that propagates across services via the W3C <code>traceparent</code> header (or equivalent for Kafka, gRPC, queues).</p>
+      <p>OpenTelemetry (OTel) is the universally adopted spec + SDK suite:</p>
+      <ul>
+        <li><strong>SDK</strong> per language (Go, Java, Python, Node, .NET, Ruby, Rust, …) creates spans and exports them via the OTLP protocol.</li>
+        <li><strong>Auto-instrumentation</strong> packages (HTTP servers, DB clients, HTTP clients) emit spans for the obvious things without code changes.</li>
+        <li><strong>Manual spans</strong> wrap business operations — the parts the engineer cares about — and attach domain-specific attributes (user ID, tenant, feature flag).</li>
+        <li><strong>OTel Collector</strong> sits between the apps and the backend: batches, samples, enriches, and routes to one or more backends (Honeycomb, Jaeger, Tempo, Datadog, New Relic).</li>
+      </ul>
+      <p>The point of tracing is not "more data". The point is to answer "what happened in this request?" in seconds — by jumping from a slow trace ID in the logs, into the waterfall, into the span that holds the slow operation.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Logs tell you what one service did; metrics tell you the aggregate; only traces tell you the full path of one request across N services. Without traces, a "checkout is slow" report becomes hours of cross-service log spelunking — which service was called when, with what arguments, and which one took the time. With traces, the engineer pastes the trace ID into the backend UI and sees the waterfall: 820 ms in <code>pricing.compute_quote</code>, with attributes showing the cache miss.</p>
+      <p>Traces also enable analytics: percentile latency per endpoint per tenant per feature flag, all from the same data. Honeycomb's "BubbleUp" and similar tools make outlier analysis trivial when the spans carry the right attributes. The investment in manual spans (one decorator per business function) pays back the first time a senior engineer doesn't need to spelunk logs to find a latency root cause.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Google — Dapper paper (2010)</p>
+          <p class="pa-industry__what">Google's Dapper paper (Sigelman et al., 2010) introduced distributed tracing at planetary scale. Key contributions: sampled tracing (don't trace everything), parent-child span model, low-overhead in-process tracking. Every modern tracing system is a descendant of Dapper.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Sampling is non-negotiable at scale. 100% sampling at 10 k RPS produces TB/day of trace data nobody queries. Default to 1% with tail-based sampling that keeps all errors.</p>
+          <p class="pa-industry__source">Source: <a href="https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/" rel="noopener">research.google — Dapper paper</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">OpenTelemetry — CNCF standard</p>
+          <p class="pa-industry__what">OpenTelemetry (2019 merger of OpenTracing + OpenCensus) is the CNCF-incubating, now universally adopted standard. SDKs in 11+ languages; auto-instrumentation for major frameworks; OTLP wire protocol; vendor-neutral. Every major backend (Honeycomb, Datadog, NR, Lightstep, Tempo) reads OTLP natively.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Adopt OpenTelemetry. Avoid vendor-specific SDKs that lock you in. OTel + a vendor backend gives you portability if you change vendors later.</p>
+          <p class="pa-industry__source">Source: <a href="https://opentelemetry.io/" rel="noopener">opentelemetry.io</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Honeycomb — high-cardinality first</p>
+          <p class="pa-industry__what">Honeycomb (Charity Majors et al.) pioneered the "observability" reframing of tracing: store wide events with high-cardinality attributes (user ID, build SHA, feature flag) and analyse them interactively. BubbleUp surfaces "what makes the slow requests different?" automatically.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Spans need attributes, not just durations. Add user/tenant/flag/build-SHA on every span; the analysis becomes possible at all. Sparse attributes = the trace tells you it was slow; rich attributes = the trace tells you why.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.honeycomb.io/" rel="noopener">honeycomb.io</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Grafana Tempo — OSS at scale</p>
+          <p class="pa-industry__what">Grafana Tempo (Cortex's tracing sibling) is the open-source backend that scales tracing horizontally on cheap object storage. Pairs with Grafana + Loki + Mimir for the full open-source observability stack. Used by teams that want OTel without per-trace pricing.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Open-source is viable at scale. Tempo on S3 plus Grafana's TraceQL gives you Honeycomb-style analysis without the per-trace bill. Pick by team size + budget, not by hype.</p>
+          <p class="pa-industry__source">Source: <a href="https://grafana.com/oss/tempo/" rel="noopener">grafana.com/oss/tempo</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of distributed tracing</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">OpenTelemetry SDK + auto-instrumentation</p><p class="pa-anatomy__hint">Per-language SDK installed on every service. Auto-instrumentation packages emit HTTP/DB/queue spans without code changes.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Manual spans on business ops</p><p class="pa-anatomy__hint">Decorator / context manager around the interesting business function. Attributes: input IDs, business outcome, feature flag. 5–10 manual spans per service is the right size; 100+ is noise.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">W3C trace-context propagation</p><p class="pa-anatomy__hint"><code>traceparent</code> header on every outbound HTTP / gRPC call. <code>traceparent</code> in Kafka headers / SQS message attributes for async hops.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">OTel Collector sidecar / gateway</p><p class="pa-anatomy__hint">Receives OTLP from apps; samples (head-based or tail-based); enriches with infra metadata (pod, region, image SHA); exports to one or more backends.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Tail-based sampling</p><p class="pa-anatomy__hint">Sample 1–5% of normal traffic but keep 100% of errors + 100% of slow traces. Configured in the Collector; saves cost without hiding anomalies.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Trace ID in logs</p><p class="pa-anatomy__hint">Every log line carries the current trace ID. Click a log entry; jump to the trace; debug in seconds. Without this link, traces and logs live in separate silos.</p></div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to run it</h2>
+      <ol>
+        <li><strong>Install the OTel SDK + auto-instrumentation.</strong> One per service language. Free HTTP/DB/queue spans on day one.</li>
+        <li><strong>Stand up the OTel Collector.</strong> One per cluster as a daemonset / sidecar pattern. OTLP receiver; appropriate exporter for your backend.</li>
+        <li><strong>Pick a backend.</strong> Honeycomb / Tempo + Grafana / Datadog / Jaeger. The OTel layer abstracts the choice; pick by team needs.</li>
+        <li><strong>Add 5–10 manual spans per service.</strong> Wrap business-critical functions. Add attributes: user_id, tenant_id, feature flags, business outcome.</li>
+        <li><strong>Propagate W3C trace-context.</strong> Auto-instrumentation handles HTTP; add explicit propagation for Kafka headers, SQS message attributes, cron jobs.</li>
+        <li><strong>Configure tail-based sampling.</strong> Keep 100% errors, 100% slow (&gt; p99), 1–5% baseline. In the Collector, not the SDK.</li>
+        <li><strong>Inject trace ID into logs.</strong> Logging library or middleware adds <code>trace_id</code> to every log line. Backend supports log→trace navigation.</li>
+        <li><strong>Wire dashboards.</strong> p95 / p99 latency by endpoint + tenant. Error-rate heatmap. Saved queries for common investigations.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive — what makes traces actually useful</h2>
+      <p><strong>Manual spans on business ops are the load-bearing investment.</strong> Auto-instrumentation gives you "HTTP GET /api/checkout 1.2 s" — useful but not enough. Manual spans give you "compute_quote 820 ms, fetch_inventory 250 ms, charge_card 130 ms" — useful enough to debug. Five to ten manual spans per service, on the operations that matter to the business. Skipping manual spans is the most common reason teams adopt OTel and then say it didn't help.</p>
+      <p><strong>Attributes are the investigation surface.</strong> A span with just duration tells you it was slow. A span with user_id, tenant_id, feature_flag, build_sha, region tells you <em>which slow</em>: a single tenant, a specific flag, a specific build, a region. Honeycomb's BubbleUp depends on attributes; so does any percentile-by-attribute analysis. Add the attributes; pay the small cardinality cost; reap the analysis.</p>
+      <p><strong>Trace ID in logs is the killer feature.</strong> "Click a log line, see the trace" collapses MTTR for cross-service investigations. Without it, traces and logs live in silos and engineers context-switch between two backends. With it, one click moves between dimensions. The logging middleware change is small; the operational payoff is large.</p>
+      <p><strong>Sampling is non-negotiable at scale.</strong> 100% sampling at 10 k RPS produces TB/day of trace data nobody queries. Default to tail-based sampling: 1–5% baseline + 100% errors + 100% slow. Tail-based runs in the Collector; the SDK emits everything; the Collector decides what to keep. The biggest cost wins come from getting this right.</p>
+      <p><strong>OTel Collector enriches centrally.</strong> Adding pod name, region, image SHA, deploy SHA at the Collector layer means every span gets them without per-service work. Engineers add business attributes; the infra layer adds infra attributes; analysis joins them automatically.</p>
+      <p><strong>Don't trace through hot loops.</strong> A span inside a per-iteration loop creates thousands of spans per request — both expensive and unreadable. Span the loop as a whole; record per-iteration data as attributes or events on that span. Auto-instrumentation usually gets this right; manual spans need care.</p>
+      <p><strong>Pair tracing with SLOs.</strong> "p99 of <code>compute_quote</code> &gt; 500 ms" is a meaningful SLO; the trace shows you which calls violated it. Without tracing, the SLO is a number; with tracing, it's a number with explainable root causes. SLO + trace + log links are the modern observability stack.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle of a trace</h2>
+      <div class="pa-states">
+        <div class="pa-states__item"><p class="pa-states__name">Started</p><p class="pa-states__hint">Request hits the edge service. Auto-instrumentation creates the root span with the W3C trace ID. Logging middleware adds <code>trace_id</code> to every log line.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Propagated</p><p class="pa-states__hint">Every outbound HTTP / gRPC / Kafka call carries <code>traceparent</code>. Receiving services continue the trace as a child span.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Annotated</p><p class="pa-states__hint">Manual spans wrap business ops. Attributes: inputs, outcome, user/tenant/flag. Auto-instrumentation continues to emit HTTP/DB spans alongside.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Exported</p><p class="pa-states__hint">Spans flow to the OTel Collector via OTLP. Collector enriches with infra metadata; samples by tail-based policy; routes to backend.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Stored</p><p class="pa-states__hint">Backend stores spans by trace ID. Indexed by service, endpoint, attributes for query. Retention by sampling tier (errors longer than baseline).</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Queried</p><p class="pa-states__hint">Engineer pastes trace ID from logs; waterfall renders. Or: BubbleUp / TraceQL surfaces what makes outliers different. MTTR drops from hours to minutes.</p></div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Common pitfalls">
+        <table class="docs-table docs-table--sticky-head">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr><td>Only auto-instrumentation, no manual spans</td><td>Team installs OTel, sees HTTP/DB spans, calls it done. Investigations still take hours because business ops aren't named in the waterfall.</td><td>Add 5–10 manual spans per service on the business-critical operations. Wrap with a decorator; attach domain attributes. This is where tracing earns its keep.</td></tr>
+            <tr><td>Spans without attributes</td><td>Manual spans created but carry only duration. The waterfall shows it was slow; nobody knows <em>why slow</em>.</td><td>Attach attributes: user_id, tenant_id, feature flag, business outcome, build SHA. Pay the small cardinality cost; reap the analysis.</td></tr>
+            <tr><td>Trace ID not in logs</td><td>Traces and logs live in separate backends. Engineer with a slow trace can't find the logs; engineer with logs can't find the trace.</td><td>Logging middleware adds <code>trace_id</code> to every log line. Backend supports log→trace deep-link. One click between the two surfaces.</td></tr>
+            <tr><td>No sampling → cost explodes</td><td>100% sampling at production volume creates TB/day. Backend bills surprise the team; queries get slow; eventually retention is cut.</td><td>Tail-based sampling in the Collector: 1–5% baseline + 100% errors + 100% slow (&gt; p99). Cost drops 95%; signal stays.</td></tr>
+            <tr><td>Spans inside hot loops</td><td>A span per iteration of a per-record loop. Thousands of spans per request; waterfall unreadable; cost explodes.</td><td>Span the loop as a whole. Record per-iteration data as attributes or events on the loop span.</td></tr>
+            <tr><td>Vendor-specific SDK lock-in</td><td>Team installs a vendor SDK (DataDog tracer); SDK behaves differently; later move to another vendor is a full re-instrumentation.</td><td>OpenTelemetry SDK + vendor exporter at the Collector. Portable instrumentation; vendor choice changes via Collector config.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — Python manual span</h2>
+      <div class="pa-example">
+        <p class="pa-example__intro">A decorator wraps the business operation, attaches domain attributes, and lets auto-instrumentation handle the HTTP/DB layer below. One change per business function turns "checkout slow" into "compute_quote 820 ms with cache_miss=true".</p>
+        <pre class="pa-example__code"><code># pricing/service.py
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
+tracer = trace.get_tracer("pricing")
+
+def trace_business(name: str):
+    """Decorator: wrap a business op in a span + attach kwargs as attributes."""
+    def deco(fn):
+        def wrapped(*args, **kwargs):
+            with tracer.start_as_current_span(name) as span:
+                for k, v in kwargs.items():
+                    if isinstance(v, (str, int, float, bool)):
+                        span.set_attribute(f"app.{k}", v)
+                try:
+                    return fn(*args, **kwargs)
+                except Exception as e:
+                    span.record_exception(e)
+                    span.set_status(Status(StatusCode.ERROR, str(e)))
+                    raise
+        return wrapped
+    return deco
+
+@trace_business("pricing.compute_quote")
+def compute_quote(*, user_id: str, tenant_id: str, items: list, currency: str):
+    span = trace.get_current_span()
+    fx = fx_cache.get(currency)              # auto-instrumented Redis span here
+    span.set_attribute("app.fx_cache_hit", fx is not None)
+    if fx is None:
+        fx = fx_service.fetch(currency)      # auto-instrumented HTTP span here
+        fx_cache.set(currency, fx)
+    return sum(line.amount * fx for line in items)
+
+# logging setup (excerpt) — trace_id appears on every log line
+import logging
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+LoggingInstrumentor().instrument(set_logging_format=True)
+# format includes %(otelTraceID)s · click in log UI → jump to trace
+        </code></pre>
+        <p class="pa-example__note">One decorator + one logging line. Every call to <code>compute_quote</code> now appears as a named span with user/tenant/currency/cache-hit attributes. The Redis lookup and HTTP fetch beneath it are auto-instrumented children. Trace ID flows into logs; one click from log line to waterfall.</p>
+      </div>
+    </section>
+
+    <section id="quality">
+      <h2>Quality bar</h2>
+      <ul class="pa-quality">
+        <li><strong>OTel SDK + auto-instrumentation in every service.</strong> No vendor SDK lock-in.</li>
+        <li><strong>5–10 manual spans per service on business ops.</strong> Decorator with domain attributes.</li>
+        <li><strong>W3C trace-context propagated.</strong> HTTP, gRPC, Kafka headers, SQS attributes.</li>
+        <li><strong>Trace ID in every log line.</strong> Logging middleware; log→trace deep-link works.</li>
+        <li><strong>OTel Collector with tail-based sampling.</strong> 1–5% baseline + 100% errors + 100% slow.</li>
+        <li><strong>Infra attributes added at the Collector.</strong> pod, region, image SHA, deploy SHA.</li>
+        <li><strong>p95 / p99 dashboards per endpoint + tenant.</strong> Saved queries for common investigations.</li>
+        <li><strong>SLOs paired with traces.</strong> SLO violation → trace showing the violating call.</li>
+      </ul>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://opentelemetry.io/" rel="noopener">OpenTelemetry (CNCF)</a></li>
+        <li><a href="https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/" rel="noopener">Google — Dapper paper</a></li>
+        <li><a href="https://www.w3.org/TR/trace-context/" rel="noopener">W3C Trace Context</a></li>
+        <li><a href="https://www.honeycomb.io/" rel="noopener">Honeycomb — observability platform</a></li>
+        <li><a href="https://grafana.com/oss/tempo/" rel="noopener">Grafana Tempo — OSS tracing backend</a></li>
+        <li><a href="https://www.jaegertracing.io/" rel="noopener">Jaeger — CNCF tracing</a></li>
+        <li><a href="https://opentelemetry.io/docs/collector/" rel="noopener">OTel Collector</a></li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <p class="docs-history__title">History</p>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-24">2026-05-24</time>
+          <span class="docs-history__change">Rewritten to SA practice-page pattern: page-head, 4-stage SVG (Instrument / Propagate / Export / Visualise), expanded industry (4 cards: Dapper, OTel, Honeycomb, Tempo), deep-dive (manual spans load-bearing, attributes are investigation surface, trace ID in logs, sampling, Collector enrichment, no hot-loop spans, pair with SLOs), lifecycle, Python decorator worked example, quality bar, references.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-14">2026-05-14</time>
+          <span class="docs-history__change">Initial version: distributed-tracing practice for SWE radar.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

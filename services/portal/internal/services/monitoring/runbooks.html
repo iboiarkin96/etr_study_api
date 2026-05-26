@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>monitoring · Runbooks · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">monitoring</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Runbooks</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">How-to</span>
+          <span class="docs-pill docs-pill--info">SRE runbooks</span>
+          <span class="docs-pill docs-pill--neutral">Symptom-keyed</span>
+        </div>
+        <h1>monitoring · Runbooks</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Operational guidance for the monitoring service. Both pipelines (metrics, logs) are optional; "incidents"
+          are mostly about <em>monitoring being broken while the api is fine</em> — distinguishing those cases
+          quickly is the main job. Authoritative procedures live in
+          <a href="../../how-to/incidents/runbooks/index.html">internal/sre/runbooks/</a>.
+        </p>
+      </header>
+
+      <h2 id="symptom-runbook-index">Symptom-keyed runbook index</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Symptom</th><th>Runbook</th></tr></thead>
+          <tbody>
+            <tr><td>Prometheus shows no samples for the api</td><td><a href="../../how-to/incidents/runbooks/0008-observability-scrape-failing.html">0008 · observability scrape failing</a></td></tr>
+            <tr><td>Filebeat / Kibana stop showing api logs</td><td><a href="../../how-to/incidents/runbooks/0003-logging-failing.html">0003 · logging failing</a></td></tr>
+            <tr><td>Burn-rate alert fires</td><td><a href="../../how-to/incidents/runbooks/0009-error-budget-exhaustion.html">0009 · error budget exhaustion</a></td></tr>
+            <tr><td>Grafana dashboard panel says "no data" but Prometheus has data</td><td>Variable / data-source mismatch — check the dashboard's data source UID and template variables. Reload from the committed JSON if available.</td></tr>
+            <tr><td>Recording rule produces unexpected values</td><td>Re-evaluate the expression in the Prometheus UI; compare to <a href="api-reference.html#recording-rules">recording rules table</a>; commit any change to the rule file.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="distinguishing-failures">Is the api broken or is monitoring broken?</h2>
+      <p>The single most useful triage step. Run these checks in order:</p>
+      <ol>
+        <li><code>curl -s :8000/ready</code> on the api host. If 200 → the api is up; the issue is in monitoring.</li>
+        <li><code>curl -s :8000/metrics | head</code>. If you see the expected metric names → exposition is fine; check Prometheus targets page (<code>:9090/targets</code>) for a scrape error (TLS, DNS, firewall).</li>
+        <li>Prometheus targets page shows the scrape error code. Map to <a href="../../how-to/incidents/runbooks/0008-observability-scrape-failing.html">0008</a>.</li>
+        <li>If <code>/ready</code> returns 503 → the api itself is degraded. Switch context to <a href="../api/runbooks.html">api · Runbooks</a>.</li>
+      </ol>
+
+      <h2 id="dashboard-recovery">Dashboard / rule recovery</h2>
+      <p>
+        Dashboards and alert rules should live as JSON in version control so a wipe is a re-import, not a
+        redesign. If a dashboard disappears or is corrupted in Grafana:
+      </p>
+      <ol>
+        <li>Find the JSON in the repo (typically under a <code>dashboards/</code> directory adjacent to the Compose file).</li>
+        <li>Import via Grafana UI: Dashboards → New → Import → paste JSON, select the Prometheus data source.</li>
+        <li>If JSON is missing, mark this as a backlog item — the canonical copy must live in Git.</li>
+      </ol>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>docs-table--zebra --sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-10</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Filled symptom index, "is the api broken?" triage, dashboard recovery.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-08</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial skeleton stub.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#symptom-runbook-index">Symptom index</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#distinguishing-failures">api vs monitoring</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#dashboard-recovery">Dashboard recovery</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

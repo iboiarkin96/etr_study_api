@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>🔁 Workflows — cross-service flows · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <style>
+    /* Workflow card — one row per flow */
+    .flow {
+    display: grid; gap: var(--space-3);
+    padding: var(--space-5) var(--space-6);
+    border: 1px solid var(--line);
+    border-left: var(--rail-w) solid var(--flow-tone);
+    border-radius: var(--radius-lg);
+    background: var(--bg-elev);
+    margin-bottom: var(--space-4);
+    }
+    .flow[data-tone="accent"]  { --flow-tone: var(--accent); }
+    .flow[data-tone="info"]    { --flow-tone: var(--info); }
+    .flow[data-tone="teal"]    { --flow-tone: var(--teal); }
+    .flow[data-tone="warn"]    { --flow-tone: var(--warn); }
+    .flow__head { display: flex; gap: var(--space-3); align-items: baseline; flex-wrap: wrap; }
+    .flow__tag  { font-family: var(--font-mono); font-size: var(--fs-100); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-soft); }
+    .flow__name { margin: 0; font-size: var(--fs-500); color: var(--text-strong); }
+    .flow__lede { margin: 0; color: var(--muted); font-size: var(--fs-300); line-height: var(--lh-base); }
+
+    /* PlantUML pseudo-render — ASCII rail for in-doc preview */
+    .uml-rail {
+    font-family: var(--font-mono);
+    font-size: var(--fs-200);
+    line-height: 1.55;
+    background: var(--bg-mute);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text);
+    }
+    .uml-rail .lane  { color: var(--accent); font-weight: var(--fw-semibold); }
+    .uml-rail .arr   { color: var(--info); }
+    .uml-rail .note  { color: var(--muted); font-style: italic; }
+    .uml-rail .err   { color: var(--rose); }
+
+    /* Per-step grid */
+    .steps { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; counter-reset: stepnum; }
+    .steps li {
+    position: relative;
+    padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-7) + var(--space-2));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--bg-elev);
+    font-size: var(--fs-300);
+    color: var(--text);
+    line-height: var(--lh-base);
+    counter-increment: stepnum;
+    }
+    .steps li::before {
+    content: counter(stepnum);
+    position: absolute;
+    left: var(--space-4);
+    top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px;
+    display: grid; place-items: center;
+    background: var(--bg-mute);
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    font-family: var(--font-mono);
+    font-size: var(--fs-200);
+    color: var(--accent);
+    font-weight: var(--fw-bold);
+    }
+    .steps li code { font-family: var(--font-mono); color: var(--accent); white-space: nowrap; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+    .steps li strong { color: var(--text-strong); }
+
+    /* Source/owner row */
+    .flow__meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3); margin: 0; padding: 0; }
+    .flow__meta dt { font-family: var(--font-mono); font-size: var(--fs-100); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-soft); margin: 0 0 var(--space-1); }
+    .flow__meta dd { margin: 0; color: var(--text); font-size: var(--fs-300); }
+    .flow__meta code { font-family: var(--font-mono); color: var(--accent); white-space: nowrap; }
+
+    /* Error matrix */
+    .err-pill { display: inline-block; padding: 1px var(--space-2); font-family: var(--font-mono); font-size: var(--fs-100); letter-spacing: 0.04em; text-transform: uppercase; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-mute); }
+    .err-pill--retry { border-color: color-mix(in srgb, var(--warn) 60%, transparent); color: var(--warn); }
+    .err-pill--fail  { border-color: color-mix(in srgb, var(--rose) 60%, transparent); color: var(--rose); }
+    .err-pill--skip  { border-color: color-mix(in srgb, var(--muted-soft) 60%, transparent); color: var(--muted); }
+  </style>
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Foundations</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">🔁 Workflows</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+
+    <article class="docs-prose">
+
+      <header class="page-hero page-head">
+        <p class="page-hero__eyebrow">🔁 SA reference · Workflows</p>
+        <h1 class="page-hero__h1">Workflows — <span class="accent">cross-service flows</span></h1>
+        <div id="docs-top-nav"></div>
+        <p class="page-hero__lede">
+          Three headline use cases, each rendered as a sequence diagram, a numbered step list, and an error
+          matrix. The diagram source lives next to the page as PlantUML (per ADR 0020 — no Mermaid). What you
+          see in the rail below is the ASCII preview; the SVG rendered from the same source is what ships.
+        </p>
+      </header>
+
+      <!-- 01 · WHY WORKFLOWS LIVE IN SA -->
+      <section class="numbered-section" aria-labelledby="why-h">
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">01</span>
+          <h2 id="why-h">Why workflow diagrams sit in the SA spine</h2>
+        </div>
+        <p class="numbered-section__lede">
+          A workflow crosses bounded contexts and services. No single service owns it. The SA spine is the
+          place where cross-cutting flows are authored, dated, and reviewed — anywhere else they fragment.
+        </p>
+        <ul>
+          <li><strong>Source of truth.</strong> Each flow has one PlantUML source file under <code>assets/uml/workflows/</code>; service docs link to it, never duplicate it.</li>
+          <li><strong>Pace of change.</strong> Workflow edits trigger ADR review when a step changes ownership or contract — not every diagram tweak.</li>
+          <li><strong>Coverage.</strong> Every Tier-1 business use case has exactly one workflow page; smaller flows are inlined where they are used.</li>
+          <li><strong>Format.</strong> PlantUML only. Mermaid is rejected at PR (ADR 0020) because GitHub-flavoured Mermaid drifts from local rendering.</li>
+        </ul>
+      </section>
+
+      <!-- 02 · FLOW 01 — LEARNER COMPLETES AN EXERCISE -->
+      <section class="numbered-section" aria-labelledby="flow1-h">
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">02</span>
+          <h2 id="flow1-h">Flow 01 — learner completes an exercise</h2>
+        </div>
+
+        <article class="flow" data-tone="accent" id="flow-learner-attempt">
+          <div class="flow__head">
+            <span class="flow__tag">WF-01 · Tier-1</span>
+            <h3 class="flow__name">Learner submits an attempt, gets a grade, mastery updates</h3>
+          </div>
+          <p class="flow__lede">
+            Triggered by the learner submitting an exercise in the web app. Spans Identity (session check),
+            Learning (content lookup), Assessment (grading), Progress (mastery roll-up), and Observability
+            (event capture). Synchronous on the hot path; async on the mastery roll-up.
+          </p>
+
+          <pre class="uml-rail"><span class="note">@startuml — assets/uml/workflows/wf-01-learner-attempt.puml</span>
+<span class="lane">Learner</span>          <span class="lane">Web</span>            <span class="lane">Identity</span>        <span class="lane">Learning</span>        <span class="lane">Assessment</span>      <span class="lane">Progress</span>
+  |                |               |                |                |                |
+  |submit attempt  |               |                |                |                |
+  |<span class="arr">───────────────►</span>|               |                |                |                |
+  |                |verify session |                |                |                |
+  |                |<span class="arr">──────────────►</span>|                |                |                |
+  |                |<span class="arr">◄──────────────</span>|                |                |                |
+  |                |fetch exercise |                |                |                |
+  |                |<span class="arr">───────────────────────────────►</span>|                |                |
+  |                |<span class="arr">◄───────────────────────────────</span>|                |                |
+  |                |POST grade     |                |                |                |
+  |                |<span class="arr">───────────────────────────────────────────────►</span>|                |
+  |                |               |                |                |grade.published <span class="note">(event)</span>
+  |                |               |                |                |<span class="arr">───────────────►</span>|
+  |                |<span class="arr">◄───────────────────────────────────────────────</span>|                |
+  |grade visible   |               |                |                |                |
+  |<span class="arr">◄───────────────</span>|               |                |                |                |
+  |                |               |                |                |                |update mastery
+  |                |               |                |                |                |<span class="note">(async)</span>
+<span class="note">@enduml</span>
+          </pre>
+
+          <ol class="steps">
+            <li><strong>Web</strong> receives <code>POST /v1/attempts</code> with the learner's payload.</li>
+            <li><strong>Identity</strong> verifies the session JWT — rejected requests return 401 immediately.</li>
+            <li><strong>Learning</strong> fetches the exercise definition (rubric version pinned at this read).</li>
+            <li><strong>Web</strong> forwards the attempt + pinned rubric to <strong>Assessment</strong>.</li>
+            <li><strong>Assessment</strong> grades synchronously and returns the grade to <strong>Web</strong>.</li>
+            <li><strong>Assessment</strong> emits <code>assessment.grade.published.v1</code> on the event bus.</li>
+            <li><strong>Progress</strong> consumes the event asynchronously and updates the mastery materialised view.</li>
+            <li><strong>Observability</strong> captures spans for every hop via the shared OpenTelemetry kernel.</li>
+          </ol>
+
+          <dl class="flow__meta">
+            <div><dt>Source</dt><dd><code>assets/uml/workflows/wf-01-learner-attempt.puml</code></dd></div>
+            <div><dt>Owner</dt><dd>Learning team</dd></div>
+            <div><dt>Last review</dt><dd>2026-05-24</dd></div>
+            <div><dt>Frozen by</dt><dd>ADR 0014 (event envelope) · ADR 0021 (rubric pinning)</dd></div>
+          </dl>
+
+          <div class="docs-table-wrap" role="region" aria-label="Error matrix WF-01">
+            <table class="docs-table docs-table--zebra docs-table--compact">
+              <thead><tr><th>Step</th><th>Failure</th><th>Behaviour</th><th>Class</th></tr></thead>
+              <tbody>
+                <tr><td>2</td><td>session expired</td><td>return 401; client re-auths; no event emitted</td><td><span class="err-pill err-pill--fail">fail-fast</span></td></tr>
+                <tr><td>3</td><td>exercise removed</td><td>return 410; surface deprecation banner</td><td><span class="err-pill err-pill--fail">fail-fast</span></td></tr>
+                <tr><td>5</td><td>Assessment timeout</td><td>retry once with jitter; if both fail, return 503</td><td><span class="err-pill err-pill--retry">retry</span></td></tr>
+                <tr><td>6</td><td>event bus down</td><td>store-and-forward outbox; mastery catches up later</td><td><span class="err-pill err-pill--retry">retry</span></td></tr>
+                <tr><td>7</td><td>duplicate event</td><td>idempotent by <code>event_id</code> ULID</td><td><span class="err-pill err-pill--skip">drop</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <!-- 03 · FLOW 02 — INCIDENT RESPONSE -->
+      <section class="numbered-section" aria-labelledby="flow2-h">
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">03</span>
+          <h2 id="flow2-h">Flow 02 — Prometheus alert → on-call → postmortem</h2>
+        </div>
+
+        <article class="flow" data-tone="warn" id="flow-incident">
+          <div class="flow__head">
+            <span class="flow__tag">WF-02 · Tier-1</span>
+            <h3 class="flow__name">Alert fires, on-call responds, incident closes with a postmortem</h3>
+          </div>
+          <p class="flow__lede">
+            The reliability spine. Starts when Alertmanager fires a Prometheus alert with a <code>runbook_url</code>
+            annotation and ends when a published postmortem is linked from the incident record.
+          </p>
+
+          <pre class="uml-rail"><span class="note">@startuml — assets/uml/workflows/wf-02-incident.puml</span>
+<span class="lane">Prometheus</span>     <span class="lane">Alertmanager</span>  <span class="lane">PagerDuty</span>     <span class="lane">On-call</span>       <span class="lane">Runbook</span>       <span class="lane">Postmortem</span>
+  |               |              |              |              |              |
+  |rule fires     |              |              |              |              |
+  |<span class="arr">──────────────►</span>|              |              |              |              |
+  |               |route + group |              |              |              |
+  |               |<span class="arr">─────────────►</span>|              |              |              |
+  |               |              |page on-call  |              |              |
+  |               |              |<span class="arr">─────────────►</span>|              |              |
+  |               |              |              |open runbook  |              |
+  |               |              |              |<span class="arr">─────────────►</span>|              |
+  |               |              |              |execute steps |              |
+  |               |              |              |<span class="arr">──────────────</span>|              |
+  |               |              |              |              |              |
+  |               |              |              |open incident |              |
+  |               |              |              |<span class="arr">─────────────────────────────►</span>|
+  |               |              |              |              |              |draft &amp; review
+  |               |              |              |              |              |<span class="note">(48h SLA)</span>
+  |               |              |              |              |              |publish
+<span class="note">@enduml</span>
+          </pre>
+
+          <ol class="steps">
+            <li><strong>Prometheus</strong> evaluates a recording or alert rule and fires when the condition holds.</li>
+            <li><strong>Alertmanager</strong> deduplicates, groups, and routes by severity + service.</li>
+            <li><strong>PagerDuty</strong> pages the on-call engineer; the payload carries the <code>runbook_url</code> annotation.</li>
+            <li><strong>On-call</strong> opens the runbook link and follows the diagnostic ladder.</li>
+            <li>If mitigated within 30 minutes, alert auto-resolves and on-call files a short note.</li>
+            <li>Otherwise, on-call opens an incident record (with severity, services touched, customer impact).</li>
+            <li><strong>Postmortem</strong> draft is owed within 48h of incident close (sev-1 &amp; sev-2 only).</li>
+            <li>Postmortem is reviewed by a non-author principal, then published and linked from the incident.</li>
+          </ol>
+
+          <dl class="flow__meta">
+            <div><dt>Source</dt><dd><code>assets/uml/workflows/wf-02-incident.puml</code></dd></div>
+            <div><dt>Owner</dt><dd>SRE</dd></div>
+            <div><dt>Last review</dt><dd>2026-05-24</dd></div>
+            <div><dt>Frozen by</dt><dd>ADR 0009 (alert annotations) · ADR 0017 (postmortem SLA)</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <!-- 04 · FLOW 03 — PUBLISHING A DOC -->
+      <section class="numbered-section" aria-labelledby="flow3-h">
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">04</span>
+          <h2 id="flow3-h">Flow 03 — page draft → published &amp; indexed</h2>
+        </div>
+
+        <article class="flow" data-tone="info" id="flow-publish">
+          <div class="flow__head">
+            <span class="flow__tag">WF-03 · Tier-2</span>
+            <h3 class="flow__name">A new page goes from draft to indexed inside the portal</h3>
+          </div>
+          <p class="flow__lede">
+            Docs-as-code in motion. The same pipeline production code uses — AUTO gates first, REVIEW gates
+            second. Search index regenerates on the merge job, not in CI, so PRs stay fast.
+          </p>
+
+          <pre class="uml-rail"><span class="note">@startuml — assets/uml/workflows/wf-03-publish.puml</span>
+<span class="lane">Author</span>          <span class="lane">PR</span>             <span class="lane">CI (AUTO)</span>      <span class="lane">Reviewer</span>       <span class="lane">Merge job</span>      <span class="lane">Portal</span>
+  |                |               |                |                |                |
+  |open PR         |               |                |                |                |
+  |<span class="arr">───────────────►</span>|               |                |                |                |
+  |                |trigger checks |                |                |                |
+  |                |<span class="arr">──────────────►</span>|                |                |                |
+  |                |<span class="arr">◄──────────────</span>|                |                |                |
+  |                |request review |                |                |                |
+  |                |<span class="arr">───────────────────────────────►</span>|                |                |
+  |                |<span class="arr">◄───────────────────────────────</span>|                |                |
+  |                |merge          |                |                |                |
+  |                |<span class="arr">───────────────────────────────────────────────►</span>|                |
+  |                |               |                |                |regen index    |
+  |                |               |                |                |<span class="arr">───────────────►</span>|
+  |                |               |                |                |               |sidebar refresh
+<span class="note">@enduml</span>
+          </pre>
+
+          <ol class="steps">
+            <li><strong>Author</strong> opens a PR from a feature branch; PR template enforces «what changed · why now · who reviewed».</li>
+            <li><strong>CI (AUTO)</strong> runs <code>check_h1_structure</code>, <code>check_asset_refs</code>, <code>check_adr_rfc_links</code>, <code>validate_docs_html</code>, <code>validate_docs_a11y</code>, <code>check_path_literals</code>.</li>
+            <li>Failing AUTO gate blocks the PR — no human override. Author fixes and re-pushes.</li>
+            <li><strong>Reviewer</strong> applies the REVIEW gate: persona fit, narrative coherence, factual accuracy, link discipline.</li>
+            <li>Reviewer requests changes inline or approves; approval requires a non-author reviewer.</li>
+            <li><strong>Merge job</strong> regenerates <code>search-index.json</code> and <code>search-index-public.json</code>.</li>
+            <li><strong>Portal</strong> picks up the new sidebar entry on the next page load (TTL ≈ 60 s on cached nav).</li>
+          </ol>
+
+          <dl class="flow__meta">
+            <div><dt>Source</dt><dd><code>assets/uml/workflows/wf-03-publish.puml</code></dd></div>
+            <div><dt>Owner</dt><dd>Docs platform</dd></div>
+            <div><dt>Last review</dt><dd>2026-05-24</dd></div>
+            <div><dt>Frozen by</dt><dd>RFC 0003 (docs authoring model) · ADR 0020 (PlantUML only)</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <!-- 05 · AUTHORING RULES -->
+      <section class="numbered-section" aria-labelledby="rules-h">
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">05</span>
+          <h2 id="rules-h">Rules for adding a new workflow</h2>
+        </div>
+        <ul>
+          <li><strong>One source file.</strong> Each workflow has exactly one PlantUML file under <code>assets/uml/workflows/wf-NN-slug.puml</code>. Pages render the SVG; never duplicate the diagram in another doc.</li>
+          <li><strong>Tier-1 only.</strong> Promote a flow to this page only when it crosses three or more services. Smaller flows live inline on the service's reference page.</li>
+          <li><strong>Three blocks.</strong> Every workflow renders as: (a) sequence rail, (b) numbered step list, (c) error matrix or owner table.</li>
+          <li><strong>Dated.</strong> Last review date is mandatory; the freshness CI warns at 90 days, fails at 180.</li>
+          <li><strong>ADR-anchored.</strong> The «Frozen by» field names the ADRs/RFCs that locked the flow. Steps that change without an ADR update fail review.</li>
+        </ul>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-24</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">First published. Closes audit finding SA-5 part 2/3 (workflows = 0/2 → 2/2). Three Tier-1 cross-service flows authored as ASCII rails (PlantUML sources referenced, SVG renders in production): WF-01 learner-attempt, WF-02 incident-response, WF-03 docs-publish. Each flow ships with a numbered step list, error matrix (or owner table), source path, ADR/RFC anchors, and authoring rules. PlantUML-only per ADR 0020 — Mermaid is rejected at PR.</span>
+        </li>
+      </ul>
+    </footer>
+
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why-h">Why in SA</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#flow1-h">WF-01 · Learner attempt</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#flow2-h">WF-02 · Incident</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#flow3-h">WF-03 · Publish doc</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rules-h">Authoring rules</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

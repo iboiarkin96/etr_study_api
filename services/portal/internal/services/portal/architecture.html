@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>portal · Architecture · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">portal</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Architecture</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Explanation</span>
+          <span class="docs-pill docs-pill--info">C4 · L3</span>
+          <span class="docs-pill docs-pill--neutral">Static site</span>
+        </div>
+        <h1>portal · Architecture</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Component-level architecture of the <a href="index.html">portal</a> service: a static documentation site
+          built ahead of time and served from an nginx-alpine image
+          (<a href="../../governance/adr/0028-monorepo-with-service-boundaries.html">ADR 0028</a>).
+          There is no runtime application logic — the build pipeline is the system.
+        </p>
+        <p class="small">
+          For platform-level views (System Context · Containers) and how the portal sits next to api / monitoring,
+          see system design.
+        </p>
+      </header>
+
+      <h2 id="component-view">C4 Level 3 — components</h2>
+      <p>
+        Authored sources flow through the build pipeline (PlantUML render, pdoc, search index, asset copy) into
+        two static trees, <code>public/</code> and <code>internal/</code>, served by a thin nginx image. The build
+        is offline-friendly: Kroki is invoked only when PlantUML sources change, gated by the
+        <code>input-hashes.json</code> fingerprint cache.
+      </p>
+      <figure class="docs-diagram">
+        <img alt="C4 L3 component view of the portal service" loading="lazy" src="../../reference/uml/rendered/architecture__portal_component_view.svg">
+        <figcaption>Components inside the portal · authored sources → build pipeline → static portal → runtime image · Source: <code>services/portal/internal/uml/architecture/portal_component_view.puml</code></figcaption>
+      </figure>
+
+      <h2 id="layout">Repository layout</h2>
+      <p>
+        The portal service occupies two top-level paths: authored sources under
+        <code>services/portal/{public,internal}/</code> and shared frontend assets under
+        <code>services/frontend/portal/assets_v2/</code> (tokens, components, runtime bundles).
+      </p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Path</th><th>Audience</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td><code>services/portal/public/</code></td><td>Integrator</td><td>Marketing landing, getting-started, OpenAPI sandbox under <code>reference/api/</code>. Diátaxis quadrants per <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a>.</td></tr>
+            <tr><td><code>services/portal/internal/</code></td><td>Maintainer</td><td>ADRs, RFCs, runbooks, audits, handbook, this catalog, system design, frontend specs. Backstage IDP shape per RFC 0004.</td></tr>
+            <tr><td><code>services/portal/ui-kit/</code></td><td>Both</td><td>Live showcase of every token, component, and template — see <a href="../ui-kit/index.html">ui-kit</a>.</td></tr>
+            <tr><td><code>services/frontend/portal/assets_v2/</code></td><td>Build input</td><td>Design tokens, component CSS/JS, per-portal runtime bundles, nav-tree mocks.</td></tr>
+            <tr><td><code>services/portal/internal/uml/</code></td><td>Build input</td><td>PlantUML sources (<code>architecture/</code>, <code>sequences/</code>, <code>make/</code>) + rendered SVGs + <code>input-hashes.json</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="build-pipeline">Build pipeline</h2>
+      <p>
+        The pipeline is driven by <code>scripts/regenerate_docs.py</code> and exposed through Make targets
+        (<code>make docs-fix</code>, <code>make docs-check</code>). Steps run in order; each step is content-addressed
+        so unchanged inputs skip work.
+      </p>
+      <ol>
+        <li><strong>PlantUML render</strong> — every <code>*.puml</code> under <code>internal/uml/</code> is sent to Kroki and the resulting SVG lands in <code>internal/uml/rendered/</code>. The fingerprint cache (<code>input-hashes.json</code>) skips unchanged sources. Authority: <a href="../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>.</li>
+        <li><strong>pdoc</strong> — generates HTML reference for every Python module under <code>app/</code> into <a href="../api/code-reference/index.html">catalog/api/code-reference/</a>. Authority: <a href="../../governance/adr/0016-python-docstrings-google-style-and-pdoc.html">ADR 0016</a>.</li>
+        <li><strong>Docs search index</strong> — <code>scripts/build_docs_search_index.py</code> walks every HTML page, extracts headings + first paragraphs, and writes <code>search-index.json</code>. Client-side ranking per <a href="../../governance/adr/0027-client-side-docs-search-index-and-ranking.html">ADR 0027</a>.</li>
+        <li><strong>Asset references</strong> — pages reference shared modules under <code>services/frontend/portal/assets_v2/</code> via relative paths; the build leaves these in place (no copy step).</li>
+        <li><strong>Docs check</strong> — <code>scripts/regenerate_docs.py --check</code> verifies committed SVGs match sources (no writes). Pre-commit gate.</li>
+      </ol>
+
+      <h2 id="runtime">Runtime — nginx-alpine static container</h2>
+      <p>
+        Per <a href="../../governance/adr/0028-monorepo-with-service-boundaries.html">ADR 0028</a>
+        phase 1, the portal is served by a thin static-asset image (e.g. <code>nginx:alpine</code>) that mounts the
+        built <code>services/portal/{public,internal}/</code> tree. There is no application logic at runtime —
+        request handling reduces to file lookup, MIME typing, gzip, and HTTP caching headers.
+      </p>
+      <ul>
+        <li>No authentication layer — the audience boundary is an IA boundary, not an auth boundary
+          (<a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> §3.1).
+          Internal pages contain nothing secret; secrets never enter the portal.</li>
+          <li>No backend connection — the OpenAPI document is built into the static tree at build time, not fetched at runtime.</li>
+          <li>No mutable state — every page is regenerable from the repo at HEAD.</li>
+        </ul>
+
+      </article>
+
+      <footer class="docs-history" aria-label="History">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>docs-table--zebra --sticky-head</code> + <code>figure.docs-diagram</code>; ui-kit references updated to assets_v2.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-10</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Filled C4 L3, repository layout, build pipeline, runtime.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-08</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Initial skeleton stub.</span>
+          </li>
+        </ul>
+      </footer>
+    </main>
+
+    <aside class="docs-toc" aria-label="On this page">
+      <p class="docs-toc__title">On this page</p>
+      <ol class="docs-toc__list">
+        <li class="docs-toc__item"><a class="docs-toc__link" href="#component-view">C4 L3 — components</a></li>
+        <li class="docs-toc__item"><a class="docs-toc__link" href="#layout">Repository layout</a></li>
+        <li class="docs-toc__item"><a class="docs-toc__link" href="#build-pipeline">Build pipeline</a></li>
+        <li class="docs-toc__item"><a class="docs-toc__link" href="#runtime">Runtime</a></li>
+      </ol>
+    </aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

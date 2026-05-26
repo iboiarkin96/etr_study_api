@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contract Testing — prevent API drift between services · Practice 11 · QA Engineer</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">QA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Contract Testing</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <div class="pa-page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">11</span>
+        <span class="pa-eyebrow__group">Group C · Automation &amp; Tooling</span>
+      </p>
+      <h1 class="pa-title">Contract Testing — prevent API drift between services</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">Verifies that consumer expectations and provider capabilities stay aligned without requiring both services to be deployed simultaneously.</p>
+    </div>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">Contract testing pins the shape and semantics of an API between a consumer and a provider so changes on either side are caught at PR time, not at integration time. Two flavours dominate: <em>consumer-driven contracts</em> (Pact — the consumer records expectations as a pact, the provider verifies it can satisfy them), and <em>spec-driven contracts</em> (Schemathesis / Dredd — the OpenAPI/AsyncAPI spec is the contract, tests generate from it). Contract tests run without both services deployed — fast, deterministic, focused. Without them, API drift is invisible until the next deploy. Stripe, Atlassian, IBM, and the Pactflow community all wire contract tests as required CI gates; Study App treats the OpenAPI/AsyncAPI spec as the canonical contract and runs Schemathesis on every PR.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Contract test flow">
+      <svg viewBox="0 0 760 280" role="img" aria-label="Consumer-driven and spec-driven contract test flows">
+        <defs>
+          <marker id="ct-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#2563eb)"></path>
+          </marker>
+        </defs>
+        <text x="380" y="22" text-anchor="middle" font-weight="700" font-size="13">Two contract-test flavours</text>
+        <text x="190" y="50" text-anchor="middle" font-weight="700" font-size="11">Consumer-driven (Pact)</text>
+        <rect x="60" y="68" width="120" height="56" rx="10" class="pa-svg-box" style="--accent:#2563eb"></rect>
+        <text x="120" y="92" text-anchor="middle" font-weight="700">Consumer</text>
+        <text class="pa-svg-sub" x="120" y="110" text-anchor="middle">writes pact</text>
+        <rect x="200" y="68" width="120" height="56" rx="10" class="pa-svg-box" style="--accent:#8b5cf6"></rect>
+        <text x="260" y="92" text-anchor="middle" font-weight="700">Pact broker</text>
+        <text class="pa-svg-sub" x="260" y="110" text-anchor="middle">stores+versions</text>
+        <line x1="180" y1="96" x2="200" y2="96" stroke="var(--accent,#2563eb)" stroke-width="1.5" marker-end="url(#ct-arr)"></line>
+        <rect x="60" y="148" width="120" height="56" rx="10" class="pa-svg-box" style="--accent:#16a34a"></rect>
+        <text x="120" y="172" text-anchor="middle" font-weight="700">Provider</text>
+        <text class="pa-svg-sub" x="120" y="190" text-anchor="middle">verifies pact</text>
+        <line x1="240" y1="124" x2="160" y2="148" stroke="var(--accent,#2563eb)" stroke-width="1.5" marker-end="url(#ct-arr)"></line>
+        <line x1="200" y1="118" x2="200" y2="216" stroke="var(--line,#dbe3ef)" stroke-width="2" stroke-dasharray="3 3"></line>
+        <text class="pa-svg-sub" x="190" y="232" text-anchor="middle" font-style="italic">consumer is source of truth</text>
+        <text x="570" y="50" text-anchor="middle" font-weight="700" font-size="11">Spec-driven (Schemathesis)</text>
+        <rect x="440" y="68" width="120" height="56" rx="10" class="pa-svg-box" style="--accent:#2563eb"></rect>
+        <text x="500" y="92" text-anchor="middle" font-weight="700">OpenAPI</text>
+        <text class="pa-svg-sub" x="500" y="110" text-anchor="middle">spec = contract</text>
+        <rect x="580" y="68" width="120" height="56" rx="10" class="pa-svg-box" style="--accent:#8b5cf6"></rect>
+        <text x="640" y="92" text-anchor="middle" font-weight="700">Schemathesis</text>
+        <text class="pa-svg-sub" x="640" y="110" text-anchor="middle">generates tests</text>
+        <line x1="560" y1="96" x2="580" y2="96" stroke="var(--accent,#2563eb)" stroke-width="1.5" marker-end="url(#ct-arr)"></line>
+        <rect x="510" y="148" width="120" height="56" rx="10" class="pa-svg-box" style="--accent:#16a34a"></rect>
+        <text x="570" y="172" text-anchor="middle" font-weight="700">Provider API</text>
+        <text class="pa-svg-sub" x="570" y="190" text-anchor="middle">runs under test</text>
+        <line x1="640" y1="124" x2="600" y2="148" stroke="var(--accent,#2563eb)" stroke-width="1.5" marker-end="url(#ct-arr)"></line>
+        <text class="pa-svg-sub" x="580" y="232" text-anchor="middle" font-style="italic">spec is source of truth</text>
+        <rect x="100" y="246" width="560" height="22" rx="8" fill="rgba(37,99,235,0.06)" stroke="#2563eb" stroke-width="1"></rect>
+        <text class="pa-svg-sub" x="380" y="261" text-anchor="middle">both flavours: drift detected at PR time · failure points at the contract clause that broke</text>
+      </svg>
+      <figcaption class="pa-figure__caption">Consumer-driven contracts (Pact) capture consumer needs and verify the provider can satisfy them; spec-driven contracts treat the OpenAPI/AsyncAPI document as the contract and generate tests from it. Study App uses both, with the spec as primary truth.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>Contract testing verifies the agreement between a service and its consumer(s) without exercising the rest of the stack. The contract describes the request shape (method, path, headers, body schema), the response shape (status codes, headers, body schema), and the semantics (error codes, idempotency, pagination, ordering). The test exercises the contract against the implementation and fails when the implementation no longer satisfies the contract — regardless of whether the implementation has bugs unrelated to the contract.</p>
+      <p>Two flavours dominate. <strong>Consumer-driven contracts</strong> (Pact, Spring Cloud Contract) treat the consumer as authoritative: the consumer's test records the actual requests/responses it sends and expects; this pact file is published to a broker; the provider's CI pulls all consumer pacts and verifies it can satisfy them. <strong>Spec-driven contracts</strong> (Schemathesis, Dredd, Prism) treat the OpenAPI/AsyncAPI spec as authoritative: the test generates inputs from the spec, hits the provider, and verifies the responses conform. Each has a place; many teams use both.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Without contract tests, API drift is invisible. The provider team renames <code>quiz_id</code> to <code>quizId</code>; the consumer's parser silently returns null; the bug is found by a user. With contract tests, the rename fails the provider's CI before the PR can merge — the contract clause "<code>quiz_id</code> in response body" no longer holds. Integration tests don't cover this: they exercise the whole stack but only the happy paths the test author thought of. Contract tests cover every clause in the contract, generated mechanically, every PR.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Pact / Pactflow (Beth Skurrie et al., 2013–)</p>
+          <p class="pa-industry__what">Pact originated at ThoughtWorks/realestate.com.au and is now the de-facto consumer-driven contract framework. The pact file (JSON) records the consumer's expectations; the Pact Broker stores pacts, tracks versions, and runs the <em>can-i-deploy</em> check that tells deployment pipelines whether a provider version satisfies all current consumer pacts. Pactflow (commercial offering) adds bi-directional contract testing and the "provider verification" workflow. Pact is implemented in Ruby, JS, Java, .NET, Python, Go, PHP, Scala, Rust, Swift, and more — making it the polyglot standard.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> consumer-driven contracts are the right shape for service-to-service APIs where consumers have narrow expectations; the pact broker is the missing piece teams forget.</p>
+          <p class="pa-industry__source">Source: <a href="https://docs.pact.io/" rel="noopener">Pact Documentation</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Schemathesis</p>
+          <p class="pa-industry__what">Schemathesis is a property-based testing tool that consumes an OpenAPI or GraphQL spec and generates thousands of test cases to verify the running API conforms. It exercises every endpoint, every schema, every error path — including ones the spec author didn't think to test. Used by HubSpot, Microsoft, the Python community itself, and many open-source projects. Schemathesis catches the classes of bug humans miss: schema drift, error responses that don't match the documented shape, type-coercion mismatches.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> spec-driven generative testing is the highest-leverage contract testing for a single-team API — one tool, one config, every endpoint covered.</p>
+          <p class="pa-industry__source">Source: <a href="https://schemathesis.readthedocs.io/" rel="noopener">Schemathesis Docs</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Stripe · SDK conformance as contract</p>
+          <p class="pa-industry__what">Stripe publishes SDKs in 7+ languages, all generated from a single OpenAPI-like spec. Every API change is gated by running the full multi-language SDK test suite as a contract test — the spec change must produce passing SDKs in every language before it can ship. Stripe also tests its SDK's compatibility by replaying past API requests captured from real customer integrations. The result: Stripe has not made a breaking API change in 10+ years, while still shipping new versions weekly.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> contract tests are the substrate for "no breaking changes" as a culture — without them, the promise is impossible to keep.</p>
+          <p class="pa-industry__source">Source: <a href="https://stripe.com/blog/api-versioning" rel="noopener">Stripe Engineering — API Versioning</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Atlassian · provider verification at scale</p>
+          <p class="pa-industry__what">Atlassian (Jira, Confluence, Bitbucket) uses Pact across 100+ services. Their internal Pact broker tracks pact versions per consumer per provider; the <em>can-i-deploy</em> matrix is a daily artefact for the platform team. Atlassian published "Spec-First API Development" guidance describing the migration from integration tests to consumer-driven contracts — a 60% reduction in cross-team integration defects with no increase in test maintenance.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> for multi-team microservice fleets, the pact broker and the <em>can-i-deploy</em> check are the operational tools that make contract testing work — the test framework alone is not enough.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.atlassian.com/blog/technology/spec-first-api-development" rel="noopener">Atlassian — Spec-First API Development</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of a contract test</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">The contract artefact</p>
+          <p class="pa-anatomy__hint">A pact JSON, an OpenAPI YAML, an AsyncAPI YAML — a machine-readable document under version control; the source of truth.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">The consumer side</p>
+          <p class="pa-anatomy__hint">Pact: the consumer test records expectations and produces the pact file. Schemathesis: the consumer reads the spec; no separate consumer artefact.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">The provider verification</p>
+          <p class="pa-anatomy__hint">Provider CI loads the contract, replays/generates requests against the implementation under test, asserts the response satisfies the contract.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Provider states / fixtures</p>
+          <p class="pa-anatomy__hint">A way to seed the provider's state before each test ("there is a user with id 7", "the cart is empty"). Without states, the verification is flaky.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">The broker / registry</p>
+          <p class="pa-anatomy__hint">A Pact Broker (for Pact) or a spec registry (Stoplight, Backstage) that stores contract versions, tracks publish/verify status, and enables can-i-deploy.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">CI integration</p>
+          <p class="pa-anatomy__hint">Consumer publishes pact on PR; provider verifies all consumer pacts on PR; the verification job is a required status check. No green = no merge.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to set up contract testing</h2>
+      <ol class="pa-how">
+        <li><strong>Pick the flavour.</strong> Spec-first single-team API → Schemathesis. Multi-team service-to-service → Pact. Both for high-leverage services (Stripe's pattern).</li>
+        <li><strong>Make the spec authoritative.</strong> The OpenAPI/AsyncAPI document lives in the provider repo, is reviewed like code, and is the input to both server and SDK generation.</li>
+        <li><strong>Wire the consumer side.</strong> Pact: add the pact library, write tests that exercise the consumer's API client, publish the pact JSON to the broker. Schemathesis: no consumer side — the spec is the contract.</li>
+        <li><strong>Wire the provider verification.</strong> Provider CI job runs the contract test on every PR; pulls consumer pacts from the broker (Pact) or runs <code>schemathesis run http://localhost/openapi.yaml</code>. Failures show the offending clause.</li>
+        <li><strong>Add provider states.</strong> For each pact, define the fixture: "given a user with id 7 exists, when GET /users/7, then 200 with body matching schema." Without states, the test cannot exercise non-empty scenarios.</li>
+        <li><strong>Make it a required gate.</strong> Contract test failure blocks merge. This is the lever that prevents drift; without it, the contract test is decorative.</li>
+        <li><strong>Add can-i-deploy.</strong> Deployment pipeline asks the broker: "can version X of the provider be deployed without breaking any current consumer?" Pactflow and the open-source Pact Broker both expose this endpoint.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive</h2>
+      <p>The conceptual core of contract testing is "test the seam, not the system." Integration tests run the whole stack and ask "does it work end-to-end?" — slow, flaky, expensive. Unit tests run one component and mock its peers — fast, but mocks can drift from reality (the classic "mocks lie" failure mode). Contract tests sit between: they exercise the real component on one side and assert against the agreement (the contract) on the other side. The agreement is independently versioned and shared. When the consumer's mock drifts from the provider's reality, the contract test catches it because the contract is the same artefact on both sides.</p>
+      <p>Consumer-driven versus spec-driven is the central design choice. Consumer-driven contracts (Pact) optimise for accuracy: the consumer records exactly what it uses, so the provider only has to guarantee that subset. The drawback is operational complexity — every consumer pact must be tracked, versioned, and verified. Spec-driven contracts (Schemathesis) optimise for simplicity: one spec, one tool, every endpoint covered. The drawback is over-testing — the test exercises endpoints no consumer uses, and the spec may document behaviour no one depends on. Pact is right for federated environments with many consumer teams; Schemathesis is right for centralised teams that publish a single API.</p>
+      <p>Bi-directional contract testing is the 2022+ evolution. Pactflow's bi-directional model lets the provider publish its OpenAPI spec and the consumer publish a Pact-style expectations file; the broker computes compatibility — does the consumer's expected response shape match the provider's documented response shape? Bi-directional is faster than classic Pact (no provider verification run needed) and works for providers that already maintain OpenAPI. It is the right model when the provider team already invests in spec-first API design.</p>
+      <p>Provider states are the operational subtlety that catches teams off-guard. A pact says "GET /users/7 returns 200 with body matching schema." The provider verification needs a user with id 7 to exist. The pact framework requires the provider to declare a <em>state handler</em> for each named state: "given a user with id 7 exists" → seed the database. Without state handlers, the verification is non-deterministic. Teams that skip states end up with intermittently-failing contract tests and abandon the practice — the state declaration is mandatory, not optional.</p>
+      <p>Contract evolution is the long-term test. APIs change; consumers move at different speeds. The pattern is additive evolution: new fields are added (consumers ignore), old fields are deprecated but not removed, breaking changes are versioned. The contract test catches accidental breaking changes — removing a field, changing a type, narrowing an enum. Stripe's 10-year no-breaking-changes record is enforced by a CI gate that reads the diff against the published spec and fails if the diff includes a breaking change pattern; the team consciously chose the slower path of additive evolution and contract tests enforce it.</p>
+      <p>Schemathesis's property-based engine deserves a paragraph. It reads the spec, generates inputs that conform (and inputs that intentionally don't), hits the endpoint, and asserts the response matches the documented shape. It also checks invariants: 4xx responses must have an error body matching the documented error schema; 5xx responses are always failures (the server should not crash); idempotent operations should be idempotent under repeated requests; documented headers must be present. It catches the boring-but-important class of bugs — "the 422 response has <code>error</code> as a string but the spec says it's an object" — that humans don't write tests for.</p>
+      <p>The cost model is the closing argument. A contract test suite for a 30-endpoint API: ~2 days to set up Schemathesis end-to-end, ~30 minutes of CI time monthly to maintain, ~5 minutes per PR to run. The benefit: every API drift caught at PR time, every breaking change blocked at PR time, every consumer protected from silent failures. The cost of one production drift defect (one engineer-day to triage, one rollback, one apology to a customer) typically exceeds the annual cost of the contract test suite. The decision to invest is almost always positive once the team has more than one API consumer or more than one team.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle</h2>
+      <div class="pa-lifecycle">
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">1</span>
+          <p class="pa-lifecycle__name">Spec authoring</p>
+          <p class="pa-lifecycle__hint">Designer + provider engineer write the OpenAPI/AsyncAPI document or the consumer's pact expectations; reviewed like code.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">2</span>
+          <p class="pa-lifecycle__name">Publish to broker / registry</p>
+          <p class="pa-lifecycle__hint">Pact: consumer publishes pact on PR. Spec-driven: spec lands in repo; downstream consumers pin a version.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">3</span>
+          <p class="pa-lifecycle__name">Provider verification</p>
+          <p class="pa-lifecycle__hint">Provider CI runs the contract test on every PR; failure blocks merge with the offending clause named.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">4</span>
+          <p class="pa-lifecycle__name">Can-i-deploy</p>
+          <p class="pa-lifecycle__hint">Deployment pipeline queries the broker: provider version X is compatible with all current consumer pacts? Green → deploy; red → block.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">5</span>
+          <p class="pa-lifecycle__name">Evolve additively</p>
+          <p class="pa-lifecycle__hint">New fields added (consumers ignore); old fields deprecated with sunset date; breaking changes versioned and contract tests gate accidental breakage.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">6</span>
+          <p class="pa-lifecycle__name">Retire</p>
+          <p class="pa-lifecycle__hint">When a consumer drops a dependency, its pact is removed from the broker; provider stops verifying it on the next release.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+        <table class="pa-pitfalls">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>No provider states</td>
+              <td>Pacts assume "a user with id 7 exists" but the provider has no fixture for that state; verification is flaky.</td>
+              <td>Declare a state handler for every named state in every pact; verification must seed the provider before each replay.</td>
+            </tr>
+            <tr>
+              <td>Pacts not in the broker</td>
+              <td>Consumer pacts live in the consumer's CI artefacts; provider CI doesn't see them; drift goes undetected.</td>
+              <td>Run a Pact Broker (open source or Pactflow); consumer CI publishes on PR; provider CI pulls and verifies.</td>
+            </tr>
+            <tr>
+              <td>Contract tests not required</td>
+              <td>The test runs but doesn't block merge; over time, failures accumulate and are ignored.</td>
+              <td>Mark contract verification as a required status check in branch protection; no green = no merge.</td>
+            </tr>
+            <tr>
+              <td>Over-testing in Pact</td>
+              <td>Consumer test records every possible response variant; the pact becomes a re-implementation of the integration test.</td>
+              <td>Record only what the consumer actually uses; trust Schemathesis for exhaustive endpoint coverage.</td>
+            </tr>
+            <tr>
+              <td>Spec out of sync with implementation</td>
+              <td>OpenAPI is hand-maintained, implementation drifts; contract tests pass against the spec, real consumers fail in production.</td>
+              <td>Generate the implementation (server stubs, validators) from the spec, or run Schemathesis on the live implementation to detect drift.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — Study App quiz API</h2>
+      <p>The Study App backend exposes <code>POST /api/quizzes/{id}/attempts</code> for the frontend to submit a quiz attempt. The OpenAPI spec defines the request body (<code>{answers: [{questionId, choiceId}]}</code>), the success response (<code>201</code> with <code>{attemptId, score, passed}</code>), and the error responses (<code>422</code> for invalid answer shape with <code>{error: {code, message, fields[]}}</code>, <code>404</code> for unknown quiz, <code>401</code> for unauthenticated).</p>
+      <p><strong>Schemathesis gate.</strong> CI runs <code>schemathesis run --checks all http://test-instance/openapi.yaml</code> on every PR that touches the backend. The tool generates ~500 test cases per endpoint: valid payloads (must return 201), payloads missing required fields (must return 422 with the documented error shape), payloads with extra fields (must be ignored per spec), payloads with type mismatches (string for integer — must return 422), unauthenticated requests (must return 401). The job runs in 90 seconds and produces an actionable failure: "endpoint POST /api/quizzes/{id}/attempts returned 500 instead of 422 for input {answers: null}; spec says null answers must return 422 with code <code>ANSWERS_REQUIRED</code>."</p>
+      <p><strong>Consumer pact.</strong> The frontend's <code>quizClient.ts</code> has a Pact-style test that records the exact requests it makes (with the exact headers, payload structure, and expected response fields). The pact JSON is published to the Pact Broker on every frontend PR. The backend CI pulls this pact and verifies the backend can satisfy it; if the backend ever removes <code>passed</code> from the response, the pact verification fails before the backend PR can merge.</p>
+      <p><strong>Outcome.</strong> In week 11, a backend refactor renamed <code>questionId</code> to <code>question_id</code> in the request body. Schemathesis caught it (input matching the spec — using <code>questionId</code> — returned 422 instead of 201, the documented behaviour for valid input). The PR was blocked before merge. Without contract testing, the rename would have reached staging and the frontend's quiz submission would have silently failed.</p>
+      <p><strong>Cost.</strong> Setup: 2 days for Schemathesis + 3 days to add the consumer pact for quiz attempts. Maintenance: ~30 minutes of CI time monthly (cost of running on every PR). Catch rate: 4 API drift defects in 11 weeks, average severity P2, average cost-if-missed estimated at 1 engineer-day each.</p>
+    </section>
+
+    <section id="quality-bar">
+      <h2>Quality bar</h2>
+      <div class="pa-quality">
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Senior bar</p>
+          <p class="pa-quality__hint">Every API has an OpenAPI/AsyncAPI spec under version control as the authoritative contract. Schemathesis or equivalent runs on every PR as a required gate; bi-directional or consumer-driven Pact gates the cross-service boundaries. Provider states are declared and seeded; can-i-deploy gates deployment. Breaking-change detector runs against the spec diff and fails if a breaking change is detected without an explicit version bump. Stripe-style "no breaking changes" is a stated cultural commitment.</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Mid bar</p>
+          <p class="pa-quality__hint">OpenAPI spec authored for every public endpoint; Schemathesis runs on every PR; failures block merge. Consumer pacts exist for the critical cross-team boundaries (3–5 services).</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Junior bar</p>
+          <p class="pa-quality__hint">Can write a single Schemathesis test against a documented endpoint, run it locally, and explain how a contract test differs from an integration test (no real consumer needed, contract is the assertion).</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://docs.pact.io/" rel="noopener">Pact Documentation</a> — the canonical consumer-driven contract framework.</li>
+        <li><a href="https://docs.pactflow.io/docs/bi-directional-contract-testing/" rel="noopener">Pactflow — Bi-directional Contract Testing</a> — the modern OpenAPI+Pact hybrid.</li>
+        <li><a href="https://schemathesis.readthedocs.io/" rel="noopener">Schemathesis</a> — property-based testing from OpenAPI/GraphQL.</li>
+        <li><a href="https://stripe.com/blog/api-versioning" rel="noopener">Stripe — API Versioning</a> — contract-as-culture, no breaking changes for 10+ years.</li>
+        <li><a href="https://www.atlassian.com/blog/technology/spec-first-api-development" rel="noopener">Atlassian — Spec-First API Development</a> — provider verification at multi-team scale.</li>
+        <li><a href="https://martinfowler.com/articles/consumerDrivenContracts.html" rel="noopener">Martin Fowler — Consumer-Driven Contracts</a> — the original 2006 article that named the practice.</li>
+        <li><a href="https://www.openapis.org/" rel="noopener">OpenAPI Initiative</a> — the spec format underpinning spec-driven contracts.</li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Rewrote to SA practice-page pattern: page-head, two-flavour SVG (Pact vs Schemathesis), 4 industry cards (Pact, Schemathesis, Stripe, Atlassian), Study App quiz-API worked example.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial version: Contract Testing practice for QA Engineer radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

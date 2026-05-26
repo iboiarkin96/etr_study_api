@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>On-call handbook — every question answered before the page fires — Practice 11 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">On-call handbook</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">11</span>
+        <span class="pa-eyebrow__group">Group C · Incident response</span>
+      </p>
+      <h1>On-call handbook — every question answered before the page fires</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">A written guide that answers every question an on-call engineer has before their shift starts — what to do when paged, how to escalate, which tools to use, and where the runbooks live.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">The on-call handbook is the single document an engineer reads before their first solo on-call shift. It covers: escalation paths (who to call and how), tools and access (what dashboards, VPN, kubectl, runbook index), incident declaration process (when to declare, what severity, what channel), communication templates (status page update, internal stakeholder message), and handover protocol (what to document in the shift log). Updated after every P0/P1 incident. Reviewed by every new on-call engineer during shadow rotation.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Page flow from fire to handover">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Page fires, primary on-call acknowledges in five minutes, triages, escalates or resolves, then hands over" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="65" y="106" text-anchor="middle" font-weight="700">Page fires</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="65" y="124" text-anchor="middle" font-size="10">PagerDuty</text>
+
+        <rect class="pa-svg-box" x="145" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="205" y="106" text-anchor="middle" font-weight="700">Primary on-call</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="205" y="124" text-anchor="middle" font-size="10">ACK ≤ 5 min</text>
+
+        <rect class="pa-svg-box" x="285" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="345" y="106" text-anchor="middle" font-weight="700">Triage</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="345" y="124" text-anchor="middle" font-size="10">runbook + severity</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="425" y="20" width="150" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="500" y="42" text-anchor="middle" font-weight="700">Escalate</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="500" y="60" text-anchor="middle" font-size="10">secondary / manager</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="425" y="148" width="150" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="500" y="170" text-anchor="middle" font-weight="700">Resolve</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="500" y="188" text-anchor="middle" font-size="10">close + shift log</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="540" y="80" width="95" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="587" y="106" text-anchor="middle" font-weight="700">Handover</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="587" y="124" text-anchor="middle" font-size="10">Mon 10:00 UTC</text>
+
+        <path d="M125 110 L140 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M265 110 L280 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M405  98 L420  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M405 122 L420 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M575  46 L540  92" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M575 174 L540 128" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+      </svg>
+      <figcaption class="pa-figure__caption">Page fires → primary on-call ACKs in five minutes → triage against the runbook → escalate to secondary or resolve directly → handover on Monday at 10:00 UTC. Every step has a documented procedure in the handbook — no tribal knowledge required.</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p>The <strong>on-call handbook</strong> is the primary reference document for on-call engineers. It is written collaboratively by the team, updated after every incident that reveals a gap, and reviewed by every new on-call engineer before their first solo shift. It covers:</p>
+    <ul>
+      <li><strong>Escalation paths:</strong> Who to call for which type of problem, how (PagerDuty, phone, Slack), and what information to have ready when escalating.</li>
+      <li><strong>Tools and access:</strong> The specific dashboards to check first (linked), the kubectl commands for common operations, VPN credentials, and where the runbook index is.</li>
+      <li><strong>Incident declaration:</strong> When to declare an incident (specific criteria, not gut feel), what severity to assign (linked to the severity framework), and which Slack channel to use for each severity level.</li>
+      <li><strong>Communication templates:</strong> Pre-written status page update templates and internal stakeholder message formats. On-call engineers should not write communications from scratch during an incident.</li>
+      <li><strong>Handover protocol:</strong> What to document in the shift log, how to communicate open items to the incoming on-call, and what "clean handover" looks like.</li>
+    </ul>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Every minute an on-call engineer spends searching for the escalation path or finding the right dashboard is a minute the customer-facing incident continues. The handbook eliminates the institutional knowledge problem: a new engineer on their first solo shift can respond effectively because the process is documented.</p>
+    <p>The handbook also transfers knowledge across team members without requiring direct mentorship. Without it, on-call competency is unevenly distributed — the engineers who've been on-call longest are effective; newer engineers are slower and more anxious. The handbook levels the playing field.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose on-call practice is published and copied. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">PagerDuty</p>
+        <p class="pa-industry__what">PagerDuty publishes an open-source "Incident Response Guide" that includes a chapter on on-call best practices. Their handbook structure: pre-shift checklist (review alerts, check dashboards), during-shift norms (response times per severity, communication frequency), and post-shift handover (shift log entries, escalation of unresolved items). They specifically recommend a "shadow rotation" for new on-call engineers — 2 shifts observing, then 2 shifts with a senior engineer available, then solo.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> The shadow rotation is the most effective on-call onboarding practice. New engineers read the handbook, but they learn from shadowing. Two shadow shifts before solo eliminates the "first shift panic" that degrades incident response for new team members.</p>
+        <p class="pa-industry__source">Source: <a href="https://response.pagerduty.com/" rel="noopener">PagerDuty Incident Response Guide</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Stripe</p>
+        <p class="pa-industry__what">Stripe's on-call handbook includes a "first 5 minutes" checklist for every page — a specific sequence of steps to take immediately after acknowledging a page before any diagnosis begins: declare an incident bridge, post to the #incidents channel, check the SLO burn rate dashboard, and find the runbook for the firing alert. The 5-minute checklist prevents the most common first-response errors: starting diagnosis before communication, or communicating before having any data.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> A "first 5 minutes" checklist embedded in the handbook (or linked from every PagerDuty alert) converts on-call muscle memory from improvised to procedural. Sequence matters under stress — the checklist removes the cognitive load of "what do I do first?"</p>
+        <p class="pa-industry__source">Source: <a href="https://stripe.com/blog/engineering" rel="noopener">Stripe Engineering Blog</a></p>
+      </div>
+    </div>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete on-call handbook has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Escalation matrix</p><p class="pa-anatomy__hint">Named people, their expertise, and how to reach them. Phone numbers, not just Slack handles — phones work when networks are degraded. Updated when team members join or leave. Reviewed at each on-call rotation change.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Tools and access checklist</p><p class="pa-anatomy__hint">Every tool an on-call engineer needs: dashboards (linked), CLI commands (pre-formatted, tested), access paths (VPN profile, kubectl context, cloud console URL). Validated during shadow shifts — if the new engineer can't access something, fix it before their solo shift.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Communication templates</p><p class="pa-anatomy__hint">Status page update template, internal #incidents Slack message template, executive summary template. Fill-in-the-blank format with placeholders for service name, impact, time of first detection, and estimated resolution. Never improvise communications during an incident.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Post-incident update cadence</p><p class="pa-anatomy__hint">For P0/P1 incidents: update the #incidents channel every 30 minutes with current status. Not when there's news — every 30 minutes regardless. Stakeholders in a long incident need time-stamped updates to calibrate their escalation decisions.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App on-call runs on <strong>PagerDuty</strong> with a weekly rotation. Every service tier carries a <strong>primary and a secondary</strong> on-call simultaneously: the primary takes the page; the secondary is the silent-shift fallback if the primary does not ACK within five minutes. Tier-0 services (lessons-api, auth) page 24/7; tier-2 services page during business hours and ticket overnight. The handbook itself lives at <code>internal/team/roles/sre/practices/on-call-handbook.html</code> and the runbook index it points at lives at <code>internal/sre/runbooks/</code>.</p>
+    <p>Handoff happens every <strong>Monday at 10:00 UTC</strong>. The outgoing primary writes a state-of-the-world doc — open incidents, paused alerts, in-flight remediations, anything the incoming engineer needs to land into — and walks the incoming primary through it in a 15-minute call. The doc is stored in <code>internal/sre/shift-logs/</code> with one file per week. Comp time is granted for nights and weekends: any page acknowledged outside the 09:00–18:00 local window earns equal recovery time off the following week, tracked in the same shift-log file as the page itself. The handbook is reviewed in every P0/P1 retrospective; gaps surfaced during an incident produce a documented update within 48 hours.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Why on-call is a designed system, not a duty roster</h3>
+      <p>The instinct of small teams is to treat on-call as "whoever is around when something breaks". That model works for ten engineers and one service; it collapses the moment either side of the equation grows. A designed on-call system has four explicit pieces: a rotation (who is responsible when), an escalation policy (what happens when the responsible person does not respond), a handoff protocol (how state moves from one shift to the next), and a recovery model (how the human cost is paid back). Each piece is independently tunable and each one fails in a different mode if it is left implicit.</p>
+      <h4>Rotation design — follow-the-sun vs single-region, primary plus secondary</h4>
+      <p>The two canonical rotation shapes are <em>follow-the-sun</em> (a EMEA shift hands to APAC hands to AMER, no human pages outside their local daytime) and <em>single-region</em> (one rotation covers 24 hours, accepting that some pages land at 3 a.m.). Follow-the-sun is the better human outcome but requires three timezones of engineers competent on every service — a constraint Study App will not satisfy for years. Single-region with primary + secondary is the realistic compromise: the primary takes the page; if the primary does not ACK within the escalation window, the secondary takes it. The secondary is not a luxury — it is the structural fallback for the silent-shift failure mode (phone on charge, do-not-disturb still on, sleep too deep). Without a secondary the system has a single point of human failure.</p>
+      <h4>Psychological load — interrupt cost and the sleep-debt research</h4>
+      <p>The cost of a page is not the minutes spent on the page; it is the cognitive disruption that lingers afterwards. The peer-reviewed literature on interruption cost in knowledge work consistently puts the post-interruption recovery at 15–25 minutes of degraded focus — a single daytime page erases the better part of an hour of useful work. Night pages cost more: the sleep-debt research (Walker, Van Dongen, Belenky) shows that two consecutive nights of fragmented sleep produce performance impairment comparable to legal intoxication, and that the impairment compounds across a week before any subjective fatigue is reported. A rotation that pages the same person three nights running is producing a measurably impaired engineer by the third morning, whether or not they feel it. The design implication: page rate must be a target, not a passive observable, and comp time must be a contract, not a favour.</p>
+      <h4>Escalation policy and the silent-shift fallback</h4>
+      <p>An escalation policy is the rule for what happens when the primary does not respond. The minimum viable shape is three steps: primary → secondary (after the ACK SLA expires) → manager (after one more window). The two windows are tuned against the cost of false escalation (waking the secondary unnecessarily) versus the cost of a silent shift (a real incident that no one is handling). For a 5-minute ACK SLA, 15 minutes to secondary and 30 minutes to manager is the conventional shape — short enough that a genuine silent shift gets attention inside half an hour, long enough that a primary who is on the phone with the database vendor is not interrupted by their own backup. The policy lives in PagerDuty, not in tribal knowledge; a verbal "Bob covers for me tonight" arrangement is a guaranteed silent-shift incident.</p>
+      <h4>Handoff hygiene — the state-of-the-world doc</h4>
+      <p>A clean handoff transfers state, not just responsibility. The standard artefact is a short structured document the outgoing primary writes in the last hour of the shift: open incidents and their current status, alerts paused or muted (with reason and expiry), in-flight remediations, known fragile components, and any one-off context the incoming engineer needs ("the lessons-api canary is on 5% traffic, do not promote until the latency check is green"). Without the doc, the incoming primary discovers the state by tripping over it — usually during their first page, which is exactly the wrong time. The 15-minute handoff call is the second half: a verbal walkthrough lets the incoming engineer ask the questions the doc did not anticipate.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Headcount cost.</strong> Primary + secondary doubles the on-call surface area; a team of six can run a weekly primary-secondary rotation, but five engineers cannot without one of them being on-call every other week. The arithmetic decides whether you can run the model at all.</li>
+        <li><strong>Comp-time accounting.</strong> Granting recovery time off the following week sounds informal but requires a tracker. Without one, comp time is taken by the assertive engineers and not by the ones who need it most — and the asymmetry is invisible until someone burns out.</li>
+        <li><strong>Handoff discipline.</strong> The state-of-the-world doc is unpopular the first month and invisible after the second. The forcing function is the post-incident retro: a P0 that the incoming primary handled badly because they had no context surfaces the missing handoff entry, and the entry gets written next week.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">shift starts</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">handover received</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">monitoring</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">page acknowledged</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">triage / escalate</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">resolve + log</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">handover out</span>
+    </div>
+    <p>A shift starts when the incoming primary receives the handover doc and joins the 15-minute call. From there the engineer is in monitoring mode — dashboards open, alert queue clear, ready to receive. When a page fires the engineer ACKs within five minutes, follows the runbook to triage, and either resolves it directly or escalates to the secondary or a service owner. Every page produces an entry in the shift log: time, alert, action taken, outcome. At the end of the week the outgoing primary writes the state-of-the-world doc and runs the handover call. Pages outside the 09:00–18:00 local window accrue comp time, recorded in the same log and taken the following week.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Handbook written once, never updated</strong></td>
+            <td>Writing the handbook is the goal; keeping it current is work.</td>
+            <td>The handbook update is part of the incident retrospective. Every gap found during an incident produces a handbook update within 48 hours. The retrospective action item is: "update handbook section X to cover scenario Y."</td>
+          </tr>
+          <tr>
+            <td><strong>Handbook not reviewed during onboarding</strong></td>
+            <td>"They'll pick it up when they're on-call."</td>
+            <td>Handbook review is part of the shadow rotation. New engineers read the handbook before their first shadow shift and flag anything that is unclear or missing. Their fresh-eyes perspective is the most valuable handbook feedback.</td>
+          </tr>
+          <tr>
+            <td><strong>Escalation paths list roles, not people</strong></td>
+            <td>"Contact the security team" without specifying who or how.</td>
+            <td>Escalation paths list named individuals with multiple contact methods. Roles change; people are reachable. "Contact Alice Chen (alice@company.com, +1-555-0142) for security escalations" is actionable at 3 a.m. "Contact the security team" is not.</td>
+          </tr>
+          <tr>
+            <td><strong>No secondary on-call</strong></td>
+            <td>"We're a small team, one rotation is enough."</td>
+            <td>Run primary + secondary even with five engineers — the secondary is the structural fallback for the silent-shift mode (phone dead, do-not-disturb still on). PagerDuty's escalation policy handles the routing; the secondary only pages when the primary does not ACK. The cost is rota arithmetic; the benefit is not having a single human point of failure.</td>
+          </tr>
+          <tr>
+            <td><strong>Handoff is a Slack message</strong></td>
+            <td>"I'll just ping them with what's open."</td>
+            <td>Write the state-of-the-world doc in the shift-log folder, then do a 15-minute call. The doc captures state the call cannot; the call surfaces context the doc forgot. Either alone is half a handoff.</td>
+          </tr>
+          <tr>
+            <td><strong>Comp time is informal</strong></td>
+            <td>"Take some time off next week if you need to."</td>
+            <td>Track comp time in the shift log alongside the page itself — hour-for-hour for any page outside 09:00–18:00 local. Make it a contract, not a favour, otherwise the engineers who need recovery time most are the ones who do not take it.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">PagerDuty escalation policy</span>
+        <p class="pa-example__title">SRE Platform — primary 5 min → secondary 15 min → manager 30 min, comp-time tracker entry</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code>policy:
+  name:          sre-platform-tier0
+  service_tier:  0
+  ack_sla:       5m
+  rotation:
+    schedule:    weekly
+    handoff:     "Monday 10:00 UTC"
+    layers:
+      - name:      primary
+        members:   [ivan, alice, bob, carol, dan, evelyn]
+      - name:      secondary
+        members:   [bob, carol, dan, evelyn, ivan, alice]   # offset by 1 week
+  escalation:
+    - step:      1
+      target:    primary on-call
+      timeout:   5m
+    - step:      2
+      target:    secondary on-call
+      timeout:   15m
+    - step:      3
+      target:    sre-manager
+      timeout:   30m
+  comp_time:
+    rule:        hour-for-hour for pages outside 09:00–18:00 local
+    tracker:     internal/sre/shift-logs/2026-W21.md
+    entry: |
+      - 2026-05-22 03:14Z  P1 lessons-api SLO burn  → ACK 03:16Z, resolved 03:42Z
+        comp time: 28 min  taken: 2026-05-25 14:00–14:30 local
+        </code></pre>
+        <p><strong>What this policy does.</strong> A page fires against the <code>sre-platform-tier0</code> service. PagerDuty notifies the primary on-call; if there is no ACK within five minutes the secondary is paged; if neither responds within a further fifteen minutes the SRE manager is paged. The secondary rotation is offset by one week from the primary so no engineer is ever primary and secondary in the same week. Every page outside business hours produces a comp-time entry in the weekly shift log — recorded at the time of the page, redeemed the following week. If the policy were a single layer with no secondary, the 3:14 a.m. page above would have either been missed (silent shift) or escalated straight to the manager, both of which produce a worse outcome than the secondary catching it inside fifteen minutes.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Primary + secondary on every tier-0 service</p><p class="pa-quality__hint">No service runs on a single human point of failure. The secondary is the silent-shift fallback, not a luxury.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Escalation policy lives in PagerDuty</p><p class="pa-quality__hint">5 min → 15 min → 30 min, encoded in the tool. No verbal "Bob covers for me" arrangements.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Handbook reviewed by every new on-call</p><p class="pa-quality__hint">Read before the first shadow shift; gaps flagged by fresh eyes are the most valuable feedback the handbook gets.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Shadow rotation before solo</p><p class="pa-quality__hint">Two shadow shifts, two shifts with a senior available, then solo. No engineer's first solo shift is also their first on-call shift.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">State-of-the-world doc + 15 min handoff call</p><p class="pa-quality__hint">Weekly, Monday 10:00 UTC, stored in <code>internal/sre/shift-logs/</code>. Slack-only handoffs are half handoffs.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Comp time tracked, not assumed</p><p class="pa-quality__hint">Hour-for-hour for pages outside 09:00–18:00 local, recorded in the shift log and redeemed the following week.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Handbook updated within 48 h of every P0/P1</p><p class="pa-quality__hint">Every gap surfaced during an incident produces a documented update. The retro action item is on the handbook, not just on the system.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://sre.google/sre-book/being-on-call/" rel="noopener">Google SRE Book — Chapter 11, Being On-Call</a><span class="pa-refs__hint">The canonical statement of on-call as a designed system; page-rate targets and the psychological load argument originate here.</span></li>
+          <li><a href="https://response.pagerduty.com/" rel="noopener">PagerDuty Incident Response Guide — Operations</a><span class="pa-refs__hint">Shadow rotation, pre-shift checklist, handover protocol; the practical playbook every team copies from.</span></li>
+          <li><a href="https://increment.com/on-call/" rel="noopener">Increment magazine — "On-call" issue</a><span class="pa-refs__hint">A cross-industry survey of how teams actually run on-call; comp-time models, follow-the-sun trade-offs, and the human cost.</span></li>
+          <li><a href="https://about.gitlab.com/handbook/on-call/" rel="noopener">GitLab on-call handbook</a><span class="pa-refs__hint">A worked example of a publicly published handbook — escalation matrix, communication templates, and shift-log format that any team can fork.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="alerting-design.html">Alerting design — what fires the page in the first place</a><span class="pa-refs__hint">A handbook with no alerting policy paginates at 60 per shift; the two practices are designed together.</span></li>
+          <li><a href="incident-severity.html">Incident severity — how P0/P1/P2 are defined</a><span class="pa-refs__hint">The severity tier the page carries decides which escalation policy and which communication template apply.</span></li>
+          <li><a href="runbooks.html">Runbooks — the page's first stop after ACK</a><span class="pa-refs__hint">The handbook tells the on-call where to look; the runbook tells them what to do once they get there.</span></li>
+          <li><a href="incident-command.html">Incident command — what happens when one page becomes an incident</a><span class="pa-refs__hint">The handbook hands off to incident command at declaration; the boundary between the two practices is the declaration call.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: On-Call Handbook practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

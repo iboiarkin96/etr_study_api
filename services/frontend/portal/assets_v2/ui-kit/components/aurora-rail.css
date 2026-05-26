@@ -1,0 +1,240 @@
+/* ui-kit/components/aurora-rail.css — pre-footer atmosphere zone.
+
+   Direct port of the legacy docs.css body::before + body::after
+   "footer fog / dot wave" system (assets/docs.css lines 188-362).
+   In v1 it was a viewport-bottom fixed overlay on <body>; here we
+   scope it to a single .aurora-rail section that sits just above
+   .site-footer, so the effect lives only at the foot of the page and
+   doesn't fight with v2's scene-bg.
+
+   Two layered backgrounds:
+     · .aurora-rail__fog   ← body::before equivalent.
+       Soft veil of overlapping radial fog patches, swelling + drifting
+       on two desynchronised animations (swell + undulate).
+     · .aurora-rail__dots  ← body::after equivalent.
+       Two stacked dot grids (fine + coarse). The dot pattern itself
+       doesn't translate as a block — its background-position animates
+       through 10 keyframe stops, which makes the dot lattice appear
+       to ripple in a slow wave across the rail. This IS the "moving
+       dots that feel like waves" the user remembers from v1.
+
+   Tokens are taken from the v1 names so the visual identity is
+   identical; defaults below match the v1 light defaults. Dark theme
+   overrides at the bottom match docs-theme.css.
+*/
+
+.aurora-rail {
+  /* Same token names as v1 docs.css — light defaults. */
+  --docs-footer-veil: 1;
+  --docs-footer-scroll-strength: 1;
+  --docs-footer-dot-step: 22px;
+  --docs-footer-fine-dot-step: 13px;
+  --docs-footer-glow-accent-mix: 11%;
+  --docs-footer-dot-line-mix: 56%;
+  --docs-footer-fine-dot-mix: 38%;
+  --docs-footer-veil-duration: 8s;
+  --docs-footer-fog-duration: 16s;
+  --docs-footer-wave-duration: 32s;
+  --docs-footer-fog-undulate-duration: 42s;
+  --docs-footer-breathe-min: 0.72;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  /* Height matches v1's --docs-footer-veil-height idea. v1 used
+     fixed-positioning so the fog covered up to 78vh of the viewport;
+     here the rail is a real block in the page, so we cap at a
+     reasonable footer-zone size. */
+  height: clamp(280px, 32vw, 460px);
+  margin-top: var(--space-7);
+  pointer-events: none;
+  background: transparent;
+}
+
+/* Full-bleed across the .docs-shell grid + viewport edges so the rail
+   reaches edge-to-edge like the legacy fog did. */
+.docs-shell > .aurora-rail {
+  grid-column: 1 / -1;
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+  margin-bottom: 0;
+}
+
+.docs-shell > .aurora-rail + .site-footer { margin-top: 0; }
+
+/* ─── Layer 1 — fog (body::before equivalent) ───────────────────── */
+
+.aurora-rail__fog {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: calc(var(--docs-footer-veil) * 0.96 * var(--docs-footer-scroll-strength, 1));
+  background:
+    radial-gradient(ellipse 95% 55% at 72% 100%,
+      color-mix(in srgb, var(--muted) 18%, transparent) 0%,
+      transparent 52%),
+    radial-gradient(ellipse 90% 60% at 28% 100%,
+      color-mix(in srgb, var(--line) 14%, transparent) 0%,
+      transparent 48%),
+    radial-gradient(ellipse 118% 72% at 50% 100%,
+      color-mix(in srgb, var(--line) 26%, transparent) 0%,
+      transparent 58%),
+    linear-gradient(to top,
+      color-mix(in srgb, var(--muted) 32%, var(--bg-elev, var(--card)) 68%) 0%,
+      color-mix(in srgb, var(--line) 16%, transparent) 22%,
+      transparent 56%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-position: center bottom, center bottom, center bottom, center bottom;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+  -webkit-mask-image: linear-gradient(to top,
+    #000 0%, #000 20%,
+    rgba(0, 0, 0, 0.9) 46%,
+    rgba(0, 0, 0, 0.38) 66%,
+    rgba(0, 0, 0, 0.1) 84%,
+    transparent 100%);
+          mask-image: linear-gradient(to top,
+    #000 0%, #000 20%,
+    rgba(0, 0, 0, 0.9) 46%,
+    rgba(0, 0, 0, 0.38) 66%,
+    rgba(0, 0, 0, 0.1) 84%,
+    transparent 100%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .aurora-rail__fog {
+    animation:
+      aurora-rail-fog-swell    var(--docs-footer-fog-duration)          ease-in-out infinite,
+      aurora-rail-fog-undulate var(--docs-footer-fog-undulate-duration) ease-in-out infinite;
+  }
+}
+
+@keyframes aurora-rail-fog-swell {
+  0%, 100% {
+    opacity: calc(var(--docs-footer-veil) * 0.82 * var(--docs-footer-scroll-strength, 1));
+    transform: translateY(0);
+  }
+  50% {
+    opacity: calc(var(--docs-footer-veil) * 0.98 * var(--docs-footer-scroll-strength, 1));
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes aurora-rail-fog-undulate {
+  0%, 100% { background-position: center bottom, center bottom, center bottom, center bottom; }
+  20%      { background-position: 14px 8px,   -12px 10px,  10px -8px,  center bottom; }
+  40%      { background-position: -10px 14px,  16px -6px, -14px 10px,  center bottom; }
+  60%      { background-position: 8px -10px,  -8px 16px,   12px 8px,   center bottom; }
+  80%      { background-position: 12px 4px,    6px -12px, -10px -6px,  center bottom; }
+}
+
+/* ─── Layer 2 — dot wave (body::after equivalent) ───────────────── */
+
+.aurora-rail__dots {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: calc(var(--docs-footer-veil) * var(--docs-footer-scroll-strength, 1));
+  background:
+    /* Fine grid of small dots */
+    radial-gradient(circle at 1px 1px,
+      color-mix(in srgb, var(--muted) var(--docs-footer-fine-dot-mix), transparent) 1px,
+      transparent 0),
+    /* Coarse grid of slightly stronger dots */
+    radial-gradient(circle at 1px 1px,
+      color-mix(in srgb, var(--line) var(--docs-footer-dot-line-mix), transparent) 1px,
+      transparent 0),
+    /* Accent glow blooming up from the very bottom */
+    radial-gradient(ellipse 92% 88% at 50% 100%,
+      color-mix(in srgb, var(--accent) var(--docs-footer-glow-accent-mix), transparent) 0%,
+      transparent 58%),
+    /* Bottom-to-top fade so the dots don't fight the page above */
+    linear-gradient(to top,
+      color-mix(in srgb, var(--line) 14%, transparent) 0%,
+      transparent 36%);
+  background-size:
+    var(--docs-footer-fine-dot-step) var(--docs-footer-fine-dot-step),
+    var(--docs-footer-dot-step)      var(--docs-footer-dot-step),
+    100% 100%,
+    100% 100%;
+  background-position: 0 0, 16px 11px, center bottom, center bottom;
+  background-repeat: repeat, repeat, no-repeat, no-repeat;
+  -webkit-mask-image: linear-gradient(to top,
+    #000 0%, #000 10%, #000 32%,
+    rgba(0, 0, 0, 0.82) 52%,
+    rgba(0, 0, 0, 0.32) 70%,
+    rgba(0, 0, 0, 0.07) 86%,
+    transparent 100%);
+          mask-image: linear-gradient(to top,
+    #000 0%, #000 10%, #000 32%,
+    rgba(0, 0, 0, 0.82) 52%,
+    rgba(0, 0, 0, 0.32) 70%,
+    rgba(0, 0, 0, 0.07) 86%,
+    transparent 100%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .aurora-rail__dots {
+    animation:
+      aurora-rail-veil-breathe var(--docs-footer-veil-duration) ease-in-out                       infinite,
+      aurora-rail-dot-wave     var(--docs-footer-wave-duration) cubic-bezier(0.37, 0.02, 0.62, 0.98) infinite;
+  }
+}
+
+@keyframes aurora-rail-veil-breathe {
+  0%, 100% {
+    opacity: calc(var(--docs-footer-veil) * var(--docs-footer-breathe-min) * var(--docs-footer-scroll-strength, 1));
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: calc(var(--docs-footer-veil) * var(--docs-footer-scroll-strength, 1));
+    transform: translateY(-2px) scale(1.005);
+  }
+}
+
+/* The actual wave: 10 background-position stops cycle the two dot
+   grids around their starting offsets so the lattice appears to
+   ripple across the rail. Stops + spacing come 1:1 from v1
+   docs.css's docs-footer-dot-wave keyframes. */
+@keyframes aurora-rail-dot-wave {
+  0%, 100% { background-position: 0 0,       16px 11px, center bottom, center bottom; }
+  9%       { background-position: 17px 3px,  -3px 19px, center bottom, center bottom; }
+  21%      { background-position: 24px 15px, -19px 23px, center bottom, center bottom; }
+  34%      { background-position: 14px 26px, -20px 9px, center bottom, center bottom; }
+  46%      { background-position: -9px 22px,  2px -10px, center bottom, center bottom; }
+  57%      { background-position: -21px 9px,  19px -5px, center bottom, center bottom; }
+  68%      { background-position: -18px -7px, 23px 12px, center bottom, center bottom; }
+  78%      { background-position: 4px -5px,   14px 22px, center bottom, center bottom; }
+  88%      { background-position: 14px 6px,   6px 16px, center bottom, center bottom; }
+  95%      { background-position: 6px 2px,    20px 12px, center bottom, center bottom; }
+}
+
+/* ─── Dark theme — matches v1 docs-theme.css overrides ──────────── */
+
+html[data-theme="dark"] .aurora-rail {
+  --docs-footer-dot-step: 28px;
+  --docs-footer-fine-dot-step: 16px;
+  --docs-footer-glow-accent-mix: 15%;
+  --docs-footer-dot-line-mix: 52%;
+  --docs-footer-fine-dot-mix: 44%;
+}
+
+/* ─── Responsive ────────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .aurora-rail {
+    height: clamp(180px, 38vw, 280px);
+  }
+}
+
+/* ─── Opt-out + reduced motion ──────────────────────────────────── */
+
+html[data-aurora="off"] .aurora-rail { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-rail__fog,
+  .aurora-rail__dots {
+    animation: none !important;
+  }
+}

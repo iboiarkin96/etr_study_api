@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RFC 0001 · Documentation Search Implementation · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">RFC</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0001</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">RFC · 0001</span>
+          <span class="docs-pill docs-pill--success">Accepted</span>
+        </p>
+        <h1>Documentation Search Implementation</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+          Implementation details for the client-side docs search: build-time indexing, query-time ranking, telemetry transport,
+          and the local validation playbook that complements <a href="../adr/0027-client-side-docs-search-index-and-ranking.html">ADR 0027</a>.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <ul>
+          <li>Date: 2026-04-17</li>
+          <li>Related decision: <a href="../adr/0027-client-side-docs-search-index-and-ranking.html">ADR 0027</a></li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="goals-h">
+        <h2 id="goals-h">Goals and non-goals</h2>
+        <h3>Goals</h3>
+        <ul>
+          <li>Fast client-side search across all HTML docs pages.</li>
+          <li>Lexical ranking that is deterministic and easy to tune.</li>
+          <li>Few runtime dependencies; works on static hosting.</li>
+          <li>Telemetry we can act on: zero-result rate, query click-through, and time-to-first-success.</li>
+        </ul>
+        <h3>Non-goals</h3>
+        <ul>
+          <li>Semantic/vector search, typo fixing, or language-specific word forms.</li>
+          <li>Hosted search products (e.g. cloud SaaS).</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="architecture-h">
+        <h2 id="architecture-h">Architecture overview</h2>
+        <ol>
+          <li>The build writes <code>services/frontend/portal/assets/search-index.json</code> from <code>services/portal/**/*.html</code>.</li>
+          <li>The browser loads the index once; ranking runs in JavaScript at query time.</li>
+          <li>The UI shows the top results and supports keyboard navigation.</li>
+          <li>The browser sends telemetry events to the API.</li>
+          <li>The API appends rows to SQLite table <code>docs_search_events</code>.</li>
+          <li>The API exposes KPI snapshots at <code>/internal/telemetry/docs-search/metrics</code>.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="build-h">
+        <h2 id="build-h">Build-time indexing</h2>
+        <p>Implemented in <code>scripts/build_docs_search_index.py</code>.</p>
+        <h3>Input corpus</h3>
+        <ul>
+          <li>Includes: all <code>services/portal/**/*.html</code>.</li>
+          <li>Excludes: files under <code>services/frontend/portal/assets/</code>.</li>
+        </ul>
+        <h3>Extraction and normalization</h3>
+        <ul>
+          <li>Title from <code>&lt;title&gt;</code> with fallback to file stem.</li>
+          <li>Content from <code>&lt;main&gt;</code>; fallback to <code>&lt;body&gt;</code>.</li>
+          <li>Removes script/style/noscript/svg/template blocks and HTML tags.</li>
+          <li>Whitespace collapse and entity decoding.</li>
+          <li>Lowercase normalization and alphanumeric tokenization.</li>
+        </ul>
+        <h3>Index schema (version 2)</h3>
+        <ul>
+          <li><code>meta</code>: doc count, vocabulary size, avg content length, formulas.</li>
+          <li><code>docs</code>: metadata for rendering and length normalization.</li>
+          <li><code>doc_freq</code>: token document frequencies.</li>
+          <li><code>postings</code>: token postings with per-field TF values.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="ranking-h">
+        <h2 id="ranking-h">Query-time ranking</h2>
+        <p>Implemented in <code>services/frontend/portal/assets/docs-nav.js</code>.</p>
+        <h3>Core formula</h3>
+        <pre><code>score_base(d, T) = Σ over t in T:
+idf(t) * (
+8.0 * log(1 + tf_title(t, d))
++ 4.0 * log(1 + tf_url(t, d))
++ 2.0 * log(1 + tf_section(t, d))
++ 1.4 * log(1 + tf_content(t, d))
+)
+
+idf(t) = log(1 + (N + 1) / (df(t) + 0.5))
+
+norm(d) = 1 / (1 + 0.08 * max(0, content_len(d) / avg_content_len - 1))
+
+        score_norm = score_base * norm</code></pre>
+        <h3>Precision boosts</h3>
+        <ul>
+          <li>All tokens present in title.</li>
+          <li>All tokens present in URL.</li>
+          <li>Exact query phrase in title.</li>
+          <li>Exact query phrase in URL.</li>
+          <li>Title prefix match.</li>
+          <li>Exact section match.</li>
+        </ul>
+        <h3>Prefix expansion policy</h3>
+        <ul>
+          <li>Applied only to the last query token.</li>
+          <li>Enabled for token length 3+.</li>
+          <li>Capped by <code>DOCS_SEARCH_MAX_PREFIX_EXPANSIONS</code> for bounded latency.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="telemetry-h">
+        <h2 id="telemetry-h">Telemetry implementation</h2>
+        <h3>Client event types</h3>
+        <ul>
+          <li><code>search_query</code>: emitted after each completed query execution.</li>
+          <li><code>search_result_click</code>: emitted on result click / enter activation.</li>
+          <li><code>search_success</code>: first successful click within active search session.</li>
+          <li><code>search_query_error</code>: emitted when index loading fails.</li>
+        </ul>
+        <h3>Transport behavior</h3>
+        <ul>
+          <li>Uses <code>fetch</code> with <code>keepalive: true</code>.</li>
+          <li>Locally, docs on <code>127.0.0.1:8765</code> sends telemetry to the API on <code>127.0.0.1:8000</code>.</li>
+          <li>You can override the endpoint with <code>&lt;meta name="docs-search-telemetry-endpoint" ...&gt;</code>.</li>
+        </ul>
+        <h3>Server-side ingestion and storage</h3>
+        <ul>
+          <li>Ingest endpoint: <code>POST /internal/telemetry/docs-search</code>.</li>
+          <li>Storage table: <code>docs_search_events</code> (append-only).</li>
+          <li>DB file: same SQLite file configured by <code>SQLITE_DB_PATH</code>.</li>
+          <li>WAL mode enabled in telemetry store.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="kpi-h">
+        <h2 id="kpi-h">Canonical KPI definitions</h2>
+        <p>In a rolling time window:</p>
+        <ul>
+          <li><strong>Zero-result rate</strong> =
+            <code>count(search_query where results_count = 0) / count(search_query)</code>.</li>
+            <li><strong>Query CTR</strong> =
+              <code>count(distinct query_id with at least one search_result_click) / count(search_query)</code>.</li>
+              <li><strong>Time-to-first-success</strong> = distribution of first
+                <code>search_success.time_to_success_ms</code> per session (reported as p50/p75).</li>
+              </ul>
+              <p>
+                Metrics endpoint:
+                <code>GET /internal/telemetry/docs-search/metrics?window_minutes=&lt;N&gt;</code>.
+              </p>
+            </section>
+
+            <section aria-labelledby="validation-h">
+              <h2 id="validation-h">Local validation playbook</h2>
+              <ol>
+                <li>Rebuild the search index:
+                  <pre><code>python3 scripts/build_docs_search_index.py</code></pre>
+                </li>
+                <li>Serve docs over HTTP (not <code>file://</code>):
+                  <pre><code>cd docs
+                  python3 -m http.server 8765</code></pre>
+                </li>
+                <li>Run the API:
+                  <pre><code>make run</code></pre>
+                </li>
+                <li>Open <code>http://127.0.0.1:8765/index.html</code>, run searches, click a result.</li>
+                <li>In the browser network tab, confirm <code>GET /assets/search-index.json</code> returns <code>200</code> or
+                  <code>304</code>.</li>
+                  <li>Check the database:
+                    <pre><code>sqlite3 study_app.db "select id,event,session_id,query_id,datetime(emitted_at_ms/1000,'unixepoch','localtime') from docs_search_events order by id desc limit 20;"</code></pre>
+                  </li>
+                  <li>Check the metrics API:
+                    <pre><code>curl "http://127.0.0.1:8000/internal/telemetry/docs-search/metrics?window_minutes=60"</code></pre>
+                  </li>
+                </ol>
+              </section>
+
+              <section aria-labelledby="troubleshooting-h">
+                <h2 id="troubleshooting-h">Troubleshooting</h2>
+                <h3>Could not load search index</h3>
+                <ul>
+                  <li>Browsers block <code>fetch</code> for <code>file://</code> pages. Serve docs over HTTP.</li>
+                  <li>A bad relative path can request <code>/internal/assets/search-index.json</code> instead of
+                    <code>/assets/search-index.json</code>.</li>
+                  </ul>
+                  <h3>Telemetry preflight returns 200 but the DB has no rows</h3>
+                  <ul>
+                    <li><code>OPTIONS</code> only checks CORS; confirm a real <code>POST</code> and new rows in the DB.</li>
+                    <li>Hard-refresh the page so the browser does not use an old <code>docs-nav.js</code>.</li>
+                    <li>Some SQLite GUI tools do not refresh for WAL mode; use the terminal query above.</li>
+                  </ul>
+                </section>
+
+                <section aria-labelledby="change-mgmt-h">
+                  <h2 id="change-mgmt-h">Change management</h2>
+                  <ul>
+                    <li>ADRs stay for architecture (what/why); RFCs hold implementation details (how).</li>
+                    <li>If ranking weights or formulas change, update this RFC and run the local validation playbook.</li>
+                    <li>If the telemetry schema changes, keep the metrics endpoint backward compatible when you can.</li>
+                  </ul>
+                </section>
+
+                <footer class="docs-history" aria-label="History">
+                  <h2 class="docs-history__title">History</h2>
+                  <ul class="docs-history__list">
+                    <li class="docs-history__row">
+                      <span class="docs-history__date">2026-05-17</span>
+                      <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+                      <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, sectioned content).</span>
+                    </li>
+                  </ul>
+                </footer>
+
+              </article>
+            </main>
+
+            <aside class="docs-toc" aria-label="On this page"></aside>
+            <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+            <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+          </body></html>

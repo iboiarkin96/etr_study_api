@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your first background task · Tutorials · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="tutorial" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Tutorials</a></li>
+        <li class="docs-breadcrumbs__item"><span class="docs-breadcrumbs__link">SWE</span></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Your first background task</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Tutorial</span>
+          <span class="docs-pill docs-pill--neutral">SWE · Foundations</span>
+        </p>
+        <h1>Your first background task</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Wire one trivial route that schedules a write-to-file after the response,
+          call it, and watch the side effect land. The point is to feel the
+          background-task loop — endpoint returns first, side effect happens after —
+          not to build a real worker. Real workers use the same shape with retries,
+          queues, and persistence.
+        </p>
+        <div class="docs-chip-row docs-chip-row--mt-3">
+          <span class="docs-chip">⚙️ 4 phases</span>
+          <span class="docs-chip">⏱ 25–35 min</span>
+          <span class="docs-chip">📚 First-time</span>
+          <span class="docs-chip">💻 Local stack</span>
+        </div>
+      </header>
+
+      <section id="prereqs">
+        <h2>
+          <span class="docs-step-number" aria-hidden="true">–</span>
+          Before you start
+        </h2>
+        <ul>
+          <li><code>make venv &amp;&amp; make install</code> succeeded.</li>
+          <li>The dev server starts with <code>make run</code> (<code>http://127.0.0.1:8000</code> by default).</li>
+          <li>Repo on a clean branch — you'll revert at the end.</li>
+          <li>You've finished
+            <a href="onboarding-zero-to-endpoint.html">SWE · Your first endpoint</a>
+            or feel comfortable adding a route under <code>app/api/v1/</code>.</li>
+          </ul>
+        </section>
+
+        <section id="goal">
+          <h2>
+            <span class="docs-step-number" aria-hidden="true">0</span>
+            Goal
+          </h2>
+          <ul>
+            <li>Add one new route — <code>POST /api/v1/ping-bg</code> — that schedules a background write.</li>
+            <li>The background function writes a one-line entry to
+              <code>scratch/bg-ping.log</code> with a timestamp.</li>
+              <li>Hit the endpoint with <code>curl</code> and confirm: <strong>response returns first</strong>,
+                log line appears within a second.</li>
+                <li>Revert the change with <code>git checkout .</code> so the repo is clean again.</li>
+              </ul>
+            </section>
+
+            <section id="phase-1">
+              <h2>
+                <span class="docs-step-number" aria-hidden="true">1</span>
+                Wire the route
+              </h2>
+              <p>Create a new file at <code>app/api/v1/ping_bg.py</code> with the route and the background function in one place — it's a tutorial; in real code the worker function would live in <code>app/services/</code>.</p>
+              <pre class="docs-code"><code class="language-python">from datetime import datetime, UTC
+from pathlib import Path
+
+from fastapi import APIRouter, BackgroundTasks
+
+router = APIRouter()
+
+SCRATCH_LOG = Path("services/portal/internal/scratch/bg-ping.log")
+
+def _write_ping(note: str) -&gt; None:
+    """Background worker — append one timestamped line to the log file."""
+    SCRATCH_LOG.parent.mkdir(parents=True, exist_ok=True)
+    line = f"{datetime.now(UTC).isoformat()} bg-ping note={note}\n"
+    SCRATCH_LOG.write_text(SCRATCH_LOG.read_text() + line if SCRATCH_LOG.exists() else line)
+
+@router.post("/ping-bg")
+def ping_bg(background_tasks: BackgroundTasks, note: str = "hello") -&gt; dict[str, str]:
+    """Schedule a background write, return immediately."""
+    background_tasks.add_task(_write_ping, note)
+    return {"status": "scheduled", "note": note}
+              </code></pre>
+              <p>Register the router in <code>app/api/v1/__init__.py</code> (or wherever the v1 router is composed — match the pattern already used for <code>hello</code>):</p>
+              <pre class="docs-code"><code class="language-python">from app.api.v1.ping_bg import router as ping_bg_router
+
+api_v1_router.include_router(ping_bg_router, tags=["dev-tutorial"])
+              </code></pre>
+              <div class="docs-card docs-card--ghost">
+                <h3 class="docs-card__title">✓ Check your progress</h3>
+                <p>
+                  <code>make run</code> starts without import errors. Visit
+                  <code>http://127.0.0.1:8000/docs</code> — <code>POST /api/v1/ping-bg</code> is
+                  listed under the <em>dev-tutorial</em> tag. If you see an import error,
+                  check the router registration matches the existing <code>hello</code> pattern.
+                </p>
+              </div>
+            </section>
+
+            <section id="phase-2">
+              <h2>
+                <span class="docs-step-number" aria-hidden="true">2</span>
+                Call the endpoint
+              </h2>
+              <p>From a second terminal, call the new route:</p>
+              <pre class="docs-code"><code class="language-bash">curl -X POST "http://127.0.0.1:8000/api/v1/ping-bg?note=first" -w "\n%{time_total}s\n"
+              </code></pre>
+              <p>You should see two things, in this order:</p>
+              <ol>
+                <li>Response body: <code>{"status":"scheduled","note":"first"}</code> followed by a tiny
+                  <code>time_total</code> (typically &lt; 50 ms).</li>
+                  <li>A new line appended to <code>services/portal/internal/scratch/bg-ping.log</code>
+                    within a second of the response.</li>
+                  </ol>
+                  <p>Call it a second time with a different note to confirm appending works:</p>
+                  <pre class="docs-code"><code class="language-bash">curl -X POST "http://127.0.0.1:8000/api/v1/ping-bg?note=second"
+cat services/portal/internal/scratch/bg-ping.log
+                  </code></pre>
+                  <div class="docs-card docs-card--ghost">
+                    <h3 class="docs-card__title">✓ Check your progress</h3>
+                    <p>
+                      The log file has two timestamped lines, in call order, each tagged
+                      with the matching <code>note=</code> value. The HTTP responses came back
+                      before the file was written — that's the whole point of the
+                      background-task pattern. If the log file is empty, the most common cause
+                      is a permissions issue on <code>scratch/</code> — create the directory by
+                      hand and retry.
+                    </p>
+                  </div>
+                </section>
+
+                <section id="phase-3">
+                  <h2>
+                    <span class="docs-step-number" aria-hidden="true">3</span>
+                    Read the trade-offs
+                  </h2>
+                  <p>FastAPI's <code>BackgroundTasks</code> is the lightest possible scheduler. Before you reach for it in real code, register the limits:</p>
+                  <ul>
+                    <li><strong>Same process.</strong> The worker runs in the same uvicorn process. A crash mid-task loses the work; an OOM takes the API with it.</li>
+                    <li><strong>No retries.</strong> If the worker raises, FastAPI logs and moves on. You write retry logic yourself, or you don't have it.</li>
+                    <li><strong>No durability.</strong> Tasks scheduled before a deploy are gone after the deploy.</li>
+                    <li><strong>No observability hooks.</strong> No queue depth, no per-task timing, no alerts — only what you log yourself.</li>
+                  </ul>
+                  <p>That maps to a clear rule: <strong>BackgroundTasks is for fire-and-forget side effects that are safe to lose</strong> — emit-a-webhook, write-an-audit-line, refresh-an-in-memory-cache. The moment "what if it fails" matters, the answer is a real queue (Celery, RQ, Arq, SQS) and a separate worker process — not this.</p>
+                  <div class="docs-card docs-card--ghost">
+                    <h3 class="docs-card__title">✓ Check your progress</h3>
+                    <p>
+                      You can name, in one sentence each, the four limits and the rule that
+                      distinguishes <code>BackgroundTasks</code> from a real queue. Write the rule on
+                      an index card if it helps — you'll re-read it the next time someone
+                      proposes <code>BackgroundTasks</code> for a job that can't be lost.
+                    </p>
+                  </div>
+                </section>
+
+                <section id="phase-4">
+                  <h2>
+                    <span class="docs-step-number" aria-hidden="true">4</span>
+                    Revert
+                  </h2>
+                  <p>Tutorial done — clean the repo so nothing leaks into a real change.</p>
+                  <pre class="docs-code"><code class="language-bash">git checkout -- app/api/v1/__init__.py
+rm -f app/api/v1/ping_bg.py
+rm -f services/portal/internal/scratch/bg-ping.log
+                  </code></pre>
+                  <p>Re-run <code>make verify</code> from a clean tree to confirm nothing else
+                    drifted.</p>
+                    <div class="docs-card docs-card--ghost">
+                      <h3 class="docs-card__title">✓ You're done</h3>
+                      <ol>
+                        <li><code>git status</code> is clean.</li>
+                        <li><code>make verify</code> passes.</li>
+                        <li>You can answer "when would I use <code>BackgroundTasks</code> vs a real queue?"
+                          in one sentence.</li>
+                        </ol>
+                        <p>That is the background-task loop —
+                          <em>route schedules → handler returns → worker runs → side effect lands</em>.
+                          Real workers add durability, retries, and isolation; the loop shape is the
+                          same.</p>
+                        </div>
+                      </section>
+
+                      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+                        <h3 class="docs-card__title">Next step: when fire-and-forget isn't enough</h3>
+                        <ul>
+                          <li><a href="../../foundations/reference/sa/templates/tutorial.html">Tutorial template</a> — shape this tutorial follows.</li>
+                          <li><a href="your-first-pr-through-the-gate.html">SWE · Your first PR through the gate</a> — ship a real change through CI once you've sized this loop up.</li>
+                          <li>API reference — see how the new route renders in the OpenAPI spec.</li>
+                          <li><a href="../../governance/adr/index.html">ADR index</a> — if you need a real queue, that's a decision worth recording.</li>
+                        </ul>
+                      </aside>
+
+                      <footer class="docs-history" aria-label="History">
+                        <h2 class="docs-history__title">History</h2>
+                        <ul class="docs-history__list">
+                          <li class="docs-history__row">
+                            <span class="docs-history__date">2026-05-19</span>
+                            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+                            <span class="docs-history__note">Created on <a href="../../foundations/reference/sa/templates/tutorial.html">tutorial template v1</a> (Diátaxis audit Q1a): SWE wave-2 — schedule → return → side effect → revert, with explicit BackgroundTasks-vs-real-queue trade-off in phase 3.</span>
+                          </li>
+                        </ul>
+                      </footer>
+
+                    </article>
+                  </main>
+
+                  <aside class="docs-toc" aria-label="On this page"></aside>
+                  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+                  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+                </body></html>

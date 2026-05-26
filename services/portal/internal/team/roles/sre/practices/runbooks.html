@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runbooks — senior engineer reasoning encoded for 3 am — Practice 14 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Runbooks</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">14</span>
+        <span class="pa-eyebrow__group">Group C · Incident response</span>
+      </p>
+      <h1>Runbooks — senior engineer reasoning encoded for 3 am</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Per-alert, per-symptom operational guides that tell an on-call engineer exactly what to do when a specific alert fires — what it means, how to diagnose, the ordered remediation steps, and when to escalate.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">A runbook is a decision tree for a specific alert or failure mode, optimised for 3 am use by an engineer who may not be familiar with the service. It covers: what the alert means, the exact commands to run to confirm the diagnosis, the ordered remediation steps, the expected outcome of each step, and the escalation trigger if steps fail. Runbooks are the Pareto priority: write them for the 10 most frequent alerts first (they account for 80% of pages). They are a Definition of Done requirement for any new alert and are updated after every incident where they failed or were missing a step.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="From alert to runbook to mitigation">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Alert fires, on-call opens runbook, diagnostic steps, mitigation, escalation" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="115" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="62" y="106" text-anchor="middle" font-weight="700">Alert fires</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="62" y="124" text-anchor="middle" font-size="10">page · 3 am</text>
+
+        <rect class="pa-svg-box" x="140" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="200" y="106" text-anchor="middle" font-weight="700">Open runbook</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="200" y="124" text-anchor="middle" font-size="10">link in alert</text>
+
+        <rect class="pa-svg-box" x="280" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="340" y="106" text-anchor="middle" font-weight="700">Diagnose</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="340" y="124" text-anchor="middle" font-size="10">exact commands</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="420" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="480" y="106" text-anchor="middle" font-weight="700">Mitigate</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="480" y="124" text-anchor="middle" font-size="10">ordered steps</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="280" y="160" width="260" height="50" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="410" y="182" text-anchor="middle" font-weight="700">Escalate if blocked</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="410" y="200" text-anchor="middle" font-size="10">named senior · what to bring</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="560" y="80" width="75" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="597" y="106" text-anchor="middle" font-weight="700">Verify</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="597" y="124" text-anchor="middle" font-size="10">SLO back</text>
+
+        <path d="M120 110 L135 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M260 110 L275 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M400 110 L415 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M540 110 L555 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M340 140 L340 158" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M480 140 L480 158" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+      </svg>
+      <figcaption class="pa-figure__caption">Alert fires → on-call opens runbook → diagnostic steps → ordered mitigations → verify. Escalation is a named branch, not a dead end. Written for the engineer least familiar with the service.</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p>A <strong>runbook</strong> is an operational decision tree for a specific alert or failure mode. Unlike a general how-to guide (which describes how a system works), a runbook answers one specific question: "This alert just fired at 3 am. What do I do?"</p>
+    <p>A runbook for a specific alert has five sections:</p>
+    <ul>
+      <li><strong>Alert context:</strong> Which alert fired, what the metric measures, and what typical causes are. Links to the dashboard panel showing the alerting signal.</li>
+      <li><strong>Diagnosis steps:</strong> The exact commands to run to confirm what's wrong. Not "check the database" — the exact kubectl exec or SQL query, pre-formatted, ready to copy.</li>
+      <li><strong>Remediation steps:</strong> The ordered list of actions to take to fix the problem, with the expected outcome of each step. "If step 3 produces output X, proceed to step 4. If it produces output Y, skip to step 6."</li>
+      <li><strong>Verification:</strong> How to confirm the fix worked — which metric should return to normal, which log event should appear, what the dashboard should look like after resolution.</li>
+      <li><strong>Escalation trigger:</strong> The specific condition under which to stop following the runbook and call a senior engineer. Who to call, and what information to have ready.</li>
+    </ul>
+
+    <h2 id="why">Why we need it</h2>
+    <p>The best engineers on the team can diagnose any alert from memory. But at 3 am on a Saturday, during a P0 incident affecting thousands of users, you don't want the response to depend on which engineer is on-call. Runbooks encode the senior engineer's diagnostic reasoning so any on-call engineer can execute it. Every minute saved in diagnosis is a minute less downtime for users.</p>
+    <p>Runbooks also democratise on-call. Without them, on-call effectiveness is inversely proportional to how long the engineer has been on the team. With them, a 6-month engineer can resolve 90% of alerts without waking anyone up — and knows exactly when to escalate for the 10% they can't.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Google SRE</p>
+        <p class="pa-industry__what">Google maintains runbooks for every alert in their internal monitoring system, linked from the alert annotation. The runbook development process: a senior engineer writes the first version from memory; it's validated by a junior engineer who follows it blindly on the first incident where it applies; any step that fails or is ambiguous is updated immediately after. The "junior engineer validation" step is the most valuable — it surfaces the implicit knowledge assumptions in the senior engineer's mental model.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Validate every runbook with a junior engineer before it's relied on in production. Steps that seem obvious to the author are frequently ambiguous to someone without context. The validation session is also an onboarding opportunity — the junior engineer learns the system by following the runbook.</p>
+        <p class="pa-industry__source">Source: <a href="https://sre.google/workbook/on-call/" rel="noopener">Google SRE Workbook — On-Call</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Shopify</p>
+        <p class="pa-industry__what">Shopify embeds runbooks directly in PagerDuty alert annotations as a link that opens with one click during an incident. Their runbook format is unusually terse: each step is a single line with a copy button for the command. No prose explanation between steps — the explanation is a collapsible "Why this step?" section that's hidden by default. Engineers who know what they're doing follow the steps; engineers who don't expand the explanation.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Optimise runbook UX for speed under stress. Copy buttons for commands, numbered steps, no long paragraphs. The engineer's cognitive bandwidth during an incident is limited — every word that isn't essential is a word that slows them down.</p>
+        <p class="pa-industry__source">Source: <a href="https://shopify.engineering/" rel="noopener">Shopify Engineering Blog</a></p>
+      </div>
+    </div>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Pareto prioritisation</p><p class="pa-anatomy__hint">Write runbooks for the 10 most frequent alerts first. Use the on-call ticket history to rank by frequency — the top 10 alerts almost always account for 80% of pages. Writing runbooks for long-tail alerts before the high-frequency ones is the opposite of the correct priority.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Pre-formatted commands</p><p class="pa-anatomy__hint">Every command in a runbook is pre-formatted for the production environment — correct namespace, correct service name, correct flags. Never write "run the kubectl describe pod command" — write the exact command with all parameters. The on-call engineer should be able to copy and paste without editing.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">DoD requirement</p><p class="pa-anatomy__hint">No new alert ships to production without a linked runbook. The runbook link is a required field in the alert YAML. CI fails if the link is missing or returns 404. The "write the runbook" task is part of the same sprint as the alert development.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Post-incident update</p><p class="pa-anatomy__hint">If an engineer follows a runbook and it fails or is missing a step, the runbook update is the first action after the incident is resolved. Not a postmortem action item — an immediate update. A runbook that failed in production must be fixed before the next time the same alert fires.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App stores runbooks under <code>services/portal/internal/sre/runbooks/</code> with one Markdown file per alert — the filename matches the alert name so the <code>runbook_url</code> annotation can resolve mechanically. Every runbook follows the same standard template: a one-line <em>symptom</em> statement at the top, a <em>diagnosis</em> block of pre-formatted queries, an ordered list of <em>mitigations</em> each with its expected outcome, and an <em>escalation</em> block naming the next responder and the information to bring.</p>
+    <p>CI on the alert repository at <code>infra/alerts/</code> verifies that every PR introducing or changing an alert points <code>runbook_url</code> at a file that actually exists under <code>services/portal/internal/sre/runbooks/</code>; the link must resolve, the file must contain the four required headings, and the literal string <code>TODO</code> blocks the merge. The first generation of runbooks covers the ten alerts derived from the SLOs in <code>infra/slo/</code> — see <a href="alerting-design.html">Alerting design</a> for how those rules are written and <a href="on-call-handbook.html">On-call handbook</a> for how the page is routed. Runbooks live next to the alerts they serve so a single PR can update both at once.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Runbook anatomy — the four load-bearing parts</h3>
+      <p>Every alert-specific runbook decomposes into the same four sections, in the same order, because each section answers a question the on-call asks in sequence. Drop one and the next one becomes ambiguous.</p>
+      <h4>Symptom statement</h4>
+      <p>One sentence at the top of the page, written in user terms, not metric terms. "Users see elevated 5xx on the Lessons API" beats "<code>job:slo_error_rate:rate1h{service=\"lessons-api\"} &gt; 0.0144</code>" — the latter is in the alert expression already and is not what the on-call needs to read first. The symptom statement is the sanity check: if the dashboard does not match the statement, the page is a false positive and the runbook is the wrong one.</p>
+      <h4>Hypothesis tree</h4>
+      <p>A short list of the most likely causes in descending order of probability, each linked to the exact diagnostic that confirms or rejects it. The tree is not exhaustive — it covers the cases that account for the bulk of historical incidents. Anything not on the tree is by definition an escalation case; the runbook tells the on-call to stop and call rather than improvise. The tree is updated after every incident where the actual cause was missing from it.</p>
+      <h4>Validated mitigations</h4>
+      <p>Each mitigation is a copy-pasteable command (or sequence) that has been executed in staging within the last quarter. "Restart the pod" is not a mitigation — <code>kubectl -n lessons rollout restart deploy/lessons-api</code> is. Beside each command sits the expected output and the next step depending on what happened. Mitigations are ordered by reversibility: the safe ones (scale up, restart) go before the ones that change state (drop traffic, fail over).</p>
+      <h4>Rollback option</h4>
+      <p>Every mitigation that changes the system carries a paired rollback — the command that undoes it. A mitigation without a rollback is a bet, not a fix. The rollback runs the same way the mitigation does: pre-formatted, copy-paste, expected output spelled out. The on-call should never be in a position where the runbook offered a one-way door and the door turned out to lead nowhere.</p>
+      <h3>Operating principles</h3>
+      <h4>The "10 pm test" — can a tired stranger run it</h4>
+      <p>The single most useful review question for a runbook is: <em>could a competent engineer who has never seen this service before, at 10 pm after a full day, follow the runbook end-to-end without asking anyone a question?</em> If the answer is no, the runbook is unfinished. The test catches the implicit assumptions the author absorbed by working on the system for months — "obviously you check the canary first", "obviously the queue lives in this namespace". Obvious to the author, opaque to the on-call.</p>
+      <h4>Living documents — updated after every incident</h4>
+      <p>A runbook is not written once. It is updated immediately after every incident where it was used, with one of three outcomes: a step worked exactly as written (no change), a step was ambiguous and the on-call had to guess (rewrite the step), or a real cause was missing from the hypothesis tree (add the branch). The update is the first post-incident action, not a backlog item — a runbook that failed in production and is not yet fixed will fail the same way the next time the alert fires.</p>
+      <h4>Automation gradient — runbook → script → self-healing</h4>
+      <p>Runbooks are the starting point of an automation gradient, not its destination. A step that has been executed verbatim ten times is a candidate to become a script. A script that has been run successfully without human review is a candidate to become a self-healing action triggered by the alert itself. The runbook is the human-readable specification the automation grew out of; once a step is automated, the runbook entry becomes a one-liner ("the system auto-scales — see <code>k8s/autoscaler.yaml</code>") rather than a procedure. The direction of travel is from manual to automatic; the runbook is the audit trail of how it got there.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Write-time cost is concentrated.</strong> A good runbook for a non-trivial alert takes the author an afternoon and the junior validator another hour. Teams that skip the validation step keep the cost down at write time and pay it at incident time, multiplied by every future page.</li>
+        <li><strong>Maintenance never stops.</strong> Services drift; commands change. A runbook that worked six months ago and was not re-tested in staging is statistically likely to have at least one broken step. The quarterly re-test is non-negotiable — stale runbooks are worse than no runbooks because they cost trust the next time something fires.</li>
+        <li><strong>Cultural pull to over-document.</strong> Long, prose-heavy runbooks feel thorough; they read badly at 3 am. The pressure is constant to add "context" and "background" — both belong elsewhere. The runbook is a decision tree, not a tutorial; the discipline is to keep it that way.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">alert created</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">runbook stub</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">mitigation validated</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">published</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">fires in prod</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">updated post-incident</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">eventually automated</span>
+    </div>
+    <p>A runbook starts life as the alert it serves does — the PR that introduces the alert also introduces a stub at the canonical path. The stub becomes a real document when the author writes the symptom statement, the hypothesis tree, and the first mitigation. The mitigation is then exercised in staging: the command is run against the real cluster, the expected output is captured, the rollback is rehearsed. Only then does the runbook get published — the URL goes live, the alert ships. The first time the alert fires in production is the real exam; whatever ambiguity or missing branch the on-call hits is filed as an immediate fix, not a backlog item. Over time, the cheapest steps drift toward automation — a frequent restart becomes a script, a frequent script becomes a self-healing action, and the runbook entry shortens to a one-line note about the automation that replaced it.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Runbooks that say "contact [service team]"</strong></td>
+            <td>The alert owner doesn't know how to fix the problem.</td>
+            <td>If the runbook's only step is "escalate," it's not a runbook — it's an escalation policy. The diagnosis steps (what to check, what to report to the escalation target) should still be in the runbook even if the fix requires someone else.</td>
+          </tr>
+          <tr>
+            <td><strong>Runbooks with stale commands</strong></td>
+            <td>The system changed; nobody updated the runbook.</td>
+            <td>Quarterly runbook review: test every command in staging. A command that doesn't work in staging won't work at 3 am. Stale runbooks are worse than no runbooks — they waste time and erode trust.</td>
+          </tr>
+          <tr>
+            <td><strong>General operational guides instead of alert-specific runbooks</strong></td>
+            <td>"We have a general troubleshooting guide."</td>
+            <td>A general troubleshooting guide is a reference document for learning; an alert-specific runbook is a decision tree for responding. Both are useful; only the alert-specific runbook helps at 3 am. Write both — link the specific from the general, not the other way around.</td>
+          </tr>
+          <tr>
+            <td><strong>Mitigation without a rollback</strong></td>
+            <td>The author wrote the forward step and stopped.</td>
+            <td>Every state-changing mitigation carries the paired undo command, with the expected output. A one-way door in a runbook is a trap; the on-call needs the rollback before they take the step, not after the step misfired.</td>
+          </tr>
+          <tr>
+            <td><strong>Long prose between steps</strong></td>
+            <td>"Adding context" feels responsible.</td>
+            <td>The runbook is a decision tree, not a tutorial. Context lives in a collapsible "Why this step?" or in a separate explainer; the steps themselves are short, numbered, and copy-paste. At 3 am every extra paragraph is a tax.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Runbook</span>
+        <p class="pa-example__title">RB-001 — Lessons API SLO burn (paired with the multi-burn-rate alert)</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code># Lessons API SLO burn
+
+**Symptom.** Users see elevated 5xx on the Lessons API; the 28-day SLO budget
+is draining &gt; 14× steady state on the 1 h window and &gt; 6× on the 6 h window.
+
+**Dashboard.** https://grafana.studyapp/d/lessons-api-overview
+**Alert.** LessonsApiSLOBurn (P1)
+**Owner.** sre-platform
+
+## Diagnose
+
+1. Confirm user-visible impact:
+
+   ```
+   curl -sS https://grafana.studyapp/api/ds/query \
+     -d '{"q":"sum(rate(http_requests_total{service=\"lessons-api\",code=~\"5..\"}[5m]))"}'
+   ```
+
+   Expect: non-zero, trending up. Zero → false positive, page the alert author.
+
+2. Identify the dominant error class:
+
+   ```
+   kubectl -n lessons logs deploy/lessons-api --since=10m \
+     | grep -E "ERROR|FATAL" | sort | uniq -c | sort -rn | head
+   ```
+
+   Expect: one error dominates. If errors are evenly spread, jump to mitigation 2.
+
+3. Check upstream dependency latency:
+
+   ```
+   kubectl -n lessons exec deploy/lessons-api -- curl -sS http://progress-api:8080/healthz/deps
+   ```
+
+   Expect: all dependencies report `ok` &lt; 100 ms. A slow `progress-api` is the
+   most common cause and indicates mitigation 2.
+
+## Mitigate
+
+### Mitigation 1 — scale up Lessons API (safe, fast)
+
+```
+kubectl -n lessons scale deploy/lessons-api --replicas=12
+```
+
+**Expected.** Replica count climbs to 12 within 90 s; 5xx rate halves within
+3 minutes. If 5xx rate does not drop, the bottleneck is downstream — go to
+mitigation 2.
+
+**Rollback.**
+
+```
+kubectl -n lessons scale deploy/lessons-api --replicas=6
+```
+
+### Mitigation 2 — circuit-break the progress-api dependency
+
+If diagnose step 3 showed progress-api slow:
+
+```
+kubectl -n lessons set env deploy/lessons-api PROGRESS_API_CIRCUIT=open
+kubectl -n lessons rollout status deploy/lessons-api
+```
+
+**Expected.** Lessons API returns degraded but successful 200s for progress
+reads (served from cache); 5xx rate drops to baseline within 2 minutes.
+
+**Rollback.**
+
+```
+kubectl -n lessons set env deploy/lessons-api PROGRESS_API_CIRCUIT=closed
+kubectl -n lessons rollout status deploy/lessons-api
+```
+
+## Verify
+
+- Grafana panel "Lessons API · 5xx rate" returns to baseline (&lt; 0.1%).
+- `LessonsApiSLOBurn` clears within one 6 h window (auto-clears on burn-rate reset).
+- No new ERROR log lines in the last 5 minutes.
+
+## Escalate
+
+If both mitigations have run and the 5xx rate has not dropped, or if diagnose
+step 3 shows multiple dependencies unhealthy, page the on-call senior at
+`@sre-platform-secondary` in PagerDuty with: (1) link to this alert, (2) output
+of diagnose steps 1-3, (3) which mitigations were attempted and at what time.
+        </code></pre>
+        <p><strong>What this runbook does.</strong> It tells the on-call, in order, how to confirm the page is real, which of two known causes they are seeing, and the exact command — with rollback — that fixes each one. The two mitigations are validated in staging quarterly; the rollback for each is a single line; the escalation branch names the next responder and the information to bring rather than vaguely pointing at the team channel. A six-month engineer can run this end-to-end at 3 am without waking the author.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every page-tier alert has a real runbook</p><p class="pa-quality__hint">CI rejects the alert PR if <code>runbook_url</code> 404s, the file is empty, or it contains the literal string <code>TODO</code>.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Symptom statement in user terms</p><p class="pa-quality__hint">Top of the page is a single sentence about user-visible impact, not the alert expression.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Diagnostics are copy-paste commands</p><p class="pa-quality__hint">No "run the kubectl command" — every line is pre-formatted with the production namespace, service name, and flags.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every state-changing mitigation has a rollback</p><p class="pa-quality__hint">Forward command and undo command share the same format; both have been exercised in staging within the last quarter.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Escalation block names a specific responder</p><p class="pa-quality__hint">Who to page, in which channel, with what information ready. "Contact the team" does not satisfy this bar.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Junior-validated before going live</p><p class="pa-quality__hint">A different engineer follows the runbook end-to-end in staging; ambiguous steps are rewritten before the alert ships.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Updated after every incident where it was used</p><p class="pa-quality__hint">The post-incident update is the first action, not a backlog item; ambiguities and missing branches are closed before the next page.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://sre.google/workbook/on-call/" rel="noopener">Google SRE Workbook — Playbooks chapter</a><span class="pa-refs__hint">The canonical reference for runbook-as-decision-tree; covers junior-validation and the post-incident update loop.</span></li>
+          <li><a href="https://response.pagerduty.com/" rel="noopener">PagerDuty Incident Response Ops Guide</a><span class="pa-refs__hint">Operational discipline around runbook linkage from alerts and the cognitive constraints of the on-call at 3 am.</span></li>
+          <li><a href="https://charity.wtf/" rel="noopener">Charity Majors &amp; Liz Fong-Jones — operational writing</a><span class="pa-refs__hint">The case for living documents, observability-first triage, and the cultural reversal that makes runbooks survive.</span></li>
+          <li><a href="https://about.gitlab.com/handbook/engineering/infrastructure/" rel="noopener">GitLab runbook handbook</a><span class="pa-refs__hint">A public, end-to-end example of a runbook library — structure, naming, CI enforcement, and the post-incident update workflow.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="alerting-design.html">Alerting design — what the runbook is paired with</a><span class="pa-refs__hint">A page without a runbook does not ship; this is the rule on the other end of the link.</span></li>
+          <li><a href="incident-command.html">Incident command — the role that escalates into</a><span class="pa-refs__hint">The escalation branch points here; the incident commander is who picks up when the runbook runs out.</span></li>
+          <li><a href="on-call-handbook.html">On-call handbook — who receives the page</a><span class="pa-refs__hint">Routing, ACK SLAs, escalation policy — the human context the runbook fits into.</span></li>
+          <li><a href="blameless-postmortem.html">Blameless post-mortem — where runbook updates are logged</a><span class="pa-refs__hint">Every post-mortem that touched a runbook records the change; the loop closes here.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-14">2026-05-14</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: Runbooks practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

@@ -1,0 +1,276 @@
+/* ui-kit/components/interactive-checklist.css — checklist of large
+   tone-railed cards with real checkboxes whose state persists in
+   localStorage. Pairs a progress meter on top (count · bar · reset)
+   with a strikethrough-on-check item style. Used for "walk this list
+   before opening a PR" gates (sa principles, release-readiness, etc.)
+
+   Behaviour comes from `interactive-checklist.js` which mounts on the
+   `[data-component="interactive-checklist"]` wrapper. */
+
+/* ─── Progress meter (count + bar + reset) ──────────────────────── */
+
+.checklist-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev);
+}
+
+.checklist-meta__progress {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-200);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.checklist-meta__num {
+  font-size: var(--fs-500);
+  font-weight: var(--fw-bold);
+  color: var(--accent);
+  letter-spacing: 0;
+  transition: color 180ms var(--ease-out);
+  font-variant-numeric: tabular-nums;
+}
+
+.checklist-meta[data-complete="true"] .checklist-meta__num {
+  color: var(--success);
+}
+
+.checklist-meta__bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-mute);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.checklist-meta__bar-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--info));
+  transition:
+    width 220ms var(--ease-out),
+    background 220ms var(--ease-out);
+}
+
+.checklist-meta[data-complete="true"] .checklist-meta__bar-fill {
+  background: linear-gradient(90deg, var(--success), var(--teal));
+}
+
+.checklist-meta__reset {
+  font-family: var(--font-mono);
+  font-size: var(--fs-100);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  transition:
+    border-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.checklist-meta__reset:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  color: var(--accent);
+}
+
+/* ─── The list itself ──────────────────────────────────────────── */
+
+.checklist-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: chk;
+}
+
+.checklist-item { counter-increment: chk; }
+
+.checklist-item__label {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.8rem 1fr;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-left: var(--rail-w) solid var(--card-tone, var(--accent));
+  border-radius: var(--radius-md);
+  background: var(--bg-elev);
+  cursor: pointer;
+  transition:
+    background 180ms var(--ease-out),
+    border-color 180ms var(--ease-out);
+}
+
+.checklist-item[data-tone="accent"]  .checklist-item__label { --card-tone: var(--accent); }
+.checklist-item[data-tone="info"]    .checklist-item__label { --card-tone: var(--info); }
+.checklist-item[data-tone="warn"]    .checklist-item__label { --card-tone: var(--warn); }
+.checklist-item[data-tone="success"] .checklist-item__label { --card-tone: var(--success); }
+.checklist-item[data-tone="rose"]    .checklist-item__label { --card-tone: var(--rose); }
+
+.checklist-item__label:hover {
+  background: color-mix(in srgb, var(--card-tone) 4%, var(--bg-elev));
+  border-color: color-mix(in srgb, var(--card-tone) 30%, var(--line));
+}
+
+/* Visually-hidden real input — focusable for a11y, but the box span is
+   what's drawn. */
+.checklist-item__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.checklist-item__box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-top: 0.15rem;
+  border: 1.5px solid color-mix(in srgb, var(--card-tone) 60%, var(--line));
+  border-radius: var(--radius-xs);
+  background: var(--bg-mute);
+  color: transparent;
+  font-size: 0.9rem;
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  transition:
+    background 160ms var(--ease-out),
+    border-color 160ms var(--ease-out),
+    color 160ms var(--ease-out);
+}
+
+.checklist-item__box::before { content: "✓"; }
+
+.checklist-item__input:focus-visible ~ .checklist-item__box {
+  outline: 2px solid var(--card-tone);
+  outline-offset: 2px;
+}
+
+.checklist-item__input:checked ~ .checklist-item__box {
+  background: var(--card-tone);
+  border-color: var(--card-tone);
+  color: #fff;
+}
+
+/* Body inside each item */
+.checklist-item__body { min-width: 0; }
+
+.checklist-item__num {
+  font-family: var(--font-mono);
+  font-size: var(--fs-100);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--card-tone) 75%, var(--muted));
+  margin: 0 0 var(--space-1);
+}
+
+.checklist-item__num::before {
+  content: counter(chk, decimal-leading-zero) " · ";
+}
+
+.checklist-item__q {
+  margin: 0;
+  font-size: var(--fs-400);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  line-height: 1.25;
+  transition:
+    color 180ms var(--ease-out),
+    text-decoration-color 180ms var(--ease-out);
+}
+
+.checklist-item__yes {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-300);
+  color: var(--muted);
+  line-height: var(--lh-base);
+}
+
+.checklist-item__yes strong { color: var(--text-strong); }
+
+.checklist-item__yes code {
+  font-size: 0.9em;
+  padding: 1px 5px;
+  background: var(--bg-mute);
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  -webkit-box-decoration-break: clone;
+          box-decoration-break: clone;
+}
+
+.checklist-item__see {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-100);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.checklist-item__see a {
+  color: var(--card-tone);
+  text-decoration: none;
+}
+
+.checklist-item__see a:hover {
+  text-decoration: underline;
+}
+
+/* Checked state — strike through, dim the supporting lines. */
+.checklist-item__input:checked ~ .checklist-item__body .checklist-item__q {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--card-tone) 50%, transparent);
+  text-decoration-thickness: 2px;
+}
+
+.checklist-item__input:checked ~ .checklist-item__body .checklist-item__yes,
+.checklist-item__input:checked ~ .checklist-item__body .checklist-item__see {
+  opacity: 0.6;
+}
+
+/* ─── Stop-rule callout (optional, sits below the list) ─────────── */
+
+.checklist-footnote {
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: var(--rail-w) solid var(--warn);
+  background: color-mix(in srgb, var(--warn) 4%, var(--bg-mute));
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  font-size: var(--fs-300);
+  color: var(--text);
+}
+
+.checklist-footnote strong { color: var(--text-strong); }
+
+/* ─── Mobile ────────────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .checklist-meta { flex-wrap: wrap; }
+  .checklist-meta__bar { order: 3; flex-basis: 100%; }
+  .checklist-item__label {
+    grid-template-columns: 1.6rem 1fr;
+    padding: var(--space-3) var(--space-4);
+  }
+}

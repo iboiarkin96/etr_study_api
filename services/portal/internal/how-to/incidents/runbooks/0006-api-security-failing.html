@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runbook 0006 · API security failing · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Runbooks</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0006 · API security failing</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--danger">Runbook</span>
+          <span class="docs-pill docs-pill--warn">Security</span>
+        </div>
+        <h1>0006 — API security failing</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Auth, rate-limit, body-size, CORS, and security-header failures on protected endpoints. Recovery by HTTP status category.</p>
+      </header>
+
+      <h2 id="trigger">Trigger</h2>
+      <ul>
+        <li><code>401</code> responses for protected endpoints even with expected credentials.</li>
+        <li><code>429</code> spikes on normal traffic profile.</li>
+        <li><code>413</code> responses after payload changes.</li>
+        <li>CORS errors in browser or missing expected security headers in responses.</li>
+      </ul>
+
+      <h2 id="triage">Fast triage</h2>
+      <ol>
+        <li>Check current env values for security settings in <code>.env</code>.</li>
+        <li>Verify request contains auth header configured by <code>API_AUTH_HEADER</code>.</li>
+        <li>Reproduce with one endpoint: <code>POST /api/v1/user</code>.</li>
+        <li>Inspect application logs for security middleware warnings.</li>
+      </ol>
+
+      <h2 id="causes">Most common causes</h2>
+      <ul>
+        <li>Wrong <code>API_MOCK_API_KEY</code> or wrong header name.</li>
+        <li>Unexpected aggressive rate-limit settings for local/test load.</li>
+        <li>Payload grew beyond <code>API_BODY_MAX_BYTES</code>.</li>
+        <li>Frontend origin missing in <code>CORS_ALLOW_ORIGINS</code>.</li>
+        <li>Middleware order or behavior changed without tests or an ADR.</li>
+      </ul>
+
+      <h2 id="recovery">Recovery steps by category</h2>
+      <h3>Auth failures (<code>401</code>)</h3>
+      <ul>
+        <li>Validate <code>API_AUTH_STRATEGY</code> is expected (<code>mock_api_key</code> or <code>disabled</code>).</li>
+        <li>Confirm request sends <code>API_AUTH_HEADER</code> with <code>API_MOCK_API_KEY</code> value.</li>
+        <li>Re-run tests: <code>make test-one path=tests/api/v1/test_user_create.py</code>.</li>
+      </ul>
+      <h3>Rate-limit overblocking (<code>429</code>)</h3>
+      <ul>
+        <li>Check <code>API_RATE_LIMIT_REQUESTS</code> and <code>API_RATE_LIMIT_WINDOW_SECONDS</code>.</li>
+        <li>Validate client retry/backoff behavior.</li>
+        <li>Before raising limits, agree policy in an ADR and update docs.</li>
+      </ul>
+      <h3>Body limit errors (<code>413</code>)</h3>
+      <ul>
+        <li>Measure actual payload size and compare with <code>API_BODY_MAX_BYTES</code>.</li>
+        <li>Reduce request body or plan dedicated upload flow.</li>
+        <li>If increasing limit, update <code>env/example</code>, docs, and test coverage.</li>
+      </ul>
+      <h3>CORS / security headers</h3>
+      <ul>
+        <li>Ensure frontend origin is explicitly allowlisted.</li>
+        <li>Verify response headers include CSP and frame/content-type protections.</li>
+        <li>Confirm browser preflight (<code>OPTIONS</code>) behavior is not blocked by auth/rate-limit.</li>
+      </ul>
+
+      <h2 id="final">Final recovery sequence</h2>
+      <pre class="docs-code"><code class="language-bash">make test
+make verify
+      make docs-fix</code></pre>
+
+      <h2 id="exit">Exit criteria</h2>
+      <ul>
+        <li>Protected endpoints behave as expected for auth, rate limit, and body size.</li>
+        <li>CORS and security headers are present and validated.</li>
+        <li>CI passes and docs match the security settings you ship.</li>
+      </ul>
+
+      <h2 id="followup">Follow-up</h2>
+      <ul>
+        <li>Security policy changes belong in an ADR.</li>
+        <li>Add new repeating patterns to this runbook.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; recovery by category with h3 sub-sections; shell snippet on <code>docs-code language-bash</code>.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#trigger">Trigger</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#triage">Fast triage</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#causes">Common causes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#recovery">Recovery by category</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#final">Final sequence</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#exit">Exit criteria</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#followup">Follow-up</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

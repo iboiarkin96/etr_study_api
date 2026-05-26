@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Root Cause Analysis — identify why defects escaped detection · Practice 18 · QA Engineer</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">QA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Root Cause Analysis</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <div class="pa-page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">18</span>
+        <span class="pa-eyebrow__group">Group D · Defect &amp; Metrics</span>
+      </p>
+      <h1 class="pa-title">Root Cause Analysis — identify why defects escaped detection</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">Goes beyond fixing the bug to fix the process that let it escape — so the same class of defect cannot recur.</p>
+    </div>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">QA root-cause analysis asks two questions for every escape: <em>why did the defect exist</em> (the engineering cause) and <em>why did our test process not catch it</em> (the QA cause). The standard technique is the 5-Whys (Sakichi Toyoda, Toyota): iterate downward from the symptom to the systemic cause; the supplementary technique is the Fishbone (Kaoru Ishikawa) diagram for multi-factor causes. The output is two action items: a regression test that catches this specific defect, and a process change that catches this <em>class</em> of defects. Blameless framing is non-negotiable (Allspaw, Etsy postmortems). Without RCA, defects recur and the team stays reactive; with RCA, each escape becomes the input to a permanent improvement. Toyota's Production System, Etsy &amp; Google's blameless postmortems, and NASA's IV&amp;V tradition all use the same essential method.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="5-Whys cascade diagram">
+      <svg viewBox="0 0 760 290" role="img" aria-label="Five-whys cascade from symptom to systemic cause to action items">
+        <defs>
+          <marker id="rca-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#2563eb)"></path>
+          </marker>
+        </defs>
+        <text x="380" y="22" text-anchor="middle" font-weight="700" font-size="13">5-Whys cascade — symptom → systemic cause → action items</text>
+        <g font-family="JetBrains Mono, monospace" font-size="10">
+          <rect x="30" y="46" width="700" height="32" rx="6" fill="rgba(220,38,38,0.10)" stroke="#dc2626"></rect>
+          <text x="40" y="66" font-weight="700">Symptom:</text>
+          <text x="115" y="66">Quiz submission lost answers on connection drop (user-reported, P0)</text>
+          <rect x="30" y="84" width="700" height="32" rx="6" fill="rgba(245,158,11,0.10)" stroke="#f59e0b"></rect>
+          <text x="40" y="104" font-weight="700">Why 1?</text>
+          <text x="100" y="104">Server rejected the retry as "duplicate" without an idempotency key</text>
+          <rect x="30" y="122" width="700" height="32" rx="6" fill="rgba(245,158,11,0.10)" stroke="#f59e0b"></rect>
+          <text x="40" y="142" font-weight="700">Why 2?</text>
+          <text x="100" y="142">Autosave endpoint never required idempotency keys; not in the spec</text>
+          <rect x="30" y="160" width="700" height="32" rx="6" fill="rgba(139,92,246,0.10)" stroke="#8b5cf6"></rect>
+          <text x="40" y="180" font-weight="700">Why 3?</text>
+          <text x="100" y="180">Network-failure scenario wasn't in the test plan or the design review</text>
+          <rect x="30" y="198" width="700" height="32" rx="6" fill="rgba(139,92,246,0.10)" stroke="#8b5cf6"></rect>
+          <text x="40" y="218" font-weight="700">Why 4?</text>
+          <text x="100" y="218">Three-amigos session was skipped under deadline; no edge-case enumeration</text>
+          <rect x="30" y="236" width="700" height="32" rx="6" fill="rgba(22,163,74,0.16)" stroke="#16a34a"></rect>
+          <text x="40" y="256" font-weight="700">Why 5 (root):</text>
+          <text x="120" y="256">No sprint policy requiring three-amigos for new endpoints — process gap</text>
+        </g>
+      </svg>
+      <figcaption class="pa-figure__caption">Each "why" peels back a layer. The defect is at Why 1; the systemic cause is at Why 5. The fix at Why 1 prevents this bug; the fix at Why 5 prevents this entire class of defects.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>Root Cause Analysis (RCA) is the structured investigation that follows an escaped defect (or an incident) to identify the systemic cause and produce a permanent fix. For QA, the framing is specifically: "why did this defect exist <em>and</em> why did our test process not catch it before it reached the user?" Two causes per escape, two fixes — one for the bug, one for the process.</p>
+      <p>The canonical technique is the 5-Whys (Sakichi Toyoda, Toyota Production System): iterate downward from the observable symptom by asking "why?" until the answer is a systemic cause rather than a proximate symptom. Five iterations is a heuristic — the answer is found wherever the iteration produces a process-level fact, not after exactly five steps. The supplementary technique is the Ishikawa / Fishbone diagram, useful when the cause is multi-factor (People / Process / Tools / Data / Environment).</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Without RCA, the team fixes the symptom and the same class of defect recurs. With RCA, the team fixes the system that produced the symptom and the class cannot recur the same way. The leverage is enormous: a single RCA can prevent dozens of future defects in the same class. The QA-specific framing — "why didn't our tests catch this?" — also closes the loop on the test process itself, turning every escape into a test-suite improvement.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Toyota · 5-Whys &amp; Toyoda</p>
+          <p class="pa-industry__what">Sakichi Toyoda's 5-Whys originated in the Toyota Production System and was codified by Taiichi Ohno (<em>Toyota Production System: Beyond Large-Scale Production</em>, 1988). The technique is one of the seven core Lean problem-solving tools. Ohno's famous example: a machine stops → fuse blew → bearing failed → lubrication insufficient → pump worn out → no filter on the pump (root cause). The fix at root prevented all five of the surface symptoms. The technique migrated to software via Lean Software Development and is now the most-cited RCA method.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> ask "why" until the answer is a system property, not a person's behaviour; if the answer names a person, you stopped too early.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.lean.org/lexicon-terms/5-whys/" rel="noopener">Lean Enterprise Institute — 5 Whys</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Etsy &amp; Allspaw · blameless postmortems</p>
+          <p class="pa-industry__what">John Allspaw's "Blameless PostMortems and a Just Culture" (Etsy, 2012) and his subsequent PhD work codify the blameless framing for incident analysis. The core claim: human error is a symptom, not a cause; "operator made mistake" is never the root cause; the cause is the system that allowed the mistake. Blameless framing is structural — without it, attendees self-protect and information is hidden, so the analysis fails. Etsy's postmortem template (cause, contributing factors, timeline, remediation) is now the industry default; Google SRE's postmortem culture chapter (SRE Book) is the most-cited articulation.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> "operator error" is never a root cause; it is always a symptom of a system that allowed the error. Blameless framing is non-negotiable.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.etsy.com/codeascraft/blameless-postmortems" rel="noopener">Etsy — Blameless Postmortems</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">NASA &amp; aerospace · fishbone + fault tree</p>
+          <p class="pa-industry__what">NASA's mishap investigation process (NPR 8621.1) uses fishbone diagrams + fault-tree analysis for multi-factor causes — failure modes are decomposed into and/or trees showing every path that could lead to the observed failure. Aerospace and medical-device industries follow similar standards (IEC 62740 — Root Cause Analysis). The rigour pays off where failure cost is extreme; for software, the techniques are over-engineered for routine defects but right for incidents with significant user impact.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> for high-impact incidents (P0/P1 escapes), supplement 5-Whys with a fishbone diagram — multi-factor causes are easier to see in a tree than in a linear cascade.</p>
+          <p class="pa-industry__source">Source: <a href="https://standards.nasa.gov/standard/NPR-8621-1" rel="noopener">NASA — NPR 8621.1 Mishap Investigation</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Google SRE · postmortem culture</p>
+          <p class="pa-industry__what">Google's SRE Book (Beyer, Jones, Petoff, Murphy, 2016) chapter on postmortem culture defines the canonical postmortem template: incident summary, impact (user-facing + revenue + duration), timeline, root cause, contributing factors, what went well, what went poorly, where we got lucky, action items (with owners and due dates). The postmortem is blameless, published broadly, and the action items are tracked to completion. Google's data: services with consistent postmortem culture have 50% lower MTTR and 40% fewer recurring incidents.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> publish postmortems broadly (within the org) — the learning value is highest when other teams can read them; tracking action items to completion is what makes the practice work.</p>
+          <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/postmortem-culture/" rel="noopener">Google SRE Book — Postmortem Culture</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of an RCA</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Symptom</p>
+          <p class="pa-anatomy__hint">The observable defect with severity, impact, and discovery time. Specific (data loss on quiz submission), not vague (something broke).</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Engineering cause</p>
+          <p class="pa-anatomy__hint">The code-level cause: missing idempotency key, off-by-one, race condition, schema mismatch. The bug.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Test-process cause</p>
+          <p class="pa-anatomy__hint">Why the test suite did not catch it: missing test layer, missing scenario, scenario covered but assertion too weak, scenario skipped under deadline.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Systemic cause</p>
+          <p class="pa-anatomy__hint">The process or policy gap behind the test-process cause: no three-amigos policy, no chaos-test category, design-review missing step. The system.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Two actions</p>
+          <p class="pa-anatomy__hint">One regression test that prevents the specific bug; one process change that prevents the class. Each with named owner and due date.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Blameless framing</p>
+          <p class="pa-anatomy__hint">Document discusses the system, not individuals. "Operator made mistake" is rewritten as "system allowed operator to make mistake."</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to run an RCA</h2>
+      <ol class="pa-how">
+        <li><strong>Open with the symptom.</strong> Specific observable failure, severity, impact, discovery time. Without precision the analysis wanders.</li>
+        <li><strong>Iterate 5-Whys.</strong> Ask "why?" until the answer is a system property, not a person's behaviour. Document each step; stopping at "the developer forgot" is the most common error.</li>
+        <li><strong>Separate engineering &amp; test-process causes.</strong> Two parallel cascades: one on the bug, one on the test-suite gap; both reach systemic causes.</li>
+        <li><strong>Use fishbone for multi-factor incidents.</strong> When the cause is not a single chain (timing + config + load), draw the Ishikawa diagram with People / Process / Tools / Data / Environment branches.</li>
+        <li><strong>Enforce blameless framing.</strong> "Operator error" rewritten as "system allowed error." Facilitator shuts down naming-of-individuals; psychological safety is the input to honest analysis.</li>
+        <li><strong>Produce two actions.</strong> Regression test (specific) + process change (class); each with owner, due date, and success criterion.</li>
+        <li><strong>Track to completion.</strong> Actions on the retro board; status reviewed at next retro; closure rate is the practice's outcome metric.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive</h2>
+      <p>The "two-question" framing (why did the defect exist, why did the test process not catch it) is the QA-specific contribution to RCA. Engineering RCAs typically ask only the first question; QA RCAs must ask both. The first leads to code-level fixes; the second leads to test-suite and process-level fixes. Without the second, the bug recurs in a different feature; with the second, the test-process gap is closed and the class is prevented. The discipline costs a few minutes per RCA and prevents dozens of future defects.</p>
+      <p>The 5-Whys is a heuristic, not a literal count. The right stopping rule is "when the answer is a system property, not a person's behaviour." Sometimes that's three whys; sometimes seven. Stopping at "the developer forgot" is the most common error — "forgot" is a symptom; the cause is the system that allowed the forgetting. Stopping too late (over-decomposing) is the second error — chasing causes back to "the universe is complicated" produces no actionable fix. The pragmatic rule: stop when the answer names a process, policy, tool, or system that can be changed.</p>
+      <p>Blameless framing is structural, not cultural. Allspaw's claim, validated across thousands of incidents, is that human error is always a symptom of a system that allowed the error. "Operator pressed the wrong button" is never the cause; the cause is the system that placed the wrong button next to the right one, or that made the right action ambiguous under pressure. Framing the RCA blamelessly is not about being nice — it is about getting accurate information. Attendees who fear blame hide information; the analysis fails. Blameless framing is the operational input to honest analysis.</p>
+      <p>Fishbone (Ishikawa) supplements 5-Whys for multi-factor causes. The 5-Whys is linear — one cause leads to one cause leads to one cause. Real incidents are often non-linear: a timing window opened (cause A) while a config was set wrong (cause B) while traffic was high (cause C); none alone would have caused the failure. Fishbone diagrams handle this by branching: People, Process, Tools, Data, Environment, each with sub-causes. For most QA RCAs the 5-Whys is sufficient; for major incidents (P0 with multiple contributing factors) the fishbone is the right tool. Both produce action items; the difference is the cause-mapping.</p>
+      <p>The two-actions discipline (regression + process change) is the practice's compounding mechanism. The regression test prevents the specific bug; the process change prevents the class. Over time the process changes accumulate — a new three-amigos policy, a new chaos-test category, a new design-review item — and the team's test-process gets structurally stronger. Without process actions, each escape produces only a regression test; the test suite grows but the underlying process stays the same. Process actions are harder to write and harder to track (they don't have a clear "test passes" criterion) but are higher-leverage.</p>
+      <p>Tracking action items to completion is the practice's failure mode if neglected. Google's postmortem culture data: 50% lower MTTR and 40% fewer recurring incidents when action items are tracked to completion vs. when they're filed but not tracked. The standard practice: action items on the retro board, status reviewed at next retro, incomplete actions either re-planned or dropped (with rationale). Zombie actions (carried forever, never completed) erode the practice's credibility. Closure rate &gt; 70% is the bar.</p>
+      <p>Publishing RCAs broadly within the org increases their value. A single team's escape teaches that team; a published RCA teaches every team that reads it. Google publishes postmortems internally, Etsy publishes externally for major incidents, Atlassian shares them in their engineering Slack. The transparency also enforces quality — a poorly-reasoned RCA is visible and gets challenged. For Study App, RCAs are shared in the #qa channel and linked from the escape-rate dashboard; the practice scales the team's learning beyond the people in the room.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle</h2>
+      <div class="pa-lifecycle">
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">1</span>
+          <p class="pa-lifecycle__name">Trigger</p>
+          <p class="pa-lifecycle__hint">Every escape (or P0/P1 incident) triggers an RCA within 7 days; cadence enforced via the escape-rate dashboard.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">2</span>
+          <p class="pa-lifecycle__name">Analyse</p>
+          <p class="pa-lifecycle__hint">RCA meeting (45 min); facilitator runs 5-Whys (or fishbone) blamelessly; engineering + QA + product attend.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">3</span>
+          <p class="pa-lifecycle__name">Document</p>
+          <p class="pa-lifecycle__hint">Standard template: symptom, engineering cause, test-process cause, systemic cause, two actions, blameless framing.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">4</span>
+          <p class="pa-lifecycle__name">Publish</p>
+          <p class="pa-lifecycle__hint">RCA shared in team channel and linked from escape-rate dashboard; visible to all teams.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">5</span>
+          <p class="pa-lifecycle__name">Execute actions</p>
+          <p class="pa-lifecycle__hint">Regression test added; process change implemented; status on retro board; reviewed at next retro.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">6</span>
+          <p class="pa-lifecycle__name">Verify prevention</p>
+          <p class="pa-lifecycle__hint">Track the recurrence rate of the defect class; if &gt; 0, the RCA was incomplete and is re-run.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+        <table class="pa-pitfalls">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Stopping at "operator error"</td>
+              <td>Naming a person feels like an answer; it's not — it's a symptom of a system that allowed the error.</td>
+              <td>Ask "why did the system allow this person to make this mistake?" until the answer is a system property.</td>
+            </tr>
+            <tr>
+              <td>Skipping the test-process cause</td>
+              <td>The bug is fixed; "we'll catch it next time" — but next time is exactly the failure mode.</td>
+              <td>Always ask "why did the test process not catch this?"; produce a process action, not just a code fix.</td>
+            </tr>
+            <tr>
+              <td>Blameful framing</td>
+              <td>Attendees fear blame; information is hidden; the analysis is shallow.</td>
+              <td>Read Allspaw's blameless directive at the start; facilitator shuts down naming-of-individuals fast.</td>
+            </tr>
+            <tr>
+              <td>Linear 5-Whys for multi-factor cause</td>
+              <td>Two or three independent contributors combined to produce the failure; 5-Whys forces one chain.</td>
+              <td>Use fishbone diagrams for multi-factor causes; the branching captures non-linear causality.</td>
+            </tr>
+            <tr>
+              <td>Actions filed but not tracked</td>
+              <td>RCA produces good actions; they're filed; no one follows up; same bug class recurs.</td>
+              <td>Track action closure rate &gt; 70%; review at next retro; incomplete actions re-planned or dropped with rationale.</td>
+            </tr>
+            <tr>
+              <td>RCA hoarded by QA</td>
+              <td>The RCA lives on a QA wiki; other teams never see it; the learning value is wasted.</td>
+              <td>Publish RCAs broadly (team channel, escape-rate dashboard); the audience size determines the practice's compounding return.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — Study App quiz-autosave escape (week 24)</h2>
+      <p><strong>Symptom:</strong> Quiz submission lost the user's answer on connection drop; reported by 3 users in week 24; severity P0 (data loss); discovery: support ticket → triage.</p>
+      <p><strong>5-Whys cascade:</strong></p>
+      <ul>
+        <li><em>Why 1?</em> Server rejected the autosave retry as a "duplicate" without an idempotency key.</li>
+        <li><em>Why 2?</em> Autosave endpoint did not require an idempotency key; not in the OpenAPI spec.</li>
+        <li><em>Why 3?</em> The intermittent-connectivity scenario was not in the test plan or the design review.</li>
+        <li><em>Why 4?</em> The three-amigos session for autosave was skipped under deadline; no edge-case enumeration produced.</li>
+        <li><em>Why 5 (root):</em> No sprint policy requiring a three-amigos session for new endpoints — process gap.</li>
+      </ul>
+      <p><strong>Engineering cause:</strong> autosave endpoint accepted duplicate requests without idempotency, dropping the second body. <strong>Test-process cause:</strong> no chaos-test category covering intermittent-connectivity scenarios; no exploratory charter ran on the autosave feature. <strong>Systemic cause:</strong> three-amigos policy was guidance, not requirement; skipped under schedule pressure.</p>
+      <p><strong>Actions:</strong> (1) Regression — add chaos-test "submit-then-disconnect-then-reconnect" to the standard suite (owner: backend QA, due: 2026-06-08, success: test passes on PR + on nightly). (2) Process — make three-amigos a release-gate criterion for any new endpoint (owner: QA lead, due: 2026-06-15, success: 100% of new endpoints in 4 consecutive sprints went through three-amigos).</p>
+      <p><strong>Outcome:</strong> both actions closed within their due dates. Chaos test caught a similar bug in week 28 (the badge-award endpoint had the same idempotency gap). Three-amigos policy adopted; engineering tech lead reports it added ~30 minutes per new endpoint and prevented an estimated 2 additional escapes in the following 8 weeks.</p>
+    </section>
+
+    <section id="quality-bar">
+      <h2>Quality bar</h2>
+      <div class="pa-quality">
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Senior bar</p>
+          <p class="pa-quality__hint">Every escape gets an RCA within 7 days; two-question framing (engineering + test-process cause); blameless framing enforced; fishbone supplement for multi-factor incidents. Two actions per RCA (regression + process); closure rate &gt; 70%; published broadly within the org. Recurrence rate of the same defect class &lt; 5%.</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Mid bar</p>
+          <p class="pa-quality__hint">RCAs run on P0/P1 escapes; 5-Whys cascade documented; one regression + one process action per RCA; blameless framing in writing.</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Junior bar</p>
+          <p class="pa-quality__hint">Can facilitate a 5-Whys cascade given an incident timeline, separate engineering and test-process causes, and produce one regression + one process action.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://www.lean.org/lexicon-terms/5-whys/" rel="noopener">Lean Enterprise Institute — 5 Whys</a> — Toyoda's canonical method.</li>
+        <li><a href="https://www.etsy.com/codeascraft/blameless-postmortems" rel="noopener">Etsy — Blameless Postmortems</a> — Allspaw's just-culture framing.</li>
+        <li><a href="https://sre.google/sre-book/postmortem-culture/" rel="noopener">Google SRE Book — Postmortem Culture</a> — canonical postmortem template.</li>
+        <li><a href="https://asq.org/quality-resources/fishbone" rel="noopener">ASQ — Fishbone Diagram</a> — Ishikawa cause-and-effect method.</li>
+        <li><a href="https://standards.nasa.gov/standard/NPR-8621-1" rel="noopener">NASA — NPR 8621.1 Mishap Investigation</a> — aerospace-grade RCA.</li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Rewrote to SA practice-page pattern: page-head, 5-Whys cascade SVG, 4 industry cards (Toyota, Etsy/Allspaw, NASA, Google SRE), quiz-autosave worked example.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial version: Root Cause Analysis practice for QA Engineer radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

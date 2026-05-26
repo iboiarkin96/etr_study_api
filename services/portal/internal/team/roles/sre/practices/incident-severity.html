@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incident Severity Framework — Practice 12 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Incident Severity Framework</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">12</span>
+        <span class="pa-eyebrow__group">Group C · Incident response</span>
+      </p>
+      <h1>Incident Severity Framework — the response must be proportional to the impact</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">A shared classification system that maps customer and business impact to severity levels, driving proportional response: who is notified, how fast, through which channels, and what escalation path applies.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">An incident severity framework maps 4 severity levels (SEV0–SEV3) to explicit qualifying criteria (customer impact, scope, revenue effect) and per-severity response SLAs: acknowledgement time, notification targets, communication frequency, and postmortem requirement. Without a shared framework, every engineer classifies incidents differently — SEV0-level impact sometimes gets a Slack message; minor internal degradation sometimes triggers 3 am pages. Shared criteria make the response proportional, predictable, and analysable across incidents over time.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Incident detection to severity classification to response">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Incident detected then classified by impact dimensions into SEV tiers then routed to response template" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="135" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="72" y="106" text-anchor="middle" font-weight="700">Detected</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="72" y="124" text-anchor="middle" font-size="10">page · ticket · report</text>
+
+        <rect class="pa-svg-box" x="165" y="80" width="155" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="242" y="102" text-anchor="middle" font-weight="700">Classify by impact</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="242" y="118" text-anchor="middle" font-size="10">users × tier × duration</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="242" y="132" text-anchor="middle" font-size="10">+ revenue + data</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="345" y="14" width="150" height="44" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="420" y="32" text-anchor="middle" font-weight="700">SEV0</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="420" y="48" text-anchor="middle" font-size="10">total outage · all users</text>
+
+        <rect class="pa-svg-box" x="345" y="66" width="150" height="44" rx="8"></rect>
+        <text class="pa-svg-text" x="420" y="84" text-anchor="middle" font-weight="700">SEV1</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="420" y="100" text-anchor="middle" font-size="10">partial · T0 service</text>
+
+        <rect class="pa-svg-box" x="345" y="118" width="150" height="44" rx="8"></rect>
+        <text class="pa-svg-text" x="420" y="136" text-anchor="middle" font-weight="700">SEV2</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="420" y="152" text-anchor="middle" font-size="10">single-service deg.</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="345" y="170" width="150" height="44" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="420" y="188" text-anchor="middle" font-weight="700">SEV3</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="420" y="204" text-anchor="middle" font-size="10">cosmetic</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="520" y="80" width="115" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="577" y="106" text-anchor="middle" font-weight="700">Response</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="577" y="124" text-anchor="middle" font-size="10">template + cadence</text>
+
+        <path d="M140 110 L160 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M320  96 L340  36" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M320 105 L340  88" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M320 115 L340 140" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M320 124 L340 192" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M495  36 L515  92" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M495  88 L515 104" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M495 140 L515 116" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M495 192 L515 128" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+      </svg>
+      <figcaption class="pa-figure__caption">Detected → classify by impact (users × tier × duration, plus revenue and data integrity) → assign SEV0–SEV3 → drive the matching response template. Severity is the routing key for who is paged, how often comms go out, and whether incident command is activated.</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p>An <strong>incident severity framework</strong> is a classification system that maps incidents to severity levels based on objective criteria. Each level specifies:</p>
+    <ul>
+      <li><strong>Qualifying criteria:</strong> The specific conditions that put an incident at this severity — customer scope (all users / 20% of users / internal only), business impact (complete service outage / major feature degraded / minor degradation), and revenue effect.</li>
+      <li><strong>Response SLA:</strong> Maximum time to acknowledge the page at this severity level.</li>
+      <li><strong>Notification targets:</strong> Who gets notified — on-call only, team lead, VP, CEO.</li>
+      <li><strong>Communication frequency:</strong> How often status updates go out during the incident — every 15 minutes for SEV0, every 30 minutes for SEV1.</li>
+      <li><strong>Postmortem requirement:</strong> SEV0 and SEV1 always require a postmortem. SEV2 and SEV3 are optional.</li>
+    </ul>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Without a shared framework, severity classification is personal. The engineer who classifies every problem as SEV0 generates executive panic about minor issues; the engineer who never classifies anything above SEV2 lets serious customer-facing issues go unescalated for hours. Both patterns are harmful — and both occur in organisations without explicit criteria.</p>
+    <p>Shared criteria also enable post-incident analysis. "We had 12 SEV1 incidents this quarter, 8 from the same root cause" is a meaningful pattern that drives engineering investment. Without consistent classification, the data is too noisy to aggregate.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of teams whose severity practice is published and copied. Each card is one organisation, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">PagerDuty</p>
+        <p class="pa-industry__what">PagerDuty's incident response guide defines severity levels with explicit customer impact language: SEV-1 = "critical issue affecting many customers"; SEV-2 = "major functionality broken for subset of customers"; SEV-3 = "minor issue with workaround"; SEV-4 = "cosmetic, no user impact." Their calibration exercise: quarterly meeting where engineers independently classify 10 historical incidents and compare results. Disagreements reveal ambiguities in the criteria that need clarification.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Run calibration exercises quarterly — not just write the criteria and assume everyone interprets them the same way. Calibration is how you discover that "significant revenue loss" means different things to different people, and why the SEV0 criterion needs a specific dollar threshold.</p>
+        <p class="pa-industry__source">Source: <a href="https://response.pagerduty.com/before/severity_levels/" rel="noopener">PagerDuty Severity Levels</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Atlassian</p>
+        <p class="pa-industry__what">Atlassian uses a "customer impact" first approach to severity classification — the primary criterion is always "how many customers are affected and how severely?" Internal engineering impact (a degraded build pipeline, a slow internal tool) can only reach SEV2 at most, regardless of engineering discomfort. The rule prevents the "this is a SEV1 because it's embarrassing for us" classification that inflates severity for incidents with no customer impact.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Customer impact is the primary axis. A Tier 0 engineering system that's slightly slow but has no customer-visible effect is not a SEV0. Severity frameworks that allow internal engineering embarrassment to drive high severity classifications lose credibility with customers and executives quickly.</p>
+        <p class="pa-industry__source">Source: <a href="https://www.atlassian.com/incident-management/incident-response/severity-levels" rel="noopener">Atlassian — Incident Severity Levels</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Google SRE</p>
+        <p class="pa-industry__what">Chapter 14 of the SRE book ("Managing Incidents") pairs severity with an incident command structure: high-severity incidents activate a named Incident Commander, an Ops lead, and a Comms lead from the moment severity is declared. Lower-severity incidents skip the formal roles. The point is not the label — it is that the label triggers a process that is otherwise too expensive to spin up on every page.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Severity is not a feeling, it is a switch. Declaring SEV0 or SEV1 activates incident command; declaring SEV2 does not. Tying process activation to the label removes the argument over "is this serious enough to call the IC?" — the severity already answered it.</p>
+        <p class="pa-industry__source">Source: <a href="https://sre.google/sre-book/managing-incidents/" rel="noopener">Google SRE Book — Managing Incidents</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">FireHydrant</p>
+        <p class="pa-industry__what">FireHydrant's published guidance treats severity as a <em>declared</em> field, not a derived one: the on-call engineer states a severity within five minutes of opening the incident based on the information available, and the platform records that declaration time separately from the resolution data. A later, calmer "what was it really" assessment becomes a second field — the <em>post-incident severity</em> — but it never overwrites the original declaration.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Keep two severity fields, not one. The declared severity captures the decision the on-call made with partial information; the post-incident severity captures what we know in hindsight. Overwriting the first with the second destroys the data we need to evaluate escalation quality.</p>
+        <p class="pa-industry__source">Source: <a href="https://firehydrant.com/blog/incident-severity-levels/" rel="noopener">FireHydrant — Incident Severity Levels Guide</a></p>
+      </div>
+    </div>
+    <p class="pa-industry-pattern">Across teams whose severity practice is public, the same shape recurs: explicit qualifying criteria with examples, customer impact as the primary axis, quarterly calibration to keep interpretation aligned, severity as the trigger for process (incident command, comms cadence), and a clean separation between declared and post-incident severity so the historical record remains honest.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete severity framework has, with one sentence on each. None are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Customer impact criteria</p><p class="pa-anatomy__hint">Primary classification axis. Three dimensions: scope (% of users affected), depth (complete failure vs. degraded vs. minor), and duration (how long has it been occurring). All three must be assessable within 5 minutes of the incident start without additional investigation.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Response SLA per severity</p><p class="pa-anatomy__hint">SEV0: 5-minute ACK; SEV1: 30-minute ACK; SEV2: next business day; SEV3: sprint backlog. SLAs are tracked and reported monthly — an unacknowledged SEV0 that breaches the 5-minute SLA is itself an incident to investigate.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Escalation matrix per severity</p><p class="pa-anatomy__hint">SEV0: on-call + engineering lead + VP + CEO briefed within 15 minutes. SEV1: on-call + engineering lead. SEV2: on-call only. The escalation path is automatic based on severity — the on-call engineer doesn't decide whether to escalate to the VP; the severity level decides it.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Calibration exercises</p><p class="pa-anatomy__hint">Quarterly 30-minute meeting: present 5–10 historical incidents, have all engineers classify them independently, compare and discuss disagreements. Disagreements identify ambiguous criteria that need sharper language.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Declared vs post-incident severity</p><p class="pa-anatomy__hint">Two separate fields. The declared severity records the decision made with partial information at minute five; the post-incident severity records the hindsight assessment. Neither overwrites the other — both are kept for escalation-quality review.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Comms cadence by severity</p><p class="pa-anatomy__hint">SEV0: status update every 15 minutes in the exec channel and on the status page. SEV1: every 30 minutes. SEV2: an opening note and a resolution note. SEV3: ticket-only. Cadence is part of the severity contract, not a per-incident judgement call.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Severity distribution dashboard</p><p class="pa-anatomy__hint">Monthly chart of SEV0/1/2/3 counts and proportions. Drift in the proportions (e.g. SEV1 share rising from 15% to 40%) signals calibration drift before any one incident does.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App uses a four-tier severity matrix defined in <code>internal/sre/severity.html</code>. The mapping is deliberately blunt so the on-call can declare a level inside five minutes with no further investigation: <strong>SEV0</strong> = total outage (the product is unusable for substantially all users); <strong>SEV1</strong> = partial degradation on a Tier 0 service (lessons-api, auth, payments) — a major flow is broken for a measurable share of users; <strong>SEV2</strong> = single-service degradation on a non-T0 service or a workaround exists for the affected flow; <strong>SEV3</strong> = cosmetic or internal-only impact with no customer-visible effect.</p>
+    <p>The declared severity drives two downstream contracts. The <em>comms cadence</em> — 15 minutes for SEV0, 30 minutes for SEV1, opening/closing notes only for SEV2, ticket-only for SEV3 — is enforced by the incident bot, not by memory. <em>Incident command</em> activates automatically on SEV0 and SEV1: a named Incident Commander, Ops lead, and Comms lead are paged from the on-call rotation. SEV2 stays with the responding engineer; SEV3 is a ticket. The post-incident severity is set during the postmortem in a separate field and never overwrites the declared value — that separation is what lets us measure escalation quality month over month rather than telling ourselves a tidy story in hindsight.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Severity is a routing key, not a judgement of seriousness</h3>
+      <p>Every team that struggles with severity classification has confused two distinct questions. The first is "how bad does this feel?" — a question with no operational consequence. The second is "what response template should run?" — a question whose answer must be unambiguous within five minutes. The framework only addresses the second. Once the team accepts that, classification becomes mechanical: match impact to a row in the matrix, declare the level, run the template. The arguments about whether a particular outage was "really" a SEV1 or a SEV2 are arguments about feelings, not arguments about process.</p>
+      <h4>Severity vs priority — the confusion that breaks the matrix</h4>
+      <p>Severity describes impact on the user; priority describes the order in which we work on things. They correlate, but they are not the same axis. A SEV3 cosmetic issue affecting the homepage logo of a marketing campaign launching tomorrow might still be P0-priority for the marketing team. Conversely, a SEV1 incident that has already self-resolved is no longer P0-priority — it is a postmortem, not a fight. Teams that collapse the two axes end up with severity inflation (everything that's urgent becomes SEV1) and lose the response-template signal that severity is supposed to carry.</p>
+      <h4>The impact dimensions — what the matrix actually measures</h4>
+      <p>Four dimensions go into the impact assessment. <em>Users affected</em>: the share of active users encountering the failure, not the share of accounts that exist in the database. <em>Revenue per minute</em>: the per-minute opportunity cost while the incident continues, including refund liability and SLA credits. <em>Data integrity</em>: whether the failure can lose, corrupt, or expose data — this is the dimension that turns an otherwise SEV2 outage into a SEV0, because lost data does not come back when the service does. <em>Regulatory</em>: whether the incident triggers a notification obligation (GDPR, PCI, SOC2) — an obligation is operational, not theoretical, and it has its own clock.</p>
+      <h4>Declaring early vs declaring accurately</h4>
+      <p>The on-call has to choose between two failure modes. Declare too early on partial information and risk over-paging the org; declare too late and risk a SEV0 that ran as a SEV2 for forty minutes before someone realised. The published guidance from every mature team is the same: declare at the higher level when in doubt, downgrade later if the data supports it. The reason is asymmetric cost — a false SEV0 wastes thirty minutes of three executives' time; a missed SEV0 is the headline outage your customers tweet about. The asymmetry tilts every borderline call upward.</p>
+      <h4>Downgrade and upgrade rules during the incident</h4>
+      <p>Severity can change mid-incident, but only under explicit rules. <em>Upgrade</em> happens when new evidence shows the impact is broader or deeper than the initial assessment (a partial outage turning out to affect all paid tiers, not 20% of free users). <em>Downgrade</em> happens when the initial assessment proves wrong on the same evidence the on-call had at minute five — not when the incident is winding down. Downgrading just because mitigation is working confuses the historical record; that's what the post-incident severity field is for. Both moves are announced explicitly in the incident channel and logged with the time and reason.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Process overhead on the high tiers.</strong> Activating incident command for every SEV1 costs an Ops lead and a Comms lead from the on-call roster. Teams that resent the overhead start "informally" classifying borderline SEV1s as SEV2 to skip it — and lose the whole point of the framework.</li>
+        <li><strong>Calibration is a permanent overhead.</strong> Quarterly calibration takes an hour of every engineer's time. Teams that skip it discover six months later that "20% of users affected" means something different to each person; recovering shared interpretation then costs more than the calibration would have.</li>
+        <li><strong>Two-field bookkeeping.</strong> Maintaining declared and post-incident severity separately is more work than a single editable field. The reward is honest data on escalation quality; the cost is the platform integration to expose two fields and reports that distinguish them.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">detection</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">preliminary severity</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">declared</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">comms started</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">escalated / downgraded</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">resolved</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">postmortem severity locked</span>
+    </div>
+    <p>An incident starts with a detection event — a page, a ticket, or a user report. The on-call's first task is a <em>preliminary</em> severity, a working hypothesis based on whatever signal triggered the detection. Inside five minutes the severity is <em>declared</em>: the level is entered in the incident record and the matching response template fires. Comms start at the cadence the declared level requires; the incident bot tracks the clock. During the incident the level may be <em>escalated</em> on new evidence of broader impact, or <em>downgraded</em> if the initial assessment overstated the case — both moves are logged with reason and timestamp. After <em>resolved</em>, the postmortem opens a second severity field — the <em>post-incident severity</em> — capturing the hindsight assessment. That value is locked at postmortem sign-off; the declared severity is never edited. The two fields together feed the monthly escalation-quality report.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Severity inflation ("everything is a SEV1")</strong></td>
+            <td>Engineers prefer high severity to justify urgency.</td>
+            <td>Track severity distribution over time. If 60% of incidents are SEV1, the criteria are wrong. A healthy distribution is roughly 5% SEV0, 15% SEV1, 50% SEV2, 30% SEV3. Deviation from this suggests calibration drift.</td>
+          </tr>
+          <tr>
+            <td><strong>Severity downgraded retroactively</strong></td>
+            <td>"It turned out to be minor, so we'll call it SEV3."</td>
+            <td>Severity is classified based on the information available at declaration time. Never reclassify the declared field after resolution — record the hindsight call in the separate post-incident severity field. Overwriting distorts the historical data and erodes engineer accountability for escalation decisions.</td>
+          </tr>
+          <tr>
+            <td><strong>Framework exists, but engineers still free-classify</strong></td>
+            <td>The framework is in a wiki; it's not integrated into the incident workflow.</td>
+            <td>Integrate severity classification into the incident declaration form (PagerDuty, Jira). The engineer must select a severity from a dropdown — the form shows the criteria for each level. Classification is not optional.</td>
+          </tr>
+          <tr>
+            <td><strong>Severity confused with priority</strong></td>
+            <td>Both feel like "how important" axes; teams collapse them into one number.</td>
+            <td>Keep severity (user impact, response template) separate from priority (work order). A SEV3 can be P0 for a launch; a self-resolved SEV1 can be P3 for the backlog. Each axis answers a different question.</td>
+          </tr>
+          <tr>
+            <td><strong>Declaring late to "be sure"</strong></td>
+            <td>The on-call wants confirmation before paging executives.</td>
+            <td>Declare at the higher level when in doubt; downgrade later if data supports it. A false SEV0 costs thirty minutes of exec time; a missed SEV0 is the public outage. The asymmetry tilts the call upward.</td>
+          </tr>
+          <tr>
+            <td><strong>Incident command skipped on borderline SEV1</strong></td>
+            <td>Activating IC + Ops + Comms feels expensive for "probably SEV1".</td>
+            <td>The severity declaration is the trigger. If the level is SEV1, incident command activates — there is no "we'll see how it goes" branch. Teams that allow the branch lose the whole point of binding process to severity.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Severity declaration record</span>
+        <p class="pa-example__title">INC-093 — lessons-api 5xx spike — declared SEV1 at minute 5</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code>incident_id:        INC-093
+detected_at:        2026-03-14T09:42:11Z   (PagerDuty page from SLO burn alert)
+declared_at:        2026-03-14T09:47:03Z   (4m 52s after detection)
+
+declared_severity:  SEV1
+declared_by:        @ivan (on-call SRE)
+declared_reason:    |
+  lessons-api 5xx error rate sustained at ~60% for 15+ minutes
+  across all upstream regions. Affects ~22% of active users in
+  the lesson-playback flow. Tier 0 service. Workaround unavailable.
+  Matches SEV1 criteria: partial degradation on T0 service.
+
+response_template:  sev1
+  - paged: on-call SRE, lessons-api owner, engineering lead
+  - activated: Incident Commander (@petr), Comms lead (@maria)
+  - channel:   #inc-093 (private) + #exec-incidents (digest)
+  - cadence:   status update every 30 min until mitigated
+
+escalations:
+  - 2026-03-14T10:18:22Z  upgrade considered (revenue rate &gt; threshold)
+                          → held at SEV1 (mitigation in progress, scope stable)
+
+resolved_at:        2026-03-14T10:43:51Z   (mitigation: roll back commit 8c4d2f1)
+
+post_incident_severity:  SEV1
+post_incident_locked_at: 2026-03-21T15:00:00Z   (postmortem sign-off)
+postmortem_url:          ../../../../sre/postmortems/INC-093.html
+        </code></pre>
+        <p><strong>What this record shows.</strong> Detection to declaration is under five minutes — that is the only timer the framework genuinely cares about at the start. The declared severity is the value the response template ran against; it is never edited. The mid-incident "upgrade considered" entry is the audit trail of an escalation decision that went the other way, with a one-line reason. The post-incident severity matches the declared severity in this case (SEV1), so calibration was clean — when the two fields diverge, the next monthly review asks <em>why</em>.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Four-tier matrix published and linked from incident workflow</p><p class="pa-quality__hint">SEV0–SEV3 criteria in <code>internal/sre/severity.html</code>; the declaration form links the page next to the dropdown.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Declaration time under 5 minutes from detection</p><p class="pa-quality__hint">Tracked as a per-incident metric; outliers reviewed in the monthly SRE retro.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Severity drives process activation automatically</p><p class="pa-quality__hint">SEV0/SEV1 trigger incident command; SEV2 stays with the responder; SEV3 is a ticket. No human decision required at activation.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Declared and post-incident severity tracked separately</p><p class="pa-quality__hint">Two fields, never one. The declared value is locked at declaration; the post-incident value is locked at postmortem sign-off.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Comms cadence enforced by the incident bot</p><p class="pa-quality__hint">15 min for SEV0, 30 min for SEV1, opening/closing for SEV2 — automated reminders, not memory.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Quarterly calibration exercise on file</p><p class="pa-quality__hint">5–10 historical incidents classified independently, disagreements logged, criteria language tightened where ambiguity surfaces.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Severity distribution on a monthly dashboard</p><p class="pa-quality__hint">Healthy shape is roughly 5% / 15% / 50% / 30%. Drift triggers an audit before any framework change is proposed.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://www.atlassian.com/incident-management/incident-response/severity-levels" rel="noopener">Atlassian — Incident Severity Levels</a><span class="pa-refs__hint">Customer impact as the primary axis; internal engineering issues capped at SEV2.</span></li>
+          <li><a href="https://response.pagerduty.com/before/severity_levels/" rel="noopener">PagerDuty — Severity Levels</a><span class="pa-refs__hint">Explicit qualifying language for each level plus the quarterly calibration exercise.</span></li>
+          <li><a href="https://sre.google/sre-book/managing-incidents/" rel="noopener">Google SRE Book — Managing Incidents (ch. 14)</a><span class="pa-refs__hint">Severity as the trigger for the incident command structure (IC, Ops, Comms).</span></li>
+          <li><a href="https://firehydrant.com/blog/incident-severity-levels/" rel="noopener">FireHydrant — Incident Severity Levels Guide</a><span class="pa-refs__hint">Declared vs post-incident severity as two separate fields, never overwriting.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="incident-command.html">Incident command — who runs the response</a><span class="pa-refs__hint">SEV0/SEV1 activate the IC + Ops + Comms structure described here.</span></li>
+          <li><a href="blameless-postmortem.html">Blameless postmortem — where post-incident severity is locked</a><span class="pa-refs__hint">The postmortem owns the second severity field and the escalation-quality review.</span></li>
+          <li><a href="alerting-design.html">Alerting design — the severity label on each rule</a><span class="pa-refs__hint">Page-tier alerts carry the severity that maps into this matrix at declaration time.</span></li>
+          <li><a href="reliability-tiering.html">Reliability tiering — what makes a service Tier 0</a><span class="pa-refs__hint">SEV1 criteria reference the service tier; this is where the tier is assigned.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial version: Incident Severity Framework practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

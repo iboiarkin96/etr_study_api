@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture review — structured change governance — Practice 13 · Architect</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gC" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Architect</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Architecture review</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">13</span>
+        <span class="pa-eyebrow__group">Group C · Communication &amp; governance</span>
+      </p>
+      <h1>Architecture review — structured change governance</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">A lightweight, async-first review of significant changes that catches global problems while preserving team autonomy.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">Async-first governance with defined <strong>scope checklist</strong>, <strong>reviewer pool</strong>, and <strong>published SLAs</strong> (48 h first feedback, 5 days decision). Triggered by changes that cross service boundaries, add dependencies, or modify shared data. Outcome: Approve / Approve-with-changes / Revise. Catches global issues (security, coupling, data conflicts) at design time when fix cost is minutes; without it, the same issues surface in production at 10–100× cost.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Architecture review process">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Trigger → Design doc → Async review → Approve/Revise; SLAs at each stage" style="display:block;max-width:620px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="320" y="20" text-anchor="middle" font-size="10" letter-spacing="0.6">ASYNC-FIRST · SLA-BACKED · LIGHTWEIGHT</text>
+
+        <rect class="pa-svg-box" x="10" y="60" width="135" height="100" rx="10"></rect>
+        <text class="pa-svg-text" x="78" y="84" text-anchor="middle" font-weight="700" font-size="13">Trigger</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="78" y="104" text-anchor="middle" font-size="10">scope checklist</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="78" y="120" text-anchor="middle" font-size="10">cross-team /</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="78" y="136" text-anchor="middle" font-size="10">data / cost</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="78" y="152" text-anchor="middle" font-size="9">T = 0</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="165" y="60" width="135" height="100" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="233" y="84" text-anchor="middle" font-weight="700" font-size="13">Design doc</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="233" y="104" text-anchor="middle" font-size="10">2-page proposal</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="233" y="120" text-anchor="middle" font-size="10">+ checklist</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="233" y="136" text-anchor="middle" font-size="10">+ alternatives</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="233" y="152" text-anchor="middle" font-size="9">PR · tag reviewers</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="320" y="60" width="135" height="100" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="388" y="84" text-anchor="middle" font-weight="700" font-size="13">Async review</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="388" y="104" text-anchor="middle" font-size="10">comments in PR</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="388" y="120" text-anchor="middle" font-size="10">sync if needed</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="388" y="142" text-anchor="middle" font-weight="700" font-size="10">48 h SLA</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="388" y="156" text-anchor="middle" font-size="9">first feedback</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="475" y="60" width="155" height="100" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="552" y="84" text-anchor="middle" font-weight="700" font-size="13">Approve / Revise</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="552" y="104" text-anchor="middle" font-size="10">Approve · approve-</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="552" y="120" text-anchor="middle" font-size="10">with-changes ·</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="552" y="136" text-anchor="middle" font-size="10">revise</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="552" y="156" text-anchor="middle" font-weight="700" font-size="10">5-day SLA</text>
+
+        <path d="M145 110 L163 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M300 110 L318 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M455 110 L473 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+
+        <text class="pa-svg-text pa-svg-text--muted" x="320" y="200" text-anchor="middle" font-size="10" font-style="italic">async-first; sync meeting only when async cannot resolve · published SLAs prevent the review becoming a black hole</text>
+      </svg>
+      <figcaption class="pa-figure__caption">Trigger → Doc → Review → Decision, with published SLAs at each stage. Async by default; sync meetings only when async commentary stalls. The SLA is the load-bearing constraint — without it the review becomes a black hole engineers learn to avoid.</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p>Architecture review is a structured forum for evaluating significant design changes before they reach production. Three components:</p>
+    <ul>
+      <li><strong>Scope checklist</strong> — defines when a review is required: new shared dependency, change to a service-to-service contract, data-model change affecting another team, new language / runtime, expected ops cost &gt; $1k/month.</li>
+      <li><strong>Reviewer pool</strong> — rotating group of 3–5 senior engineers + architect. For high-impact changes: + security + SRE reps. Pool is published; engineers know who to expect feedback from.</li>
+      <li><strong>Published SLAs</strong> — 48 h first feedback, 5 days decision. Without an SLA, reviews become a black hole.</li>
+    </ul>
+    <p>Input: 2-page design doc + checklist (security, observability, privacy, cost, NFRs). Output: Approve / Approve-with-changes / Revise. Reject is rare, reserved for proposals that fail a non-negotiable constraint.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Without review, teams make autonomous decisions that look locally correct but create global problems. Two teams add the same dependency in different versions. Three teams choose different data-partitioning approaches that prevent future migrations. Security gaps obvious to a reviewer ship because no reviewer was involved. Cost to fix surfaces months later at 10–100× design-time cost.</p>
+    <p>A <em>lightweight</em> process — emphasis on lightweight — catches these at design time. The 48-h async SLA prevents the wait that makes engineers route around the process. The defined scope means most local decisions skip review entirely. Result: faster decisions on local work, better decisions on cross-cutting work.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <p>Short tour of how teams known for the practice apply it. Each card is one company, what they do, and what we take from it.</p>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Netflix — async-first reviews</p>
+        <p class="pa-industry__what">Netflix's architecture reviews are async-first via internal design-doc tooling. Engineers post a 2-page doc; tagged reviewers comment within 24–48 hours; sync meetings only when async fails. The "Netflix culture deck" emphasises high context, low process — the review is lightweight specifically to honour that culture.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Async-first means most reviews never need a meeting. Reserve sync for stuck threads only — that saves ~80% of meeting time and keeps engineer flow intact.</p>
+        <p class="pa-industry__source">Source: <a href="https://netflixtechblog.com/" rel="noopener">Netflix Tech Blog</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Spotify — squad-of-squads reviews</p>
+        <p class="pa-industry__what">Spotify's architecture reviews scale via "guilds" — cross-squad groups of senior engineers per domain (data, mobile, web, platform). When a squad's design crosses domains, the relevant guild member is tagged automatically by the design-doc tool. No central architecture board; review is federated.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Federated review scales better than a central board. Tag-based routing to the relevant senior engineer (by domain) preserves autonomy while ensuring cross-cutting visibility.</p>
+        <p class="pa-industry__source">Source: <a href="https://engineering.atspotify.com/" rel="noopener">Spotify Engineering</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Google — readability + design review</p>
+        <p class="pa-industry__what">Google formalises design review distinct from code review. The design review is conducted by senior staff on a design doc before any code is written; the code review afterward is purely about implementation quality. Google's L6+ engineers are expected to review designs across the company, not just their team.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Separate design review from code review. Conflating them produces both worse design (rushed) and worse code (reviewed at a level that should have been settled earlier).</p>
+        <p class="pa-industry__source">Source: <a href="https://abseil.io/resources/swe-book" rel="noopener">Software Engineering at Google</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Stripe — published guidelines + design office hours</p>
+        <p class="pa-industry__what">Stripe publishes engineering principles + API design guidelines that act as the "background standard" for any review. Reviewers cite the guideline rather than personal opinion. Stripe also runs weekly "design office hours" where engineers bring early-stage proposals for informal feedback before submitting a full review.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Publish principles + guidelines so reviewers cite documents, not opinions. Run weekly office hours so engineers can get early feedback informally — formal review happens only after the design has stabilised.</p>
+        <p class="pa-industry__source">Source: <a href="https://stripe.com/blog/engineering-principles" rel="noopener">Stripe — engineering principles</a></p>
+      </div>
+    </div>
+    <p class="pa-industry-pattern">Across teams: <strong>async-first</strong>, <strong>published SLAs</strong>, <strong>federated routing by domain</strong>, <strong>design review separate from code review</strong>, <strong>guidelines cited not opinions</strong>. Heavyweight central boards scale poorly; lightweight federated reviews scale linearly.</p>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <p>The parts a complete practice has, with one sentence on each. None of these are optional.</p>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Scope checklist</p><p class="pa-anatomy__hint">Trigger criteria documented publicly. Engineer self-checks before opening review. Most changes skip review.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Design doc input</p><p class="pa-anatomy__hint">2-page max; Context · Decision · Alternatives · NFR &amp; security checklist. Standardised template.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Reviewer pool</p><p class="pa-anatomy__hint">Published list of 3–5 senior engineers + architect. Rotation; nobody is the sole reviewer.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Published SLAs</p><p class="pa-anatomy__hint">48 h first feedback, 5 days decision. SLA misses logged at quarterly retro.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Domain-routed reviewers</p><p class="pa-anatomy__hint">Tag-based routing to the relevant senior by domain (data, security, SRE, mobile). Federated, not central.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Decision options</p><p class="pa-anatomy__hint">Approve / Approve-with-changes / Revise. Reject only for non-negotiable failures. Approve-with-changes is the most common.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Sync meeting as fallback</p><p class="pa-anatomy__hint">Only when async stalls (e.g. 5+ comment threads unresolved after 3 days). Time-boxed 30 min.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Linked to ADR</p><p class="pa-anatomy__hint">If the review approves a non-trivial architectural choice, an ADR is authored capturing the decision permanently.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App's review trigger: changes that cross service boundaries, introduce new dependencies (libraries, services, SaaS), modify shared data schemas, or expected ops cost &gt; $1k/month. Trigger checklist at <code>governance/architecture-review-scope.md</code>. Engineer opens a PR with a design doc at <code>docs/design/&lt;slug&gt;.md</code> and tags the relevant reviewers.</p>
+    <p>Reviewer pool published at <code>docs/team/architecture-reviewers.md</code> with rotation. Domain routing: data → @anna, security → @oleg, SRE → external on-call, anything else → architect. SLA: 48 h first feedback, 5 days decision. If async stalls, a 30-min sync is convened.</p>
+    <p>A short ADR locks the scope-checklist trigger, the SLAs, and the rule that any Approve-with-changes condition becomes a checklist item in the implementation PR.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Why lightweight beats heavyweight</h3>
+      <p>The heavyweight architecture review board pattern (1990s–2000s enterprise: monthly meeting, gatekeeping ARB, mandatory presentation) is dead for a reason. It slows everything down, becomes a status game, and engineers route around it by relabelling changes as "internal refactor". The lightweight pattern works because: (1) most decisions don't need review (defined scope), (2) reviews are async (don't block flow), (3) SLAs prevent black holes, (4) decisions are documented in ADRs (durable). The constraint is not whether to review — it's how to make the review small enough to actually happen.</p>
+      <h4>Decision options — Approve-with-changes is the centre of gravity</h4>
+      <p>Three decisions matter:</p>
+      <ul>
+        <li><strong>Approve</strong> — design is sound, implement. Rare on first review; most designs improve.</li>
+        <li><strong>Approve-with-changes</strong> — design is sound provided X, Y are addressed. Conditions become PR checklist items. Most common outcome.</li>
+        <li><strong>Revise</strong> — fundamental issue; back to drawing board. Rare but important to retain as an option; without it Approve-with-changes becomes a rubber stamp.</li>
+      </ul>
+      <p>Reject is reserved for "this violates a non-negotiable constraint" (compliance, security policy). Almost never used; existence of the option keeps the others honest.</p>
+      <h4>Federated routing vs central board</h4>
+      <p>Central ARB: one group reviews everything. Bottlenecks at the ARB's bandwidth. Federated: tag the relevant senior by domain. Scales linearly with team size. The architect is the fallback router when no domain owner is obvious, not the single reviewer. Spotify's guild model is the canonical example; smaller teams use Slack-channel routing (#arch-review with domain tags).</p>
+      <h4>Office hours — the informal pre-review</h4>
+      <p>The formal review is for stable designs. The earlier conversation — "I'm thinking about doing X, do you have 10 minutes?" — is informal but high-value. Weekly office hours (architect available 1–2 hr/week, drop-in) capture this work without bureaucracy. Engineers come with rough sketches; the conversation reshapes the design before the formal doc is written. Catches 70% of fundamental issues before the formal review starts.</p>
+      <h4>The async-first habit</h4>
+      <p>Async-first means: post the design doc; reviewers comment in the doc / PR; engineer responds in-thread; resolution happens in writing. Only when a thread can't resolve in 3 rounds of comments does a sync meeting get scheduled. Async benefits: reviewers process at their own pace; engineer has time to research before responding; the resolution is written down. Sync benefits: faster for genuinely complex / contentious questions. The default is async; the exception is sync.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Reviewer time.</strong> ~2–4 hrs/week per active reviewer. Pool rotation distributes the load.</li>
+        <li><strong>Engineer cycle time.</strong> Design-doc-then-review adds 1–2 days vs writing code directly. Pays back at the first cross-team mistake caught at design time.</li>
+        <li><strong>Cultural resistance.</strong> Engineers used to "just merge" need to adapt to "design doc first". Show the win at the first averted incident.</li>
+        <li><strong>Process drift.</strong> Reviews creep into smaller changes ("just to be safe") and become bureaucracy. Quarterly retro to prune scope-checklist; resist trigger inflation.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">scope checklist self-check</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">design doc PR</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">reviewers auto-tagged by domain</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">async review (48 h)</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">sync if stuck (30 min)</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">decision (≤ 5 days)</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">ADR + impl PR</span>
+    </div>
+    <p>Engineer self-checks scope; opens design-doc PR; tags reviewers by domain. Async review for 48 h. If stuck after 3 rounds of comments, sync called. Decision within 5 days. Approve-with-changes converts to PR checklist; approved design produces an ADR. Implementation PR cites the ADR.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Review becomes a black hole</strong></td>
+            <td>No SLA; reviewers respond when convenient.</td>
+            <td>Publish SLAs (48 h / 5 day). SLA misses logged at quarterly retro. Engineers learn to trust the process only if it has a predictable response time.</td>
+          </tr>
+          <tr>
+            <td><strong>Heavyweight central ARB</strong></td>
+            <td>Single group reviews everything; bottlenecks.</td>
+            <td>Federated routing by domain. Senior engineer per area; architect as fallback router, not gatekeeper.</td>
+          </tr>
+          <tr>
+            <td><strong>Trigger scope creeps</strong></td>
+            <td>"Better to review than not" — review covers everything.</td>
+            <td>Quarterly retro prunes the trigger list. Most local decisions should NOT require review.</td>
+          </tr>
+          <tr>
+            <td><strong>Reviewers cite opinion not policy</strong></td>
+            <td>No published guidelines; reviewer's gut.</td>
+            <td>Publish engineering principles + API guidelines. Reviewers cite documents. Engineers know what to expect.</td>
+          </tr>
+          <tr>
+            <td><strong>Design + code review conflated</strong></td>
+            <td>Design issues surface during code review when they're expensive to fix.</td>
+            <td>Separate them. Design review on the doc before code; code review on the implementation. Different scope, different reviewers acceptable.</td>
+          </tr>
+          <tr>
+            <td><strong>Sync-first reflex</strong></td>
+            <td>"Let's just hop on a call".</td>
+            <td>Async-first. Sync only when async stalls after 3 rounds. Most reviews resolve without a meeting.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Review record</span>
+        <p class="pa-example__title">REV-0042 — Adopt Kafka for analytics event stream</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code># REV-0042 · Adopt Kafka for analytics event stream
+status:     APPROVE WITH CHANGES
+opened:     2026-05-18  ·  decided: 2026-05-22  ·  decision SLA: 5 days ✓
+author:     @oleg
+reviewers:  @ivan (architect)  ·  @anna (data)  ·  @maria (security)
+scope:      new shared dependency · cross-team data flow · cost &gt; $1k/mo
+
+## Trigger
+Analytics needs an event stream to feed both the warehouse and the
+recommendation service in real time. Today: a nightly batch via S3.
+
+## Proposal
+Adopt Kafka (self-hosted, EU region) as the canonical event stream.
+
+## Reviewer comments
+
+@anna (data) — 2026-05-19:
+  + Topic design: align with our domain model (one topic per
+    bounded context, not per service)
+  ! Schema registry must be in place at launch; missing today
+  ? What's the retention policy? 7 days proposed but billing
+    events probably need 90
+
+@maria (security) — 2026-05-20:
+  ! mTLS for producer/consumer authentication required (not in proposal)
+  ! Encryption at rest must use customer-managed KMS keys
+  + EU region choice is correct for GDPR
+
+@ivan (architect) — 2026-05-21:
+  + Boring-tech: Kafka beats Pulsar / Redpanda for current team
+  + Cost analysis is realistic
+  ? Have we considered AWS MSK vs self-hosted? Self-hosted is
+    fine but write that as the active choice in the ADR
+
+## Decision (2026-05-22)
+
+APPROVE WITH CHANGES. Implementation PR must address:
+  C1  Add schema registry from day 1 (Confluent or Karapace)
+  C2  mTLS required; document in security review checklist
+  C3  Encryption at rest with customer-managed KMS keys
+  C4  Retention policy: 7 d default, 90 d for billing topics (justify in ADR)
+  C5  Author ADR 0099 documenting "self-hosted Kafka in EU" with
+       AWS MSK considered-and-rejected rationale
+
+ADR 0099 to be merged before any production deployment.
+
+## Outcome (post-decision)
+Async-only resolution; no sync meeting needed. Total reviewer time:
+~3 hours across 3 reviewers. Implementation PR shipped with all
+5 checklist items addressed; schema registry caught one breaking
+change in the first week of production.
+        </code></pre>
+        <p><strong>Outcome.</strong> The review caught five issues at design time that would each have cost weeks if discovered post-launch: missing schema registry (would have caused a producer/consumer break in week 2), mTLS gap (would have triggered a security audit finding), KMS key issue (would have failed compliance review), retention policy mismatch (would have lost billing audit data), and missing ADR (would have created decision archaeology in 6 months). Total reviewer time: ~3 hours; total cost-of-issues averted: ~6 engineer-weeks. The async format meant no meeting was needed — the resolution lives in writing for future reference.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Scope checklist documented + enforced</p><p class="pa-quality__hint">Most local changes skip review; trigger list reviewed quarterly.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Published reviewer pool with domain routing</p><p class="pa-quality__hint">Engineers know who to tag; rotation distributes load.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Published SLAs (48 h / 5 day) honoured</p><p class="pa-quality__hint">SLA-miss rate &lt; 10%; misses logged at retro.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Async-first; sync only when stuck</p><p class="pa-quality__hint">≥ 70% of reviews resolve without a meeting.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Reviewers cite published guidelines</p><p class="pa-quality__hint">Engineering principles + API guidelines as the background standard.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Approve-with-changes conditions tracked in impl PR</p><p class="pa-quality__hint">Conditions become checklist items; closed at PR merge.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Office hours weekly for pre-formal feedback</p><p class="pa-quality__hint">Catches fundamental issues before formal review.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://netflixtechblog.com/" rel="noopener">Netflix Tech Blog</a><span class="pa-refs__hint">Async-first review pattern.</span></li>
+          <li><a href="https://stripe.com/blog/engineering-principles" rel="noopener">Stripe — engineering principles</a><span class="pa-refs__hint">Published principles as the background standard for review.</span></li>
+          <li><a href="https://abseil.io/resources/swe-book" rel="noopener">Software Engineering at Google</a><span class="pa-refs__hint">Design review separate from code review.</span></li>
+          <li><a href="https://engineering.atspotify.com/" rel="noopener">Spotify Engineering</a><span class="pa-refs__hint">Federated guild-based review.</span></li>
+          <li><a href="https://lethain.com/architecture-reviews/" rel="noopener">Will Larson — architecture reviews</a><span class="pa-refs__hint">Practical playbook for setting up a lightweight review.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="adr-process.html">ADR process — sibling practice</a><span class="pa-refs__hint">Approved designs produce ADRs.</span></li>
+          <li><a href="design-docs.html">Design docs</a><span class="pa-refs__hint">The 2-page input artefact.</span></li>
+          <li><a href="api-first-design.html">API-first design</a><span class="pa-refs__hint">Spec PRs go through architecture review.</span></li>
+          <li><a href="engineering-principles.html">Engineering principles</a><span class="pa-refs__hint">Published principles cited by reviewers.</span></li>
+          <li><a href="architecture-retrospective.html">Architecture retrospective</a><span class="pa-refs__hint">Quarterly review of process health: SLA-miss rate, scope creep.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: <code>page-head</code>, deep-dive (lightweight vs heavyweight, decision options, federated routing, office hours, async-first) / lifecycle / worked-example sections; SVG rebuilt as 4-stage process with SLA chips; pitfalls on <code>docs-table--sticky-head</code>; history in <code>docs-history</code> footer.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-14">2026-05-14</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: architecture review practice for the Architect radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

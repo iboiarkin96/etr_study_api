@@ -1,0 +1,386 @@
+/* ui-kit/components/person-card.css — contributor card for directories.
+   The whole tile is a link to the person's profile page. Designed for
+   roster grids (Hall of Contributors), spotlight strips, and any "list
+   of humans" surface.
+
+   Two layouts:
+     • default        — vertical: avatar top, name + role + bio + domains
+     • --horizontal   — avatar left, body right (compact roster rows)
+
+   Reuses tokens only — no magic numbers. Stays flat by default (hairline
+   border + bg-elev surface) and lifts on hover with the same vocabulary
+   as .docs-card--interactive. */
+
+.docs-person-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  background: var(--card, var(--bg-elev));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: inherit;
+  isolation: isolate;
+  transition:
+    background 200ms var(--ease-out),
+    border-color 200ms var(--ease-out),
+    box-shadow 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+a.docs-person-card { color: inherit; }
+
+.docs-person-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--line));
+  box-shadow: var(--shadow-md);
+}
+
+.docs-person-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Avatar ─────────────────────────────────────────────────────────── */
+
+.docs-person-card__avatar-wrap {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex: 0 0 auto;
+}
+
+.docs-person-card__avatar {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-mute);
+  box-shadow:
+    0 0 0 2px var(--card, var(--bg-elev)),
+    0 0 0 3px var(--line);
+  transition: box-shadow 200ms var(--ease-out);
+}
+
+/* Accent halo behind the avatar, fades in on hover. */
+.docs-person-card__halo {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 220deg,
+    color-mix(in srgb, var(--accent) 38%, transparent),
+    color-mix(in srgb, var(--accent-2, var(--accent)) 22%, transparent),
+    color-mix(in srgb, var(--accent-3, var(--accent)) 30%, transparent),
+    color-mix(in srgb, var(--accent) 38%, transparent)
+  );
+  opacity: 0;
+  filter: blur(6px);
+  transition: opacity 240ms var(--ease-out);
+  pointer-events: none;
+}
+
+.docs-person-card:hover .docs-person-card__halo,
+.docs-person-card:focus-visible .docs-person-card__halo {
+  opacity: 0.9;
+}
+
+.docs-person-card:hover .docs-person-card__avatar,
+.docs-person-card:focus-visible .docs-person-card__avatar {
+  box-shadow:
+    0 0 0 2px var(--card, var(--bg-elev)),
+    0 0 0 3px color-mix(in srgb, var(--accent) 60%, var(--line));
+}
+
+/* Fallback when no photo is available — initials disc. */
+.docs-person-card__avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-semibold);
+  font-size: 1.6rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-mute));
+  text-transform: uppercase;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────── */
+
+.docs-person-card__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  text-align: center;
+  min-width: 0;
+  width: 100%;
+  flex: 1 1 auto; /* fill remaining height so footers align across rosters */
+}
+
+/* Each band is hard-locked to a fixed height. Mixing `height` with the
+   intrinsic content drives perfect cross-card alignment without grid or
+   subgrid: every row above the chips occupies an identical Y range, so
+   the chip row and footer below land on a shared baseline regardless of
+   chip count, bio length, or sub-pixel `-webkit-box` quirks.
+
+   IMPORTANT: every band selector is compounded with `.docs-person-card`
+   so it beats `.docs-shell > main h3 / p / ul` rules from prose.css
+   (specificity 0,1,2). Without that boost, prose forces h3 to fs-700,
+   adds margin-bottom to p/ul, and pads ul — causing the chip row to
+   drift across cards in the live portal. */
+.docs-person-card .docs-person-card__name {
+  margin: 0;
+  font-size: var(--fs-500);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong, var(--text));
+  line-height: var(--lh-snug);
+  letter-spacing: -0.005em;
+  min-height: calc(var(--lh-snug, 1.35) * 1em);
+  scroll-margin-top: 0;
+}
+
+.docs-person-card .docs-person-card__role {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-200);
+  line-height: var(--lh-base);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent) 70%, var(--muted));
+  min-height: calc(var(--lh-base, 1.55) * 1em);
+}
+
+.docs-person-card .docs-person-card__bio {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-300);
+  color: var(--muted);
+  line-height: var(--lh-base);
+  max-width: 30ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  /* Hard-lock the bio to exactly two lines of its own line-height.
+     Using `height` (not just `min-height`) prevents `-webkit-box` from
+     rendering at slightly different heights across cards. */
+  height: calc(var(--lh-base, 1.55) * 2em);
+  min-height: calc(var(--lh-base, 1.55) * 2em);
+}
+
+/* ── Domains chip row ───────────────────────────────────────────────── */
+
+/* Both selectors compounded with .docs-person-card so they beat
+   `.docs-shell > main ul` (padding-left + margin-bottom) and the
+   `.docs-shell > main li + li` margin-top from prose.css. */
+.docs-person-card .docs-person-card__domains {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1);
+  list-style: none;
+  /* margin-top: auto absorbs all slack in the flex body so the chip row
+     pins to the bottom of the body. Combined with hard-locked band
+     heights above, chips land on a shared baseline across the roster. */
+  margin: auto 0 0;
+  padding: var(--space-2) 0 0;
+  /* Lock chip-row height so a 1-chip row and a 2-chip row occupy the
+     same Y range. 30px = chip line-height + padding, matches the
+     intrinsic chip height. */
+  min-height: 30px;
+}
+
+.docs-person-card .docs-person-card__domains li {
+  margin: 0;
+}
+
+.docs-person-card .docs-person-card__domains li + li {
+  margin-top: 0;
+}
+
+/* ── Footer (handle + cta) ──────────────────────────────────────────── */
+
+.docs-person-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft, var(--line));
+  font-size: var(--fs-200);
+  color: var(--muted-soft, var(--muted));
+}
+
+.docs-person-card__handle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+.docs-person-card__handle svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+.docs-person-card:hover .docs-person-card__handle svg,
+.docs-person-card:focus-visible .docs-person-card__handle svg {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.docs-person-card__cta {
+  font-weight: var(--fw-medium);
+  color: var(--accent);
+}
+
+/* ── Tone modifier — accent ring always on (for spotlight context). ─── */
+
+.docs-person-card--spotlight {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--bg-elev) 92%, var(--accent) 8%) 0%,
+    var(--bg-elev) 70%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 60%, transparent),
+    0 16px 40px -28px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.docs-person-card--spotlight .docs-person-card__halo {
+  opacity: 0.7;
+}
+
+/* ── Horizontal variant ─────────────────────────────────────────────── */
+
+/* Horizontal cards aren't laid out in equal-height rosters, so the
+   band-height locks above don't apply — drop them and let bio/role/name
+   shrink to their actual content. */
+.docs-person-card--horizontal {
+  flex-direction: row;
+  align-items: flex-start;
+  text-align: left;
+  padding: var(--space-4);
+  gap: var(--space-4);
+}
+
+.docs-person-card--horizontal .docs-person-card__avatar-wrap {
+  width: 72px;
+  height: 72px;
+}
+
+.docs-person-card--horizontal .docs-person-card__body {
+  align-items: flex-start;
+  text-align: left;
+  flex: 1 1 auto;
+}
+
+.docs-person-card--horizontal .docs-person-card__name,
+.docs-person-card--horizontal .docs-person-card__role {
+  min-height: 0;
+}
+
+.docs-person-card--horizontal .docs-person-card__bio {
+  text-align: left;
+  height: auto;
+  min-height: 0;
+}
+
+.docs-person-card--horizontal .docs-person-card__domains {
+  justify-content: flex-start;
+  min-height: 0;
+  margin: 0;
+}
+
+.docs-person-card--horizontal .docs-person-card__footer {
+  border-top: none;
+  padding-top: 0;
+  margin-top: var(--space-2);
+}
+
+/* ── Grid container ─────────────────────────────────────────────────── */
+
+.docs-person-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+.docs-person-grid--narrow {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+/* Group header above a person grid (e.g. "Backend · 3 people"). */
+.docs-person-group {
+  margin-top: var(--space-6);
+}
+
+.docs-person-group:first-child {
+  margin-top: 0;
+}
+
+.docs-person-group__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.docs-person-group__title {
+  margin: 0;
+  font-size: var(--fs-500);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong, var(--text));
+}
+
+.docs-person-group__count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-200);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ── Mobile contract ────────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .docs-person-card--horizontal {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .docs-person-card--horizontal .docs-person-card__body {
+    align-items: center;
+    text-align: center;
+  }
+  .docs-person-card--horizontal .docs-person-card__bio,
+  .docs-person-card--horizontal .docs-person-card__domains {
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-person-card,
+  .docs-person-card__avatar,
+  .docs-person-card__halo {
+    transition: none;
+  }
+  .docs-person-card:hover {
+    transform: none;
+  }
+}

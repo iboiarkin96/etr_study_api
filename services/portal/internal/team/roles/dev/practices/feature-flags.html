@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feature flags — Practice 07 · SWE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SWE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Feature flags</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">07</span>
+        <span class="pa-eyebrow__group">Group B · Delivery &amp; automation</span>
+      </p>
+      <h1 class="pa-title">Feature flags — decouple deploy from release</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">The deploy installs the code; the release flips the flag. Two different decisions, two different rollback paths, two different signals.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">A feature flag is a runtime switch that gates a code path. Popularised at Facebook (Gatekeeper) and Flickr in the 2000s; commercialised by LaunchDarkly from 2014. Pete Hodgson's 2017 essay on martinfowler.com is the canonical reference. With flags, "deploy" stops meaning "release to users". Code ships dark, then is enabled for an internal cohort, then a percentage, then everyone — each step independently reversible by a config flip, not a redeploy. Large orgs run with hundreds of active flags plus an explicit lifecycle so flags don't accumulate forever.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Flag lifecycle: dark → internal → percentage → all → cleaned up">
+      <svg viewBox="0 0 760 220" role="img" aria-label="Five-stage flag lifecycle" style="display:block;max-width:720px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="ff-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="380" y="20" text-anchor="middle" font-size="10" letter-spacing="0.6">DARK → INTERNAL → CANARY → ALL → CLEANED UP</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="20" y="50" width="135" height="130" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="87" y="72" text-anchor="middle" font-weight="700" font-size="9">STAGE 1</text>
+        <text class="pa-svg-text pa-svg-text--accent" x="87" y="96" text-anchor="middle" font-weight="700" font-size="13">Dark</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="87" y="120" text-anchor="middle" font-size="10">code shipped</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="87" y="136" text-anchor="middle" font-size="10">flag = off</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="87" y="158" text-anchor="middle" font-size="9">0% users</text>
+
+        <rect class="pa-svg-box" x="170" y="50" width="135" height="130" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="237" y="72" text-anchor="middle" font-weight="700" font-size="9">STAGE 2</text>
+        <text class="pa-svg-text" x="237" y="96" text-anchor="middle" font-weight="700" font-size="13">Internal</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="237" y="120" text-anchor="middle" font-size="10">eng + dogfood</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="237" y="136" text-anchor="middle" font-size="10">tenant rule</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="237" y="158" text-anchor="middle" font-size="9">~1% users</text>
+
+        <rect class="pa-svg-box" x="320" y="50" width="135" height="130" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="387" y="72" text-anchor="middle" font-weight="700" font-size="9">STAGE 3</text>
+        <text class="pa-svg-text" x="387" y="96" text-anchor="middle" font-weight="700" font-size="13">Canary</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="387" y="120" text-anchor="middle" font-size="10">5 → 25 → 50%</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="387" y="136" text-anchor="middle" font-size="10">SLO + KPI watch</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="387" y="158" text-anchor="middle" font-size="9">rollback = 1 flip</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="470" y="50" width="135" height="130" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="537" y="72" text-anchor="middle" font-weight="700" font-size="9">STAGE 4</text>
+        <text class="pa-svg-text pa-svg-text--good" x="537" y="96" text-anchor="middle" font-weight="700" font-size="13">100%</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="537" y="120" text-anchor="middle" font-size="10">all users</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="537" y="136" text-anchor="middle" font-size="10">soak 1–2 weeks</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="537" y="158" text-anchor="middle" font-size="9">released</text>
+
+        <rect class="pa-svg-box" x="620" y="50" width="120" height="130" rx="10" style="stroke:var(--danger, #c0392b)"></rect>
+        <text class="pa-svg-text pa-svg-text--mono" x="680" y="72" text-anchor="middle" font-weight="700" font-size="9" style="fill:var(--danger, #c0392b)">STAGE 5</text>
+        <text class="pa-svg-text" x="680" y="96" text-anchor="middle" font-weight="700" font-size="13" style="fill:var(--danger, #c0392b)">Cleaned</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="680" y="120" text-anchor="middle" font-size="10">flag deleted</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="680" y="136" text-anchor="middle" font-size="10">code path removed</text>
+        <text class="pa-svg-text pa-svg-text--mono" x="680" y="158" text-anchor="middle" font-size="9" style="fill:var(--danger, #c0392b)">non-negotiable</text>
+
+        <path d="M155 115 L168 115" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#ff-arrow)"></path>
+        <path d="M305 115 L318 115" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#ff-arrow)"></path>
+        <path d="M455 115 L468 115" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#ff-arrow)"></path>
+        <path d="M605 115 L618 115" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#ff-arrow)"></path>
+
+        <text class="pa-svg-text pa-svg-text--muted" x="380" y="210" text-anchor="middle" font-size="11" font-style="italic">"flags ship dark, ramp safely, soak, then come out — not the other way around"</text>
+      </svg>
+      <figcaption class="pa-figure__caption">Five stages with explicit cleanup at the end. Each stage is independently reversible by config flip. Stage 5 — cleanup — is non-negotiable; un-cleaned flags become permanent if/else conditionals that ossify the codebase.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>A <strong>feature flag</strong> (or feature toggle) is a runtime switch that gates a code path. Three common flavours:</p>
+      <ul>
+        <li><strong>Release flags</strong> — gate a new feature; lifecycle is days to a couple of weeks; removed after launch.</li>
+        <li><strong>Experiment flags</strong> — random assignment for A/B testing; lifecycle is the experiment duration; removed when the experiment concludes.</li>
+        <li><strong>Ops flags</strong> — kill-switches and circuit breakers; live indefinitely as operational levers.</li>
+      </ul>
+      <p>Pete Hodgson's canonical taxonomy adds <em>permission flags</em> (entitlements / per-plan features) as a fourth category that stays long-lived by design. The patterns are similar; the lifecycles differ. Release flags are the most common and the most often badly maintained — they ship and then never get cleaned up.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Without flags, "deploy" = "release". The team holds the deploy until the feature is perfect; the release is one big-bang event; rollback means revert + redeploy + wait. With flags, "deploy" = "code in production, off" and "release" = "flip the flag, gradually". The two decisions are independent; either can roll back without the other. Code can ship mid-feature behind a flag without anyone noticing.</p>
+      <p>Flags also enable canary releases (5% → 25% → 50% → 100%), tenant-specific rollouts (enterprise tenants first), and experimentation (A/B for KPIs). The same primitive covers all three. The cost is real — every flag is forking code — so flag <em>lifecycle</em> matters as much as flag <em>creation</em>.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Facebook / Flickr — pattern originators</p>
+          <p class="pa-industry__what">Facebook's "Gatekeeper" (2009-ish) and Flickr's flag-driven deploys popularised the pattern. Both shipped multiple times a day on top of a permanent feature-flag infrastructure; new features rode behind flags by default; the deploy was a non-event.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Treat "ship behind a flag" as the default for any non-trivial feature. The cost is one wrap; the optionality is enormous.</p>
+          <p class="pa-industry__source">Source: <a href="https://martinfowler.com/articles/feature-toggles.html" rel="noopener">Pete Hodgson — Feature Toggles (canonical)</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">LaunchDarkly — vendor that defined SaaS</p>
+          <p class="pa-industry__what">LaunchDarkly (2014) built the canonical commercial feature-flag platform: SDKs in every language, percentage rollouts, targeting rules, experiment integration, audit log. Most large engineering orgs that don't roll their own use LaunchDarkly or one of its competitors (Statsig, Flagsmith, ConfigCat, Unleash).</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Buy, don't build, for non-trivial scale. Self-hosted (Unleash) for cost-sensitive teams; SaaS (LaunchDarkly, Statsig) for the polished feature set.</p>
+          <p class="pa-industry__source">Source: <a href="https://launchdarkly.com/" rel="noopener">launchdarkly.com</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">GitLab — flag lifecycle policy</p>
+          <p class="pa-industry__what">GitLab's public handbook documents a strict feature-flag lifecycle: every flag has a default expiry (typically 2 months for release flags), an owner, and a "remove" issue created at the same time as the "add" issue. Stale flags page the owner; the cleanup is enforced, not aspirational.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Each new flag ships with a "remove" issue + expiry date. Without the expiry, flags accumulate; with it, the backlog stays finite.</p>
+          <p class="pa-industry__source">Source: <a href="https://about.gitlab.com/handbook/" rel="noopener">about.gitlab.com/handbook</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Statsig / Optimizely — experimentation</p>
+          <p class="pa-industry__what">Statsig (founded by ex-Facebook engineers) and Optimizely combine feature flags with experiment analytics: random assignment, exposure logging, KPI lift computation. The same flag can be a release toggle today and an experiment tomorrow with a config change.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> If you run A/B tests, pick a vendor that unifies flags + experiments. Two-vendor setups create alignment problems; one vendor with both gives you the same audience model end-to-end.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.statsig.com/" rel="noopener">statsig.com</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of a feature-flag system</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">SDK per language</p><p class="pa-anatomy__hint">Backend services, frontend bundle, mobile apps. Streaming or polling; sub-second propagation.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Targeting rules</p><p class="pa-anatomy__hint">Percentage, tenant, geo, user attribute, flag-dependency. Rules versioned + auditable.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Flag registry with owner + expiry</p><p class="pa-anatomy__hint">Every flag has a named owner, an expiry date, a "remove" issue. Stale flags surface in dashboards + page owners.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Audit log</p><p class="pa-anatomy__hint">Every flip (who, when, what value, what rule) recorded. Postmortems can answer "did anything change at 14:02?" precisely.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Kill-switch hierarchy</p><p class="pa-anatomy__hint">High-level ops flags ("disable payments") + per-feature release flags. Ops flags live forever and have explicit owners on the SRE team.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Cleanup PR template</p><p class="pa-anatomy__hint">"Remove flag X" PRs follow a template: delete config, delete code path, run lint check for orphan refs, link to the original "add" issue.</p></div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to run it</h2>
+      <ol>
+        <li><strong>Pick a platform.</strong> LaunchDarkly / Statsig (SaaS); Unleash / OpenFeature + own backend (OSS).</li>
+        <li><strong>Install SDKs.</strong> Every service + frontend + mobile. Streaming preferred; sub-second propagation.</li>
+        <li><strong>Add a flag registry.</strong> Owner, expiry, "remove" issue, type (release / experiment / ops / permission).</li>
+        <li><strong>Ship behind flag by default.</strong> Any non-trivial feature starts with a flag, off, in main. Code can ship daily.</li>
+        <li><strong>Ramp progressively.</strong> Internal → 1% → 5% → 25% → 100%. SLO + KPI watch at each step.</li>
+        <li><strong>Soak at 100%.</strong> 1–2 weeks with the flag still in code; rollback path preserved.</li>
+        <li><strong>Clean up.</strong> Delete flag + delete code path. PR template enforces both. Expiry triggers a page if missed.</li>
+        <li><strong>Quarterly flag audit.</strong> Stale flags listed; owners contacted; orphans removed.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive — what makes flags scale</h2>
+      <p><strong>Cleanup is the load-bearing discipline.</strong> Every new flag is forking code. Without cleanup, after a year the codebase has hundreds of forks, all of which must be considered when reasoning about behaviour. The single most-cited failure mode in feature-flag adoption is "ramp to 100%, never delete". Solve it with: a "remove" issue created at the same time as "add", expiry dates on every flag, paging on stale flags.</p>
+      <p><strong>Buy, don't build, at scale.</strong> A simple in-house flag system is two days of work; a system with audit logs, streaming SDKs, percentage rollouts, targeting rules, experiment analytics, dependency rules, and PII-safe targeting is a small product. Use LaunchDarkly / Statsig / Unleash and spend the saved months on actual features.</p>
+      <p><strong>Ship dark by default.</strong> Any non-trivial feature begins with a flag, off, in main. Code lands daily; the team isn't blocked on "feature complete"; rollback is a flip, not a redeploy. The pattern eliminates the "long-lived feature branch" antipattern simultaneously.</p>
+      <p><strong>Audit log is the time machine.</strong> Postmortems need "what changed at 14:02?". Without an audit log, deployment + flag + config + secret changes all blur together. With an audit log, the team finds the flip in seconds and the root cause in minutes.</p>
+      <p><strong>Ops flags are forever.</strong> Distinguish release flags (lifecycle: weeks) from ops flags (lifecycle: indefinite). "Disable payments" should be an ops flag owned by SRE; "show new checkout layout" should be a release flag owned by the feature team. Mixing the two leads to release flags accumulating + ops flags being deleted by mistake.</p>
+      <p><strong>Ramp by impact, not by minutes.</strong> The right ramp is "wait until SLOs + KPIs have one full hour of normal traffic at this percentage", not "ramp every 15 minutes on a timer". Some features need a full day at 5%; some need an hour. Codify the watch criteria, not the schedule.</p>
+      <p><strong>Soak before cleanup.</strong> A flag at 100% for one day might still need to roll back. 1–2 weeks at 100% (with the rollback path intact) is the canonical soak. After soak, delete with confidence.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle of a release flag</h2>
+      <div class="pa-states">
+        <div class="pa-states__item"><p class="pa-states__name">Dark</p><p class="pa-states__hint">Code merged behind flag, off everywhere. CI green; tests cover both branches.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Internal</p><p class="pa-states__hint">Flag on for engineering + dogfood tenant. Dogfood usage surfaces obvious bugs without customer impact.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Canary</p><p class="pa-states__hint">5% → 25% → 50%. SLO + KPI watch at each step. Pause if either regresses.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">100%</p><p class="pa-states__hint">All users. Soak 1–2 weeks; rollback path intact.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Cleaned up</p><p class="pa-states__hint">Flag deleted from config; code path removed; cleanup PR closes the original "add" issue.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Rolled back (if needed)</p><p class="pa-states__hint">SLO/KPI regression at any step → flip flag off. Investigate; fix; resume the ramp.</p></div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Common pitfalls">
+        <table class="docs-table docs-table--sticky-head">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr><td>Flags never cleaned up</td><td>Ship the feature, ramp to 100%, move on. No cleanup PR. After a year hundreds of flags + code forks remain.</td><td>"Remove" issue created with "add". Expiry date. Stale flags page owner. Quarterly audit deletes orphans.</td></tr>
+            <tr><td>Build-your-own flag service</td><td>"It's just an if-statement". After a year it's a custom CMS with audit logs, percentage rollouts, etc — half-built, no SDK in every language.</td><td>Buy LaunchDarkly / Statsig / use Unleash OSS. The build is months of work; the buy is days.</td></tr>
+            <tr><td>No audit log</td><td>Flag flipped; SLO regressed; postmortem can't tell whether the flip or a separate deploy caused it.</td><td>Audit log required: every flip records who/when/value/rule. Cross-link from postmortem templates.</td></tr>
+            <tr><td>Ramp on a timer, not on signals</td><td>Engineer ramps 5 → 25 → 100 every 30 min on autopilot. Misses a regression at 25%; full ramp causes incident.</td><td>Pause + signal-check at each step. SLO + KPI watch with explicit "go/no-go" criteria. Ramp by signal, not by clock.</td></tr>
+            <tr><td>Release flag treated as ops flag (and vice versa)</td><td>Release flag stays on indefinitely as "useful kill switch". Ops flag gets deleted by mistake during cleanup.</td><td>Tag every flag by type. Release flags expire; ops flags are owned by SRE. Different lifecycles, different rules.</td></tr>
+            <tr><td>Forgot to test both branches</td><td>Tests cover the flag = on path. Flag = off path silently broken; rolling back is itself broken.</td><td>Tests cover both branches. CI matrix with flag-on / flag-off. Rollback is verified, not assumed.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — lesson-player partial-credit flag</h2>
+      <div class="pa-example">
+        <p class="pa-example__intro">A LaunchDarkly-style flag registered in YAML at flag-creation time. Expiry, owner, and remove-issue all set on day one.</p>
+        <pre class="pa-example__code"><code># flags/registry.yaml
+- key:         player.partial_credit
+  type:        release
+  owner:       "@lessons"
+  description: "Partial-credit scoring for multi-step questions"
+  default:     false
+  added:       2026-05-08
+  expires:     2026-08-08             # auto-page owner on stale flag
+  remove_pr:   https://gh.com/studyapp/repo/issues/4521
+  tests:       both-branches          # CI matrix asserts both paths
+  rollout:
+    - { stage: dark,     pct: 0,   tenant_rule: null }
+    - { stage: internal, pct: 100, tenant_rule: "tenant ∈ {dogfood}" }
+    - { stage: canary,   pct: 5,   slo_watch: ["latency.p99", "error_rate"] }
+    - { stage: canary,   pct: 25,  slo_watch: ["latency.p99", "error_rate"] }
+    - { stage: canary,   pct: 50,  slo_watch: ["latency.p99", "error_rate"] }
+    - { stage: full,     pct: 100, soak_days: 14 }
+    - { stage: cleanup,  due:      2026-08-08 }
+
+# code (Python)
+if flags.is_on("player.partial_credit", user_id=user.id, tenant=user.tenant_id):
+    score = AttemptScorer.partial(answers)
+else:
+    score = AttemptScorer.binary(answers)
+
+# audit log entry (auto-generated)
+2026-05-23T14:02:11Z  player.partial_credit
+  who:   @oleg
+  from:  off
+  to:    rollout(canary, pct=5)
+  rule:  +slo_watch=[latency.p99, error_rate]
+        </code></pre>
+        <p class="pa-example__note">Flag declared in YAML alongside its code change. Expiry date, owner, remove issue, and CI-tested both-branches policy all set at creation. The audit log records every flip in machine-readable form for postmortems.</p>
+      </div>
+    </section>
+
+    <section id="quality">
+      <h2>Quality bar</h2>
+      <ul class="pa-quality">
+        <li><strong>Flags ship dark by default.</strong> Non-trivial features start with a flag, off, in main.</li>
+        <li><strong>Every flag has owner + expiry + remove-issue.</strong> Tracked in a registry.</li>
+        <li><strong>Audit log records every flip.</strong> Who, when, value, rule.</li>
+        <li><strong>Both branches tested.</strong> CI matrix flag-on / flag-off.</li>
+        <li><strong>Ramp by signal, not by timer.</strong> SLO + KPI watch with explicit go/no-go.</li>
+        <li><strong>Cleanup PR after soak.</strong> Code path + config both removed.</li>
+        <li><strong>Quarterly stale-flag audit.</strong> Owners paged; orphans deleted.</li>
+        <li><strong>Release vs ops flags distinct.</strong> Different lifecycles; different owners.</li>
+      </ul>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://martinfowler.com/articles/feature-toggles.html" rel="noopener">Pete Hodgson — Feature Toggles (canonical)</a></li>
+        <li><a href="https://launchdarkly.com/" rel="noopener">LaunchDarkly</a></li>
+        <li><a href="https://www.statsig.com/" rel="noopener">Statsig</a></li>
+        <li><a href="https://www.getunleash.io/" rel="noopener">Unleash — OSS feature flag platform</a></li>
+        <li><a href="https://openfeature.dev/" rel="noopener">OpenFeature — vendor-neutral standard</a></li>
+        <li><a href="https://about.gitlab.com/handbook/" rel="noopener">GitLab handbook — flag lifecycle policy</a></li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <p class="docs-history__title">History</p>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-24">2026-05-24</time>
+          <span class="docs-history__change">Rewritten to SA practice-page pattern: page-head, 5-stage lifecycle SVG with red cleanup step, expanded industry (4 cards: Facebook/Flickr, LaunchDarkly, GitLab lifecycle, Statsig), deep-dive (cleanup is the discipline, buy-don't-build, ship dark default, audit log time machine, ops vs release, ramp by signal, soak before cleanup), lifecycle, YAML flag registry worked example, quality bar, references.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-14">2026-05-14</time>
+          <span class="docs-history__change">Initial version: feature-flags practice for SWE radar.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

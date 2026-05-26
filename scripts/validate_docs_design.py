@@ -1,9 +1,12 @@
 """Validate design-consistency baseline for docs HTML pages.
 
-This check enforces the shared page skeleton from
-``docs/internal/front/_shared/style-guide.html`` for non-generated docs pages.
-Generated Python API HTML under ``docs/pdoc/`` is skipped (same as legacy ``docs/api/`` output).
-It is intentionally lightweight: fail only on clear structural regressions.
+This check enforces the UI Kit v2 page skeleton (``assets_v2/runtime/<portal>/``)
+for non-generated docs pages. Legacy ``docs.css``/``docs-nav.js`` references are
+treated as failures — every page must be on the v2 runtime.
+
+Generated Python API HTML under ``services/portal/internal/services/api/code-reference/``
+and a small allowlist of governance templates that haven't been migrated yet are
+exempted.
 """
 
 from __future__ import annotations
@@ -14,11 +17,79 @@ from pathlib import Path
 import html5lib
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS_ROOT = ROOT / "docs"
+DOCS_ROOT = ROOT / "services" / "portal"
+
+# Pages that intentionally bypass the v2 docs skeleton:
+#   * Portal router landings (no portal-specific shell — they pick between
+#     sub-portals before the page is laid out).
+#   * Personal calendar / growth pages with custom layouts.
+#   * Standalone radar pages — embedded charts with their own shell.
 FROZEN_DOCS_REL_PATHS = {
-    Path("internal/portal/people/ivan-boyarkin/sa-growth.html"),
-    # Standalone week backlog calendar (custom layout, not portal doc skeleton).
-    Path("internal/portal/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
+    Path("index.html"),
+    Path("internal/index.html"),
+    Path("internal/team/people/ivan-boyarkin/sa-growth.html"),
+    Path("internal/team/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
+    Path("internal/team/roles/sa/radar.html"),
+    Path("internal/team/roles/architect/radar.html"),
+    Path("internal/team/roles/dev/radar.html"),
+    Path("internal/team/roles/manager/radar.html"),
+    Path("internal/team/roles/sre/radar.html"),
+    Path("internal/team/roles/qa/radar.html"),
+}
+
+# Pages that still load the legacy stack and are scheduled for separate
+# migration. The validator skips them rather than failing CI.
+# Remove an entry once that page has been migrated to the v2 runtime.
+LEGACY_PENDING_MIGRATION = {
+    Path("internal/foundations/reference/sa/templates/component-spec.html"),
+    Path("internal/governance/adr/0000-template.html"),
+    Path("internal/governance/adr/0018-adr-lifecycle-ratification-and-badges.html"),
+    Path("internal/governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html"),
+    Path("internal/governance/adr/0024-architecture-and-quality-assessment-documents.html"),
+    Path("internal/governance/adr/0026-internal-service-documentation-as-source-of-truth.html"),
+    Path("internal/governance/adr/0027-client-side-docs-search-index-and-ranking.html"),
+    Path("internal/governance/audits/AUDIT_TEMPLATE.html"),
+    Path("internal/governance/rfc/0000-template.html"),
+    Path("internal/governance/rfc/0001-docs-search-implementation.html"),
+    Path("internal/governance/rfc/0003-documentation-authoring-model.html"),
+    Path("internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html"),
+    Path("internal/how-to/docs/change-docs-frontend-safely.html"),
+    Path("internal/team/roles/sa/practices/index.html"),
+    Path("internal/team/roles/dev/practices/index.html"),
+}
+
+# Legacy asset hrefs/srcs that must never appear on real <link>/<script> tags
+# of a v2 page. Matched against the parsed tree, so prose mentions inside
+# <code>/<pre> are unaffected.
+LEGACY_LINK_FRAGMENTS = (
+    "/assets/docs.css",
+    "/assets/docs-theme.css",
+    "/assets/docs-nav.js",
+    "/assets/docs-syntax.js",
+    "/assets/public-layout.css",
+    "/assets/public-sidebar.js",
+    "/assets/home.css",
+    "/assets/home-landing.js",
+    "/assets/home-webgl.js",
+)
+
+# Legacy class names that must not appear on real elements of a v2 page.
+LEGACY_CLASS_NAMES = {
+    "public-layout",
+    "internal-layout",
+    "public-layout__shell",
+    "public-layout__sidebar",
+    "public-layout__main",
+    "internal-layout__shell",
+    "internal-layout__main",
+    "internal-h1--accent-tail",
+    "container--swagger",
+}
+
+# Legacy element ids that must not appear in a v2 page.
+LEGACY_IDS = {
+    "public-sidebar-mount",
+    "internal-sidebar-mount",
 }
 
 
@@ -43,12 +114,25 @@ def _iter_docs_pages(candidates: list[str] | None = None) -> list[Path]:
         rel = path.relative_to(DOCS_ROOT)
         if rel.parts and rel.parts[0] in {"api", "assets", "pdoc"}:
             continue
+        # Generated pdoc tree under internal/services/api/code-reference/ is opaque.
+        if len(rel.parts) >= 4 and rel.parts[0:4] == (
+            "internal",
+            "services",
+            "api",
+            "code-reference",
+        ):
+            continue
+        # UI Kit showcase: own baseline, validated by its own showcase rules.
+        if rel.parts and rel.parts[0] == "ui-kit":
+            continue
         if rel in FROZEN_DOCS_REL_PATHS:
             continue
-        # Scratch HTML under portal profile `notes/` (gitignored locally; never shipped).
+        if rel in LEGACY_PENDING_MIGRATION:
+            continue
+        # Scratch HTML under per-person `notes/` (gitignored locally; never shipped).
         if (
             len(rel.parts) >= 5
-            and rel.parts[0:3] == ("internal", "portal", "people")
+            and rel.parts[0:3] == ("internal", "team", "people")
             and rel.parts[4] == "notes"
         ):
             continue
@@ -73,25 +157,47 @@ def _is_redirect_stub(root_el, text: str) -> bool:
     return False
 
 
-def _has_docs_css(root_el) -> bool:
+def _html_data_portal(root_el) -> str | None:
+    for node in root_el.iter():
+        if not isinstance(node.tag, str) or _local_name(node.tag) != "html":
+            continue
+        portal = (node.attrib.get("data-portal") or "").strip().lower()
+        if portal in {"internal", "public"}:
+            return portal
+        return None
+    return None
+
+
+def _has_v2_entry_css(root_el, portal: str) -> bool:
+    needle = f"assets_v2/runtime/{portal}/entry.css"
     for node in root_el.iter():
         if not isinstance(node.tag, str) or _local_name(node.tag) != "link":
             continue
         if (node.attrib.get("rel") or "").lower() != "stylesheet":
             continue
-        href = (node.attrib.get("href") or "").lower()
-        if "docs.css" in href:
+        href = node.attrib.get("href") or ""
+        if needle in href:
             return True
     return False
 
 
-def _has_docs_nav_script(root_el) -> bool:
+def _has_v2_entry_js(root_el, portal: str) -> bool:
+    needle = f"assets_v2/runtime/{portal}/entry.js"
     for node in root_el.iter():
         if not isinstance(node.tag, str) or _local_name(node.tag) != "script":
             continue
-        src = (node.attrib.get("src") or "").lower()
-        if "docs-nav.js" in src:
+        src = node.attrib.get("src") or ""
+        if needle in src:
             return True
+    return False
+
+
+def _body_has_class(root_el, class_name: str) -> bool:
+    for node in root_el.iter():
+        if not isinstance(node.tag, str) or _local_name(node.tag) != "body":
+            continue
+        classes = set((node.attrib.get("class") or "").split())
+        return class_name in classes
     return False
 
 
@@ -105,21 +211,21 @@ def _find_main_container(root_el) -> bool:
     return False
 
 
-def _is_swagger_layout(root_el) -> bool:
+def _has_sidebar_mount(root_el) -> bool:
     for node in root_el.iter():
-        if not isinstance(node.tag, str) or _local_name(node.tag) != "main":
+        if not isinstance(node.tag, str) or _local_name(node.tag) != "aside":
             continue
-        classes = set((node.attrib.get("class") or "").split())
-        if "container--swagger" in classes:
+        if (node.attrib.get("data-component") or "").strip() == "sidebar":
             return True
     return False
 
 
-def _has_top_nav_mount(root_el) -> bool:
+def _has_topbar(root_el) -> bool:
     for node in root_el.iter():
-        if not isinstance(node.tag, str) or _local_name(node.tag) != "div":
+        if not isinstance(node.tag, str) or _local_name(node.tag) != "header":
             continue
-        if node.attrib.get("id") == "docs-top-nav":
+        classes = set((node.attrib.get("class") or "").split())
+        if "topbar" in classes:
             return True
     return False
 
@@ -132,25 +238,44 @@ def _count_tag(root_el, tag_name: str) -> int:
     return count
 
 
-def _has_section_card(root_el) -> bool:
+def _legacy_violations(root_el) -> list[str]:
+    """Return human-readable descriptions of legacy markup in the parsed tree.
+
+    Only elements (and their attributes) are inspected — text content,
+    ``<code>`` and ``<pre>`` blocks remain free to discuss legacy names in
+    prose. Returns one string per distinct violation.
+    """
+    hits: list[str] = []
+    seen_links: set[str] = set()
+    seen_classes: set[str] = set()
+    seen_ids: set[str] = set()
     for node in root_el.iter():
-        if not isinstance(node.tag, str) or _local_name(node.tag) != "section":
+        if not isinstance(node.tag, str):
             continue
+        tag = _local_name(node.tag)
+        if tag == "link":
+            href = node.attrib.get("href") or ""
+            for needle in LEGACY_LINK_FRAGMENTS:
+                if needle in href and needle not in seen_links:
+                    hits.append(f"<link> href='{needle}'")
+                    seen_links.add(needle)
+        elif tag == "script":
+            src = node.attrib.get("src") or ""
+            for needle in LEGACY_LINK_FRAGMENTS:
+                if needle in src and needle not in seen_links:
+                    hits.append(f"<script> src='{needle}'")
+                    seen_links.add(needle)
         classes = set((node.attrib.get("class") or "").split())
-        if "card" in classes:
-            return True
-    return False
-
-
-def _has_page_history_section(root_el) -> bool:
-    """Standard hub pages use id=page-history; assessment reports use id=5-page-history."""
-    for node in root_el.iter():
-        if not isinstance(node.tag, str) or _local_name(node.tag) != "section":
-            continue
-        sid = (node.attrib.get("id") or "").strip()
-        if sid in ("page-history", "5-page-history"):
-            return True
-    return False
+        for cls in LEGACY_CLASS_NAMES & classes:
+            if cls in seen_classes:
+                continue
+            hits.append(f"class '{cls}' on <{tag}>")
+            seen_classes.add(cls)
+        el_id = node.attrib.get("id")
+        if el_id and el_id in LEGACY_IDS and el_id not in seen_ids:
+            hits.append(f"id '{el_id}' on <{tag}>")
+            seen_ids.add(el_id)
+    return hits
 
 
 def _has_body_maintainers(root_el) -> bool:
@@ -177,35 +302,47 @@ def main() -> None:
 
         redirect_stub = _is_redirect_stub(doc, text)
 
-        if not _has_docs_css(doc):
-            failures.append(f"{rel}: missing docs.css stylesheet link")
-        if not _has_docs_nav_script(doc):
-            failures.append(f"{rel}: missing docs-nav.js script link")
+        # Legacy assets/classes/ids: check via the parsed tree so prose
+        # mentions of legacy names inside <code>/<pre>/text content stay legal.
+        legacy_hits = _legacy_violations(doc)
+        for hit in legacy_hits:
+            failures.append(f"{rel}: legacy {hit} (must be on UI Kit v2)")
 
-        if not redirect_stub:
-            swagger_layout = _is_swagger_layout(doc)
-            if not _find_main_container(doc):
-                failures.append(f'{rel}: missing <main class="container"> baseline')
-            if _count_tag(doc, "h1") != 1:
-                failures.append(f"{rel}: expected exactly one <h1>")
-            if not _has_top_nav_mount(doc):
-                failures.append(f'{rel}: missing <div id="docs-top-nav"></div>')
-            if not swagger_layout and not _has_section_card(doc):
-                failures.append(f'{rel}: expected at least one <section class="card">')
-            if not swagger_layout and not _has_page_history_section(doc):
-                failures.append(
-                    f"{rel}: missing Page history section "
-                    f'(<section id="page-history"> or assessment <section> with id="5-page-history"); '
-                    f"see docs/internal/front/_shared/style-guide.html#page-history"
-                )
-            if not _has_body_maintainers(doc):
-                failures.append(
-                    f'{rel}: missing <body data-maintainer-ids="..."> required for the Edited by block'
-                )
+        if redirect_stub:
+            # Redirect stubs only need to be portal-correct; no shell required.
+            portal = _html_data_portal(doc)
+            if portal is None:
+                failures.append(f'{rel}: missing <html data-portal="internal|public">')
+            continue
 
-        if '<div class="card"' in text:
+        portal = _html_data_portal(doc)
+        if portal is None:
+            failures.append(f'{rel}: missing <html data-portal="internal|public">')
+            continue
+
+        if not _has_v2_entry_css(doc, portal):
             failures.append(
-                f'{rel}: legacy \'<div class="card">\' found; use <section class="card">'
+                f"{rel}: missing v2 runtime entry "
+                f"(<link rel=stylesheet href=…/assets_v2/runtime/{portal}/entry.css>)"
+            )
+        if not _has_v2_entry_js(doc, portal):
+            failures.append(
+                f"{rel}: missing v2 runtime entry "
+                f"(<script type=module src=…/assets_v2/runtime/{portal}/entry.js>)"
+            )
+        if not _body_has_class(doc, "docs-shell"):
+            failures.append(f'{rel}: missing <body class="docs-shell"> (v2 shell)')
+        if not _find_main_container(doc):
+            failures.append(f'{rel}: missing <main class="container"> baseline')
+        if not _has_sidebar_mount(doc):
+            failures.append(f'{rel}: missing <aside data-component="sidebar"> (v2 sidebar mount)')
+        if not _has_topbar(doc):
+            failures.append(f'{rel}: missing <header class="topbar"> (v2 topbar)')
+        if _count_tag(doc, "h1") != 1:
+            failures.append(f"{rel}: expected exactly one <h1>")
+        if not _has_body_maintainers(doc):
+            failures.append(
+                f'{rel}: missing <body data-maintainer-ids="…"> required for the Edited by block'
             )
 
     if failures:

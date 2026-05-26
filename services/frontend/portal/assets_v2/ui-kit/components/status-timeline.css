@@ -1,0 +1,380 @@
+/* ui-kit/components/status-timeline.css
+   Horizontal (desktop) / vertical (mobile ≤760) status chain for
+   ADR / RFC / Explanation documents.
+   Five canonical states: proposed → accepted → active → superseded → deprecated.
+   Node modifiers: --past (traversed), --current (active, accent+glow), --future (outlined).
+   Layout uses CSS grid: the chain is N equal columns, each cell has the dot
+   in row 1 (fixed dot-size) and the label in row 2. The connector is a single
+   chain-level absolute track (::before solid base + ::after solid accent
+   progress fill driven by --st-progress) sitting behind the dots. This makes
+   the line perfectly straight and the dots perfectly aligned regardless of
+   per-node label width. */
+
+/* ─── Wrapper ────────────────────────────────────────────────────── */
+
+.docs-status-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  /* Section rhythm: timeline always sits with vertical breathing room
+     between surrounding prose / page-head metadata. */
+  margin: var(--space-5) 0;
+}
+
+/* ─── Chain ──────────────────────────────────────────────────────── */
+
+/* The chain owns the connector track. A single absolute line behind all
+   nodes guarantees the connector is perfectly straight regardless of how
+   the flex algorithm distributes width across nodes whose labels have
+   different intrinsic (nowrap) widths.
+
+   --st-count    : number of nodes in the chain (default 5)
+   --st-progress : index of the current node (0..count-1), set inline or by JS.
+                   Drives the accent-tinted overlay that fills from the first
+                   dot's center up to the current dot's center. */
+
+.docs-status-timeline__chain {
+  --st-count: 5;
+  --st-progress: 0;
+  --st-dot-size: 14px;
+  --st-pad-top: 4px;
+  --st-track-y: calc(var(--st-pad-top) + var(--st-dot-size) / 2 - 1px);
+  --st-segment: calc(100% / var(--st-count));
+  --st-track-left: calc(var(--st-segment) / 2);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--st-count), minmax(0, 1fr));
+  grid-auto-rows: max-content;
+  align-items: start;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+}
+
+/* Base track — solid line spanning from the first dot's center to the last
+   dot's center. Sits behind the dots. */
+.docs-status-timeline__chain::before {
+  content: "";
+  position: absolute;
+  top: var(--st-track-y);
+  left: var(--st-track-left);
+  right: var(--st-track-left);
+  height: 2px;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--line);
+}
+
+/* Progress fill — solid accent line from the first dot up to the
+   current dot. Width is exactly `progress` segments wide. */
+.docs-status-timeline__chain::after {
+  content: "";
+  position: absolute;
+  top: var(--st-track-y);
+  left: var(--st-track-left);
+  width: calc(var(--st-segment) * var(--st-progress));
+  height: 2px;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--accent);
+}
+
+/* ─── Node ───────────────────────────────────────────────────────── */
+
+/* Each node occupies one grid column. Inside, dot is row 1 and label is row 2
+   (both with auto height) so all dots align on the same horizontal line
+   regardless of label width. */
+
+.docs-status-timeline__node {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: var(--st-dot-size) auto;
+  row-gap: var(--space-2);
+  justify-items: center;
+  position: relative;
+  z-index: 1;
+  padding-top: var(--st-pad-top, 4px);
+  /* Override the global `main li + li { margin-top: var(--space-1) }` rule
+     in prose.css — in a horizontal grid it pushes successive nodes downward
+     and breaks the timeline alignment. */
+  margin: 0;
+}
+
+.docs-status-timeline__node + .docs-status-timeline__node {
+  margin-top: 0;
+}
+
+/* ─── Dot ────────────────────────────────────────────────────────── */
+
+.docs-status-timeline__dot {
+  position: relative;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  transition:
+    box-shadow 220ms var(--ease-out),
+    background 220ms var(--ease-out);
+}
+
+.docs-status-timeline__node--past .docs-status-timeline__dot {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.docs-status-timeline__node--past .docs-status-timeline__dot::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: var(--radius-full);
+  background: var(--card);
+  opacity: 0.35;
+}
+
+.docs-status-timeline__node--current .docs-status-timeline__dot {
+  background: var(--accent);
+  border: 2px solid var(--accent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.docs-status-timeline__node--future .docs-status-timeline__dot {
+  background: transparent;
+  border: 2px solid var(--line);
+}
+
+/* ─── Checkmark on past nodes ────────────────────────────────────── */
+
+.docs-status-timeline__node--past .docs-status-timeline__dot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5l2.5 2.5L8 3' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E")
+    center / 10px 10px no-repeat;
+}
+
+/* ─── Label ──────────────────────────────────────────────────────── */
+
+.docs-status-timeline__label {
+  font-size: var(--fs-100);
+  font-weight: var(--fw-medium);
+  text-align: center;
+  white-space: nowrap;
+  transition: color 220ms var(--ease-out);
+}
+
+.docs-status-timeline__node--past .docs-status-timeline__label {
+  color: var(--muted-soft);
+}
+
+.docs-status-timeline__node--current .docs-status-timeline__label {
+  color: var(--accent);
+  font-weight: var(--fw-semibold);
+}
+
+.docs-status-timeline__node--future .docs-status-timeline__label {
+  color: var(--muted);
+  opacity: 0.45;
+}
+
+/* ─── Metadata strip ─────────────────────────────────────────────── */
+
+.docs-status-timeline__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-mute);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  margin: 0;
+}
+
+.docs-status-timeline__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.docs-status-timeline__meta-key {
+  font-size: var(--fs-100);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.docs-status-timeline__meta-val {
+  font-size: var(--fs-200);
+  color: var(--text);
+  font-weight: var(--fw-regular);
+  font-style: normal;
+}
+
+.docs-status-timeline__meta-val a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.docs-status-timeline__meta-val a:hover {
+  text-decoration: underline;
+}
+
+/* ─── Successor link-card (shown when superseded) ────────────────── */
+
+.docs-status-timeline__successor-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.docs-status-timeline__successor-heading {
+  font-size: var(--fs-100);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--rose);
+}
+
+.docs-status-timeline__successor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--rose) 28%, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--rose) 5%, var(--bg-elev));
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 140ms var(--ease-out),
+    background 140ms var(--ease-out),
+    box-shadow 140ms var(--ease-out);
+  max-width: 420px;
+}
+
+.docs-status-timeline__successor:hover {
+  border-color: color-mix(in srgb, var(--rose) 50%, var(--line));
+  background: color-mix(in srgb, var(--rose) 9%, var(--bg-elev));
+  box-shadow: var(--shadow-sm);
+}
+
+.docs-status-timeline__successor-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--rose) 15%, transparent);
+  color: var(--rose);
+  font-size: var(--fs-200);
+}
+
+.docs-status-timeline__successor-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.docs-status-timeline__successor-id {
+  font-size: var(--fs-100);
+  font-weight: var(--fw-semibold);
+  color: var(--rose);
+  font-family: var(--font-mono);
+}
+
+.docs-status-timeline__successor-title {
+  font-size: var(--fs-200);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.docs-status-timeline__successor-arrow {
+  flex-shrink: 0;
+  color: var(--muted-soft);
+}
+
+/* ─── Mobile (≤760) ──────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  /* Single-column stack: chain becomes a vertical flex column; nodes become
+     rows (dot left, label right). The chain-level pseudos become a vertical
+     line on the left, behind the dots. */
+  .docs-status-timeline__chain {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-template-rows: none;
+    gap: 0;
+    align-items: stretch;
+  }
+
+  .docs-status-timeline__chain::before {
+    top: var(--space-2);
+    bottom: var(--space-2);
+    left: calc(var(--st-dot-size) / 2 - 1px);
+    right: auto;
+    width: 2px;
+    height: auto;
+    background: var(--line);
+  }
+
+  .docs-status-timeline__chain::after {
+    top: var(--space-2);
+    left: calc(var(--st-dot-size) / 2 - 1px);
+    width: 2px;
+    height: calc(
+      (100% - var(--space-2) * 2) / var(--st-count) * var(--st-progress)
+    );
+    background: var(--accent);
+  }
+
+  .docs-status-timeline__node {
+    display: grid;
+    grid-template-columns: var(--st-dot-size) 1fr;
+    grid-template-rows: auto;
+    column-gap: var(--space-3);
+    row-gap: 0;
+    width: 100%;
+    padding: var(--space-2) 0;
+    justify-items: start;
+    align-items: center;
+  }
+
+  .docs-status-timeline__label {
+    text-align: left;
+  }
+
+  .docs-status-timeline__meta {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .docs-status-timeline__successor {
+    max-width: 100%;
+  }
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-status-timeline__dot,
+  .docs-status-timeline__label,
+  .docs-status-timeline__successor {
+    transition: none;
+  }
+}

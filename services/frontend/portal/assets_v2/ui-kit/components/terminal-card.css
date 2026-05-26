@@ -1,0 +1,291 @@
+/* ui-kit/components/terminal-card.css
+   Premium "live terminal" card — used in the landing-portal hero.
+   Renders a curl-style API request typed out character-by-character. */
+
+.docs-terminal {
+  /* Terminal is theme-agnostic: always dark surface, so the syntax-coloured
+     tokens (designed for a dark bg) stay legible in light AND dark themes.
+     This component intentionally owns a local palette that mocks a real
+     terminal-emulator look (macOS traffic-light dots, dark-mode syntax
+     scheme). The palette is declared here so all colours are auditable. */
+  --terminal-surface-1: #0b1220;
+  --terminal-surface-2: #111a2e;
+  --terminal-bg: #0b1220;
+  --terminal-chrome-bg: rgba(0, 0, 0, 0.32);
+  --terminal-chrome-line: rgba(255, 255, 255, 0.08);
+
+  --terminal-dot-r: #ff5f57;
+  --terminal-dot-y: #febc2e;
+  --terminal-dot-g: #28c840;
+
+  --terminal-text: #e2e8f0;
+  --terminal-on-accent: #ffffff;
+
+  --terminal-ok: #4ade80;
+  --terminal-ok-tint: #22c55e;
+
+  --terminal-syntax-cmd: #c4b5fd;   /* violet-300 */
+  --terminal-syntax-url: #93c5fd;   /* blue-300  */
+  --terminal-syntax-flag: #fcd34d;  /* amber-300 */
+  --terminal-syntax-str: #fda4af;   /* rose-300  */
+  --terminal-syntax-var: #f9a8d4;   /* pink-300  */
+  --terminal-syntax-num: #67e8f9;   /* cyan-300  */
+  --terminal-syntax-lat: #fbbf24;
+  --terminal-prompt: #93c5fd;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 460px);
+  min-height: 240px;
+  border-radius: var(--radius-lg);
+  background-color: var(--terminal-bg);
+  background-image:
+    linear-gradient(180deg,
+      var(--terminal-surface-1) 0%,
+      var(--terminal-surface-2) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.08));
+  box-shadow:
+    0 24px 56px -22px color-mix(in srgb, var(--accent) 50%, transparent),
+    0 12px 28px -10px rgba(15, 23, 42, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+  transform: translateZ(0);
+}
+
+/* Subtle scan-glow ribbon at the top edge */
+.docs-terminal::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent-2, var(--accent)) 80%, transparent) 50%,
+    transparent 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Inner soft glow gradient mesh */
+.docs-terminal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 80% at 0% 0%,
+      color-mix(in srgb, var(--accent) 18%, transparent) 0%,
+      transparent 60%),
+    radial-gradient(50% 60% at 100% 100%,
+      color-mix(in srgb, var(--accent-3, var(--accent-2, var(--accent))) 14%, transparent) 0%,
+      transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.docs-terminal__chrome {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--terminal-chrome-line);
+  background: var(--terminal-chrome-bg);
+  z-index: 1;
+}
+
+.docs-terminal__dot {
+  width: 11px;
+  height: 11px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.docs-terminal__dot--r { background: var(--terminal-dot-r); }
+.docs-terminal__dot--y { background: var(--terminal-dot-y); }
+.docs-terminal__dot--g { background: var(--terminal-dot-g); }
+
+.docs-terminal__title {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: var(--fs-100, 11px);
+  color: rgba(226, 232, 240, 0.68);
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+}
+
+.docs-terminal__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: var(--fw-semibold, 600);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--terminal-ok);
+  background: color-mix(in srgb, var(--terminal-ok-tint) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--terminal-ok-tint) 30%, transparent);
+}
+
+.docs-terminal__badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--terminal-ok);
+  box-shadow: 0 0 8px var(--terminal-ok);
+  animation: docs-terminal-live 1.6s ease-in-out infinite;
+}
+
+@keyframes docs-terminal-live {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+pre.docs-terminal__body,
+.docs-terminal__body {
+  position: relative;
+  flex: 1;
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--terminal-text);
+  background: transparent;
+  border: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.docs-terminal__body code,
+.docs-terminal__body [data-terminal-target] {
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Syntax-coloured tokens — tuned for AA contrast on the fixed dark surface. */
+.docs-terminal__t-mute  { color: rgba(226, 232, 240, 0.72); }
+.docs-terminal__t-cmd   { color: var(--terminal-syntax-cmd); font-weight: 600; }
+.docs-terminal__t-url   { color: var(--terminal-syntax-url); }
+.docs-terminal__t-flag  { color: var(--terminal-syntax-flag); }
+.docs-terminal__t-str   { color: var(--terminal-syntax-str); }
+.docs-terminal__t-var   { color: var(--terminal-syntax-var); font-weight: 600; }
+.docs-terminal__t-ok    { color: var(--terminal-ok); font-weight: 600; }
+.docs-terminal__t-num   { color: var(--terminal-syntax-num); font-weight: 600; }
+.docs-terminal__t-lat   { color: var(--terminal-syntax-lat); font-weight: 600; }
+
+.docs-terminal__caret {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  vertical-align: -2px;
+  margin-left: 1px;
+  background: var(--terminal-prompt);
+  border-radius: 1px;
+  animation: docs-terminal-blink 0.95s steps(2, end) infinite;
+}
+
+@keyframes docs-terminal-blink {
+  0%, 50%   { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+.docs-terminal__foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 8px 12px;
+  border-top: 1px solid var(--terminal-chrome-line);
+  background: var(--terminal-chrome-bg);
+  z-index: 1;
+}
+
+.docs-terminal__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(226, 232, 240, 0.86);
+  cursor: pointer;
+  transition: background 140ms var(--ease-out), color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+}
+
+.docs-terminal__copy:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--terminal-on-accent);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.docs-terminal__copy:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.docs-terminal__copy.is-copied {
+  color: var(--terminal-ok);
+  border-color: color-mix(in srgb, var(--terminal-ok-tint) 50%, transparent);
+  background: color-mix(in srgb, var(--terminal-ok-tint) 16%, transparent);
+}
+
+.docs-terminal__try {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--terminal-prompt);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+
+.docs-terminal__try:hover {
+  color: var(--terminal-on-accent);
+  background: rgba(147, 197, 253, 0.12);
+}
+
+.docs-terminal__try:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.docs-terminal__try svg {
+  transition: transform 200ms var(--ease-spring);
+}
+
+.docs-terminal__try:hover svg {
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-terminal__caret { animation: none; opacity: 0.9; }
+  .docs-terminal__badge::before { animation: none; }
+}
+
+@media (max-width: 760px) {
+  .docs-terminal { width: 100%; min-height: 200px; }
+  .docs-terminal__body { font-size: 12px; padding: var(--space-3) var(--space-4); }
+}

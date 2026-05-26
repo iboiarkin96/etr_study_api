@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>api · Dependencies · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">api</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Dependencies</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Reference</span>
+          <span class="docs-pill docs-pill--info">dependsOn / consumedBy</span>
+          <span class="docs-pill docs-pill--neutral">ADR 0019</span>
+        </div>
+        <h1>api · Dependencies</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          What the api service depends on (upstream) and what depends on it (downstream). Mirrors the Backstage
+          <code>spec.dependsOn</code> / <code>consumedBy</code> graph at a service level. Pinning policy:
+          <a href="../../governance/adr/0019-python-dependency-security-pip-audit-and-pinning-policy.html">ADR 0019</a>
+          (pip-audit + version pinning).
+        </p>
+      </header>
+
+      <h2 id="upstream-runtime">Upstream — runtime dependencies</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Component</th><th>Kind</th><th>Used for</th></tr></thead>
+          <tbody>
+            <tr><td>Python (≥ 3.12)</td><td>Language runtime</td><td>FastAPI process; type-annotated codebase.</td></tr>
+            <tr><td><a href="https://fastapi.tiangolo.com/" rel="external">FastAPI</a> + Uvicorn</td><td>Web framework + ASGI server</td><td>Request handling, OpenAPI generation, dependency injection. Process model in <a href="architecture.html#component-view">C4 L3</a>.</td></tr>
+            <tr><td><a href="https://www.sqlalchemy.org/" rel="external">SQLAlchemy</a></td><td>ORM / persistence</td><td>Repositories, transactional sessions per request.</td></tr>
+            <tr><td>Database</td><td>Relational store</td><td>SQLite for dev; Postgres-capable schema (ADR 0028 phase 2). Single primary, no read replica.</td></tr>
+            <tr><td><a href="https://alembic.sqlalchemy.org/" rel="external">Alembic</a></td><td>Migration tool</td><td>Schema evolution; runbook on failure: <a href="../../how-to/incidents/runbooks/0002-migrations-failing.html">0002</a>.</td></tr>
+            <tr><td>Pydantic v2</td><td>Validation library</td><td>Request/response schemas, JSON validation per <a href="api-reference.html#security-defaults">security defaults</a>.</td></tr>
+            <tr><td><a href="https://www.structlog.org/" rel="external">structlog</a></td><td>Logging library</td><td>NDJSON structured logs (<a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>) consumed by <a href="../monitoring/index.html">monitoring</a>.</td></tr>
+            <tr><td>Redis (optional)</td><td>In-memory store</td><td>Distributed rate-limit counters and idempotency cache. Process can run without when scaled to a single instance.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="upstream-buildtime">Upstream — build-time dependencies</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Component</th><th>Used for</th></tr></thead>
+          <tbody>
+            <tr><td><code>pip-audit</code></td><td>Dependency vulnerability scan in pre-commit (<a href="../../governance/adr/0019-python-dependency-security-pip-audit-and-pinning-policy.html">ADR 0019</a>).</td></tr>
+            <tr><td>Docker / OCI buildx</td><td>Production image per <a href="../../governance/adr/0015-container-image.html">ADR 0015</a>; CD via GHCR per <a href="../../governance/adr/0021-continuous-delivery-github-actions-and-ghcr.html">ADR 0021</a>.</td></tr>
+            <tr><td>pdoc</td><td>Generates the API code reference under <a href="code-reference/index.html">catalog/api/code-reference/</a> (<a href="../../governance/adr/0016-python-docstrings-google-style-and-pdoc.html">ADR 0016</a>).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="downstream">Downstream — who consumes this service</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Consumer</th><th>Surface</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Integrators (any OpenAPI client)</td>
+              <td><code>/api/v1/*</code> over HTTPS</td>
+              <td>Out-of-scope clients: web, mobile, bots — see scope and boundaries.</td>
+            </tr>
+            <tr>
+              <td><a href="../monitoring/index.html">monitoring</a> service</td>
+              <td><code>GET :8000/metrics</code> (Prometheus exposition) and <code>GET :8000/ready</code> (Blackbox)</td>
+              <td>Scrape contract per <a href="../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009</a>.</td>
+            </tr>
+            <tr>
+              <td><a href="../monitoring/index.html">monitoring</a> service · log pipeline</td>
+              <td>NDJSON log file (Filebeat tails)</td>
+              <td>Optional, dev-only by default per <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.</td>
+            </tr>
+            <tr>
+              <td><a href="../portal/index.html">portal</a> service</td>
+              <td>OpenAPI document (build-time consumer)</td>
+              <td>Public reference site under <code>services/portal/public/reference/api/</code> embeds the OpenAPI; no runtime call from portal to api.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>docs-table--zebra --sticky-head</code>; text-only carryover.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-10</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Filled upstream (runtime + build-time) and downstream tables.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-08</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial skeleton stub.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#upstream-runtime">Upstream — runtime</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#upstream-buildtime">Upstream — build-time</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#downstream">Downstream</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

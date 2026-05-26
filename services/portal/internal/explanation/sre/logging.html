@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SRE · Logging · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">SRE · Logging</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--danger">SRE</span>
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1>What logs are for</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          A log line is an answer to a question someone has not asked yet. Treating
+          logging as engineering — structured, levelled, joined by identifier — is what
+          makes that answer findable. Treating it as printf is what makes it noise.
+        </p>
+      </header>
+
+      <h2 id="purpose">Logs vs metrics — different jobs</h2>
+      <p>If <a href="monitoring.html">monitoring</a> tells you that <em>something is wrong</em>, logs tell you <em>what happened to whom</em>. The two answer questions of different shape, and conflating them makes both worse. Counting log lines at query time is slow and expensive; trying to debug one specific failing request by staring at a dashboard is impossible. Each artefact does the job the other cannot.</p>
+      <p>This page is about why we structure logs the way we do. The binding contract — the field set, retention, the local Elasticsearch + Kibana setup — lives in <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.</p>
+
+      <h2 id="structured">Why structured, not free-form</h2>
+      <p>A free-form log line — “user 42 failed to create a conspectus because the duplicate check rejected the composite key” — reads well to a human and is nearly useless to a machine. Filtering for “all failures by user 42” requires regex; counting “failures by reason” requires text mining; correlating with a metric is impossible because the line has no identifier.</p>
+      <p>The same event as a structured log line — a JSON object with <code>user_id</code>, <code>action</code>, <code>outcome</code>, <code>reason</code>, <code>request_id</code> — supports all three queries in milliseconds, and stays correlatable with metrics and traces because the identifier is shared. The cost is upfront: choosing a field name and using it consistently. The payback is every future search.</p>
+      <p>The consistency is the load-bearing property. A field that is called <code>user_id</code> in one module and <code>uid</code> in another is two fields as far as the search engine is concerned. The discipline is to pick a name and reuse it, even when the alternative looks shorter.</p>
+
+      <h2 id="levels">Levels as severity, not as verbosity</h2>
+      <p>Log levels exist to answer one question: at what level of trouble should I look at this line? Used well, the level is a signal. Used badly, it is a knob to tune how much output appears.</p>
+      <div class="docs-concept-layers" aria-label="Log levels as severity">
+        <ol class="docs-concept-layers__stack">
+          <li class="docs-concept-layers__layer" data-tone="neutral">
+            <span class="docs-concept-layers__name">debug</span>
+            <span class="docs-concept-layers__what">Detail for local development or for chasing a specific bug. Off in production by default; never alerts.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="info">
+            <span class="docs-concept-layers__name">info</span>
+            <span class="docs-concept-layers__what">The normal life of the request — “request started”, “job finished”. Routine, expected, not actionable.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="warn">
+            <span class="docs-concept-layers__name">warning</span>
+            <span class="docs-concept-layers__what">The system kept working but something is suspicious. A retry that succeeded after one failure; a deprecated path was hit.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="rose">
+            <span class="docs-concept-layers__name">error</span>
+            <span class="docs-concept-layers__what">One operation failed for a clear reason. Always actionable in principle — if it is not, the level is wrong.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="danger">
+            <span class="docs-concept-layers__name">critical</span>
+            <span class="docs-concept-layers__what">The service or a major part of it cannot continue. Pages.</span>
+          </li>
+        </ol>
+      </div>
+      <p>The reliable failure mode is level drift: routine events get logged at <code>error</code> because the author wanted them to stand out; a real error gets logged at <code>info</code> because <code>error</code> is now too loud. After a few months of this, the level no longer means anything.</p>
+      <p>The corollary is the alert hygiene rule: a log line at <code>error</code> that appears every minute and that nobody acts on is not an error. It is noise wearing an error's clothes. Either lower the level, fix the underlying condition, or aggregate the line.</p>
+
+      <h2 id="join-key">The join key is the whole point</h2>
+      <p>Logs gain most of their value from a single property: every line for one request shares the same <code>request_id</code>. That identifier is what turns a stream of independent events into a story. With it, you can pick one failed line, copy the identifier, filter on it, and read everything that one request did in the order it happened. Without it, you have a haystack and no needle.</p>
+      <p>Generating the identifier at the edge and propagating it through every log line is therefore not optional decoration; it is the architectural feature that makes the rest of the structure pay off. The same identifier — when it can be propagated — also pivots into metrics labels (subject to cardinality limits) and trace spans, which is why <a href="observability.html">observability</a> treats the three pillars as one system rather than three.</p>
+
+      <h2 id="redaction">Why redaction is policy, not paranoia</h2>
+      <p>Logs are searchable, exported, and stored. They are inspected during incidents, sometimes by people outside the immediate team, sometimes by automated pipelines. The right mental model is that anything written to a log is broadly visible — to your colleagues today, to backups in six months, to whoever inherits the system in two years.</p>
+      <p>That changes what belongs in a log. Tokens, passwords, raw bodies that may contain user content, personal data — each is a liability the moment it is captured, and the cost of cleaning it up later is much greater than the cost of not logging it now. A redaction filter at the edge is a safety net, not a substitute: it catches the values that slipped through, but it does not catch the ones the author quietly decided were “probably fine”.</p>
+      <p>The strategic discipline is to <em>not log the value in the first place</em>. The filter catches accidents; the policy is what prevents them.</p>
+
+      <h2 id="cardinality-trap">The cardinality trap, and where it lives</h2>
+      <p>A log line can carry as many high-cardinality fields as you like: <code>user_id</code>, <code>conspectus_id</code>, even individual error messages. A <em>metric label</em> cannot. This asymmetry is the single most common cause of monitoring outages, because the temptation — “if it works as a log field, it works as a label” — is intuitive and wrong.</p>
+      <p>The split is what makes the three telemetry pillars complement each other. Metrics are cheap because their dimensions are bounded. Logs are expressive because their dimensions are not. Traces sit between the two: rich per-request structure, cheaper than logs because the keys are not free-form.</p>
+      <p>When in doubt about where a piece of data belongs, ask how many distinct values it could take. If the answer is “unbounded”, the data goes in logs, possibly traces, never metric labels.</p>
+
+      <h2 id="anti-patterns">Common failure modes</h2>
+      <ul>
+        <li><strong>Logging the same event twice.</strong> Once by the framework, once by the handler. Searches double-count; storage cost doubles; the second line carries no new information.</li>
+        <li><strong>Variable data in <code>msg</code>.</strong> The user id ends up in the human-readable summary instead of a field; full-text search is noisy and aggregation is impossible.</li>
+        <li><strong>Free-form keys.</strong> A field called <code>uid</code> here and <code>user_id</code> there. The schema is in everyone's head, inconsistently.</li>
+        <li><strong>Missing <code>request_id</code>.</strong> You can see that things failed; you cannot reconstruct what one user saw.</li>
+        <li><strong>“We will redact in the pipeline.”</strong> The value is logged with the intention of being scrubbed downstream. The scrubber breaks, or misses an edge case, and the value is now indexed.</li>
+        <li><strong>Levels as a volume knob.</strong> Bumping things up or down to control how loud the logs are. Once levels stop reflecting severity, the on-call cannot trust them.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis cleanup: removed structured-log field table (lives in ADR 0023), redaction policy list, Elasticsearch/Kibana setup steps, and Kibana query cookbook. Reframed around the conceptual rationale — logs vs metrics, why structured, levels as severity, the join key, redaction as policy, the cardinality split.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code> + log-fields table on <code>docs-table--sticky-head --zebra</code>; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-11</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Replaced skeleton stub with full structured-logging guide: contract, levels, redaction, local Elasticsearch + Kibana, query patterns, pitfalls.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#purpose">Logs vs metrics</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#structured">Why structured</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#levels">Levels as severity</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#join-key">The join key</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#redaction">Redaction as policy</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#cardinality-trap">The cardinality trap</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Failure modes</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>📋 Spine matrix — what each entity must document · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <style>
+    /* Local overlays — only what the kit doesn't ship.
+    .kind-block lives in ui-kit/components/kind-block.css.
+    .spine-grid / .spine-tile come from ui-kit/components/spine-grid.css. */
+
+    /* Matrix legend (re-used from old catalog page) */
+    .spine-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--space-2); margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+    .spine-legend li { display: flex; gap: var(--space-2); align-items: baseline; padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-elev); font-size: var(--fs-300); }
+    .spine-legend .marker { font-size: 1.1rem; font-weight: var(--fw-bold); width: 1.2rem; text-align: center; flex: none; }
+    .marker--req { color: var(--success); }
+    .marker--opt { color: var(--muted); }
+    .marker--no  { color: var(--danger); }
+    .marker--na  { color: var(--muted-soft); }
+
+    .spine-matrix th, .spine-matrix td { white-space: nowrap; }
+    .spine-matrix td:first-child { white-space: normal; }
+    .spine-matrix .req  { color: var(--success); font-weight: var(--fw-bold); }
+    .spine-matrix .no   { color: var(--danger);  font-weight: var(--fw-bold); }
+    .spine-matrix .opt  { color: var(--muted-soft); }
+    .spine-matrix .na   { color: var(--muted-soft); opacity: 0.5; }
+  </style>
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Foundations</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="principles.html">Principles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="catalog.html">Catalog taxonomy</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">📋 Spine matrix</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+
+    <article class="docs-prose">
+
+      <header class="page-hero page-head">
+        <p class="page-hero__eyebrow">📋 Catalog · Spine matrix</p>
+        <h1 class="page-hero__h1">Spine matrix — <span class="accent">what each catalog entity must document</span></h1>
+        <div id="docs-top-nav"></div>
+        <p class="page-hero__lede">
+          For every <a href="catalog.html#kinds-h">catalog kind</a>, this page names the canonical pages the entity owes — what
+          the team actually fills in on disk and what CI rejects if missing. Five kinds carry pages
+          (System · Component · Library · API · Resource); the other three (Group · User · Location) are
+          organisational scaffolding and don't have a spine.
+        </p>
+      </header>
+
+      <!-- 01 · LEGEND -->
+      <section class="numbered-section" aria-labelledby="legend-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Apply</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">01</span>
+          <h2 id="legend-h">How to read this page</h2>
+        </div>
+        <p class="numbered-section__lede">
+          Each kind below opens a tone-tinted block with a grid of <strong>spine tiles</strong> — one tile per canonical
+          page the entity owes. The tiles match the visual language of every <code>services/&lt;name&gt;/index.html</code>
+          page (compare with the <a href="../../../services/api/index.html">API service card</a>). Below the per-kind
+          tiles, the full required-vs-optional-vs-forbidden matrix lives in § 07.
+        </p>
+        <ul class="spine-legend">
+          <li><span class="marker marker--req">✅</span><span><strong>Required</strong> for <code>lifecycle: production</code>. CI fails the merge if absent.</span></li>
+          <li><span class="marker marker--opt">○</span><span><strong>Optional</strong>. Permitted; «—» on the entity tile if absent.</span></li>
+          <li><span class="marker marker--no">❌</span><span><strong>Forbidden</strong>. Creating the page is itself a CI failure.</span></li>
+          <li><span class="marker marker--na">—</span><span><strong>N/A</strong>. The concept doesn't apply to this kind.</span></li>
+        </ul>
+      </section>
+
+      <!-- 02 · BY KIND -->
+      <section class="numbered-section" aria-labelledby="by-kind-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Rules</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">02</span>
+          <h2 id="by-kind-h">By kind — what each one documents</h2>
+        </div>
+        <p class="numbered-section__lede">
+          Five kinds, five tinted blocks. Each tile is one canonical page the entity owes — title, one-line description,
+          link to a template or live exemplar.
+        </p>
+
+        <!-- 🏗 SYSTEM -->
+        <div class="kind-block" data-kind="system">
+          <div class="kind-block__title numbered-section__head">
+            <span class="numbered-section__kicker">02.1</span>
+            <h3 class="kind-block__name" id="kind-system"><span class="kind-block__icon" aria-hidden="true">🏗</span>System</h3>
+          </div>
+          <header class="kind-block__head">
+            <span class="docs-pill docs-pill--info">umbrella · landscape</span>
+            <p class="kind-block__role">Holds the C4 L1 landscape, portal-level ADRs, and the «why these Components exist as one product». Doesn't deploy → no runbook, on-call, or SLO of its own.</p>
+          </header>
+          <nav class="spine-grid" data-spine-tone="info" aria-label="System spine">
+            <a class="spine-tile" href="templates/service-descriptor.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">01 · Landscape</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">C4 L1 landscape</h3>
+              <p class="spine-tile__body">System-of-systems diagram — what Components live inside, what external systems they talk to.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/foundation-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">02 · Requirements</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Requirements &amp; use cases</h3>
+              <p class="spine-tile__body">Product-level requirements, user journeys, business invariants the whole System must satisfy.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="diataxis.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">03 · Explanation</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9 9a3 3 0 1 1 5 2.2c-1 .7-2 1.3-2 2.8"></path><line x1="12" y1="17" x2="12" y2="17.01"></line></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">💡 Explanation</h3>
+              <p class="spine-tile__body">«Why this collection of Components is one product» — the rationale tying everything together.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">See Diátaxis</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="../../../governance/adr/index.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">04 · Decisions</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">ADRs (portal-level)</h3>
+              <p class="spine-tile__body">Decisions that affect ≥ 2 Components live at the System level, not inside any one Component.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open ADR index</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/component-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">05 · Dependencies</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"></circle><circle cx="19" cy="5" r="2.5"></circle><circle cx="19" cy="19" r="2.5"></circle><path d="M7.2 10.8 16.8 6.2M7.2 13.2l9.6 4.6"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">External dependencies</h3>
+              <p class="spine-tile__body">System-level upstream (vendors, SaaS, OS) and downstream (consumers of the System as a whole).</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+          </nav>
+        </div>
+
+        <!-- 🧩 COMPONENT -->
+        <div class="kind-block" data-kind="component">
+          <div class="kind-block__title numbered-section__head">
+            <span class="numbered-section__kicker">02.2</span>
+            <h3 class="kind-block__name" id="kind-component"><span class="kind-block__icon" aria-hidden="true">🧩</span>Component</h3>
+          </div>
+          <header class="kind-block__head">
+            <span class="docs-pill docs-pill--accent">deployable service</span>
+            <p class="kind-block__role">Heaviest spine — six required pages. Operational concerns (runbook, on-call) <em>and</em> SA depth (Requirements, Domain, Process, NFR/SLO). The <a href="../../../services/api/index.html">API service card</a> is the canonical exemplar.</p>
+          </header>
+          <nav class="spine-grid" data-spine-tone="accent" aria-label="Component spine">
+            <a class="spine-tile" href="../../../services/api/architecture.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">01 · Design</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Architecture</h3>
+              <p class="spine-tile__body">Domain model, C4 L2/L3 components, ER diagram, schema, content storage.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">See API exemplar</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="../../../services/api/api-reference.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">02 · Contract</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H6a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h2"></path><path d="M16 3h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">API reference</h3>
+              <p class="spine-tile__body">Functional requirements, critical writes, security defaults, foundational sequences.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">See API exemplar</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="../../../services/api/runbooks.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">03 · Operate</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"></rect><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"></path><path d="M9 11h6M9 15h4"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Runbooks</h3>
+              <p class="spine-tile__body">NFR-1…NFR-8 (SLO, observability), failure modes, symptom-keyed runbook index.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">See API exemplar</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="../../../services/api/dependencies.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">04 · Graph</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"></circle><circle cx="19" cy="5" r="2.5"></circle><circle cx="19" cy="19" r="2.5"></circle><path d="M7.2 10.8 16.8 6.2M7.2 13.2l9.6 4.6"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Dependencies</h3>
+              <p class="spine-tile__body">Runtime + build-time upstream, downstream consumers, blast-radius map.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">See API exemplar</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="../../../services/api/on-call.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">05 · Respond</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">On-call</h3>
+              <p class="spine-tile__body">Ownership, health signals, symptom routing, escalation chain.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">See API exemplar</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/component-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">06 · Quality</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l4-4 4 4 7-7"></path><path d="M14 5h7v7"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">NFR &amp; SLO</h3>
+              <p class="spine-tile__body">Numerical targets — availability, latency, throughput, error budget per quarter.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+          </nav>
+        </div>
+
+        <!-- 📦 LIBRARY -->
+        <div class="kind-block" data-kind="library">
+          <div class="kind-block__title numbered-section__head">
+            <span class="numbered-section__kicker">02.3</span>
+            <h3 class="kind-block__name" id="kind-library"><span class="kind-block__icon" aria-hidden="true">📦</span>Library</h3>
+          </div>
+          <header class="kind-block__head">
+            <span class="docs-pill docs-pill--neutral">reusable code · never deployed alone</span>
+            <p class="kind-block__role">No alerts, no on-call, no SLO. Has consumers, a compatibility policy (SemVer), and a changelog — the real contract with callers. A runbook for a Library is malformed by definition.</p>
+          </header>
+          <nav class="spine-grid" data-spine-tone="success" aria-label="Library spine">
+            <a class="spine-tile" href="templates/component-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">01 · Reference</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Reference</h3>
+              <p class="spine-tile__body">Auto-generated API docs — function signatures, types, examples. No hand-written prose.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="diataxis.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">02 · Explanation</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9 9a3 3 0 1 1 5 2.2c-1 .7-2 1.3-2 2.8"></path><line x1="12" y1="17" x2="12" y2="17.01"></line></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">💡 Explanation</h3>
+              <p class="spine-tile__body">Design rationale — why this library exists, what problem it solves, what alternatives were rejected.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">See Diátaxis</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/component-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">03 · Consumers</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Consumers</h3>
+              <p class="spine-tile__body">Who depends on this library — the inverse of <code>spec.dependsOn</code>, computed by the catalog.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="document-types.html#picking-h">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">04 · Contract</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Compatibility &amp; changelog</h3>
+              <p class="spine-tile__body">SemVer policy, breaking-change rules, release notes per minor/major.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">See doc types</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+          </nav>
+        </div>
+
+        <!-- 🔌 API -->
+        <div class="kind-block" data-kind="api">
+          <div class="kind-block__title numbered-section__head">
+            <span class="numbered-section__kicker">02.4</span>
+            <h3 class="kind-block__name" id="kind-api"><span class="kind-block__icon" aria-hidden="true">🔌</span>API</h3>
+          </div>
+          <header class="kind-block__head">
+            <span class="docs-pill docs-pill--success">cross-service contract</span>
+            <p class="kind-block__role">First-class entity, not a sub-page of a Component. Schema is auto-rendered (OpenAPI / AsyncAPI / proto) — never hand-written prose. Availability target is delegated to the owning Component's SLO.</p>
+          </header>
+          <nav class="spine-grid" data-spine-tone="success" aria-label="API spine">
+            <a class="spine-tile" href="templates/api-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">01 · Schema</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H6a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h2"></path><path d="M16 3h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Schema</h3>
+              <p class="spine-tile__body">The source-of-truth contract — OpenAPI 3.1 / AsyncAPI 3.0 / proto file. Auto-rendered to HTML.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/api-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">02 · Reference</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Reference</h3>
+              <p class="spine-tile__body">Per-endpoint field tables, error envelope, security defaults — auto-generated from the schema.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/api-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">03 · Consumers</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Consumers</h3>
+              <p class="spine-tile__body">Who calls this API — list of Components, with their <code>spec.consumesApis</code> entries auto-collated.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/component-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">04 · Quality</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l4-4 4 4 7-7"></path><path d="M14 5h7v7"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Availability target</h3>
+              <p class="spine-tile__body">NFR delegated to the owning Component's SLO. Documented here so callers know what to expect.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/how-to.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">05 · Migrate</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Migration guide</h3>
+              <p class="spine-tile__body">vN → vN+1 step-by-step for consumers. Required on every breaking change.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+          </nav>
+        </div>
+
+        <!-- 💾 RESOURCE -->
+        <div class="kind-block" data-kind="resource">
+          <div class="kind-block__title numbered-section__head">
+            <span class="numbered-section__kicker">02.5</span>
+            <h3 class="kind-block__name" id="kind-resource"><span class="kind-block__icon" aria-hidden="true">💾</span>Resource</h3>
+          </div>
+          <header class="kind-block__head">
+            <span class="docs-pill docs-pill--warn">infrastructure · DB · queue · bucket</span>
+            <p class="kind-block__role">Operational concerns plus backup / recovery and access policy. No Diátaxis quadrants — Resources serve ops, not application developers. «How to learn the database» isn't a thing this portal teaches.</p>
+          </header>
+          <nav class="spine-grid" data-spine-tone="warning" aria-label="Resource spine">
+            <a class="spine-tile" href="templates/data-table.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">01 · Schema</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="2.5"></ellipse><path d="M4 5v6c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5V5"></path><path d="M4 11v6c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5v-6"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Schema</h3>
+              <p class="spine-tile__body">DB / storage schema — tables, columns, indexes, retention policy, generated from migrations.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/runbook.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">02 · Operate</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"></rect><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"></path><path d="M9 11h6M9 15h4"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Runbooks</h3>
+              <p class="spine-tile__body">Disk full, replication lag, slow query — per-alert recovery procedure.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/component-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">03 · Respond</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">On-call</h3>
+              <p class="spine-tile__body">Who pages on a Resource alert, escalation chain, paging signals.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/runbook.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">04 · Recover</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"></path><polyline points="20 4 20 9 15 9"></polyline></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Backup &amp; recovery</h3>
+              <p class="spine-tile__body">Backup cadence, retention, RPO / RTO, last drill date, restore procedure.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+            <a class="spine-tile" href="templates/foundation-spec.html">
+              <header class="spine-tile__head">
+                <span class="spine-tile__index">05 · Access</span>
+                <span class="spine-tile__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </span>
+              </header>
+              <h3 class="spine-tile__title">Access policy</h3>
+              <p class="spine-tile__body">Roles, secrets, IAM bindings, least-privilege rationale. Audited every quarter.</p>
+              <footer class="spine-tile__foot"><span class="spine-tile__cta">Open template</span><span class="spine-tile__arrow" aria-hidden="true">→</span></footer>
+            </a>
+          </nav>
+        </div>
+
+      </section>
+
+      <!-- 03 · ADDING AN ENTITY -->
+      <section class="numbered-section" aria-labelledby="adding-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Apply</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">03</span>
+          <h2 id="adding-h">Adding a new entity end-to-end</h2>
+        </div>
+        <ol>
+          <li>Pick the kind. If you can't decide between two, the entity isn't ready to be created — re-read <a href="catalog.html#kinds-h">Catalog · § 01 Eight kinds</a>.</li>
+          <li>Copy the matching template from <a href="templates/index.html"><code>templates/</code></a>: Component → <code>service-descriptor.html</code> · API → <code>api-spec.html</code> · Library / Resource / System use <code>component-spec.html</code> or <code>foundation-spec.html</code> as a starting point.</li>
+          <li>Author every ✅ page in the matrix (§ 04 below) for your kind. For <code>lifecycle: experimental</code>, Overview + Explanation are enough; the rest can come later.</li>
+          <li>Register the entity in <code>catalog-info.yaml</code> next to the code — see the envelope example in <a href="catalog.html#envelope-h">Catalog · § 02 YAML envelope</a>.</li>
+          <li>The renderer <code>render_service_descriptors.py</code> auto-syncs the sidebar (<code>nav-tree-internal.json</code>) from your YAML on every run.</li>
+          <li>Push. Pre-commit hooks validate catalog drift; <a href="process.html#gates-h">CI gates</a> reject any missing ✅ page or any forbidden ❌ page.</li>
+        </ol>
+      </section>
+
+      <!-- 04 · FULL MATRIX -->
+      <section class="numbered-section" aria-labelledby="matrix-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Rules</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">04</span>
+          <h2 id="matrix-h">The full matrix</h2>
+        </div>
+        <p class="numbered-section__lede">
+          The complete required / optional / forbidden grid. Use it as a checklist when authoring; CI uses the same
+          grid to gate merges.
+        </p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head spine-matrix">
+            <thead>
+              <tr>
+                <th>Page</th>
+                <th>🏗 System</th>
+                <th>🧩 Component</th>
+                <th>📦 Library</th>
+                <th>🔌 API</th>
+                <th>💾 Resource</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Overview (<code>index.html</code>)</td>      <td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="req">✅</td></tr>
+              <tr><td>Architecture / Schema</td>                  <td>C4 L1</td>          <td>C4 L2/L3</td>        <td class="na">—</td>  <td>OpenAPI / AsyncAPI / proto</td><td>DB / storage schema</td></tr>
+              <tr><td>Requirements &amp; use cases</td>           <td class="req">✅</td><td class="req">✅</td><td class="na">—</td>  <td class="na">—</td>  <td class="na">—</td></tr>
+              <tr><td>Domain model (ER + glossary)</td>           <td class="na">—</td>  <td class="req">✅</td><td class="na">—</td>  <td class="na">—</td>  <td class="na">—</td></tr>
+              <tr><td>Process documentation (BPMN)</td>           <td class="na">—</td>  <td class="req">✅</td><td class="na">—</td>  <td class="na">—</td>  <td class="na">—</td></tr>
+              <tr><td>📚 Tutorials</td>                           <td class="opt">○</td> <td class="req">✅</td><td class="opt">○</td> <td class="opt">○</td> <td class="na">—</td></tr>
+              <tr><td>🔧 How-to</td>                              <td class="na">—</td>  <td class="req">✅</td><td class="opt">○</td> <td class="opt">○</td> <td class="opt">○</td></tr>
+              <tr><td>📖 Reference (auto-generated)</td>          <td class="na">—</td>  <td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="req">✅</td></tr>
+              <tr><td>💡 Explanation (rationale)</td>             <td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="opt">○</td></tr>
+              <tr><td><strong>NFR &amp; SLO</strong> (numerical)</td><td class="na">—</td><td class="req">✅</td><td class="na">—</td>  <td class="req">✅</td><td class="req">✅</td></tr>
+              <tr><td><strong>Runbooks</strong> (alert → fix)</td><td class="na">—</td>  <td class="req">✅</td><td class="no">❌</td> <td class="na">—</td>  <td class="req">✅</td></tr>
+              <tr><td>On-call</td>                                <td class="na">—</td>  <td class="req">✅</td><td class="no">❌</td> <td class="na">—</td>  <td class="req">✅</td></tr>
+              <tr><td>Dependencies (blast radius)</td>            <td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="req">✅</td></tr>
+              <tr><td>Consumers (who calls)</td>                  <td class="na">—</td>  <td class="na">—</td>  <td class="req">✅</td><td class="req">✅</td><td class="req">✅</td></tr>
+              <tr><td>Compatibility policy</td>                   <td class="na">—</td>  <td class="na">—</td>  <td class="req">✅</td><td class="req">✅</td><td class="opt">○</td></tr>
+              <tr><td>Migration guides (vN → vN+1)</td>           <td class="na">—</td>  <td>✅ if versioned</td><td>✅ if versioned</td><td class="req">✅</td><td class="opt">○</td></tr>
+              <tr><td>Release notes + Changelog</td>              <td class="na">—</td>  <td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="opt">○</td></tr>
+              <tr><td>ADRs · entity-local (index)</td>            <td>✅ portal-level</td><td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="na">—</td></tr>
+              <tr><td>Backup / Recovery</td>                      <td class="na">—</td>  <td class="na">—</td>  <td class="na">—</td>  <td class="na">—</td>  <td class="req">✅</td></tr>
+              <tr><td>Access (roles / secrets)</td>               <td class="na">—</td>  <td class="na">—</td>  <td class="na">—</td>  <td class="na">—</td>  <td class="req">✅</td></tr>
+              <tr><td>Practice adoption (cross-link)</td>         <td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="req">✅</td><td class="req">✅</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Applied the handbook lens-chip pattern. Reading-guide placeholder; chips: § 01 legend → <strong>Apply</strong>, § 02 by-kind → <strong>Rules</strong>, § 03 adding an entity → <strong>Apply</strong>, § 04 full matrix → <strong>Rules</strong>. Sources footer added.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-24</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">
+            Extracted from <code>catalog.html</code> as a dedicated deep-dive. The catalog hub was overloaded — the spine matrix + per-kind page list dominated the page and obscured the taxonomy itself. Now each of the five documented kinds (System · Component · Library · API · Resource) has a tone-tinted block with a kit <code>.spine-grid</code> of <code>.spine-tile</code> children — the same visual pattern as <code>services/&lt;name&gt;/index.html</code> (compare with the <a href="../../../services/api/index.html">API service card</a>). Tiles link to either the live exemplar (Component → <code>services/api/*</code>) or the matching template. The full required-vs-optional-vs-forbidden matrix lives in § 04 as a quick-scan reference. Adding-an-entity recipe moved here too.
+          </span>
+        </li>
+      </ul>
+    </footer>
+
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#legend-h">How to read</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#by-kind-h">By kind</a>
+        <ol class="docs-toc__list">
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#kind-system">🏗 System</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#kind-component">🧩 Component</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#kind-library">📦 Library</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#kind-api">🔌 API</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#kind-resource">💾 Resource</a></li>
+        </ol>
+      </li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#adding-h">Adding an entity</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#matrix-h">Full matrix</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

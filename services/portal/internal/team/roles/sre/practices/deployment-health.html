@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deployment Health Gates — Practice 18 · SRE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SRE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Deployment Health Gates</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">18</span>
+        <span class="pa-eyebrow__group">Group D · Delivery reliability</span>
+      </p>
+      <h1>Deployment Health Gates — confirm the deployment is healthy before calling it done</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Automated checks that run immediately after every deployment and block promotion or trigger rollback if any signal degrades — converting the post-deploy observation window from a manual watch into a structured, reproducible gate.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">A deployment health gate is an automated check that runs for a defined observation window after every production deployment and compares post-deploy metrics against pre-deploy baseline. Three gate signals: error rate (must stay within 1.5× baseline for 10 minutes post-deploy), P99 latency (within 1.5× baseline), and success rate of the service's critical-path synthetic probe (must remain above 99%). If any signal degrades, the deployment pipeline pauses and the on-call is paged. If degradation persists past a 5-minute grace period, rollback is triggered automatically. The gate eliminates the "we deployed, it looks fine, we went home, something broke at 2 am" failure mode.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Deployment health gate timeline">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Deploy starts, readiness probe, smoke tests, metrics window, promote or rollback" style="display:block;max-width:600px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="5" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="65" y="106" text-anchor="middle" font-weight="700">Deploy starts</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="65" y="124" text-anchor="middle" font-size="10">t = 0</text>
+
+        <rect class="pa-svg-box" x="150" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="210" y="106" text-anchor="middle" font-weight="700">Readiness probe</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="210" y="124" text-anchor="middle" font-size="10">pod accepts traffic</text>
+
+        <rect class="pa-svg-box" x="295" y="80" width="120" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="355" y="106" text-anchor="middle" font-weight="700">Smoke tests</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="355" y="124" text-anchor="middle" font-size="10">synthetic probes</text>
+
+        <rect class="pa-svg-box" x="440" y="80" width="135" height="60" rx="8"></rect>
+        <text class="pa-svg-text" x="507" y="106" text-anchor="middle" font-weight="700">Metrics window</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="507" y="124" text-anchor="middle" font-size="10">10 min vs baseline</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="600" y="20" width="35" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--good" x="617" y="48" text-anchor="middle" font-weight="700" font-size="10">Promote</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="617" y="62" text-anchor="middle" font-size="9">pass</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="600" y="148" width="35" height="52" rx="8"></rect>
+        <text class="pa-svg-text pa-svg-text--accent" x="617" y="176" text-anchor="middle" font-weight="700" font-size="10">Rollback</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="617" y="190" text-anchor="middle" font-size="9">fail</text>
+
+        <path d="M125 110 L145 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M270 110 L290 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M415 110 L435 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M575  98 L598  56" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M575 122 L598 166" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+      </svg>
+      <figcaption class="pa-figure__caption">Deploy starts → readiness probe → smoke tests → 10-minute metrics window vs baseline → promote on pass, rollback on fail. The window converts a manual watch into a structured gate.</figcaption>
+    </figure>
+
+    <h2 id="what">What it is</h2>
+    <p><strong>Deployment health gates</strong> are automated checks that run during a defined observation window after every production deployment and compare post-deploy metrics against a pre-deploy baseline. A gate has three components:</p>
+    <ul>
+      <li><strong>Gate signals:</strong> The specific metrics checked — typically error rate, P99 latency, and the success rate of the service's critical-path synthetic probe. Each signal has a pass threshold (e.g., error rate within 1.5× baseline) evaluated across the observation window.</li>
+      <li><strong>Observation window:</strong> The time period after deployment during which signals are observed. 10 minutes for canary deployments; 30 minutes for ring 1 promotions. The window must be long enough to accumulate statistically significant traffic, but short enough to limit blast radius if something is wrong.</li>
+      <li><strong>Failure response:</strong> If a gate signal degrades, the deployment pipeline pauses and the on-call is paged. A 5-minute grace period allows for transient noise. If degradation persists past the grace period, rollback is triggered automatically without human intervention.</li>
+    </ul>
+    <p>Gates are defined per service as code — a YAML configuration specifying the signals, thresholds, and observation window. The gate runs as a pipeline stage, not a human check.</p>
+
+    <h2 id="why">Why we need it</h2>
+    <p>Most post-deploy outages happen in the hour after a deployment, not during it. The deployment itself goes cleanly, the first manual check looks fine, the team moves on — and then something fails at low traffic that wasn't visible in the observation minute the deployer spent looking at dashboards before going to lunch. Health gates close this gap by extending the observation window programmatically and defining explicit pass/fail criteria.</p>
+    <p>Health gates also provide the evidence for rollback decisions. Without a gate, the rollback decision requires an engineer to assess degradation in real time, under pressure, with partial information. With a gate, the rollback decision is made by the same criteria that would pass a production review — documented, reproducible, and fast.</p>
+
+    <h2 id="industry">How others do it</h2>
+    <div class="pa-industry">
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Netflix</p>
+        <p class="pa-industry__what">Netflix's deployment system (Spinnaker) includes a "canary analysis" stage that compares the canary version's metrics against the baseline using a statistical comparison — not a simple threshold, but a Mann-Whitney U test across the distribution of metric values during the observation window. This detects regressions in the tail of the distribution that a simple average or P99 comparison would miss. The canary analysis score (0–100) is the gate criterion, not the raw metric values.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Statistical comparison is more rigorous than threshold comparison for detecting distribution shifts. A simple "error rate within 1.5× baseline" misses cases where the mean is fine but the tail has a new spike. Statistical gates are the correct approach for high-volume services where the distribution matters more than the average.</p>
+        <p class="pa-industry__source">Source: <a href="https://netflixtechblog.com/automated-canary-analysis-at-netflix-with-kayenta-3260bc7cc15d" rel="noopener">Netflix Tech Blog — Kayenta</a></p>
+      </div>
+      <div class="pa-industry__card">
+        <p class="pa-industry__company">Weaveworks / Flagger</p>
+        <p class="pa-industry__what">Flagger (open source, developed by Weaveworks) implements progressive delivery health gates as a Kubernetes controller. The controller watches a deployment, routes traffic through canary/stable splits, queries Prometheus or Datadog for gate signals, and advances or rolls back automatically based on configurable thresholds. The gate configuration lives in a CRD (Custom Resource Definition) in the same repository as the service — gates are reviewed in the same PR as the deployment change.</p>
+        <p class="pa-industry__lesson"><strong>What we take:</strong> Gate configuration belongs in the service repository, not in a separate deployment system. When gates are code-reviewed alongside the deployment change, engineers are more likely to think about failure modes before deploying than after.</p>
+        <p class="pa-industry__source">Source: <a href="https://flagger.app/" rel="noopener">Flagger — Progressive Delivery Operator</a></p>
+      </div>
+    </div>
+
+    <h2 id="anatomy">Anatomy</h2>
+    <div class="pa-anatomy">
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Gate signal selection</p><p class="pa-anatomy__hint">Three mandatory signals: error rate (4xx/5xx / total requests), P99 latency, and synthetic probe success rate. Optional: SLO burn rate for the window. Avoid business metrics (conversion rate, revenue) as gate signals — they're too noisy for a 10-minute window and confound A/B effects with reliability regressions.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Baseline calculation</p><p class="pa-anatomy__hint">Baseline = same signals averaged over the 24 hours before the deployment, excluding the previous deployment window. Day-of-week and hour-of-day adjustment: if deploying on Monday morning, the baseline is the previous Monday morning, not the Friday evening. Static thresholds (not compared to baseline) produce too many false positives on seasonal traffic patterns.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Grace period design</p><p class="pa-anatomy__hint">A 5-minute grace period after gate degradation absorbs transient metric spikes (alerting noise, burst traffic). During the grace period, the pipeline pauses and the on-call is notified but rollback has not triggered. The engineer can manually abort the grace period and trigger immediate rollback if the degradation is clearly severe. Never extend the grace period beyond 10 minutes — it defeats the purpose of the gate.</p></div>
+      <div class="pa-anatomy__part"><p class="pa-anatomy__name">Gate-as-code requirement</p><p class="pa-anatomy__hint">Every Tier 0 and Tier 1 service must have a health gate configuration file (<code>deployment-gate.yaml</code>) in the repository root. CI validates that the file exists and parses correctly before the PR can merge. Services without a gate file cannot deploy to production.</p></div>
+    </div>
+
+    <h2 id="how">How it works in this project</h2>
+    <p>Study App runs every production deployment through a layered health gate built on <strong>Kubernetes</strong> readiness and liveness probes, post-deploy <strong>smoke tests</strong> driven by synthetic checks, and a 10-minute metrics window analysed by <strong>Argo Rollouts</strong>. Readiness probes hold traffic off a new pod until it returns 200 on <code>/healthz/ready</code>; liveness probes restart pods that wedge after they've been serving. Once pods are ready, a synthetic-check job hits the service's critical-path endpoints (login, fetch lesson, submit answer) and only then opens the traffic split.</p>
+    <p>During the 10-minute observation window, Argo Rollouts runs an <code>AnalysisTemplate</code> that queries Prometheus for error rate and P99 latency against the pre-deploy baseline. If either signal exceeds 1.5× baseline for more than the 5-minute grace period, the rollout is automatically rolled back — traffic shifted to the previous stable ReplicaSet, the new pods drained, and the on-call paged with the analysis report attached. The gate runs as a pipeline stage in <code>.github/workflows/deploy.yaml</code>, with the gate config living next to each service at <code>services/&lt;name&gt;/deployment-gate.yaml</code>.</p>
+
+    <h2 id="deep-dive">Deep dive — the theory you need</h2>
+    <div class="pa-deepdive">
+      <h3>Probe design — what each probe is actually for</h3>
+      <p>Kubernetes exposes three probes — readiness, liveness, startup — and they answer three different questions. The most common production bug is treating them as interchangeable; they are not.</p>
+      <h4>Readiness ≠ liveness</h4>
+      <p>The <em>readiness probe</em> answers "should this pod receive traffic right now?" — a No removes the pod from the Service endpoints but does not restart it. The <em>liveness probe</em> answers "is this pod wedged?" — a No restarts the container. Use readiness for transient back-pressure (database connection draining, warm-up incomplete) and liveness only for genuine deadlocks. A common failure mode: pointing liveness at the same <code>/health</code> endpoint that depends on the database — when the database hiccups, every pod restarts simultaneously, turning a degradation into an outage.</p>
+      <h4>The startup-probe gotcha</h4>
+      <p>Slow-starting applications (JVMs, anything loading a model) need the <em>startup probe</em> — it suspends readiness and liveness until startup completes, giving a long initial budget without making the steady-state liveness check generous. Skip the startup probe and you have a choice between liveness restarting the pod mid-startup or making every steady-state liveness check tolerate 60 seconds, which means a wedged pod takes 60 seconds to be restarted. The startup probe is not optional for slow boots.</p>
+      <h4>What "healthy" means at the deploy boundary</h4>
+      <p>Immediately after a deploy, the service is in an unusual state: caches are cold, connection pools are empty, traffic is ramping. "Healthy" cannot mean "indistinguishable from steady state" — it has to mean "no new errors, and the ramp is converging on baseline." That is why the gate compares against a pre-deploy baseline, not a static threshold: a cold-cache P99 of 200ms is fine if the steady-state P99 is 150ms (1.33× baseline, within 1.5×), but a static "P99 must be under 180ms" gate would fail every deploy.</p>
+      <h4>Comparison-window statistics</h4>
+      <p>The two ways to compare post-deploy against baseline are <em>threshold</em> ("post-deploy mean ≤ 1.5 × baseline mean") and <em>distributional</em> (Mann-Whitney U or Kolmogorov-Smirnov on the full sample). Thresholds are cheap and the right choice for low-volume services where the sample is too small for distributional tests to have power. Distributional comparison is correct for high-volume services where the mean stays flat but the tail develops a new lobe (the classic "1% of users now see 5s latency" regression that never moves the average). The Study App default is threshold for now; the migration to Kayenta-style distributional analysis is on the roadmap once traffic justifies the complexity.</p>
+      <h4>Blue-green pre-warm latency</h4>
+      <p>A naive blue-green cutover moves 100% of traffic at once and the new fleet's caches are stone cold — P99 spikes for the first minute, the gate fails, rollback fires, the deploy never lands. Two mitigations: <em>pre-warm</em> the green fleet by replaying a synthetic traffic profile against it before the cut, and <em>extend the gate's grace period</em> for blue-green specifically (15 min instead of 5) to let caches fill. Canary deployments dodge this because traffic ramps gradually; pure blue-green needs the explicit pre-warm.</p>
+      <h4>Trade-offs — what this practice costs</h4>
+      <ul>
+        <li><strong>Deploy latency.</strong> A 10-minute observation window means every deploy carries a 10-minute tail before it is "done". Teams used to instant deploys feel this — the answer is to remember that the alternative is a 2 a.m. page, not a faster deploy.</li>
+        <li><strong>Baseline maintenance.</strong> A baseline derived from "the previous 24 hours" needs hour-of-day and day-of-week adjustment, otherwise Monday-morning deploys fail against Sunday-evening baselines. The adjustment logic is non-trivial and has to be tested like production code.</li>
+        <li><strong>Override discipline.</strong> The first time a gate blocks an urgent fix, somebody will ask for a manual override. Granting it routinely turns the gate into theatre; refusing it costs time. The right rule: overrides require a written reason and trigger an automatic post-deploy retro entry, so the cost of override surfaces visibly.</li>
+      </ul>
+    </div>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <div class="pa-states">
+      <span class="pa-state">artifact released</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">pre-deploy checks</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">deploy to canary</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">readiness ok</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">smoke green</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">metrics window passed</span>
+      <span class="pa-state__arrow">→</span>
+      <span class="pa-state">fully promoted</span>
+    </div>
+    <p>A deploy starts as a tagged artifact in the registry. Pre-deploy checks (image signature, vulnerability scan, gate-file presence) gate the pipeline before any pod moves. The canary ReplicaSet comes up next; Kubernetes holds it out of traffic until the readiness probe goes green. Synthetic smoke tests hit the critical-path endpoints — if any fail, the rollout halts before user traffic is shifted. Once smoke is green, traffic ramps and the 10-minute metrics window opens; Argo Rollouts polls the analysis template on each step. Window passed → step weight increases until the canary is fully promoted; window failed past grace → automatic rollback to the previous stable ReplicaSet, on-call paged with the analysis output. The "fully promoted" state is the only one that retires the previous ReplicaSet — every earlier state keeps it warm for an instant cut-back.</p>
+
+    <h2 id="pitfalls">Common pitfalls</h2>
+    <div class="docs-table-wrap" role="region" aria-label="Common pitfalls" tabindex="0">
+      <table class="docs-table docs-table--sticky-head">
+        <thead>
+          <tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Gates that never trigger because thresholds are too loose</strong></td>
+            <td>Engineers set 10× baseline thresholds to avoid false positives after being paged once for a transient spike.</td>
+            <td>Track gate trigger rate. A gate that has never triggered in 6 months either means the service is flawless or the thresholds are wrong. Both are worth investigating. Review gate thresholds quarterly against actual post-deploy degradation events.</td>
+          </tr>
+          <tr>
+            <td><strong>Gate signals chosen that aren't sensitive to the deployment</strong></td>
+            <td>"We track CPU utilisation because it's easy to instrument."</td>
+            <td>Gate signals must be causally linked to the deployment. CPU is a resource metric — it changes with load, not just with code changes. Error rate and latency are output metrics that directly reflect user-visible quality. Choose user-visible output signals.</td>
+          </tr>
+          <tr>
+            <td><strong>Manual override used routinely to bypass gate failures</strong></td>
+            <td>"We know this is a known metric spike — just override the gate."</td>
+            <td>If a gate failure is routinely bypassed, the gate is wrong. Fix the gate (adjust the threshold or exclude the known spike from the signal) rather than building a culture of overrides. Every manual override is a data point that the gate needs tuning.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="example">Worked example</h2>
+    <div class="pa-example">
+      <div class="pa-example__head">
+        <span class="pa-example__tag">Deployment spec</span>
+        <p class="pa-example__title">lessons-api — Kubernetes Deployment + Argo Rollouts analysis template</p>
+      </div>
+      <div class="pa-example__body">
+        <pre><code># services/lessons-api/k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lessons-api
+spec:
+  replicas: 6
+  template:
+    spec:
+      containers:
+        - name: lessons-api
+          image: registry.studyapp/lessons-api:1.42.0
+          ports:
+            - containerPort: 8080
+          startupProbe:
+            httpGet: { path: /healthz/startup, port: 8080 }
+            periodSeconds: 5
+            failureThreshold: 24          # 2 min budget for cold start
+          readinessProbe:
+            httpGet: { path: /healthz/ready, port: 8080 }
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /healthz/live, port: 8080 }
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "/opt/smoke-test.sh"]
+---
+# services/lessons-api/rollout/analysis-template.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: lessons-api-gate
+spec:
+  args:
+    - name: service
+      value: lessons-api
+  metrics:
+    - name: error-rate
+      interval: 60s
+      count: 10                          # 10-minute window
+      successCondition: result[0] &lt;= 1.5 * result[1]
+      failureLimit: 5                    # 5-minute grace
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring:9090
+          query: |
+            (
+              sum(rate(http_requests_total{service="{{args.service}},status=~"5.."}[1m]))
+              / sum(rate(http_requests_total{service="{{args.service}}}[1m]))
+            )
+    - name: p99-latency
+      interval: 60s
+      count: 10
+      successCondition: result[0] &lt;= 1.5 * result[1]
+      failureLimit: 5
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring:9090
+          query: |
+            histogram_quantile(0.99,
+              sum by (le) (rate(http_request_duration_seconds_bucket{service="{{args.service}}"}[1m]))
+            )
+        </code></pre>
+        <p><strong>What this spec does.</strong> Three probes give Kubernetes the right answer to three different questions: <code>startupProbe</code> grants a 2-minute cold-start budget, <code>readinessProbe</code> holds traffic off a pod that is not ready right now, and <code>livenessProbe</code> restarts a wedged container. The <code>postStart</code> hook runs the per-pod smoke test before the pod claims readiness. Argo Rollouts queries the analysis template every 60 seconds for 10 polls — error rate and P99 latency both compared to the pre-deploy baseline at 1.5×. A <code>failureLimit: 5</code> on each metric is the 5-minute grace; once exceeded, the rollout is automatically rolled back and the on-call paged with the analysis run attached. The gate, the deploy, and the smoke test all ship in the same PR — code review covers the failure modes before they reach production.</p>
+      </div>
+    </div>
+
+    <h2 id="quality">Quality bar — what good looks like</h2>
+    <p>A checklist of what a healthy implementation has. <span class="docs-pill docs-pill--success">✓ done</span> <span class="docs-pill docs-pill--warn">◐ partial</span> <span class="docs-pill docs-pill--neutral">○ todo</span></p>
+    <ul class="pa-quality">
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Every Tier 0/1 service has a <code>deployment-gate.yaml</code></p><p class="pa-quality__hint">CI rejects PRs from services missing the gate config; the file is reviewed in the same PR as the deployment change.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Three probes configured correctly</p><p class="pa-quality__hint">Startup, readiness, and liveness all present; liveness does not depend on downstream services; startup probe present on any service that takes &gt;10 s to boot.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Synthetic smoke tests run post-deploy</p><p class="pa-quality__hint">Critical-path endpoints hit before traffic is shifted; failures halt the rollout before user impact.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">10-minute observation window with baseline comparison</p><p class="pa-quality__hint">Error rate and P99 latency compared to pre-deploy baseline at 1.5×, evaluated continuously across the window.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">5-minute grace period before auto-rollback</p><p class="pa-quality__hint">Transient spikes absorbed; sustained degradation triggers automatic rollback without human intervention.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Gate trigger rate measured and reviewed</p><p class="pa-quality__hint">A gate that has never triggered in 6 months is either too loose or guarding a flawless service — investigate which.</p></div></li>
+      <li class="pa-quality__item pa-quality__item--todo"><span class="pa-quality__mark" aria-label="todo">○</span><div><p class="pa-quality__title">Overrides require written reason + retro entry</p><p class="pa-quality__hint">Manual override is allowed but never free; every override creates a post-deploy retro item so tuning cost stays visible.</p></div></li>
+    </ul>
+
+    <h2 id="references">References</h2>
+    <div class="pa-refs">
+      <div class="pa-refs__column">
+        <h3>Industry sources</h3>
+        <ul>
+          <li><a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/" rel="noopener">Kubernetes — Configure liveness, readiness, and startup probes</a><span class="pa-refs__hint">The canonical reference for what each probe does and the failure modes of using one in place of another.</span></li>
+          <li><a href="https://argo-rollouts.readthedocs.io/en/stable/features/analysis/" rel="noopener">Argo Rollouts — Analysis templates</a><span class="pa-refs__hint">The mechanism that turns a metrics-window comparison into a pipeline-blocking gate with automatic rollback.</span></li>
+          <li><a href="https://netflixtechblog.com/automated-canary-analysis-at-netflix-with-kayenta-3260bc7cc15d" rel="noopener">Netflix Tech Blog — Kayenta automated canary analysis</a><span class="pa-refs__hint">The case for statistical comparison over thresholds at high traffic volumes.</span></li>
+          <li><a href="https://sre.google/workbook/canarying-releases/" rel="noopener">Google SRE Workbook — Canarying releases</a><span class="pa-refs__hint">The reference treatment of canary deployments, observation windows, and rollback automation.</span></li>
+        </ul>
+      </div>
+      <div class="pa-refs__column">
+        <h3>Inside the project</h3>
+        <ul>
+          <li><a href="progressive-delivery.html">Progressive delivery — how traffic is ramped</a><span class="pa-refs__hint">Canary and blue-green strategies that the gate runs on top of.</span></li>
+          <li><a href="rollback-playbook.html">Rollback playbook — the action the gate triggers</a><span class="pa-refs__hint">Automatic rollback is one half of the gate; this is the playbook for what happens after.</span></li>
+          <li><a href="cicd-reliability.html">CI/CD reliability — where the gate sits in the pipeline</a><span class="pa-refs__hint">The gate is a pipeline stage; this is the pipeline it lives inside.</span></li>
+          <li><a href="synthetic-monitoring.html">Synthetic monitoring — what the smoke tests look like</a><span class="pa-refs__hint">The probes that run during the smoke-test step of the gate.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-24">2026-05-24</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Aligned to SA practice-page pattern: dropped <code>.pa-section</code> wrappers, scorebar, <code>pa-title</code>, and <code>pa-lead</code>; added <code>page-head</code> wrapper, full SA section set (how / deep-dive / lifecycle / example / quality / references); SVG uses <code>&lt;defs&gt;&lt;marker&gt;</code> arrows; pitfalls use <code>docs-table--sticky-head</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date"><time datetime="2026-05-14">2026-05-14</time></span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm" href="../../../../team/people/ivan-boyarkin/index.html">@ivan</a>
+          <span class="docs-history__note">Initial version: Deployment Health Gates practice for SRE radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

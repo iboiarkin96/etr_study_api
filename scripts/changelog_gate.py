@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Enforce CHANGELOG.md updates when user-facing paths change (CI helper).
 
-See docs/adr/0013-changelog-and-release-notes.html.
+See services/portal/internal/governance/adr/0013-changelog-and-release-notes.html.
 """
 
 from __future__ import annotations
@@ -12,10 +12,10 @@ import subprocess
 import sys
 
 CODE_PREFIXES = ("app/",)
-DOCS_PREFIXES = ("docs/openapi/",)
+DOCS_PREFIXES = ("services/portal/public/reference/api/",)
 ROOT_TRIGGER_FILES = frozenset({"README.md"})
 ROOT_CHANGELOG = "CHANGELOG.md"
-DOCS_CHANGELOG = "docs/CHANGELOG.md"
+DOCS_CHANGELOG = "services/portal/CHANGELOG.md"
 SKIP_SUBSTRINGS = ("[skip changelog]", "skip-changelog")
 
 
@@ -105,7 +105,7 @@ def main() -> int:
     if needs_root and not has_root_changelog:
         missing.append(ROOT_CHANGELOG)
     if needs_docs and not (has_docs_changelog or has_root_changelog):
-        # Allow root changelog as an override for docs/openapi changes.
+        # Allow root changelog as an override for services/portal/openapi changes.
         missing.append(DOCS_CHANGELOG)
 
     if not missing:
@@ -126,7 +126,7 @@ def main() -> int:
     for path in missing:
         print(f"  - {path}", file=sys.stderr)
     print(
-        "Rules: app/ and root README.md require CHANGELOG.md; docs/openapi/ "
+        "Rules: app/ and root README.md require CHANGELOG.md; services/portal/openapi/ "
         f"requires {DOCS_CHANGELOG} (or {ROOT_CHANGELOG}). "
         "You can bypass via [skip changelog] or skip-changelog in PR title "
         "(PR) or commit messages (push).",

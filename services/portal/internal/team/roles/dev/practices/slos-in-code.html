@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SLOs in code — Practice 18 · SWE</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gD" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SWE</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">SLOs in code</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">18</span>
+        <span class="pa-eyebrow__group">Group D · Observability &amp; operability</span>
+      </p>
+      <h1 class="pa-title">SLOs in code — error budgets that gate releases</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">SLI as a Prometheus expression, committed next to the service. The burn-rate decides whether the next release ships — instead of negotiating reliability vs features in a meeting.</p>
+    </header>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">SLOs originate in Google's SRE Book (2016) and the SRE Workbook chapters on <em>Implementing</em> and <em>Alerting on</em> SLOs. The developer view is "SLOs in code": SLI wired up in the service, SLO target + burn-rate rules live in the repo (Prometheus rules + Pyrra / Sloth), release decision deterministic — budget healthy means ship, budget burning means stop and fix. Pair with the architect-level SLO/SLA design (Architect Practice 17) for the strategic framing; this page is about the developer's implementation.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="SLI → SLO → burn-rate → release gate">
+      <svg viewBox="0 0 760 220" role="img" aria-label="SLI in code, SLO in YAML, burn-rate alert, release gate" style="display:block;max-width:720px;margin:0 auto;height:auto">
+        <defs>
+          <marker id="sl-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="380" y="20" text-anchor="middle" font-size="10" letter-spacing="0.6">SLI EXPR · SLO YAML · BURN-RATE ALERT · RELEASE GATE</text>
+
+        <rect class="pa-svg-box pa-svg-box--accent" x="20" y="50" width="170" height="140" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="105" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 1</text>
+        <text class="pa-svg-text pa-svg-text--accent" x="105" y="96" text-anchor="middle" font-weight="700" font-size="14">SLI in code</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="105" y="120" text-anchor="middle" font-size="10">Prometheus query</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="105" y="136" text-anchor="middle" font-size="10">good / total ratio</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--accent" x="105" y="162" text-anchor="middle" font-size="9">co-located with service</text>
+
+        <rect class="pa-svg-box" x="205" y="50" width="170" height="140" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="290" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 2</text>
+        <text class="pa-svg-text" x="290" y="96" text-anchor="middle" font-weight="700" font-size="14">SLO YAML</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="290" y="120" text-anchor="middle" font-size="10">target + window</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="290" y="136" text-anchor="middle" font-size="10">Pyrra / Sloth</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="290" y="162" text-anchor="middle" font-size="9">in-repo · reviewed</text>
+
+        <rect class="pa-svg-box" x="390" y="50" width="170" height="140" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="475" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 3</text>
+        <text class="pa-svg-text" x="475" y="96" text-anchor="middle" font-weight="700" font-size="14">Burn-rate</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="475" y="120" text-anchor="middle" font-size="10">multi-window</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="475" y="136" text-anchor="middle" font-size="10">page on fast burn</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--muted" x="475" y="162" text-anchor="middle" font-size="9">SRE Workbook</text>
+
+        <rect class="pa-svg-box pa-svg-box--good" x="575" y="50" width="165" height="140" rx="10"></rect>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="657" y="72" text-anchor="middle" font-weight="700" font-size="9">STEP 4</text>
+        <text class="pa-svg-text pa-svg-text--good" x="657" y="96" text-anchor="middle" font-weight="700" font-size="14">Release gate</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="657" y="120" text-anchor="middle" font-size="10">budget healthy = ship</text>
+        <text class="pa-svg-text pa-svg-text--muted" x="657" y="136" text-anchor="middle" font-size="10">budget burning = stop</text>
+        <text class="pa-svg-text pa-svg-text--mono pa-svg-text--good" x="657" y="162" text-anchor="middle" font-size="9">deterministic call</text>
+
+        <path d="M190 120 L203 120" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#sl-arrow)"></path>
+        <path d="M375 120 L388 120" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#sl-arrow)"></path>
+        <path d="M560 120 L573 120" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#sl-arrow)"></path>
+
+        <text class="pa-svg-text pa-svg-text--muted" x="380" y="210" text-anchor="middle" font-size="11" font-style="italic">"the burn-rate decides — not a meeting"</text>
+      </svg>
+      <figcaption class="pa-figure__caption">Four-step pipeline: SLI in code, SLO in YAML, multi-window burn-rate alert, release gate that reads the burn-rate. The release decision becomes deterministic; engineers stop negotiating reliability vs features in meetings.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>"SLOs in code" means the entire SLO machinery lives in the service repository as versioned config:</p>
+      <ul>
+        <li><strong>SLI</strong> — a Prometheus / OpenMetrics ratio expression: good events / total events.</li>
+        <li><strong>SLO</strong> — target + window: "99.9% over 30 days" in a YAML file. Pyrra / Sloth / OpenSLO read it and emit the burn-rate alert rules automatically.</li>
+        <li><strong>Burn-rate alerts</strong> — multi-window per the SRE Workbook: 2% / 1 h pages; 5% / 6 h pages; 10% / 3 d tickets.</li>
+        <li><strong>Release gate</strong> — CI/CD step queries current burn-rate before promoting a deploy. Budget healthy → ship; burning → block.</li>
+      </ul>
+      <p>The architect-level practice (Architect Practice 17 — SLO &amp; SLA Design) defines strategy: which user journeys, what targets, error-budget policy. This page is the implementation — how the developer wires it into the service.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Without SLOs in code, "is the service reliable enough to ship?" is answered in a meeting. The meeting drifts; reliability work loses; features ship and the next outage forces an unplanned reliability sprint. With SLOs in code, the burn-rate answers the question. Budget healthy = ship; budget burning = stop.</p>
+      <p>SLOs in code also force the SLI to be measurable in production. Vague targets ("the system should be fast") don't survive contact with a Prometheus expression; concrete targets ("p99 ≤ 200 ms at 5 k RPM over 30 days") do. Writing the SLI in code is the act of forcing the team to agree on what "healthy" means.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Google SRE — canonical reference</p>
+          <p class="pa-industry__what">SRE Book (2016) and SRE Workbook (2018) define SLI / SLO / error budget. The Workbook chapter on <em>Alerting on SLOs</em> introduced multi-window multi-burn-rate alerting (2% / 1 h + 5% / 6 h paging, 10% / 3 d ticket). The recipe is the industry default; every modern SLO tool implements it.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Use the SRE Workbook burn-rate recipe; don't invent your own. Multi-window multi-burn-rate is the load-bearing alert; static error-rate alerts are the past.</p>
+          <p class="pa-industry__source">Source: <a href="https://sre.google/workbook/alerting-on-slos/" rel="noopener">SRE Workbook — Alerting on SLOs</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Sloth / Pyrra — SLO generators</p>
+          <p class="pa-industry__what">Sloth (Slok, OSS) and Pyrra (Polar Signals, OSS) read a YAML SLO spec and emit Prometheus recording rules + burn-rate alert rules. Team writes the SLO once; tool generates the dozens of rule expressions to implement it.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Don't hand-write burn-rate expressions. Sloth or Pyrra generates them from YAML.</p>
+          <p class="pa-industry__source">Source: <a href="https://sloth.dev/" rel="noopener">sloth.dev</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">OpenSLO — vendor-neutral spec</p>
+          <p class="pa-industry__what">OpenSLO is the open spec for SLO definitions: a YAML format Sloth, Pyrra, and Nobl9 all read. Vendor-neutral; portable; reviewed by CNCF. The right choice for teams that want SLOs portable across observability vendors.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> Write the SLO spec in OpenSLO. Tool choice (Sloth, Pyrra, Nobl9) becomes a vendor decision, not a re-implementation.</p>
+          <p class="pa-industry__source">Source: <a href="https://openslo.com/" rel="noopener">openslo.com</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Honeycomb / Nobl9 — managed SLO</p>
+          <p class="pa-industry__what">Honeycomb's SLO module and Nobl9's standalone platform offer managed SLO computation, burn-rate alerting, and dashboards. Either is a viable alternative to running Sloth/Pyrra in-house, particularly for teams that aren't on Prometheus.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> If you're not on Prometheus, use a managed SLO platform. OpenSLO keeps you portable across them.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.nobl9.com/" rel="noopener">nobl9.com</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of SLOs in code</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">SLI in service code</p><p class="pa-anatomy__hint">Prometheus metrics emitted by the service (request_total + status_code). SLI is the ratio. Co-located with the service.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">SLO YAML</p><p class="pa-anatomy__hint">Per-service <code>slo.yaml</code> with target + window + SLI reference. OpenSLO-formatted. Reviewed in PRs.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Generated alert rules</p><p class="pa-anatomy__hint">Sloth / Pyrra generates Prometheus recording rules + multi-window burn-rate alerts. Engineers don't hand-write these.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Burn-rate routing</p><p class="pa-anatomy__hint">Fast burn (2% / 1 h) pages on-call; slow burn (10% / 3 d) creates a ticket. Routing in Alertmanager / PagerDuty.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Release gate</p><p class="pa-anatomy__hint">CI/CD step queries current burn-rate. If budget below threshold, deploy paused or warning emitted.</p></div>
+        <div class="pa-anatomy__part"><p class="pa-anatomy__name">Monthly review</p><p class="pa-anatomy__hint">30 min: SLO compliance, burn trend, top causes. Tightens / loosens targets based on reality.</p></div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to run it</h2>
+      <ol>
+        <li><strong>Pick the user journey.</strong> Critical user-facing flow per service.</li>
+        <li><strong>Emit the SLI metrics.</strong> Service exposes <code>http_requests_total</code> + status_code + endpoint.</li>
+        <li><strong>Write the SLO YAML.</strong> OpenSLO format. Target, window, SLI query. PR review.</li>
+        <li><strong>Generate rules with Sloth / Pyrra.</strong> CI step regenerates Prometheus rules on every change.</li>
+        <li><strong>Wire burn-rate alerts.</strong> Multi-window: 2% / 1 h + 5% / 6 h page; 10% / 3 d ticket.</li>
+        <li><strong>Build the release gate.</strong> CI/CD step queries burn-rate via Prometheus; blocks deploy if burning.</li>
+        <li><strong>Monthly review.</strong> SLO compliance, burn-rate trend, target calibration.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive — what makes "in code" matter</h2>
+      <p><strong>YAML in the repo is what makes SLOs versioned + reviewed.</strong> A target in a wiki page drifts; a target in <code>slo.yaml</code> is reviewed in a PR like any other code. Changes have history; rollback is one commit; engineers don't argue about "what did we say last quarter?".</p>
+      <p><strong>Generate, don't hand-write, alert rules.</strong> Multi-window burn-rate involves a dozen recording rules + alert expressions per SLO. Hand-writing them produces typos and inconsistencies; Sloth / Pyrra generate them from the YAML spec.</p>
+      <p><strong>Burn-rate replaces static error-rate alerts.</strong> "Error rate &gt; 1% for 5 min" fires on noise; burn-rate fires on actual budget consumption. Migrate; delete old static alerts; on-call quality jumps.</p>
+      <p><strong>Release gate makes the decision deterministic.</strong> Without it, "do we ship?" is a judgement call. With it, the CI/CD step queries burn-rate and either passes or blocks.</p>
+      <p><strong>OpenSLO keeps you portable.</strong> Vendor-neutral spec; same YAML reads in Sloth, Pyrra, Nobl9. Tool choice becomes a vendor decision, not a re-implementation.</p>
+      <p><strong>Monthly review tightens calibration.</strong> Targets set on day one are guesses. After 90 days of real burn data, refine: tighten where reality beats target; loosen where target is unrealistic. Don't churn weekly; recalibrate quarterly.</p>
+      <p><strong>Pair with progressive delivery + flags.</strong> SLO is the safety net; canary (Practice 10) is the rollout mechanism; flags (Practice 07) are the per-user variant. Three practices, one delivery story.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle of an SLO</h2>
+      <div class="pa-states">
+        <div class="pa-states__item"><p class="pa-states__name">Drafted</p><p class="pa-states__hint">SLI + target + window in <code>slo.yaml</code>. PR review with SRE / architect.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Generated</p><p class="pa-states__hint">Sloth / Pyrra emits recording rules + burn-rate alerts. Loaded by Prometheus.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Live</p><p class="pa-states__hint">Dashboard live; alerts armed; burn-rate visible. Team monitors weekly.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Burning</p><p class="pa-states__hint">Fast / slow burn alert fires. On-call investigates; reliability work prioritised.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Recalibrated</p><p class="pa-states__hint">Monthly review tightens or loosens target. PR + commit; version-controlled.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Retired</p><p class="pa-states__hint">Service decommissioned. SLO YAML deleted; rules cleaned up; alerts removed.</p></div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Common pitfalls">
+        <table class="docs-table docs-table--sticky-head">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr><td>SLO target in a wiki page</td><td>Easy to write; never reviewed; drifts. "What did we say the target was?" becomes a recurring question.</td><td>SLO YAML in the repo, reviewed in PRs. History + rollback + ownership all come for free.</td></tr>
+            <tr><td>Hand-written burn-rate alerts</td><td>Engineer writes 12 Prometheus expressions by hand. Typos; off-by-window errors; silently broken for months.</td><td>Sloth / Pyrra generates rules from YAML. CI regenerates on every change.</td></tr>
+            <tr><td>Static error-rate alerts left on</td><td>Burn-rate alerts added but old static alerts not removed. Two competing signals; on-call confusion.</td><td>Migrate fully. Delete old static alerts; burn-rate is the canonical signal.</td></tr>
+            <tr><td>No release gate</td><td>SLO exists; nobody checks before deploy. Service ships while burning; outage worsens.</td><td>CI/CD step queries burn-rate. Deploy blocked when burning.</td></tr>
+            <tr><td>SLO never recalibrated</td><td>Target set on day one; never revisited. Six months later it's meaningless (always met or never met).</td><td>Monthly review. Tighten / loosen based on reality. PR + version-controlled change.</td></tr>
+            <tr><td>SLI not measurable in production</td><td>Engineer writes "p99 latency" target but service doesn't emit histogram buckets. SLO is fiction.</td><td>Write the Prometheus query first; instrument the service before setting the target.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — lesson-player Sloth YAML</h2>
+      <div class="pa-example">
+        <p class="pa-example__intro">Sloth SLO YAML for lesson-player + the generated multi-window burn-rate alerts + release gate. Lives at <code>services/lesson-player/slo.yaml</code>; CI regenerates Prometheus rules on every change.</p>
+        <pre class="pa-example__code"><code># services/lesson-player/slo.yaml (Sloth · OpenSLO-compatible)
+version: prometheus/v1
+service: lesson-player
+labels: { team: lessons, tier: critical }
+slos:
+  - name: lesson-state-availability
+    objective: 99.9
+    description: "GET /lessons/{id}/state succeeds 99.9% of the time"
+    sli:
+      events:
+        error_query: |
+          sum(rate(http_requests_total{
+            service="lesson-player",
+            endpoint="/lessons/_/state",
+            status_code=~"5.."
+          }[{{.window}}]))
+        total_query: |
+          sum(rate(http_requests_total{
+            service="lesson-player",
+            endpoint="/lessons/_/state"
+          }[{{.window}}]))
+    alerting:
+      name: lesson-state-burning
+      page_alert:   { labels: { severity: pager  } }
+      ticket_alert: { labels: { severity: ticket } }
+
+  - name: lesson-state-latency
+    objective: 99.0
+    sli:
+      events:
+        error_query: |
+          sum(rate(http_request_duration_seconds_bucket{
+            service="lesson-player",endpoint="/lessons/_/state",le="0.25"
+          }[{{.window}}]))
+        total_query: |
+          sum(rate(http_request_duration_seconds_count{
+            service="lesson-player",endpoint="/lessons/_/state"
+          }[{{.window}}]))
+
+# CI step (.github/workflows/slo.yml)
+- name: regenerate Prometheus rules
+  run: sloth generate -i services/lesson-player/slo.yaml -o services/lesson-player/slo.rules.yaml
+- name: drift check
+  run: git diff --exit-code services/lesson-player/slo.rules.yaml
+
+# release gate (.github/workflows/deploy.yml — excerpt)
+- name: SLO release gate
+  run: |
+    BURN=$(curl -s "$PROM/api/v1/query?query=slo:sli_error:ratio_rate1h{slo='lesson-state-availability'}" \
+      | jq -r '.data.result[0].value[1]')
+    if (( $(echo "$BURN &gt; 0.001" | bc -l) )); then
+      echo "fast burn $BURN; blocking deploy"; exit 1
+    fi
+        </code></pre>
+        <p class="pa-example__note">Two SLOs (availability + latency) declared in YAML; Sloth generates the Prometheus rules + burn-rate alerts; CI fails if the generated file drifts from source; the release gate queries Prometheus and blocks deploy if budget is burning.</p>
+      </div>
+    </section>
+
+    <section id="quality">
+      <h2>Quality bar</h2>
+      <ul class="pa-quality">
+        <li><strong>SLO YAML in the repo.</strong> OpenSLO / Sloth / Pyrra format. Reviewed in PRs.</li>
+        <li><strong>Generated rules, not hand-written.</strong> Sloth / Pyrra in CI; <code>git diff</code> ensures regeneration.</li>
+        <li><strong>Multi-window burn-rate alerts.</strong> Fast burn pages; slow burn tickets; static alerts removed.</li>
+        <li><strong>SLI measurable in production.</strong> Prometheus query returns data; histogram buckets exist.</li>
+        <li><strong>Release gate queries burn-rate.</strong> Deploy blocked when budget is burning.</li>
+        <li><strong>Monthly SLO review.</strong> Compliance, burn trend, target calibration.</li>
+        <li><strong>Paired with progressive delivery + flags.</strong> Three practices, one delivery story.</li>
+      </ul>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://sre.google/workbook/implementing-slos/" rel="noopener">SRE Workbook — Implementing SLOs</a></li>
+        <li><a href="https://sre.google/workbook/alerting-on-slos/" rel="noopener">SRE Workbook — Alerting on SLOs</a></li>
+        <li><a href="https://sloth.dev/" rel="noopener">Sloth — SLO generator</a></li>
+        <li><a href="https://github.com/pyrra-dev/pyrra" rel="noopener">Pyrra</a></li>
+        <li><a href="https://openslo.com/" rel="noopener">OpenSLO spec</a></li>
+        <li><a href="https://www.nobl9.com/" rel="noopener">Nobl9 — managed SLO</a></li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <p class="docs-history__title">History</p>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-24">2026-05-24</time>
+          <span class="docs-history__change">Rewritten to SA practice-page pattern: page-head, 4-step SVG (SLI / SLO YAML / burn-rate / release gate), expanded industry (4 cards: Google SRE Workbook, Sloth/Pyrra, OpenSLO, Honeycomb/Nobl9), deep-dive (YAML versioning, generate-don't-write, burn-rate replaces static, release gate, OpenSLO portability, monthly recalibration, pair with canary+flags), lifecycle, Sloth YAML + release-gate example, quality bar, references.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+        <li class="docs-history__row">
+          <time class="docs-history__date" datetime="2026-05-14">2026-05-14</time>
+          <span class="docs-history__change">Initial version: SLOs in code practice for SWE radar.</span>
+          <span class="docs-history__author"><a href="../../../people/ivan-boyarkin/index.html">Ivan Boyarkin</a></span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

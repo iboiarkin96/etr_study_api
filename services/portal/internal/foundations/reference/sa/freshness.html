@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>🕒 Freshness — staleness SLA &amp; drift detection · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <style>
+    /* Freshness pills compose on top of the kit `.docs-pill` primitive.
+    The kit handles colour/background/border per tone; we only tighten
+    the radius + bump weight for the mono-uppercase state label look. */
+    .docs-pill.state-pill {
+    border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.05em;
+    }
+
+    /* Numbered escalation steps (re-used from process.html) */
+    .esc { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; counter-reset: esc; }
+    .esc li {
+    display: grid;
+    grid-template-columns: 2.6rem 1fr;
+    gap: var(--space-3);
+    align-items: start;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-left: var(--rail-w) solid var(--accent);
+    border-radius: var(--radius-md);
+    background: var(--bg-elev);
+    counter-increment: esc;
+    }
+    .esc li::before { content: counter(esc, decimal-leading-zero); font-family: var(--font-mono); font-size: var(--fs-300); font-weight: var(--fw-bold); color: var(--accent); }
+    .esc li strong { color: var(--text-strong); }
+    .esc li p { margin: 0; color: var(--muted); font-size: var(--fs-300); line-height: var(--lh-base); }
+
+    /* Tradeoff cards (same pattern as siblings) */
+    .tradeoff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+    .tradeoff { padding: var(--space-4) var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--bg-elev); }
+    .tradeoff--up   { border-left: var(--rail-w) solid var(--success); }
+    .tradeoff--down { border-left: var(--rail-w) solid var(--warn); }
+    .tradeoff__head { font-family: var(--font-mono); font-size: var(--fs-100); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-soft); margin: 0 0 var(--space-2); }
+    .tradeoff h3 { margin: 0 0 var(--space-2); color: var(--text-strong); font-size: var(--fs-400); }
+    .tradeoff p  { margin: 0; color: var(--muted); font-size: var(--fs-300); line-height: var(--lh-base); }
+
+    @media (max-width: 760px) {
+    .tradeoff-grid { grid-template-columns: 1fr; }
+    .esc li { grid-template-columns: 1fr; gap: var(--space-1); }
+    }
+  </style>
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Foundations</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="principles.html">Principles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="process.html">Process</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">🕒 Freshness</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+
+    <article class="docs-prose">
+
+      <header class="page-hero page-head">
+        <p class="page-hero__eyebrow">🕒 Process · Freshness</p>
+        <h1 class="page-hero__h1">Freshness — <span class="accent">staleness SLA &amp; drift detection</span></h1>
+        <div id="docs-top-nav"></div>
+        <p class="page-hero__lede">
+          Living docs need a freshness contract — otherwise «living» means «rotting at room temperature». Each
+          document type has an explicit staleness SLA based on its last-verified date; pages that cross the SLA
+          get a banner, ping the owner, and either get re-verified or moved into <a href="deprecation.html">deprecation</a>.
+          No page silently turns into a lie.
+        </p>
+      </header>
+
+      <!-- 01 · THE CONTRACT -->
+      <section class="numbered-section" aria-labelledby="contract-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="stance"><span class="lens-chip__dot"></span>Stance</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">01</span>
+          <h2 id="contract-h">The freshness contract</h2>
+        </div>
+        <p class="numbered-section__lede">
+          Every page declares a <code>last-verified</code> date in its <code>&lt;body data-last-verified="YYYY-MM-DD"&gt;</code> attribute.
+          The freshness state is a function of that date and the page's type-specific SLA:
+        </p>
+        <ul>
+          <li><span class="docs-pill docs-pill--success state-pill">FRESH</span> — within the SLA. No action.</li>
+          <li><span class="docs-pill docs-pill--warn state-pill">STALE-SOON</span> — within 30 days of the SLA limit. Banner appears; owner is notified weekly.</li>
+          <li><span class="docs-pill docs-pill--rose state-pill">STALE</span> — past the SLA. Red banner; owner is on the hook to re-verify or deprecate within two weeks.</li>
+        </ul>
+        <p>
+          A re-verification PR bumps <code>data-last-verified</code> to today and adds a row to the history block —
+          one sentence stating «verified, no changes needed» or naming what was updated.
+        </p>
+      </section>
+
+      <!-- 02 · SLA BY DOCUMENT TYPE -->
+      <section class="numbered-section" aria-labelledby="sla-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Rules</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">02</span>
+          <h2 id="sla-h">SLA by document type</h2>
+        </div>
+        <p class="numbered-section__lede">
+          The SLA reflects how fast the underlying reality changes for that type. A Tutorial about a service can rot in
+          months; a Reference page generated from OpenAPI rots in days; an ADR is timeless unless superseded.
+        </p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Document type</th>
+                <th>SLA</th>
+                <th>Why this window</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>ADR</td><td><strong>Never stales</strong></td><td>A ratified decision is a historical record. It can be <em>superseded</em> but it doesn't go stale.</td></tr>
+              <tr><td>RFC (accepted)</td><td><strong>Never stales</strong></td><td>Same logic as ADR — implementation may diverge but the proposal is what was decided.</td></tr>
+              <tr><td>Reference (auto-generated · OpenAPI / pdoc)</td><td><strong>Rebuilt every release</strong></td><td>Generated artefact — staleness is impossible if the build runs.</td></tr>
+              <tr><td>Reference (hand-written matrix · spine / RACI)</td><td><strong>3 months</strong></td><td>Tied to one release-train cycle. Owners re-verify when the matrix changes.</td></tr>
+              <tr><td>Runbook</td><td><strong>6 months</strong></td><td>The system the runbook acts on changes — alerts, paths, escalation chains. Twice-a-year audit catches most drift.</td></tr>
+              <tr><td>How-to</td><td><strong>9 months</strong></td><td>Procedural pages; reality moves slower than reference but the cost of stale steps is real.</td></tr>
+              <tr><td>Tutorial</td><td><strong>12 months</strong></td><td>Tutorials are linear and brittle — they break on every UI refresh. Annual re-walk is the floor.</td></tr>
+              <tr><td>Explanation</td><td><strong>18 months</strong></td><td>«Why we do it this way» rots slowest. Even if the implementation changed, the rationale often survives.</td></tr>
+              <tr><td>Audit report</td><td><strong>Frozen on issue date</strong></td><td>An audit is a snapshot — never re-verified. A new audit replaces it.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 03 · DETECTION -->
+      <section class="numbered-section" aria-labelledby="detection-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Rules</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">03</span>
+          <h2 id="detection-h">How drift is detected</h2>
+        </div>
+        <p class="numbered-section__lede">
+          Three layers of detection — fast / slow / opportunistic. They cover staleness from different angles.
+        </p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Layer</th>
+                <th>Cadence</th>
+                <th>What it catches</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Mechanical scan</strong></td>
+                <td>Nightly cron</td>
+                <td><code>check_freshness.py</code> walks every page's <code>data-last-verified</code> and computes the state per type. Outputs a per-owner freshness report under <code>governance/audits/freshness/</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>LLM drift scan</strong></td>
+                <td>Weekly</td>
+                <td>Canonical LLM prompt compares each page's claims to the current code surface (file paths cited, function names mentioned, error codes referenced). Pages with high drift score get flagged for re-verification regardless of SLA.</td>
+              </tr>
+              <tr>
+                <td><strong>Author flag</strong></td>
+                <td>On any PR</td>
+                <td>If a code PR touches a path that a doc page cites, the PR template prompts the author: «Does <em>docs/page-X</em> still match reality?» Manual flagging surfaces drift before the SLA expires.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 04 · ESCALATION -->
+      <section class="numbered-section" aria-labelledby="esc-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Apply</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">04</span>
+          <h2 id="esc-h">Escalation when a page goes stale</h2>
+        </div>
+        <p class="numbered-section__lede">
+          The four-step escalation kicks in the moment a page hits <span class="docs-pill docs-pill--rose state-pill">STALE</span>.
+          Owner ownership is non-negotiable — every page has exactly one.
+        </p>
+        <ol class="esc">
+          <li><div>
+            <strong>Banner appears.</strong>
+            <p>The page renders a red «Stale — last verified YYYY-MM-DD» banner automatically. The reader knows before reading a sentence that the content may be wrong.</p>
+          </div></li>
+          <li><div>
+            <strong>Owner pinged.</strong>
+            <p><code>check_freshness.py</code> opens a tracking issue assigned to the page's owner (from <code>data-maintainer-ids</code>). The issue title is «Re-verify or deprecate: <em>page-path</em>».</p>
+          </div></li>
+          <li><div>
+            <strong>Two-week window.</strong>
+            <p>The owner either re-verifies (bumps <code>data-last-verified</code>, adds a history row) or opens a <a href="deprecation.html">deprecation</a> ADR. The freshness report tracks the window per page.</p>
+          </div></li>
+          <li><div>
+            <strong>Auto-escalation.</strong>
+            <p>If the two-week window passes with no action, the page is escalated to the owner's manager via the <a href="ownership.html">ownership RACI</a>, and the page is queued for the next quarterly audit's «to-deprecate» list.</p>
+          </div></li>
+        </ol>
+      </section>
+
+      <!-- 05 · TRADEOFFS -->
+      <section class="numbered-section" aria-labelledby="tradeoffs-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rationale"><span class="lens-chip__dot"></span>Rationale</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">05</span>
+          <h2 id="tradeoffs-h">Tradeoffs</h2>
+        </div>
+        <div class="tradeoff-grid">
+          <article class="tradeoff tradeoff--up">
+            <p class="tradeoff__head">Wins</p>
+            <h3>Readers see the truth</h3>
+            <p>A stale page wears a red banner. The reader knows not to trust it, and the link to the owner is one click away — they can ping for clarification instead of guessing.</p>
+          </article>
+          <article class="tradeoff tradeoff--down">
+            <p class="tradeoff__head">Cost</p>
+            <h3>Owner toil scales with page count</h3>
+            <p>500 pages × 3 re-verifications/year = 1,500 re-verifications. That's not free. We mitigate with «verified, no changes needed» one-line re-verifications (1 minute per page), but at scale this is a real time sink.</p>
+          </article>
+          <article class="tradeoff tradeoff--up">
+            <p class="tradeoff__head">Wins</p>
+            <h3>SLA matches the type</h3>
+            <p>An ADR doesn't get pinged every quarter; a runbook does. The SLA reflects how fast reality moves for each kind, instead of one-size-fits-all annual audits.</p>
+          </article>
+          <article class="tradeoff tradeoff--down">
+            <p class="tradeoff__head">Cost</p>
+            <h3>«Verified» is a weak signal</h3>
+            <p>An owner can bump the date in 10 seconds without actually reading the page. We accept this — the date is a <em>commitment</em>, not a proof; the audit cadence (process.html §05) is what proves substance.</p>
+          </article>
+        </div>
+      </section>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Applied the handbook lens-chip pattern. Reading-guide placeholder; chips: § 01 contract → <strong>Stance</strong>, §§ 02 / 03 → <strong>Rules</strong>, § 04 escalation → <strong>Apply</strong>, § 05 tradeoffs → <strong>Rationale</strong>. Sources footer added.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-24</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">
+            Created the Freshness deep-dive as a child of Process. Same UI Kit shape as siblings: <code>.page-hero</code> with 🕒 emoji, six <code>.numbered-section</code> blocks (contract · SLA table · detection layers · escalation · tradeoffs · see-also). Closes the «Missing SLA / freshness» gap from the Phase 1 audit — every document type now has an explicit staleness window, three detection layers, and a 4-step escalation.
+          </span>
+        </li>
+      </ul>
+    </footer>
+
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#contract-h">The contract</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#sla-h">SLA by document type</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#detection-h">Drift detection</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#esc-h">Escalation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs-h">Tradeoffs</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

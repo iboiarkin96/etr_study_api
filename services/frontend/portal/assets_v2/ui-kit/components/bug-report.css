@@ -1,0 +1,378 @@
+/* ui-kit/components/bug-report.css — topbar action button + modal/form for
+   filing a docs-feedback issue against the page. Ported from the legacy
+   .docs-report-bug-fab + .docs-feedback-modal pair in services/frontend/portal/
+   assets/{docs-nav.js,docs.css}, but reframed as a topbar action sitting
+   next to the theme toggle instead of a fixed-position FAB.
+
+   DOM (auto-injected by bug-report.js):
+
+     <button.docs-bug-report-btn aria-label="Report a bug">
+       <svg.docs-bug-report-btn__icon>…</svg>
+     </button>
+
+     <section.docs-bug-report-modal aria-hidden="true">
+       <div.docs-bug-report-modal__backdrop></div>
+       <div.docs-bug-report-modal__panel role="dialog">
+         <header.docs-bug-report-modal__head>
+           <h2.docs-bug-report-modal__title>Report a bug</h2>
+           <button.docs-bug-report-modal__close>×</button>
+         </header>
+         <form.docs-bug-report-form>
+           <select.docs-bug-report-form__select> … </select>
+           <textarea.docs-bug-report-form__textarea></textarea>
+           <p.docs-bug-report-form__status></p>
+           <div.docs-bug-report-form__actions>
+             <button.docs-bug-report-form__submit>Open GitHub issue</button>
+           </div>
+         </form>
+       </div>
+     </section>
+*/
+
+/* ─── Topbar button ───
+   Geometry matches .docs-theme-toggle (36 × 36, 10 px radius) so the two
+   sit shoulder-to-shoulder cleanly. */
+.docs-bug-report-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 0;
+  transition:
+    border-color 140ms var(--ease-out),
+    background 140ms var(--ease-out),
+    color 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+.docs-bug-report-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.docs-bug-report-btn:active {
+  transform: scale(0.96);
+}
+
+.docs-bug-report-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.docs-bug-report-btn__icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+  pointer-events: none;
+}
+
+/* ─── Inline text trigger ───
+   Opt-in trigger that authors place inside prose (e.g. "Report an issue with
+   this page"). Keeps its own text content; gets a quiet secondary-button look
+   so it doesn't look like an icon-button with clipped text. */
+.docs-bug-report-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-weight: var(--fw-semibold, 600);
+  cursor: pointer;
+  transition:
+    border-color 140ms var(--ease-out),
+    color 140ms var(--ease-out),
+    background 140ms var(--ease-out);
+}
+
+.docs-bug-report-trigger:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.docs-bug-report-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Antennae idle wiggle — same cadence as the legacy FAB so the affordance
+   reads as "alive" without being distracting. */
+.docs-bug-report-btn__icon .bug-antenna {
+  transform-origin: 50% 100%;
+  transition: transform 0.28s var(--ease-out);
+  animation-duration: 7.3s;
+  animation-iteration-count: infinite;
+  animation-timing-function: var(--ease-in-out);
+}
+
+.docs-bug-report-btn__icon .bug-antenna--l {
+  animation-name: docs-bug-antenna-l-idle;
+}
+
+.docs-bug-report-btn__icon .bug-antenna--r {
+  animation-name: docs-bug-antenna-r-idle;
+  animation-duration: 9.1s;
+}
+
+.docs-bug-report-btn__icon .bug-body {
+  transform-origin: 50% 60%;
+  transition: transform 0.28s var(--ease-out);
+}
+
+.docs-bug-report-btn:hover .bug-antenna--l,
+.docs-bug-report-btn:focus-visible .bug-antenna--l {
+  animation: none;
+  transform: rotate(-12deg);
+}
+
+.docs-bug-report-btn:hover .bug-antenna--r,
+.docs-bug-report-btn:focus-visible .bug-antenna--r {
+  animation: none;
+  transform: rotate(12deg);
+}
+
+.docs-bug-report-btn:hover .bug-body {
+  transform: translateY(-0.5px) scale(1.04);
+}
+
+@keyframes docs-bug-antenna-l-idle {
+  0%, 32%, 38%, 70%, 75%, 100% { transform: rotate(0deg); }
+  34% { transform: rotate(-9deg); }
+  36% { transform: rotate(3deg); }
+  71% { transform: rotate(-5deg); }
+  73% { transform: rotate(1deg); }
+}
+
+@keyframes docs-bug-antenna-r-idle {
+  0%, 18%, 24%, 60%, 66%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(7deg); }
+  22% { transform: rotate(-3deg); }
+  62% { transform: rotate(4deg); }
+  64% { transform: rotate(-1deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-bug-report-btn__icon .bug-antenna,
+  .docs-bug-report-btn__icon .bug-body {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ─── Modal ───
+   Reusing the visual language of .docs-modal but keeping its own BEM so the
+   styles do not collide with other modals (diagram lightbox, etc.). */
+
+.docs-bug-report-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.docs-bug-report-modal[aria-hidden="false"] {
+  display: flex;
+}
+
+.docs-bug-report-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.docs-bug-report-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 100%);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  transform: translateY(12px) scale(0.98);
+  opacity: 0;
+  animation: docs-bug-report-enter 220ms var(--ease-spring) forwards;
+}
+
+@keyframes docs-bug-report-enter {
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-bug-report-modal__panel {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.docs-bug-report-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.docs-bug-report-modal__title {
+  margin: 0;
+  font-size: var(--fs-500);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+
+.docs-bug-report-modal__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.docs-bug-report-modal__close:hover {
+  background: var(--bg-mute);
+  color: var(--text);
+}
+
+.docs-bug-report-modal__body {
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.docs-bug-report-modal__intro {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+  font-size: var(--fs-300);
+  line-height: var(--lh-snug);
+}
+
+/* ─── Form ─── */
+
+.docs-bug-report-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.docs-bug-report-form__field {
+  display: grid;
+  gap: 4px;
+}
+
+.docs-bug-report-form__label {
+  font-size: var(--fs-200);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+
+.docs-bug-report-form__select,
+.docs-bug-report-form__textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: var(--fs-300);
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+}
+
+.docs-bug-report-form__textarea {
+  min-height: 100px;
+  resize: vertical;
+  line-height: var(--lh-snug);
+}
+
+.docs-bug-report-form__select:focus-visible,
+.docs-bug-report-form__textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.docs-bug-report-form__status {
+  margin: 0;
+  min-height: 1.2em;
+  font-size: var(--fs-200);
+  color: var(--muted);
+}
+
+.docs-bug-report-form__status--error {
+  color: var(--danger);
+}
+
+.docs-bug-report-form__status--success {
+  color: var(--success);
+}
+
+.docs-bug-report-form__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.docs-bug-report-form__submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  font: inherit;
+  font-size: var(--fs-300);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: filter 140ms var(--ease-out), transform 140ms var(--ease-out);
+}
+
+.docs-bug-report-form__submit:hover {
+  filter: brightness(0.95);
+}
+
+.docs-bug-report-form__submit:active {
+  transform: scale(0.97);
+}
+
+.docs-bug-report-form__submit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.docs-bug-report-form__submit[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0006 · Idempotency For Write Operations · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0006</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0006</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <h1>Idempotency For Write Operations</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+          Critical writes require an <code>Idempotency-Key</code>; the server deduplicates by key + payload hash so retries are safe.
+        </p>
+      </header>
+
+      <section aria-labelledby="ratification-h">
+        <h2 id="ratification-h">Ratification</h2>
+        <article class="docs-card">
+          <div class="docs-card__body">
+            <p>Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate ratification process. Git history for this file on <code>main</code> is the record.</p>
+            <ul>
+              <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
+              <li>Merge PR: <em>see git history for this file</em></li>
+              <li>Accepted: <em>as merged to <code>main</code></em></li>
+            </ul>
+          </div>
+        </article>
+      </section>
+
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p><strong>Why this matters:</strong> Networks drop packets; clients time out and retry; mobile apps tap “submit” twice. If the server treats every retry as a new action, you get duplicate users, double charges, or conflicting updates. <em>Idempotency</em> means: “send the same logical request again with the same key, and the server does not apply the side effect twice—it returns the same outcome as the first success.”</p>
+        <p>This is usual for payment and write APIs; we use it for critical writes so integrations stay safe when clients retry.</p>
+      </section>
+
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <ol>
+          <li>All critical write operations must support idempotent retry behavior.</li>
+          <li>Client sends <code>Idempotency-Key</code> for write requests.</li>
+          <li>Server deduplicates by <code>(endpoint, idempotency_key, payload_hash)</code>.</li>
+          <li>Same key + same payload replays original success response.</li>
+          <li>Same key + different payload returns conflict error.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="impl-h">
+        <h2 id="impl-h">Initial Implementation</h2>
+        <ul>
+          <li><code>POST /api/v1/user</code>, <code>PUT /api/v1/user/{system_user_id}</code>, and <code>PATCH /api/v1/user/{system_user_id}</code> require <code>Idempotency-Key</code>.</li>
+          <li>Missing key returns <code>400 IDEMPOTENCY_KEY_REQUIRED</code>.</li>
+          <li>Key reuse with different payload returns <code>409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD</code>.</li>
+          <li>Dedup records are persisted in DB table <code>idempotency_keys</code> to survive service restarts.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="contract-h">
+        <h2 id="contract-h">Contract Impact</h2>
+        <ul>
+          <li>Write endpoint OpenAPI docs must document idempotency header and conflict behavior.</li>
+          <li>Tests must include replay scenario and key-conflict scenario.</li>
+          <li>Runbooks should cover idempotency key misuse and retry errors.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Safe retries for transient failures and network timeouts.</li>
+                <li>Reduced risk of duplicate writes in real integrations.</li>
+                <li>Explicit, testable retry contract for client teams.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Additional request discipline for client integrations.</li>
+                <li>Persistent dedup store introduces additional DB writes for write operations.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <footer class="docs-history" aria-label="History">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-05-17</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

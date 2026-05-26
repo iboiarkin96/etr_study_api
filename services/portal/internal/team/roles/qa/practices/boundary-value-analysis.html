@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Boundary Value Analysis — test the edges · Practice 06 · QA Engineer</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell pa--gB" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Team</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Roles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">QA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../radar.html">Practices radar</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Boundary Value Analysis</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <div class="pa-page-head">
+      <p class="pa-eyebrow">
+        <span class="pa-eyebrow__num">06</span>
+        <span class="pa-eyebrow__group">Group B · Test Design</span>
+      </p>
+      <h1 class="pa-title">Boundary Value Analysis — test the edges</h1>
+      <div id="docs-top-nav"></div>
+      <p class="pa-lead">Systematically tests the values at and immediately outside the edges of valid input ranges — because defects cluster at boundaries, not in the middle.</p>
+    </div>
+
+    <div class="pa-tldr">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">Boundary Value Analysis (BVA), described by Glenford Myers in <em>The Art of Software Testing</em> (1979), selects test values at and immediately around the edges of every bounded input domain — typically min−1, min, min+1, max−1, max, max+1. The rationale is empirical: off-by-one errors, integer-overflow bugs, and validation-by-comparison defects concentrate at the partition edges. BVA pairs with equivalence partitioning (EP picks the partitions, BVA picks the values inside and around them) and is examined on every ISTQB Foundation Level sitting. For Study App it makes boundary coverage mandatory and explicit on every bounded field — quiz score 0/1/99/100, page size 1/100, password length 8/72 — rather than relying on intuition.</p>
+    </div>
+
+    <figure class="pa-figure" aria-label="Boundary value number line">
+      <svg viewBox="0 0 760 220" role="img" aria-label="Number line showing the six BVA test points for a 1 to 255 range">
+        <defs>
+          <marker id="bva-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#2563eb)"></path>
+          </marker>
+        </defs>
+        <line x1="60" y1="110" x2="700" y2="110" stroke="var(--line,#dbe3ef)" stroke-width="2"></line>
+        <rect x="60" y="90" width="120" height="40" fill="rgba(220,38,38,0.10)" stroke="#dc2626" stroke-width="1" rx="6"></rect>
+        <text class="pa-svg-sub" x="120" y="115" text-anchor="middle">invalid</text>
+        <rect x="180" y="90" width="400" height="40" fill="rgba(22,163,74,0.10)" stroke="#16a34a" stroke-width="1" rx="6"></rect>
+        <text class="pa-svg-sub" x="380" y="115" text-anchor="middle">valid (1–255)</text>
+        <rect x="580" y="90" width="120" height="40" fill="rgba(220,38,38,0.10)" stroke="#dc2626" stroke-width="1" rx="6"></rect>
+        <text class="pa-svg-sub" x="640" y="115" text-anchor="middle">invalid</text>
+        <g font-family="JetBrains Mono, monospace" font-size="11">
+          <circle cx="120" cy="110" r="7" fill="#dc2626"></circle>
+          <text x="120" y="78" text-anchor="middle" fill="#dc2626">0</text>
+          <text class="pa-svg-sub" x="120" y="158" text-anchor="middle">min−1</text>
+          <circle cx="180" cy="110" r="7" fill="#16a34a"></circle>
+          <text x="180" y="78" text-anchor="middle" fill="#16a34a">1</text>
+          <text class="pa-svg-sub" x="180" y="158" text-anchor="middle">min</text>
+          <circle cx="250" cy="110" r="5" fill="#8b5cf6"></circle>
+          <text x="250" y="78" text-anchor="middle" fill="#8b5cf6">2</text>
+          <text class="pa-svg-sub" x="250" y="158" text-anchor="middle">min+1</text>
+          <circle cx="510" cy="110" r="5" fill="#8b5cf6"></circle>
+          <text x="510" y="78" text-anchor="middle" fill="#8b5cf6">254</text>
+          <text class="pa-svg-sub" x="510" y="158" text-anchor="middle">max−1</text>
+          <circle cx="580" cy="110" r="7" fill="#16a34a"></circle>
+          <text x="580" y="78" text-anchor="middle" fill="#16a34a">255</text>
+          <text class="pa-svg-sub" x="580" y="158" text-anchor="middle">max</text>
+          <circle cx="640" cy="110" r="7" fill="#dc2626"></circle>
+          <text x="640" y="78" text-anchor="middle" fill="#dc2626">256</text>
+          <text class="pa-svg-sub" x="640" y="158" text-anchor="middle">max+1</text>
+        </g>
+        <text class="pa-svg-sub" x="380" y="200" text-anchor="middle" font-style="italic">three-value BVA: six test points per bounded field cover the boundary defect class completely</text>
+      </svg>
+      <figcaption class="pa-figure__caption">For a field accepting 1–255 characters: the six BVA test points (0, 1, 2, 254, 255, 256) cover both valid and invalid sides of each edge — defects at 256 (max+1) and 0 (min−1) are the most common boundary failures.</figcaption>
+    </figure>
+
+    <section id="what">
+      <h2>What it is</h2>
+      <p>Boundary Value Analysis is a black-box test design technique that selects test values at and immediately around the edges of valid input partitions. Glenford Myers introduced it in <em>The Art of Software Testing</em> (1979) alongside equivalence partitioning, and ISTQB has codified it as one of the four core black-box techniques (BVA, EP, decision tables, state transition). For any input with a defined valid range [min, max], BVA selects: <strong>min−1</strong> (invalid, should reject), <strong>min</strong> (valid, should accept), <strong>min+1</strong> (valid, should accept), <strong>max−1</strong> (valid, should accept), <strong>max</strong> (valid, should accept), <strong>max+1</strong> (invalid, should reject). The two-value variant uses only min and max; the three-value variant adds min±1 and max±1.</p>
+      <p>BVA applies to any bounded domain — not just numeric: string lengths, list sizes, date ranges, price ranges, array indices, pagination limits, file sizes, timeout durations. It is used in combination with equivalence partitioning: EP identifies the partitions, BVA selects the values inside and around the partition boundaries.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why we need it</h2>
+      <p>Off-by-one errors are among the most common defect classes in software. A loop that runs one iteration too many, a validation that accepts 256 characters when the database column is 255, a date range that excludes the last day, an integer that overflows at 2,147,483,648 — all are boundary defects that random or middle-of-range testing misses entirely. Without BVA, testers pick values that "feel right" (50 of 1–100) but systematically avoid the edges where defects actually live. BVA makes boundary testing mandatory and systematic, so the defect class cannot be skipped by accident.</p>
+    </section>
+
+    <section id="industry">
+      <h2>How others do it</h2>
+      <div class="pa-industry">
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Myers / Beizer · classical foundations</p>
+          <p class="pa-industry__what">Glenford Myers introduced BVA in <em>The Art of Software Testing</em> (1979) and Boris Beizer expanded it in <em>Software Testing Techniques</em> (1990) with the empirical observation that boundary errors account for a disproportionate share of all defects in numeric, string, and array code. Beizer codified the "boundary inside, boundary outside, typical" rule that became the industry default: for each partition, test one value inside the boundary, one outside, and one typical interior value. This is the foundation of every modern BVA technique.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> BVA and EP are inseparable — EP identifies partitions, BVA selects the boundary values; neither alone is sufficient.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.wiley.com/en-us/The+Art+of+Software+Testing%2C+3rd+Edition-p-9781118031964" rel="noopener">Myers, <em>The Art of Software Testing</em></a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">ISTQB Foundation Level</p>
+          <p class="pa-industry__what">ISTQB's FL syllabus defines BVA as one of four mandatory black-box techniques and distinguishes two- and three-value BVA. Two-value BVA selects min and max from each partition (minimum coverage); three-value BVA also selects min−1, min+1, max−1, max+1 (full boundary coverage, required for ISTQB Advanced). Boundary coverage is calculated as (tested boundary values ÷ identified boundary values) × 100% and is included in coverage reports as a first-class metric. BVA appears on every FL exam sitting — it is the most frequently examined technique.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> use three-value BVA for high-risk fields (full six-point set); two-value BVA for low-risk fields (just min and max); record boundary coverage as a metric.</p>
+          <p class="pa-industry__source">Source: <a href="https://www.istqb.org/certifications/foundation-level" rel="noopener">ISTQB — Foundation Level Syllabus</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Property-based testing (Hypothesis / fast-check / QuickCheck)</p>
+          <p class="pa-industry__what">Modern property-based testing libraries treat BVA as a first-class concern: Python's Hypothesis automatically biases its generators toward boundary values (0, 1, −1, MAX_INT, MIN_INT, empty string, empty list) before sampling the interior. JavaScript's fast-check and Haskell's QuickCheck do the same. The library's "shrinker" reduces failing test cases toward the simplest boundary that still triggers the defect. Hypothesis's <code>integers(min_value=1, max_value=255)</code> tests min−1, min, min+1, max−1, max, max+1 automatically before any random values.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> for high-risk fields, complement manual BVA with property-based testing — the library automates the six-point set and finds boundaries human analysis missed.</p>
+          <p class="pa-industry__source">Source: <a href="https://hypothesis.readthedocs.io/en/latest/data.html#hypothesis.strategies.integers" rel="noopener">Hypothesis — Strategies</a></p>
+        </div>
+        <div class="pa-industry__card">
+          <p class="pa-industry__company">Google · fuzzing as automated BVA</p>
+          <p class="pa-industry__what">Google's <em>Software Engineering at Google</em> (Winters, Manshreck, Wright, 2020) documents that the OSS-Fuzz programme is, in effect, BVA at scale: the fuzzer is particularly effective at finding boundary values that human testers miss — integer-overflow boundaries (2^31, 2^32, 2^63), string-length boundaries (4096, 65535), and Unicode-codepoint boundaries (U+007F, U+FFFF). OSS-Fuzz has found tens of thousands of boundary defects across open-source projects. Google's internal test-review process flags suites that lack boundary coverage as incomplete.</p>
+          <p class="pa-industry__lesson"><strong>What we take:</strong> for parsers, serialisers, and numeric pipelines, complement manual BVA with fuzz testing — it finds platform-level boundaries (overflow, encoding) that domain analysis cannot anticipate.</p>
+          <p class="pa-industry__source">Source: <a href="https://abseil.io/resources/swe-book/html/ch11.html" rel="noopener">Software Engineering at Google — Testing Overview</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <h2>Anatomy of a BVA test set</h2>
+      <div class="pa-anatomy">
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Input-domain inventory</p>
+          <p class="pa-anatomy__hint">List every bounded input for the test area: numeric ranges, string lengths, list sizes, date/time ranges, enum values, pagination limits, file sizes.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Partition map (from EP)</p>
+          <p class="pa-anatomy__hint">For each input, the valid and invalid equivalence partitions and the explicit boundary expressions (min, max, exclusive vs. inclusive).</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Six-point boundary set</p>
+          <p class="pa-anatomy__hint">For each bounded input: min−1, min, min+1 (lower) and max−1, max, max+1 (upper). Two-value variant drops min±1 and max±1 for low-risk fields.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Expected-outcome table</p>
+          <p class="pa-anatomy__hint">For each boundary value: the system response — accept, reject with a named error code, return a boundary-specific result (e.g. empty page, last record).</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Risk-tiered coverage rule</p>
+          <p class="pa-anatomy__hint">High-risk fields (security, billing, identity) use three-value BVA; medium-risk use two-value BVA; low-risk fields use representative-value testing only.</p>
+        </div>
+        <div class="pa-anatomy__part">
+          <p class="pa-anatomy__name">Boundary-coverage report</p>
+          <p class="pa-anatomy__hint">Tested boundary values ÷ identified boundary values, reported per release. Gaps are explicit (not silently skipped) and tied to risk-acceptance decisions.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How to run BVA</h2>
+      <ol class="pa-how">
+        <li><strong>Inventory bounded inputs.</strong> For the feature under test, list every input with a defined range — from API parameters and form fields to internal counters, page-size limits, and timeout durations. Don't skip non-obvious ones (string lengths, list sizes, date ranges).</li>
+        <li><strong>Read the spec for exact boundaries.</strong> "Username 3–20 chars" means min=3, max=20. Confirm inclusive vs. exclusive (is 20 valid or rejected?). If the spec is silent, file a defect against the spec before writing tests.</li>
+        <li><strong>Apply EP first.</strong> Split each input into valid and invalid equivalence partitions. BVA without EP misses non-numeric boundaries (e.g. role-enum transitions).</li>
+        <li><strong>Generate the six-point set.</strong> For each partition boundary: min−1, min, min+1, max−1, max, max+1. Drop duplicates if min+1 = max−1 (range of width ≤ 2).</li>
+        <li><strong>Pair each value with an expected outcome.</strong> Accept / reject + error code / boundary-specific result. Write the expected outcome before executing — never "we'll see what it does."</li>
+        <li><strong>Execute and record results.</strong> Per-value pass/fail with the observed response. Boundary defects often manifest as silent acceptance of invalid input or silent rejection of valid input — both must be checked explicitly.</li>
+        <li><strong>Report boundary coverage.</strong> Tested / identified boundary values, per release. Gaps are visible in the dashboard with a documented risk-acceptance rationale.</li>
+      </ol>
+    </section>
+
+    <section id="deep-dive">
+      <h2>Deep dive</h2>
+      <p>The empirical foundation of BVA is the observation that bugs cluster at boundaries. The mechanism is straightforward: at the interior of a range, all inputs are handled by the same code path, so a single test exercises the whole partition. At the boundary, the code must <em>decide</em> — and decision points are where humans make mistakes. The classic error is the off-by-one in a comparison: <code>if (len &gt; 255)</code> versus <code>if (len &gt;= 255)</code> — the difference is invisible at len = 100, glaring at len = 255. Three-value BVA catches both forms of the bug because it tests both sides of the boundary.</p>
+      <p>Two-value versus three-value BVA is the most common confusion. Two-value BVA tests only min and max — the boundary values themselves. Three-value BVA also tests min−1 and max+1 (one step outside) and min+1 and max−1 (one step inside). The ISTQB Foundation Level certification covers two-value; the Advanced Level covers three-value. For Study App, three-value is the default for high-risk fields (password length, quiz score, payment amount, page size) because each adds only four extra test cases and catches the entire boundary defect class. Two-value is the fallback for low-risk fields (sort key, display-name preference) where the boundary defect cost is bounded.</p>
+      <p>Non-numeric boundaries are the most-missed application. String length: empty string, one character, max−1, max, max+1. List size: empty list, one element, max−1, max, max+1. Date range: one day before start, start date, one day after start, one day before end, end date, one day after end. Time: midnight (00:00:00), one second before midnight (23:59:59), the leap second (when applicable). Floating point: the smallest positive value, the largest finite value, NaN, infinity. Every bounded domain has boundaries; BVA forces them into the test set.</p>
+      <p>Platform-level boundaries are invisible without BVA: integer overflow at 2^31−1 (signed 32-bit), 2^63−1 (signed 64-bit); IEEE 754 floating-point precision loss at 2^53 (the largest integer representable exactly as a double); Unicode codepoint boundaries at U+007F (ASCII), U+FFFF (Basic Multilingual Plane), U+10FFFF (Unicode maximum); HTTP header size limits (typically 8KB), URL length limits (browsers vary, 2KB practical). For parsers and serialisers, fuzz testing is the practical way to cover these; for application code, the BVA test set should include any platform boundary the field could reach.</p>
+      <p>BVA versus property-based testing is complementary, not competitive. BVA is deterministic — you pick the six points, run them, get pass/fail. Property-based testing is generative — you describe the property ("for all valid inputs, the response is 200") and the library samples inputs, biased toward boundaries. BVA is auditable (you can show the test set in a review); property-based testing is exploratory (it finds boundaries you forgot). The pragmatic recipe: BVA for the named boundaries you must cover (spec compliance, regression catch); property-based for the boundaries you might have missed (defect-finding).</p>
+      <p>Boundary coverage as a metric distinguishes mature QA orgs from intuition-driven ones. The metric is simple: (tested boundary values ÷ identified boundary values) × 100%. Identified boundaries come from the EP/BVA analysis; tested boundaries come from the test execution log. A field with min=3, max=20 has six identified boundaries; if the test set covers four of them, coverage is 67%. Boundary coverage joins line coverage, branch coverage, and mutation coverage as a first-class quality metric — and it is the one most directly tied to defect-discovery capability.</p>
+      <p>Common anti-patterns are equally important. "We tested 100, it works" — the interior is the wrong test value; switch to 0/1/255/256. "The spec says 1–255, we trust the validation" — BVA exists because validation often disagrees with the spec at the edges. "Adding boundary tests slows the suite" — six values per field is small; the actual cost is in test-data setup, which is the same regardless. "Property-based testing replaces BVA" — it complements but does not replace, because the spec lists boundaries that the property does not name. The practice is to do both, deliberately.</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>Lifecycle</h2>
+      <div class="pa-lifecycle">
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">1</span>
+          <p class="pa-lifecycle__name">Spec review</p>
+          <p class="pa-lifecycle__hint">Confirm each bounded input has explicit min/max and inclusive/exclusive semantics; file a spec defect if silent.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">2</span>
+          <p class="pa-lifecycle__name">EP + BVA design</p>
+          <p class="pa-lifecycle__hint">Partition the input domain, then enumerate the six-point boundary set for each partition.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">3</span>
+          <p class="pa-lifecycle__name">Expected-outcome pairing</p>
+          <p class="pa-lifecycle__hint">Every boundary value gets a named expected response (accept / reject with code / boundary-specific result).</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">4</span>
+          <p class="pa-lifecycle__name">Execute</p>
+          <p class="pa-lifecycle__hint">Run the BVA test set as part of regression; record per-value pass/fail with the observed response and any defect IDs.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">5</span>
+          <p class="pa-lifecycle__name">Coverage report</p>
+          <p class="pa-lifecycle__hint">Tested boundaries ÷ identified boundaries, per release; gaps tied to a documented risk-acceptance decision.</p>
+        </div>
+        <div class="pa-lifecycle__stage"><span class="pa-lifecycle__num">6</span>
+          <p class="pa-lifecycle__name">Maintain on spec change</p>
+          <p class="pa-lifecycle__hint">When a range changes (max 255 → 1000), the BVA set is regenerated and the old values are dropped — boundary tests are not frozen.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Common pitfalls</h2>
+      <div class="docs-table-scroll" role="region" aria-label="Common pitfalls">
+        <table class="pa-pitfalls">
+          <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Testing only the valid range (min and max)</td>
+              <td>Testers cover min and max but skip min−1 and max+1, missing the invalid-input rejection defects — the most common BVA failure mode.</td>
+              <td>Always include min−1 and max+1. Invalid boundaries verify the rejection path; they are as important as valid ones.</td>
+            </tr>
+            <tr>
+              <td>BVA without defined expected outcomes</td>
+              <td>The test set lists boundary values but says "see what happens" — when a test fails, no one can tell whether the system or the test is wrong.</td>
+              <td>Pair every value with a named outcome before executing: HTTP 200 with body shape, HTTP 422 with error code <code>FIELD_TOO_LONG</code>, etc.</td>
+            </tr>
+            <tr>
+              <td>Skipping non-numeric boundaries</td>
+              <td>Testers apply BVA to numeric fields but forget string length, list size, date range, file size, timeout — all bounded domains.</td>
+              <td>The inventory step is non-negotiable: every bounded input gets a BVA set, not just numeric ones.</td>
+            </tr>
+            <tr>
+              <td>Off-by-one in the BVA values themselves</td>
+              <td>"max+1" is generated by hand; for max = 255, the tester writes 257 or 254 by mistake — the boundary defect hides in the test data.</td>
+              <td>Generate the six-point set in code (a helper function or parameterised test) so the values are derived from min/max constants, not typed.</td>
+            </tr>
+            <tr>
+              <td>Ignoring platform boundaries</td>
+              <td>The field accepts integers, the spec says 1–1,000,000 — but the implementation uses int32 and overflows at 2^31; the spec-level BVA never tests it.</td>
+              <td>For numeric fields, add platform boundaries (INT_MAX, INT_MIN, MAX_SAFE_INTEGER) to the BVA set when the field could plausibly reach them; for parsers, add fuzz testing.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="example">
+      <h2>Worked example — Study App quiz-score field</h2>
+      <p>The <code>quiz.score</code> field accepts integer values in the range 0–100 (inclusive). The spec also states: scores below 0 must return HTTP 422 with code <code>SCORE_BELOW_MIN</code>; scores above 100 must return HTTP 422 with code <code>SCORE_ABOVE_MAX</code>; non-integer values must return HTTP 400 with code <code>SCORE_INVALID_TYPE</code>.</p>
+      <p>EP partitions: invalid-low (score &lt; 0), valid (0 ≤ score ≤ 100), invalid-high (score &gt; 100), invalid-type (non-integer). BVA six-point set for the numeric boundaries:</p>
+      <ul>
+        <li><code>score=-1</code> → HTTP 422, code <code>SCORE_BELOW_MIN</code> (min−1, invalid-low)</li>
+        <li><code>score=0</code> → HTTP 200, score stored as 0 (min, valid edge)</li>
+        <li><code>score=1</code> → HTTP 200, score stored as 1 (min+1, valid interior edge)</li>
+        <li><code>score=99</code> → HTTP 200, score stored as 99 (max−1, valid interior edge)</li>
+        <li><code>score=100</code> → HTTP 200, score stored as 100 (max, valid edge)</li>
+        <li><code>score=101</code> → HTTP 422, code <code>SCORE_ABOVE_MAX</code> (max+1, invalid-high)</li>
+      </ul>
+      <p>Platform boundaries (high-risk field, payment-adjacent): <code>score=2147483647</code> (INT_MAX) → HTTP 422; <code>score=2147483648</code> (INT_MAX+1, overflow check) → HTTP 400 (parse failure, not overflow). Type boundaries: <code>score="50"</code> (string) → HTTP 400 <code>SCORE_INVALID_TYPE</code>; <code>score=50.5</code> (float) → HTTP 400 <code>SCORE_INVALID_TYPE</code>; <code>score=null</code> → HTTP 400 <code>SCORE_REQUIRED</code>.</p>
+      <p>Boundary coverage: 6 numeric boundaries identified, 6 tested = 100%. Platform: 2 identified, 2 tested = 100%. Type: 3 identified, 3 tested = 100%. Total: 11/11 = 100% boundary coverage for the quiz-score field. The full set runs in ~80 ms as part of the API contract suite.</p>
+      <p>Outcome on a real defect: in week 7 of Study App, a refactor changed the validation to <code>if (score &gt; 100)</code> (strict) without adjusting the lower bound, accidentally rejecting <code>score=100</code>. The <code>score=100</code> BVA test caught it on the next CI run; without BVA the test set would have used <code>score=50</code> and the defect would have reached staging.</p>
+    </section>
+
+    <section id="quality-bar">
+      <h2>Quality bar</h2>
+      <div class="pa-quality">
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Senior bar</p>
+          <p class="pa-quality__hint">Every bounded input has an explicit EP + BVA analysis with named partitions, six-point boundary set, and per-value expected outcomes. Three-value BVA on every high-risk field. Boundary coverage reported as a first-class metric (≥ 95% on high-risk fields, ≥ 80% overall). Property-based testing complements BVA on identity, billing, and parser code. Platform boundaries (overflow, encoding) included where the field could reach them. Spec-silent boundaries are filed as spec defects before tests are written.</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Mid bar</p>
+          <p class="pa-quality__hint">Three-value BVA on high-risk fields; two-value BVA on medium-risk fields; expected outcomes documented for each value. Boundary coverage reported per release. Non-numeric boundaries (string length, list size, date range) included in the inventory.</p>
+        </div>
+        <div class="pa-quality__band">
+          <p class="pa-quality__name">Junior bar</p>
+          <p class="pa-quality__hint">For each new bounded field, can produce the six-point BVA set (min−1, min, min+1, max−1, max, max+1), pair each value with an expected outcome, and run the set as part of the regression suite.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="references">
+      <h2>References</h2>
+      <ul class="pa-refs">
+        <li><a href="https://www.wiley.com/en-us/The+Art+of+Software+Testing%2C+3rd+Edition-p-9781118031964" rel="noopener">Myers, Sandler, Badgett — <em>The Art of Software Testing</em> (Wiley)</a> — the 1979 foundation, still in print.</li>
+        <li><a href="https://www.istqb.org/certifications/foundation-level" rel="noopener">ISTQB — Foundation Level Syllabus</a> — BVA, EP, and boundary coverage are core sections.</li>
+        <li><a href="https://hypothesis.readthedocs.io/en/latest/data.html#hypothesis.strategies.integers" rel="noopener">Hypothesis — Strategies</a> — Python property-based library that biases toward boundary values automatically.</li>
+        <li><a href="https://fast-check.dev/docs/core-blocks/arbitraries/primitives/number/" rel="noopener">fast-check — Number arbitraries</a> — JavaScript property-based library with boundary bias.</li>
+        <li><a href="https://abseil.io/resources/swe-book/html/ch11.html" rel="noopener">Software Engineering at Google — Testing Overview</a> — fuzzing as automated boundary testing at scale.</li>
+        <li><a href="https://google.github.io/oss-fuzz/" rel="noopener">OSS-Fuzz</a> — Google's open-source fuzzing infrastructure; finds boundary defects by the thousand.</li>
+      </ul>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Rewrote to SA practice-page pattern: page-head, six-point BVA SVG, 4 industry cards (Myers/Beizer, ISTQB, property-based, Google fuzzing), 6-item anatomy, 7-step how, deep-dive, lifecycle, quiz-score worked example, quality bar, references.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial version: Boundary Value Analysis practice for QA Engineer radar.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

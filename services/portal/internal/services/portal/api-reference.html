@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>portal · API reference · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">portal</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">API reference</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Reference</span>
+          <span class="docs-pill docs-pill--info">Static URL tree</span>
+          <span class="docs-pill docs-pill--neutral">No HTTP API</span>
+        </div>
+        <h1>portal · API reference</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          <strong>The portal exposes no HTTP API.</strong> Its surface is a static URL tree served over HTTPS.
+          "API reference" here means the contract a reader (or a deep-link) can rely on: top-level URLs, the search
+          index format, and the asset versioning rules. Catalog spine slot kept for parity with the api / monitoring
+          entries — see <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> §4.4.
+        </p>
+      </header>
+
+      <h2 id="url-surface">URL surface — what a reader can deep-link</h2>
+      <p>
+        Two trees with stable top-level paths. Internal links inside the portal use relative paths so the build can
+        move between hosts without breaking.
+      </p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>URL</th><th>Audience</th><th>What it serves</th></tr></thead>
+          <tbody>
+            <tr><td><code>/</code></td><td>Public</td><td>Marketing landing — Diátaxis quadrants (tutorials / how-to / reference / explanation).</td></tr>
+            <tr><td><code>/reference/api/</code></td><td>Public</td><td>OpenAPI document + interactive Swagger UI sandbox (per <a href="../../governance/adr/0022-embedded-swagger-ui-openapi-sandbox.html">ADR 0022</a>; superseded — read for context).</td></tr>
+            <tr><td><code>/internal/</code></td><td>Maintainer</td><td>Engineering hub: ADRs, RFCs, runbooks, audits, handbook, this catalog, system design.</td></tr>
+            <tr><td><code>/internal/services/</code></td><td>Maintainer</td><td>Service catalog (api · portal · monitoring · ui-kit).</td></tr>
+            <tr><td><code>/internal/services/api/reference/</code></td><td>Maintainer</td><td>Internal HTTP API specs (the contract documented for the api service).</td></tr>
+            <tr><td><code>/internal/governance/</code></td><td>Maintainer</td><td>ADR + RFC + audit trees. Source of truth for decisions and reviews.</td></tr>
+            <tr><td><code>/internal/sre/</code></td><td>Maintainer</td><td>SRE hub — runbooks index, on-call routing.</td></tr>
+            <tr><td><code>/portal/ui-kit/</code></td><td>Both</td><td>Live showcase of tokens, components, templates — owned by the <a href="../ui-kit/index.html">ui-kit</a> service.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">
+        Audience boundary is an IA boundary, not an auth boundary. <strong>Nothing secret lives in any portal page.</strong>
+        See <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> §3.1.
+      </p>
+
+      <h2 id="search-index">Search index — JSON contract</h2>
+      <p>
+        The portal ships a client-side search index at a fixed path. Per
+        <a href="../../governance/adr/0027-client-side-docs-search-index-and-ranking.html">ADR 0027</a>,
+        the format is documented and stable so future tooling can re-rank without rebuilding the source map.
+      </p>
+      <ul>
+        <li><strong>Path:</strong> <code>/internal/assets/search-index.json</code> (and a public counterpart for <code>/</code>).</li>
+        <li><strong>Schema:</strong> array of <code>{ url, title, headings[], excerpt, audience }</code>. <code>audience</code> = <code>"public"</code> | <code>"internal"</code>.</li>
+        <li><strong>Producer:</strong> <code>scripts/build_docs_search_index.py</code>; runs in <code>make docs-fix</code>.</li>
+        <li><strong>KPI / SLO:</strong> per <a href="../../governance/rfc/0002-docs-search-kpi-policy-and-slo.html">RFC 0002</a>.</li>
+      </ul>
+
+      <h2 id="asset-versioning">Asset versioning</h2>
+      <p>
+        Shared CSS / JS / fonts under <code>services/frontend/portal/assets_v2/</code> are referenced by relative path
+        from every HTML page. There is no fingerprinting at build time today; cache busts ride on edits to the
+        asset filenames themselves (see <a href="../ui-kit/architecture.html">ui-kit · Architecture</a>).
+      </p>
+      <p class="small">
+        If long-term caching becomes a problem, the right fix is to add a fingerprint suffix in the build step —
+        not to add a runtime layer. Track in <a href="../../governance/backlog/index.html">backlog</a>.
+      </p>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3; assets path updated to <code>assets_v2/</code>; added showcase URL.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-10</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Filled URL surface, search index contract, asset versioning.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-08</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial skeleton stub.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#url-surface">URL surface</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#search-index">Search index</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#asset-versioning">Asset versioning</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

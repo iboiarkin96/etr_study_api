@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runbook 0010 · In-page TOC missing · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Runbooks</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0010 · In-page TOC missing</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--danger">Runbook</span>
+          <span class="docs-pill docs-pill--teal">Docs</span>
+        </div>
+        <h1>0010 — In-page "On this page" sidebar missing or empty</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">A long page has no right-rail TOC, or the TOC list renders empty. Page shell, heading structure, and runtime checks.</p>
+      </header>
+
+      <h2 id="trigger">Trigger</h2>
+      <ul>
+        <li>A long HTML page under <code>services/portal/</code> (not <code>services/portal/pdoc/</code>) has no "On this page" list, or the list is empty.</li>
+        <li>You expect a main column plus a right-rail <code>&lt;aside class="docs-toc"&gt;</code> filled from the article's <code>h2</code>/<code>h3</code> headings.</li>
+      </ul>
+
+      <h2 id="triage">Fast triage</h2>
+      <ol>
+        <li>The page loads <code>entry.js</code> from <code>services/frontend/portal/assets_v2/runtime/internal/entry.js</code> (Network tab: no 404).</li>
+        <li>JavaScript is on. For <code>file://</code> URLs some browsers block scripts; use a small server, e.g. <code>python -m http.server 8765</code>.</li>
+        <li>Console: no errors from <code>entry.js</code> before the layout runs.</li>
+        <li>The page contains <code>&lt;aside class="docs-toc"&gt;</code> with at least one <code>&lt;a class="docs-toc__link" href="#…"&gt;</code> entry, and the article exposes matching <code>h2 id="…"</code> sections.</li>
+        <li>If the mobile FAB is missing, confirm <code>&lt;button data-component="toc-fab"&gt;</code> is present after the docs-toc aside.</li>
+      </ol>
+
+      <h2 id="causes">Most common causes</h2>
+      <ul>
+        <li><strong>No <code>docs-toc</code> aside on the page</strong> — without it the right-rail mount has nothing to fill. Add the aside or copy from a sibling page.</li>
+        <li><strong>Headings without <code>id</code></strong> — TOC anchors point at <code>#&lt;id&gt;</code>; if the <code>h2</code> has no <code>id</code> the link jumps nowhere.</li>
+        <li><strong>Broken markup around a heading</strong> — an unclosed tag above the heading hides it from the scroll-spy.</li>
+        <li><strong>Page-type opt-out</strong> — landing/cockpit page types may suppress the right-rail TOC by design; how-to pages should always include it.</li>
+        <li><strong>Stale entry bundle</strong> — old asset paths pointing at <code>assets/docs-nav.js</code> instead of <code>assets_v2/runtime/internal/entry.js</code>.</li>
+      </ul>
+
+      <h2 id="recovery">Recovery steps</h2>
+      <ol>
+        <li>Ensure the page links to <code>services/frontend/portal/assets_v2/runtime/internal/entry.css</code> and <code>entry.js</code> with correct relative depth.</li>
+        <li>Ensure each section you want in the TOC has an <code>h2</code> or <code>h3</code> with a stable <code>id</code>.</li>
+        <li>Include the right-rail aside near the end of <code>&lt;main&gt;</code>:
+          <pre class="docs-code"><code class="language-html">&lt;aside class="docs-toc" aria-label="On this page"&gt;
+&lt;p class="docs-toc__title"&gt;On this page&lt;/p&gt;
+&lt;ol class="docs-toc__list"&gt;
+&lt;li class="docs-toc__item"&gt;&lt;a class="docs-toc__link" href="#triage"&gt;Fast triage&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/aside&gt;
+          &lt;button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"&gt;&lt;/button&gt;</code></pre>
+        </li>
+        <li>Run <code>make docs-fix</code> so HTML normalization stays consistent, then <code>make docs-check</code>.</li>
+      </ol>
+
+      <h2 id="exit">Exit criteria</h2>
+      <ul>
+        <li>"On this page" lists the right sections; the active link updates as you scroll.</li>
+        <li>No console errors from <code>entry.js</code> on that page.</li>
+        <li>Mobile FAB opens a drawer matching the right-rail TOC contents.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: rewrote shell guidance to describe the new <code>docs-toc</code> aside + <code>toc-fab</code> button mounted by <code>entry.js</code>; example snippet on <code>docs-code language-html</code>.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#trigger">Trigger</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#triage">Fast triage</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#causes">Common causes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#recovery">Recovery</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#exit">Exit criteria</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

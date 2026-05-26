@@ -20,7 +20,7 @@ def test_store_insert_and_metrics_computation(tmp_path: Path) -> None:
             "session_id": "s1",
             "query_id": "q1",
             "results_count": 0,
-            "top_results": [{"rank": 1, "url": "adr/README.html"}],
+            "top_results": [{"rank": 1, "url": "internal/governance/adr/README.html"}],
         }
     )
     store.insert_event(
@@ -39,7 +39,7 @@ def test_store_insert_and_metrics_computation(tmp_path: Path) -> None:
             "session_id": "s2",
             "query_id": "q2",
             "result_rank": 1,
-            "result_url": "adr/0001-docs-as-code.html",
+            "result_url": "internal/governance/adr/0001-docs-as-code.html",
         }
     )
     store.insert_event(

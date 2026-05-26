@@ -1,6 +1,6 @@
 """Insert a standard ``Page history`` section just before ``</main>`` when missing.
 
-Skips ``docs/pdoc/**``, ``docs/assets/**``, and redirect stubs. Skips pages that already have
+Skips ``services/portal/internal/catalog/api/code-reference/**``, ``services/frontend/portal/assets/**``, and redirect stubs. Skips pages that already have
 ``<section id="page-history">`` or legacy ``Document history`` / ``5-document-history`` (migrate those separately).
 
 Run: ``python scripts/ensure_docs_page_history.py``
@@ -13,13 +13,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ROOT / "docs"
+DOCS = ROOT / "services" / "portal"
 
 MAIN_CLOSE_RE = re.compile(r"^(\s*)</main>\s*$", re.MULTILINE)
 
 BASELINE_DATE = "2026-04-21"
 BASELINE_CHANGE = "Added Page history section (repository baseline)."
-PROFILE_PATH = "internal/portal/people/ivan-boyarkin/index.html"
+PROFILE_PATH = "internal/team/people/ivan-boyarkin/index.html"
 
 
 def _normalize_parts(parts: list[str]) -> list[str]:
@@ -144,7 +144,14 @@ def main() -> int:
     n = 0
     for path in sorted(DOCS.rglob("*.html")):
         rel = path.relative_to(DOCS).as_posix()
-        if rel.startswith("pdoc/") or rel.startswith("assets/"):
+        if (
+            rel.startswith("pdoc/")
+            or rel.startswith("assets/")
+            or rel.startswith("internal/services/api/code-reference/")
+            # External developer portal is isolated from the internal docs
+            # skeleton — Page history is internal provenance only.
+            or rel.startswith("public/")
+        ):
             continue
         try:
             if process_file(path):
