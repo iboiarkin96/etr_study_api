@@ -5,7 +5,7 @@ window.__DOCS_PORTAL_DATA__ = {
     "16fc8b78537109162984a2fdbef6e142": [
       {
         "path": "index.html",
-        "title": "ETR Study API — Documentation"
+        "title": "ETR Study API · Documentation"
       },
       {
         "path": "internal/explanation/dev/business-logic.html",
@@ -610,126 +610,6 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "internal/reference/data/users.html",
         "title": "Table: users · Study App · Internal"
-      },
-      {
-        "path": "internal/reference/front/_shared/component-spec-template.html",
-        "title": "Moved — Component spec template · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/_shared/contract-spec-template.html",
-        "title": "Contract spec template · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/_shared/fast-entry-by-role.html",
-        "title": "Docs frontend quick entry by role · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/_shared/foundation-spec-template.html",
-        "title": "Moved — Foundation spec template · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/_shared/glossary.html",
-        "title": "Docs frontend glossary · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/_shared/process.html",
-        "title": "Moved — Documentation maintenance process · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/_shared/spec-definition-of-done.html",
-        "title": "Frontend spec — Definition of Done · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/_shared/style-guide.html",
-        "title": "Moved — Documentation style guide · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/architecture-map.html",
-        "title": "Docs frontend architecture map &amp; feature inventory · Reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/components/diagrams-and-lightbox.html",
-        "title": "Docs frontend diagrams &amp; lightbox · Reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/components/popups-and-overlays.html",
-        "title": "Docs frontend popup &amp; overlay system · Reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/components/resume-and-back-to-top.html",
-        "title": "Docs frontend resume reading and back-to-top · Reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/components/spec-metadata-block.html",
-        "title": "Docs frontend: spec metadata block · Reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/contracts/feedback-and-editorial-workflow.html",
-        "title": "Docs frontend feedback and editorial workflow · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/contracts/menu-and-theme.html",
-        "title": "Docs frontend navigation and theme controls · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/contracts/navigation-search-and-discovery.html",
-        "title": "Docs frontend navigation, search, and discovery · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/docs-frontend-token-gallery.html",
-        "title": "Moved · Token gallery · Study App"
-      },
-      {
-        "path": "internal/reference/front/foundations/css-architecture.html",
-        "title": "Moved · Css Architecture · Study App"
-      },
-      {
-        "path": "internal/reference/front/foundations/hotkeys.html",
-        "title": "Moved · Hotkeys · Study App"
-      },
-      {
-        "path": "internal/reference/front/foundations/js-modules.html",
-        "title": "Moved · Js Modules · Study App"
-      },
-      {
-        "path": "internal/reference/front/foundations/motion-and-adaptivity.html",
-        "title": "Moved · Motion And Adaptivity · Study App"
-      },
-      {
-        "path": "internal/reference/front/foundations/tokens.html",
-        "title": "Moved · Tokens · Study App"
-      },
-      {
-        "path": "internal/reference/front/foundations/ui-kit.html",
-        "title": "Moved · Ui Kit · Study App"
-      },
-      {
-        "path": "internal/reference/front/index.html",
-        "title": "Docs frontend · Reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/patterns/long-form-reading-aids.html",
-        "title": "Pattern: long-form reading aids · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/screens/components/index.html",
-        "title": "Component screenshots — convention &amp; viewport canon · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/screens/docs-screen-backlog-cockpit.html",
-        "title": "Screen spec: Backlog cockpit · Reference · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/screens/docs-screen-home-landing.html",
-        "title": "Screen spec: Engineering hub home · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/screens/docs-screen-portal-hall-of-contributors.html",
-        "title": "Screen spec: Hall of Contributors · Frontend · Study App Internal"
-      },
-      {
-        "path": "internal/reference/front/screens/docs-screen-template.html",
-        "title": "Moved — Screen spec template · Study App Internal"
       },
       {
         "path": "internal/reference/index.html",
@@ -1957,47 +1837,47 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "public/explanation/api-versioning.html",
-        "title": "API versioning — ETR Study API"
+        "title": "API versioning · Explanation · ETR Study API"
       },
       {
         "path": "public/explanation/architecture.html",
-        "title": "Architecture — ETR Study API"
+        "title": "Architecture · Explanation · ETR Study API"
       },
       {
         "path": "public/explanation/index.html",
-        "title": "Explanation — ETR Study API"
+        "title": "Explanation · ETR Study API"
       },
       {
         "path": "public/explanation/security-model.html",
-        "title": "Security model — ETR Study API"
+        "title": "Security model · Explanation · ETR Study API"
       },
       {
         "path": "public/explanation/slo-error-budget.html",
-        "title": "SLO and error budget — ETR Study API"
+        "title": "SLO &amp; error budget · Explanation · ETR Study API"
       },
       {
         "path": "public/how-to/authenticate.html",
-        "title": "Authenticate with the API — ETR Study API"
+        "title": "Authenticate with the API · How-to · ETR Study API"
       },
       {
         "path": "public/how-to/handle-errors.html",
-        "title": "Handle errors — ETR Study API"
+        "title": "Handle errors · How-to · ETR Study API"
       },
       {
         "path": "public/how-to/handle-idempotency.html",
-        "title": "Handle idempotency — ETR Study API"
+        "title": "Handle idempotency · How-to · ETR Study API"
       },
       {
         "path": "public/how-to/index.html",
-        "title": "How-to guides — ETR Study API"
+        "title": "How-to guides · ETR Study API"
       },
       {
         "path": "public/index.html",
-        "title": "ETR Study API — Developer Documentation"
+        "title": "ETR Study API · Developer Documentation"
       },
       {
         "path": "public/reference/api/index.html",
-        "title": "OpenAPI Reference — ETR Study App"
+        "title": "OpenAPI explorer · Reference · ETR Study API"
       },
       {
         "path": "public/reference/api/openapi-explorer.html",
@@ -2005,23 +1885,23 @@ window.__DOCS_PORTAL_DATA__ = {
       },
       {
         "path": "public/reference/env-vars/index.html",
-        "title": "Environment variables — ETR Study API"
+        "title": "Environment variables · Reference · ETR Study API"
       },
       {
         "path": "public/reference/errors/index.html",
-        "title": "Error catalogue — ETR Study API"
+        "title": "Error catalogue · Reference · ETR Study API"
       },
       {
         "path": "public/reference/index.html",
-        "title": "Reference — ETR Study API"
+        "title": "Reference · ETR Study API"
       },
       {
         "path": "public/tutorials/first-api-call.html",
-        "title": "Your first API call — ETR Study API"
+        "title": "Your first API call · Tutorials · ETR Study API"
       },
       {
         "path": "public/tutorials/index.html",
-        "title": "Tutorials — ETR Study API"
+        "title": "Tutorials · ETR Study API"
       },
       {
         "path": "ui-kit/index.html",
@@ -2354,6 +2234,10 @@ window.__DOCS_PORTAL_DATA__ = {
       {
         "path": "ui-kit/pages/foundations/css-architecture.html",
         "title": "CSS architecture · Portal UI Kit"
+      },
+      {
+        "path": "ui-kit/pages/foundations/glossary.html",
+        "title": "Glossary · Portal UI Kit"
       },
       {
         "path": "ui-kit/pages/foundations/hotkeys.html",

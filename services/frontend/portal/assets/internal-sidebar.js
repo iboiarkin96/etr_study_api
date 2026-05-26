@@ -237,76 +237,35 @@
     {
       label: "Docs frontend documentation",
       children: [
-        { label: "Overview", path: "internal/reference/front/index.html" },
+        { label: "Overview", path: "ui-kit/pages/foundations/index.html" },
         {
           label: "Foundations",
           children: [
-            { label: "Style guide", path: "internal/reference/front/_shared/style-guide.html" },
-            { label: "Maintenance process", path: "internal/reference/front/_shared/process.html" },
-            { label: "Frontend glossary", path: "internal/reference/front/_shared/glossary.html" },
-            { label: "Quick entry by role", path: "internal/reference/front/_shared/fast-entry-by-role.html" },
-          ],
-        },
-        {
-          label: "Spec templates",
-          children: [
-            { label: "Component spec template", path: "internal/reference/front/_shared/component-spec-template.html" },
-            { label: "Foundation spec template", path: "internal/reference/front/_shared/foundation-spec-template.html" },
-            { label: "Contract spec template", path: "internal/reference/front/_shared/contract-spec-template.html" },
-            { label: "Definition of Done", path: "internal/reference/front/_shared/spec-definition-of-done.html" },
-          ],
-        },
-        {
-          label: "Architecture",
-          children: [
-            { label: "Architecture map", path: "internal/reference/front/architecture-map.html" },
-          ],
-        },
-        {
-          label: "Screens",
-          children: [
-            { label: "Screen spec template", path: "internal/reference/front/screens/docs-screen-template.html" },
-            { label: "Engineering hub home", path: "internal/reference/front/screens/docs-screen-home-landing.html" },
-            { label: "Backlog cockpit", path: "internal/reference/front/screens/docs-screen-backlog-cockpit.html" },
-            { label: "Hall of Contributors", path: "internal/reference/front/screens/docs-screen-portal-hall-of-contributors.html" },
+            { label: "Design philosophy", path: "ui-kit/pages/foundations/philosophy.html" },
+            { label: "Tokens", path: "ui-kit/pages/foundations/tokens.html" },
+            { label: "CSS architecture", path: "ui-kit/pages/foundations/css-architecture.html" },
+            { label: "Prose", path: "ui-kit/pages/foundations/prose.html" },
+            { label: "Layout", path: "ui-kit/pages/foundations/layout.html" },
+            { label: "JS modules", path: "ui-kit/pages/foundations/js-modules.html" },
+            { label: "Motion", path: "ui-kit/pages/foundations/motion.html" },
+            { label: "Hotkeys", path: "ui-kit/pages/foundations/hotkeys.html" },
+            { label: "Glossary", path: "ui-kit/pages/foundations/glossary.html" },
           ],
         },
         {
           label: "Components",
           children: [
-            { label: "UI kit", path: "internal/reference/front/foundations/ui-kit.html" },
-            { label: "Tooltip", path: "ui-kit/pages/components/tooltip.html" },
-            { label: "Popup and overlay system", path: "internal/reference/front/components/popups-and-overlays.html" },
-            { label: "Diagrams and lightbox", path: "internal/reference/front/components/diagrams-and-lightbox.html" },
-            { label: "Resume reading and back-to-top", path: "internal/reference/front/components/resume-and-back-to-top.html" },
-            { label: "Rocket", path: "ui-kit/pages/components/rocket.html" },
             { label: "Bug report", path: "ui-kit/pages/components/bug-report.html" },
+            { label: "Tooltip", path: "ui-kit/pages/components/tooltip.html" },
             { label: "TOC", path: "ui-kit/pages/components/toc.html" },
             { label: "TOC FAB (mobile)", path: "ui-kit/pages/components/toc-fab.html" },
-            { label: "Hotkeys", path: "internal/reference/front/foundations/hotkeys.html" },
-          ],
-        },
-        {
-          label: "Reference",
-          children: [
-            { label: "JavaScript modules", path: "internal/reference/front/foundations/js-modules.html" },
-            { label: "CSS architecture", path: "internal/reference/front/foundations/css-architecture.html" },
-            { label: "Token gallery (auto-generated)", path: "internal/reference/front/foundations/tokens.html" },
-          ],
-        },
-        {
-          label: "Cross-cutting systems",
-          children: [
-            { label: "Navigation and theme contract", path: "internal/reference/front/contracts/menu-and-theme.html" },
-            { label: "Navigation, search, discovery", path: "internal/reference/front/contracts/navigation-search-and-discovery.html" },
-            { label: "UI, motion, adaptivity", path: "internal/reference/front/foundations/motion-and-adaptivity.html" },
-            { label: "Feedback and editorial workflow", path: "internal/reference/front/contracts/feedback-and-editorial-workflow.html" },
-          ],
-        },
-        {
-          label: "Patterns",
-          children: [
-            { label: "Long-form reading aids", path: "internal/reference/front/patterns/long-form-reading-aids.html" },
+            { label: "Rocket", path: "ui-kit/pages/components/rocket.html" },
+            { label: "Resume banner", path: "ui-kit/pages/components/resume-banner.html" },
+            { label: "Diagram lightbox", path: "ui-kit/pages/components/diagram-lightbox.html" },
+            { label: "Modal", path: "ui-kit/pages/components/modal.html" },
+            { label: "Toast", path: "ui-kit/pages/components/toast.html" },
+            { label: "Overlay layering", path: "ui-kit/pages/components/overlay-layering.html" },
+            { label: "All components", path: "ui-kit/pages/components/index.html" },
           ],
         },
       ],
