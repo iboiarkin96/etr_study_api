@@ -2,14 +2,17 @@
 # via the Actions pipeline. Pages source in repo settings must be set to
 # "GitHub Actions" — the legacy "branch /docs" source will fail because no
 # docs/ directory exists.
-name: Deploy portal to Pages
+#
+# Trigger model: this workflow runs only after the `CI` workflow finishes
+# successfully on `main`. A direct push to main never deploys until quality
+# is green; `workflow_dispatch` is kept for manual republishes.
+name: Deploy Portal to Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
-    paths:
-      - "services/portal/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -19,22 +22,36 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/configure-pages@v5
 
+      # Stage the artifact. The portal HTML references CSS/JS via
+      # `../frontend/portal/assets[_v2]/…`, which sit OUTSIDE services/portal/.
+      # Copy services/portal/ to the artifact root, then bring in the sibling
+      # services/frontend/portal/ tree so those relative paths resolve at /.
+      - name: Stage Pages artifact
+        run: |
+          set -euo pipefail
+          mkdir -p _site/frontend
+          cp -a services/portal/. _site/
+          cp -a services/frontend/portal _site/frontend/portal
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: services/portal
+          path: _site
 
       - id: deployment
         uses: actions/deploy-pages@v4
