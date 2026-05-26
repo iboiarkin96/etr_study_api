@@ -25,9 +25,10 @@ DOCS_CSS_LINK_RE = re.compile(
     r'(?ims)^[ \t]*<link\s+rel="stylesheet"\s+href="[^"]*assets/docs\.css"[^>]*>\s*'
 )
 ENTRY_JS_RE = re.compile(
-    r'(?ims)<script\s+type="module"\s+src="[^"]*assets_v2/runtime/internal/entry\.js"'
+    r'(?ims)<script\s+type="module"\s+src="[^"]*assets_v2/runtime/(?P<portal>internal|public)/entry\.js"'
 )
 INTERNAL_ROOT_REL = Path("internal")
+V3_PORTAL_DIRS = {"internal", "public", "ui-kit"}
 MAIN_WITHOUT_CLASS_RE = re.compile(r"(?is)<main(?![^>]*class=)([^>]*)>")
 H1_RE = re.compile(r"(?is)<h1[^>]*>.*?</h1>")
 TAG_NAME_RE = re.compile(r"^</?\s*([a-zA-Z0-9:_-]+)")
@@ -63,50 +64,63 @@ def _rel_href(current_file: Path, target_file: Path) -> str:
     return rel if rel.startswith(".") else f"./{rel}"
 
 
-def _is_internal_v3_page(text: str, current_file: Path) -> bool:
-    """Return True if ``current_file`` is a v3 UI-Kit page.
+def _v3_portal(text: str, current_file: Path) -> str | None:
+    """Return the v3 portal name (``"internal"`` or ``"public"``) if applicable.
 
-    A page is considered "v3" when it loads ``assets_v2/runtime/internal/entry.js``.
+    A page is considered "v3" when it loads ``assets_v2/runtime/<portal>/entry.js``.
     Such pages own their stylesheet/JS stack through ``entry.css``/``entry.js`` and
     must NOT be force-fed the legacy ``docs.css`` + ``docs-nav.js`` pair, which
     injects a second sidebar/drawer/bug-report layer on top of the v3 mounts.
 
-    Covers both the internal portal (``internal/**``) and the UI Kit showcase
-    pages (``ui-kit/**``) — both live under ``services/portal/`` and both share
-    the v3 runtime.
+    Covers the internal portal (``internal/**``), the public portal (``public/**``),
+    and the UI Kit showcase pages (``ui-kit/**``) — all live under
+    ``services/portal/`` and all share the v3 runtime. UI Kit showcase pages
+    typically load the internal entry, so they fall back to ``"internal"``.
 
     Args:
         text: HTML source.
         current_file: Path of the file under :data:`DOCS_ROOT`.
 
     Returns:
-        Whether the page is a v3 UI-Kit page.
+        Portal name (``"internal"`` or ``"public"``) if the page is a v3 page,
+        otherwise ``None``.
     """
     try:
         rel = current_file.relative_to(DOCS_ROOT)
     except ValueError:
-        return False
+        return None
     if not rel.parts:
-        return False
-    if rel.parts[0] not in {INTERNAL_ROOT_REL.name, "ui-kit"}:
-        return False
-    return bool(ENTRY_JS_RE.search(text))
+        return None
+    # v3 pages live under internal/, public/, or ui-kit/, OR are the root
+    # chooser at services/portal/index.html that routes between them and
+    # loads the v3 runtime entry.js directly.
+    is_v3_subdir = rel.parts[0] in V3_PORTAL_DIRS
+    is_v3_root = len(rel.parts) == 1 and rel.name == "index.html"
+    if not (is_v3_subdir or is_v3_root):
+        return None
+    match = ENTRY_JS_RE.search(text)
+    if not match:
+        return None
+    return match.group("portal")
+
+
+def _is_internal_v3_page(text: str, current_file: Path) -> bool:
+    """Back-compat wrapper around :func:`_v3_portal` for any v3 page."""
+    return _v3_portal(text, current_file) is not None
 
 
 def _normalize_stylesheet(text: str, current_file: Path) -> str:
-    """Enforce the right stylesheet link in ``<head>``.
+    """Enforce the v2 runtime stylesheet link in ``<head>``.
 
-    For v3 internal-portal pages (see :func:`_is_internal_v3_page`) the canonical
-    stylesheet is ``assets_v2/runtime/internal/entry.css`` and the legacy
-    ``assets/docs.css`` link is dropped. For everything else the legacy single
-    ``docs.css`` link is enforced.
+    For v2 pages (see :func:`_v3_portal`) the canonical stylesheet is
+    ``assets_v2/runtime/<portal>/entry.css`` and any legacy ``assets/docs.css``
+    link is dropped. Non-v2 pages are left unchanged — the legacy stack is no
+    longer auto-injected; :mod:`validate_docs_design` flags them instead.
 
-    Page-local ``<style>`` overlays are intentionally preserved — many v3 pages
+    Page-local ``<style>`` overlays are intentionally preserved — many v2 pages
     carry small per-page declarations (page-hero gradients, quad-card grids,
     radar lane backgrounds) that complement the shared kit and aren't worth
-    promoting into the kit itself. Stripping them silently was the original
-    cause of the docs-fix non-idempotency drift (each run removed the styles,
-    the user re-added them, the cycle never converged).
+    promoting into the kit itself.
 
     Args:
         text: Full HTML document text.
@@ -117,22 +131,17 @@ def _normalize_stylesheet(text: str, current_file: Path) -> str:
     """
     normalized = text
 
-    if _is_internal_v3_page(normalized, current_file):
-        target = ASSETS_ROOT / "assets_v2" / "runtime" / "internal" / "entry.css"
-        href = _rel_href(current_file, target)
-        link_line = f'  <link rel="stylesheet" href="{href}" />'
-        # Drop legacy docs.css link if present.
-        normalized = DOCS_CSS_LINK_RE.sub("", normalized)
-        if f'href="{href}"' in normalized:
-            return normalized
-        if STYLESHEET_TAG_RE.search(normalized):
-            normalized = STYLESHEET_TAG_RE.sub(f"{link_line}\n", normalized, count=1)
-        elif "</head>" in normalized:
-            normalized = normalized.replace("</head>", f"{link_line}\n</head>", 1)
+    portal = _v3_portal(normalized, current_file)
+    if portal is None:
         return normalized
 
-    href = _rel_href(current_file, ASSETS_ROOT / "assets" / "docs.css")
+    target = ASSETS_ROOT / "assets_v2" / "runtime" / portal / "entry.css"
+    href = _rel_href(current_file, target)
     link_line = f'  <link rel="stylesheet" href="{href}" />'
+    # Drop legacy docs.css link if present.
+    normalized = DOCS_CSS_LINK_RE.sub("", normalized)
+    if f'href="{href}"' in normalized:
+        return normalized
     if STYLESHEET_TAG_RE.search(normalized):
         normalized = STYLESHEET_TAG_RE.sub(f"{link_line}\n", normalized, count=1)
     elif "</head>" in normalized:
@@ -153,28 +162,22 @@ def _normalize_main(text: str) -> str:
 
 
 def _normalize_nav_script(text: str, current_file: Path) -> str:
-    """Ensure ``docs-nav.js`` is loaded once from the correct relative path.
+    """Drop any legacy ``docs-nav.js`` reference from v2 pages.
 
-    On v3 internal-portal pages the legacy script is removed instead — those
-    pages mount their UI entirely through ``entry.js``; running ``docs-nav.js``
-    on top duplicates the sidebar/drawer/bug-report layer.
+    v2 pages mount the entire UI through ``entry.js``; the legacy
+    ``docs-nav.js`` would duplicate the sidebar/drawer/bug-report layer.
+    Non-v2 pages are left unchanged — the legacy script is no longer
+    auto-injected; :mod:`validate_docs_design` flags them instead.
 
     Args:
         text: HTML source.
-        current_file: File path for relative script URL resolution.
+        current_file: File path (used only to detect v2 portal).
 
     Returns:
         Updated HTML.
     """
     if _is_internal_v3_page(text, current_file):
         return NAV_SCRIPT_TAG_RE.sub("", text)
-
-    script_src = _rel_href(current_file, ASSETS_ROOT / "assets" / "docs-nav.js")
-    script_line = f'  <script defer src="{script_src}"></script>'
-    if NAV_SCRIPT_TAG_RE.search(text):
-        return NAV_SCRIPT_TAG_RE.sub(f"{script_line}\n", text, count=1)
-    if "</head>" in text:
-        return text.replace("</head>", f"{script_line}\n</head>", 1)
     return text
 
 

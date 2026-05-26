@@ -19,6 +19,9 @@ import { mountAuthorChip } from "../../ui-kit/components/author-chip.js";
 import { mountHotkeys } from "../../ui-kit/components/hotkeys.js";
 import { mountSiteFooter } from "../../ui-kit/components/site-footer.js";
 import { mountAuroraRail } from "../../ui-kit/components/aurora-rail.js";
+import { mountTerminalCard } from "../../ui-kit/components/terminal-card.js";
+import { mountLiveTickers } from "../../ui-kit/components/live-tickers.js";
+import { mountTextDecrypt, mountVariableWeight } from "../../ui-kit/components/text-decrypt.js";
 
 function boot() {
   mountToast();
@@ -39,6 +42,10 @@ function boot() {
   mountSearch();
   mountCode();
   mountRocket();
+  mountTerminalCard();
+  mountLiveTickers();
+  mountTextDecrypt();
+  mountVariableWeight();
   mountHotkeys();
   mountTooltip();
 }
