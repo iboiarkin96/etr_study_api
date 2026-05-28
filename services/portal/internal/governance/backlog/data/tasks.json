@@ -1350,5 +1350,40 @@
       "Correlation ID present on every line of a request",
       "Log query examples updated"
     ]
+  },
+  {
+    "id": "BL-050",
+    "title": "Production-grade docs search: move off monolithic JSON index",
+    "professions": ["sa", "dev", "sre"],
+    "group": "devops",
+    "tags": ["tech-debt", "feature"],
+    "sprint": "backlog",
+    "status": "todo",
+    "priority": "P2",
+    "eta_hours": 20,
+    "owner": "ivan",
+    "blocked_by": null,
+    "updated": "2026-05-28",
+    "summary": "Replace the 2.1 MB monolithic search-index.json + client-side BM25 with a real search backend (MeiliSearch / OpenSearch / Pagefind — to be decided in an RFC).",
+    "problem": "The current search ships a 2.1 MB JSON blob to every visitor on first keystroke, has no Russian stemming or synonyms, no incremental indexing, no faceting (by role/section/profession), and no usage analytics. Ranking lives in 417 lines of hand-rolled JS (search.js) that nobody but Ivan can debug. ADR 0027 + RFC 0001/0002 document the current shape but treat the JSON-on-the-wire model as load-bearing.",
+    "actions": [
+      "Write RFC 0004 comparing Pagefind, MeiliSearch/Typesense, and OpenSearch/Elasticsearch on this portal's actual constraints: corpus size (~580 docs), bilingual RU/EN, hosting budget, ops appetite, faceting needs, analytics",
+      "Pick one backend in the RFC with explicit tradeoffs (don't default to Elastic for the name)",
+      "Spike the chosen backend on a branch: index the 580 docs, run 10 representative queries side-by-side vs current ranker, capture latency + relevance deltas",
+      "Replace scripts/build_docs_search_index.py with the chosen backend's indexer (called from make docs-fix step 10/10)",
+      "Replace the ranking core of assets_v2/ui-kit/components/search.js with a thin HTTP/static-asset query client; keep the same keyboard shortcuts (/, Cmd+K) and UI shell",
+      "Add Russian morphology / stemming to the analyzer config",
+      "Wire faceting: profession, group, section (matches backlog filter taxonomy)",
+      "Supersede ADR 0027 + RFC 0001/0002 with the new ADR/RFC pair documenting the backend choice and ranking config"
+    ],
+    "acceptance": [
+      "RFC 0004 is merged with an explicit recommendation + 'rejected alternatives' section",
+      "First-keystroke search latency p50 < 150 ms on the chosen backend",
+      "Initial payload on a cold portal load drops to < 200 KB (no 2 MB JSON)",
+      "Russian queries return the same document for «архитектор» / «архитектуру» / «архитектурный»",
+      "Faceted filter by profession (sa/dev/sre/architect/qa/manager) returns only matching docs",
+      "make docs-fix still produces a working search end-to-end (no manual steps)",
+      "ADR 0027 and RFC 0001/0002 are marked Superseded with a forward link"
+    ]
   }
 ]
