@@ -95,7 +95,7 @@ help:
 	@echo "  make test-one path=…      Run one test file or node"
 	@echo ""
 	@echo "  # Documentation"
-	@echo "  make docs-fix             Auto-update docs (UML + markers + md→html + HTML repair + format + maintainers + portal data JS + pdoc API + search index)"
+	@echo "  make docs-fix             Auto-update docs (UML + markers + md→html + HTML repair + format + maintainers + pdoc API + search index)"
 	@echo "  make docs-html-check      Validate HTML consistency (fails if docs HTML needs repair)"
 	@echo "  make docs-design-check    Baseline docs design consistency checks (page skeleton, cards, mounts)"
 	@echo "  make docs-a11y-check      Baseline accessibility checks (headings, landmarks, contrast, keyboard)"
@@ -452,27 +452,25 @@ docs-fix:
 		printf "$(ICON_ERR) %s\n" "scripts/regenerate_docs.py not found."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-FIX: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/10] regenerate UML diagrams"
+	@printf "$(ICON_INFO) %s\n" "[1/9] regenerate UML diagrams"
 	@$(PYTHON) scripts/regenerate_docs.py
-	@printf "$(ICON_INFO) %s\n" "[2/10] sync marker-based documentation"
+	@printf "$(ICON_INFO) %s\n" "[2/9] sync marker-based documentation"
 	@$(PYTHON) scripts/sync_docs.py
-	@printf "$(ICON_INFO) %s\n" "[3/10] render docs markdown to html companions"
+	@printf "$(ICON_INFO) %s\n" "[3/9] render docs markdown to html companions"
 	@$(PYTHON) scripts/render_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[4/10] repair docs html structure"
+	@printf "$(ICON_INFO) %s\n" "[4/9] repair docs html structure"
 	@$(PYTHON) scripts/repair_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[5/10] normalize docs html template"
+	@printf "$(ICON_INFO) %s\n" "[5/9] normalize docs html template"
 	@$(PYTHON) scripts/format_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[6/10] render service catalog (YAML → HTML)"
+	@printf "$(ICON_INFO) %s\n" "[6/9] render service catalog (YAML → HTML)"
 	@$(PYTHON) scripts/render_service_descriptors.py
-	@printf "$(ICON_INFO) %s\n" "[7/10] ensure docs body maintainers"
+	@printf "$(ICON_INFO) %s\n" "[7/9] ensure docs body maintainers"
 	@$(PYTHON) scripts/ensure_docs_maintainers.py
-	@printf "$(ICON_INFO) %s\n" "[8/10] collect docs maintainer pages index"
-	@$(PYTHON) scripts/collect_docs_portal_data.py
-	@printf "$(ICON_INFO) %s\n" "[9/10] Python API reference (pdoc)"
+	@printf "$(ICON_INFO) %s\n" "[8/9] Python API reference (pdoc)"
 	@rm -rf services/portal/internal/services/api/code-reference
 	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
 	@$(PYTHON) scripts/normalize_pdoc_output.py
-	@printf "$(ICON_INFO) %s\n" "[10/10] build docs search index"
+	@printf "$(ICON_INFO) %s\n" "[9/9] build docs search index"
 	@$(PYTHON) scripts/build_docs_search_index.py
 	@printf "$(COLOR_GREEN)== DOCS-FIX: SUCCESS ==$(COLOR_RESET)\n"
 

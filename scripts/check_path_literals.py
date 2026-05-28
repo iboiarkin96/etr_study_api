@@ -14,8 +14,7 @@ Output paths (paths the script *writes* rather than reads) cannot be told apart
 purely from syntax. As a heuristic we accept any chain whose final string
 component looks like an explicit output target — i.e. it ends in a known
 generated-artifact basename (e.g. ``search-index.json``,
-``docs-portal-data.js``, ``token-gallery``) — by passing through if the parent
-directory exists.
+``token-gallery``) — by passing through if the parent directory exists.
 
 Run: ``python scripts/check_path_literals.py`` (exit 1 on any unresolved chain).
 """
@@ -35,7 +34,6 @@ ANCHOR_NAMES = {"ROOT", "REPO", "BASE", "DOCS", "DOCS_DIR", "DOCS_ROOT", "REPO_R
 OUTPUT_BASENAMES = {
     "search-index.json",
     "search-index-public.json",
-    "docs-portal-data.js",
     "docs-frontend-token-gallery.html",
     "ia_manifest.csv",
 }
