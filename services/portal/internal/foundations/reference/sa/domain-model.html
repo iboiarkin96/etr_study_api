@@ -298,10 +298,70 @@
         </ul>
       </section>
 
-      <!-- 06 · TRADEOFFS -->
-      <section class="numbered-section" aria-labelledby="trade-h">
+      <!-- 06 · WORKED EXAMPLE -->
+      <section class="numbered-section" aria-labelledby="worked-h">
         <div class="numbered-section__head">
           <span class="numbered-section__kicker">06</span>
+          <h2 id="worked-h">Worked example — <code>domain.yaml</code> for one team</h2>
+        </div>
+        <p class="numbered-section__lede">
+          A complete one-file projection a team can commit alongside its code. This is the smallest format we have found that
+          captures all five sections above (contexts, relationships, language, events, invariants) without sprawling into folders.
+        </p>
+        <pre class="snippet"><span class="t-key">version</span>: <span class="t-str">"2026.05"</span>
+<span class="t-key">team</span>:    <span class="t-str">"learning-platform"</span>
+<span class="t-key">owners</span>:  [<span class="t-str">"@learning-eng"</span>, <span class="t-str">"@learning-pm"</span>]
+
+<span class="t-key">contexts</span>:
+  - <span class="t-key">name</span>: <span class="t-str">"learning"</span>
+    <span class="t-key">purpose</span>: <span class="t-str">"Author and serve courses, modules, lessons, exercises."</span>
+    <span class="t-key">owns</span>:    [course, module, lesson, exercise]
+    <span class="t-key">data_store</span>: <span class="t-str">"postgres"</span>
+  - <span class="t-key">name</span>: <span class="t-str">"assessment"</span>
+    <span class="t-key">purpose</span>: <span class="t-str">"Apply rubrics to attempts; mint grades and certificates."</span>
+    <span class="t-key">owns</span>:    [rubric, grade, certificate]
+    <span class="t-key">data_store</span>: <span class="t-str">"postgres"</span>
+  - <span class="t-key">name</span>: <span class="t-str">"progress"</span>
+    <span class="t-key">purpose</span>: <span class="t-str">"Append-only learner history; derive mastery."</span>
+    <span class="t-key">owns</span>:    [attempt, mastery]
+    <span class="t-key">data_store</span>: <span class="t-str">"postgres + materialised views"</span>
+
+<span class="t-key">relationships</span>:
+  - <span class="t-key">from</span>: progress
+    <span class="t-key">to</span>:   assessment
+    <span class="t-key">pattern</span>: <span class="t-str">"customer-supplier"</span>
+    <span class="t-key">note</span>: <span class="t-str">"Progress sends attempts; Assessment returns grades."</span>
+  - <span class="t-key">from</span>: assessment
+    <span class="t-key">to</span>:   learning
+    <span class="t-key">pattern</span>: <span class="t-str">"conformist"</span>
+    <span class="t-key">note</span>: <span class="t-str">"Assessment grades inherit learning's exercise shape."</span>
+
+<span class="t-key">language</span>:
+  <span class="t-key">attempt</span>:   <span class="t-str">"One submission of an exercise. Immutable in Progress."</span>
+  <span class="t-key">grade</span>:     <span class="t-str">"Output of applying a rubric to an attempt. Owned by Assessment."</span>
+  <span class="t-key">mastery</span>:   <span class="t-str">"Derived score (0..1) of how well a learner knows a module."</span>
+
+<span class="t-key">events</span>:
+  - <span class="t-key">type</span>:     <span class="t-str">"assessment.grade.published.v1"</span>
+    <span class="t-key">producer</span>: <span class="t-str">"assessment-api"</span>
+    <span class="t-key">consumers</span>: [<span class="t-str">"progress-projector"</span>, <span class="t-str">"notification-fanout"</span>]
+    <span class="t-key">retention</span>: <span class="t-str">"180d"</span>
+
+<span class="t-key">invariants</span>:
+  - <span class="t-str">"An attempt has exactly one grade."</span>
+  - <span class="t-str">"A certificate exists only if all required grades are 'passed'."</span>
+  - <span class="t-str">"Mastery is recomputed from attempts; it is never written directly."</span>
+        </pre>
+        <p class="numbered-section__lede" style="margin-top:12px;">
+          A team that opens a new repo copies this file, swaps the names, and is 80% of the way to a published domain model.
+          The remaining 20% — diagrams, ADRs, OpenAPI — references back to this YAML by <code>team</code> and <code>version</code>.
+        </p>
+      </section>
+
+      <!-- 07 · TRADEOFFS -->
+      <section class="numbered-section" aria-labelledby="trade-h">
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">07</span>
           <h2 id="trade-h">Tradeoffs we accepted</h2>
         </div>
         <ul>
@@ -335,6 +395,7 @@
       <li class="docs-toc__item"><a class="docs-toc__link" href="#lang-h">Ubiquitous language</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#event-h">Event envelope</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#inv-h">Invariants</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#worked-h">Worked example</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#trade-h">Tradeoffs</a></li>
     </ol>
   </aside>

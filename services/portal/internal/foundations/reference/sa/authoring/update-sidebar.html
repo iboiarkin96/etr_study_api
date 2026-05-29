@@ -2,7 +2,7 @@
 <html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Update sidebar · Authoring · Documentation handbook</title>
+  <title>Update the sidebar · Authoring · Documentation handbook</title>
   <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
@@ -17,7 +17,7 @@
     <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
       <ol class="docs-breadcrumbs__list">
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
-        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Handbook</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SA reference</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="add-a-page.html">Authoring</a></li>
         <li class="docs-breadcrumbs__item" aria-current="page">Update sidebar</li>
       </ol>
@@ -34,118 +34,108 @@
     <article class="docs-prose">
       <header class="page-head">
         <div class="docs-chip-row">
-          <span class="docs-pill docs-pill--info">Authoring</span>
+          <span class="docs-pill docs-pill--info">How-to</span>
           <span class="docs-pill docs-pill--warn">Navigation</span>
-          <span class="docs-pill docs-pill--neutral">2 files</span>
+          <span class="docs-pill docs-pill--neutral">~5 min</span>
         </div>
         <h1>Update the sidebar</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede">
-          The sidebar is hand-maintained — there is no automatic projection
-          from the filesystem yet. Adding any page requires editing
-          <strong>two</strong> files. Forget one and the page becomes a 404 for
-          anyone who tries to navigate to it.
-        </p>
+        <p class="lede">A new portal page is invisible until both sidebar manifests list it. This guide walks the edits, the validation step, and the recovery path when something goes wrong. The schema for each manifest lives once — on the <a href="../nav-tree-schema.html">nav-tree schema reference</a> — and is not restated here.</p>
       </header>
 
-      <h2 id="files">The two files</h2>
+      <h2 id="before-you-start">Before you start</h2>
+      <ul>
+        <li>You have a new portal page committed to <code>services/portal/internal/…</code> and you know its full <code>href</code>.</li>
+        <li>You have skimmed the <a href="../nav-tree-schema.html">nav-tree schema reference</a> at least once so the field names below are not a surprise.</li>
+        <li>You have <code>python3</code> on your PATH (used by the validation step).</li>
+        <li>The repo is on the branch where the page itself lives — sidebar edits travel in the same PR as the page they enable.</li>
+      </ul>
+
+      <h2 id="steps">Steps</h2>
       <ol>
-        <li><strong>Primary manifest (UI Kit v3):</strong>
-          <pre><code>services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json</code></pre>
-          JSON tree consumed by the sidebar Web Component
-          (<code>ui-kit/components/sidebar.js</code>). Pages declare their nav
-          source via the <code>data-nav-src</code> attribute on the
-          <code>&lt;aside&gt;</code>.</li>
-          <li><strong>Legacy projection:</strong>
-            <pre><code>services/frontend/portal/assets/internal-sidebar.js</code></pre>
-            Hand-maintained JS array still consumed by some shells. Keep both in
-            lock-step until the legacy file is retired (planned Phase 2).</li>
-          </ol>
-
-          <h2 id="acronyms">Acronym casing</h2>
-          <p>
-            Labels must preserve the casing of acronyms: <strong>API</strong>,
-            <strong>AsyncAPI</strong>, <strong>SRE</strong>, <strong>gRPC</strong>,
-            <strong>REST</strong>, <strong>SQL</strong>, <strong>ADR</strong>,
-            <strong>RFC</strong>, <strong>QA</strong>, <strong>CI</strong>.
-            Verify the label every time you touch a page — drift here is the most
-            common navigation bug in the portal.
-          </p>
-
-          <h2 id="json-shape">Shape of a nav-tree-internal.json entry</h2>
-          <pre><code>{
+        <li>
+          <p><strong>Decide where the new entry goes.</strong> Match the document's kind against the <a href="../nav-tree-schema.html#placement">placement map</a>: API spec → entity hub's <em>Operations</em> group, ADR → topical ADR cluster, runbook → <em>Runbooks</em>, tutorial → role group, and so on. Note the parent group's <code>id</code> — you will paste the new entry inside its <code>children</code>.</p>
+        </li>
+        <li>
+          <p><strong>Add the JSON entry.</strong> Open <code>services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json</code>, find the parent group, and append a leaf:</p>
+          <pre class="docs-code"><code class="language-json">{
   "id": "handbook-templates-adr",
   "label": "ADR",
   "href": "/services/portal/internal/handbook/templates/adr.html"
           }</code></pre>
-          <p>
-            Rules: <code>id</code> is dot-free, kebab-case, prefixed with the
-            section path. <code>href</code> is absolute from the repo root, must
-            start with <code>/services/portal/internal/</code>, must end with
-            <code>.html</code>. Groups (no <code>href</code>, with
-            <code>children</code>) are fine.
-          </p>
+          <p class="docs-prose__meta">Preserve acronym casing (<strong>API</strong>, <strong>AsyncAPI</strong>, <strong>SRE</strong>, <strong>gRPC</strong>, <strong>REST</strong>, <strong>SQL</strong>, <strong>ADR</strong>, <strong>RFC</strong>, <strong>QA</strong>, <strong>CI</strong>). Watch the trailing comma — JSON does not forgive one after the last array element.</p>
+        </li>
+        <li>
+          <p><strong>Mirror the entry into the legacy JS file.</strong> Open <code>services/frontend/portal/assets/internal-sidebar.js</code>, locate the same parent group, and add:</p>
+          <pre class="docs-code"><code class="language-javascript">{ label: "ADR", path: "internal/handbook/templates/adr.html" }</code></pre>
+          <p class="docs-prose__meta">Note the <code>path</code> shape — relative to <code>services/portal/</code>, no leading slash. Both files must list the same leaves until the legacy file is retired.</p>
+        </li>
+        <li>
+          <p><strong>Lint the JSON manifest locally.</strong> Trailing-comma and brace-balance bugs are the most common breakage:</p>
+          <pre class="docs-code"><code class="language-bash">python3 -c "import json; json.load(open('services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json'))"</code></pre>
+          <p class="docs-prose__meta">Silence means success.</p>
+        </li>
+        <li>
+          <p><strong>Run the full docs gate.</strong> <code>make docs-check</code> covers the JS regression assertions, asset-ref validation, and search-index drift — all of which can break after a sidebar edit.</p>
+        </li>
+      </ol>
 
-          <h2 id="js-shape">Shape of an internal-sidebar.js entry</h2>
-          <pre><code>{ label: "ADR", path: "internal/handbook/templates/adr.html" }</code></pre>
-          <p>
-            Rules: <code>path</code> is relative to <code>services/portal/</code>,
-            no leading slash. <code>label</code> uses sentence case with acronym
-            preservation. Groups have <code>children: [...]</code>.
-          </p>
+      <h2 id="verify">Verify</h2>
+      <ul>
+        <li><strong>JSON parses.</strong> The lint command above exits 0 with no output.</li>
+        <li><strong>New entry appears in the sidebar.</strong> Open the new page in <code>localhost:3000</code> and confirm the label is present and active in the left rail.</li>
+        <li><strong>Acronyms render correctly.</strong> Spot-check the label text — drift here is the most common navigation bug in the portal.</li>
+        <li><strong>Asset-ref check passes.</strong> Pre-commit hook <code>check-asset-refs</code> reports zero broken references for the manifest changes.</li>
+        <li><strong>No duplicate <code>id</code>.</strong> Search the JSON for the new ID — exactly one match.</li>
+      </ul>
 
-          <h2 id="placement">Where to put the new entry</h2>
-          <ul>
-            <li><strong>API operation</strong> → under <code>reference</code> → entity hub → <em>Operations</em></li>
-            <li><strong>ADR</strong> → under <code>governance</code> → ADRs → the topical cluster («Documentation», «Security», «API contract», etc.)</li>
-            <li><strong>Runbook</strong> → under <code>how-to</code> → <em>Runbooks</em></li>
-            <li><strong>Tutorial</strong> → under <code>tutorials</code> → role group</li>
-            <li><strong>Reference page</strong> → under the relevant <code>reference</code> block (api, data, front, qa, manager, uml)</li>
-            <li><strong>Handbook page</strong> → under <code>handbook</code> in the right sub-group</li>
-          </ul>
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <ul class="rail-list" data-tone="rose">
+        <li><strong>The sidebar is blank after my edit.</strong> JSON parse failed silently. Re-run the <code>json.tool</code> lint command from step 4 — it will point to the line with the trailing comma or unbalanced brace.</li>
+        <li><strong>The new entry shows up, but the link is a 404.</strong> The <code>href</code> path does not match the file on disk. Re-check the spelling, the directory casing, and that it starts with <code>/services/portal/internal/</code> and ends with <code>.html</code>.</li>
+        <li><strong>The entry appears on the JS-shell pages but not on the v2 pages (or vice versa).</strong> You forgot one of the two files. Both must list the same leaves until the legacy file is retired.</li>
+        <li><strong><code>check-asset-refs</code> hook blocks the commit.</strong> The target file does not exist yet (typo or wrong path) or you removed the entry from one file but not the other. Fix the path or restore the entry.</li>
+        <li><strong>Duplicate <code>id</code> silently drops both entries.</strong> If two entries share an <code>id</code> the sidebar component drops both. Search the JSON for the ID and rename one.</li>
+      </ul>
 
-          <h2 id="validation">Validate before commit</h2>
-          <pre><code>python3 -c "import json; json.load(open('services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json'))"</code></pre>
-          <p>
-            Catches trailing commas and unbalanced braces. The JS file is harder to
-            lint without a Node runtime — eyeball the brace/bracket balance.
-            <code>make docs-check</code> will run <code>internal-sidebar</code>
-            regression assertions for you.
-          </p>
-
-          <h2 id="related">Related</h2>
-          <ul>
-            <li><a href="add-a-page.html">Add a page — master workflow</a></li>
-            <li><a href="../style-guide.html#naming-conventions">Style guide → Naming conventions</a></li>
-          </ul>
-        </article>
-
-        <footer class="docs-history" aria-label="History">
-          <h2 class="docs-history__title">History</h2>
-          <ul class="docs-history__list">
-            <li class="docs-history__row">
-              <span class="docs-history__date">2026-05-18</span>
-              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-              <span class="docs-history__note">Created. Documents the sidebar-update procedure that previously lived only in commit history.</span>
-            </li>
-          </ul>
-        </footer>
-      </main>
-
-      <aside class="docs-toc" aria-label="On this page">
-        <p class="docs-toc__title">On this page</p>
-        <ol class="docs-toc__list">
-          <li class="docs-toc__item"><a class="docs-toc__link" href="#files">Two files</a></li>
-          <li class="docs-toc__item"><a class="docs-toc__link" href="#acronyms">Acronym casing</a></li>
-          <li class="docs-toc__item"><a class="docs-toc__link" href="#json-shape">JSON shape</a></li>
-          <li class="docs-toc__item"><a class="docs-toc__link" href="#js-shape">JS shape</a></li>
-          <li class="docs-toc__item"><a class="docs-toc__link" href="#placement">Placement rules</a></li>
-          <li class="docs-toc__item"><a class="docs-toc__link" href="#validation">Validate</a></li>
-          <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
-        </ol>
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li><a href="../nav-tree-schema.html">Reference · Nav-tree schema</a> — the contract this how-to applies.</li>
+          <li><a href="add-a-page.html">How-to · Add a page</a> — the master workflow this is the last step of.</li>
+          <li><a href="../style-guide.html#naming-conventions">Style guide → Naming conventions</a> — full casing rules for labels.</li>
+        </ul>
       </aside>
-      <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+    </article>
 
-      <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-30</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Rewritten as pure How-to (Before / Steps / Verify / Troubleshooting / Related). Schema fields and placement map moved to the new <a href="../nav-tree-schema.html">nav-tree schema reference</a> — single source of truth, no more dual-form page (Vol. 1 audit HIGH gap #2).</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-18</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created. Documented the sidebar-update procedure that previously lived only in commit history.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
 
-    </body></html>
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#before-you-start">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting">Troubleshooting</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
