@@ -97,6 +97,31 @@
       <p>The split is what makes the three telemetry pillars complement each other. Metrics are cheap because their dimensions are bounded. Logs are expressive because their dimensions are not. Traces sit between the two: rich per-request structure, cheaper than logs because the keys are not free-form.</p>
       <p>When in doubt about where a piece of data belongs, ask how many distinct values it could take. If the answer is “unbounded”, the data goes in logs, possibly traces, never metric labels.</p>
 
+      <h2 id="tradeoffs">Tradeoffs</h2>
+      <p>Structured logging buys queryability and contract stability; it costs verbosity, storage, and the cognitive load of a schema everyone has to agree on.</p>
+      <div class="docs-card-grid docs-card-grid--two">
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">Logs are queryable like a table</h3>
+          <p class="docs-card__body">"All <code>request_done</code> for user X in the last hour" is a single Kibana query, not a grep across 12 files. Investigation collapses from minutes to seconds.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">Schema drift becomes a bug</h3>
+          <p class="docs-card__body">Renaming a field silently breaks every dashboard built on it. Logs are a contract, just like the API; treat field renames as breaking.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">Correlation IDs make multi-step incidents tractable</h3>
+          <p class="docs-card__body">A single <code>request_id</code> threaded through router → service → repo turns "what happened to that one user?" into a single query that returns 40 lines instead of 40 grep sessions.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">Storage scales with traffic, not with events</h3>
+          <p class="docs-card__body">Verbose info-level logs at peak generate gigabytes per day. We pay in storage, indexing latency, and the discipline to drop debug-level logs that nobody reads.</p>
+        </article>
+      </div>
+
       <h2 id="anti-patterns">Common failure modes</h2>
       <ul>
         <li><strong>Logging the same event twice.</strong> Once by the framework, once by the handler. Searches double-count; storage cost doubles; the second line carries no new information.</li>
@@ -149,6 +174,7 @@
       <li class="docs-toc__item"><a class="docs-toc__link" href="#join-key">The join key</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#redaction">Redaction as policy</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#cardinality-trap">The cardinality trap</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs">Tradeoffs</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Failure modes</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#next-to-read">What to read next</a></li>
     </ol>
