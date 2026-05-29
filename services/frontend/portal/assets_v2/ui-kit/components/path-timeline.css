@@ -1,0 +1,167 @@
+/* ui-kit/components/path-timeline.css — vertical numbered timeline list.
+
+   A numbered ordered-list rendered as a vertical timeline: a single line
+   on the left, each step marked by a filled circle "dot" containing a
+   mono "01 / 02 / NN" counter, content laid out to the right of the dot.
+   The line connects every dot in the list; the last dot terminates the
+   line cleanly at its own centre.
+
+   Composition:
+     <ol class="path-timeline" data-tone="accent">
+       <li>
+         <div>
+           <strong><a href="...">Title</a></strong> — description. <em>(~N min)</em>
+         </div>
+       </li>
+       …
+     </ol>
+
+   The CSS counter resets per <ol>, so multiple timelines on the same
+   page each restart at 01. Tone is controlled by `data-tone="…"`
+   mirroring the rail-list / docs-card palette (accent · info · teal ·
+   rose · warn · success · muted). Without a tone the list uses
+   `--accent`.
+
+   Designed for "curated reading paths", "step-by-step migrations",
+   "onboarding journeys" — anywhere the visual metaphor is a single
+   chain of ordered stations rather than independent cards.
+
+   First consumer: `onboarding/cold-start.html` (seven per-persona
+   read-paths). */
+
+.path-timeline {
+  --pt-tone: var(--accent);
+  --pt-dot-size: 1.75rem;
+  --pt-dot-radius: calc(var(--pt-dot-size) / 2);
+  --pt-track: 2px;
+
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: pt-step;
+}
+
+/* Vertical track — runs from the centre of the first dot to the centre
+   of the last dot. Sits behind every dot via z-index:0. Colour blends
+   the active tone with the neutral line token so the rail reads as
+   subtly themed rather than punchy. */
+.path-timeline::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--pt-dot-radius) - var(--pt-track) / 2);
+  top: var(--pt-dot-radius);
+  bottom: var(--pt-dot-radius);
+  width: var(--pt-track);
+  background: color-mix(in srgb, var(--pt-tone) 28%, var(--line));
+  z-index: 0;
+  pointer-events: none;
+  border-radius: var(--pt-track);
+}
+
+.path-timeline > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--pt-dot-size) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  counter-increment: pt-step;
+  min-height: var(--pt-dot-size);
+}
+
+/* The numbered dot — filled circle in the active tone, mono digit
+   inside, halo of page-bg colour so the line behind appears to break
+   for the dot. */
+.path-timeline > li::before {
+  content: counter(pt-step, decimal-leading-zero);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: var(--pt-dot-size);
+  height: var(--pt-dot-size);
+  border-radius: 50%;
+  background: var(--pt-tone);
+  color: var(--bg-elev);
+
+  font-family: var(--font-mono);
+  font-size: var(--fs-100);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.02em;
+  line-height: 1;
+
+  box-shadow: 0 0 0 4px var(--bg);
+  position: relative;
+  z-index: 1;
+
+  transition:
+    transform 180ms var(--ease-out, ease),
+    box-shadow 180ms var(--ease-out, ease);
+}
+
+.path-timeline > li:hover::before {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 4px var(--bg),
+    0 6px 18px -8px color-mix(in srgb, var(--pt-tone) 70%, transparent);
+}
+
+.path-timeline > li > div {
+  padding-top: calc((var(--pt-dot-size) - 1.4em) / 2);
+  font-size: var(--fs-300);
+  line-height: var(--lh-base);
+  color: var(--text);
+}
+
+.path-timeline > li strong { color: var(--text-strong); }
+
+.path-timeline > li a {
+  color: var(--pt-tone);
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.path-timeline > li a:hover {
+  text-decoration: underline;
+}
+
+.path-timeline > li code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-200);
+  padding: 1px 5px;
+  background: var(--bg-mute);
+  border-radius: var(--radius-xs);
+}
+
+/* Time budget chip — `<em>(~N min)</em>` re-styled as a mono pill so
+   the budget reads at a glance without competing with the body. */
+.path-timeline > li em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: var(--fs-100);
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+  margin-left: var(--space-2);
+}
+
+/* Tone variants — mirror the rail-list and docs-card--rail palette. */
+.path-timeline[data-tone="accent"]  { --pt-tone: var(--accent); }
+.path-timeline[data-tone="info"]    { --pt-tone: var(--info); }
+.path-timeline[data-tone="teal"]    { --pt-tone: var(--teal); }
+.path-timeline[data-tone="rose"]    { --pt-tone: var(--rose); }
+.path-timeline[data-tone="warn"]    { --pt-tone: var(--warn); }
+.path-timeline[data-tone="success"] { --pt-tone: var(--success); }
+.path-timeline[data-tone="muted"]   { --pt-tone: var(--muted-soft); }
+
+@media (max-width: 760px) {
+  .path-timeline {
+    --pt-dot-size: 1.5rem;
+    gap: var(--space-3);
+  }
+  .path-timeline > li > div {
+    font-size: var(--fs-200);
+  }
+}
