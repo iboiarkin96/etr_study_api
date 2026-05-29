@@ -38,69 +38,92 @@
         </div>
         <h1>Write a postmortem</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede">Turn one bad day into a permanently better system: blameless writing, required cases, action items that stick. Conceptual background on postmortem culture lives in <a href="../../../explanation/sre/incident-response.html">incident response</a>; the empty scaffold lives in <a href="../../../foundations/reference/sa/templates/postmortem.html">handbook/templates/postmortem.html</a>.</p>
+        <p class="lede">After an incident is over, capture what happened, why, and what changes so it doesn't recur — blamelessly, with named action items. The reusable scaffold is the <a href="../../../foundations/reference/sa/templates/postmortem.html">postmortem template</a> (Reference); the culture this procedure depends on lives in the <a href="../../../explanation/sre/incident-response.html">incident-response Explanation</a>; this page is the procedure.</p>
       </header>
 
-      <h2 id="what">What a postmortem is</h2>
-      <p>A <strong>postmortem</strong> is a short document written after an incident is over. It explains, honestly and without blame, what happened, why, and what we will do so it does not happen the same way next time.</p>
-      <p>Postmortems are not court records and they are not punishment. They are the main way a team turns one bad day into a permanently better system. The model we follow is the <a href="https://sre.google/sre-book/postmortem-culture/" rel="external">SRE Book chapter on postmortem culture</a>.</p>
-
-      <h2 id="blameless">Blameless — what it really means</h2>
-      <p>"Blameless" does not mean "ignore who did what". It means we describe actions without judging the person:</p>
+      <h2 id="prereqs">Before you start</h2>
       <ul>
-        <li><strong>Blame:</strong> "Ivan deployed without checking the migration."</li>
-        <li><strong>Blameless:</strong> "The deploy was shipped before the migration finished. There was no automatic check in CI for the order."</li>
+        <li>The incident is <strong>over</strong> — alarms cleared, recovery confirmed, no live mitigation in flight. Write postmortems after, not during.</li>
+        <li>You're inside the <strong>required cases</strong>: every SEV-1 and SEV-2 (mandatory) and SEV-3 if any of the following holds — same alert fired ≥ 2× in the past month, a workaround now exists that no one has scheduled to remove, the incident exposed a class of bug not previously tracked, or a user complained publicly. Severity matrix in <a href="../../../explanation/sre/incident-response.html">incident response</a>.</li>
+        <li>You know who's playing which role — see the role bar below:
+          <dl>
+            <dt>Author</dt><dd>Writes the document. Usually the incident commander or the engineer who fixed it.</dd>
+            <dt>Reviewer</dt><dd>Reads the draft and pushes back on hand-waving («the system was unstable» → «the connection pool ran out at 14:32»). For a single-person team the author waits 24 hours and re-reads with fresh eyes.</dd>
+            <dt>Action-item owner</dt><dd>Each action item has one named owner and a target date. No owner = the action will not happen.</dd>
+          </dl>
+        </li>
+        <li>You've started within the <strong>5-working-day</strong> target window after the incident closed — memory fades fast.</li>
       </ul>
-      <p>The first sentence makes future engineers hide mistakes. The second sentence points at a missing check we can add. Same facts, different effect on the system.</p>
 
-      <h2 id="when">When we write one</h2>
-      <p>A postmortem is required for every <strong>SEV-1</strong> and <strong>SEV-2</strong> incident (see severity matrix in <a href="../../../explanation/sre/incident-response.html">incident response</a>). It is recommended for SEV-3, especially for any of:</p>
-      <ul>
-        <li>The same alert fired more than twice in a month.</li>
-        <li>A workaround is now in place that nobody has time to remove.</li>
-        <li>The incident exposed a class of bug we had not thought about.</li>
-        <li>A user complained publicly.</li>
-      </ul>
-      <p>Target turnaround: <strong>5 working days</strong> after the incident closes. Sooner is better; memory fades quickly.</p>
-
-      <h2 id="roles">Roles</h2>
-      <dl>
-        <dt>Author</dt>
-        <dd>Writes the document. Usually the incident commander or the engineer who fixed it.</dd>
-        <dt>Reviewer</dt>
-        <dd>Reads the draft and pushes back on hand-waving ("the system was unstable" → "the connection pool ran out at 14:32"). For a single-person team the author waits 24 hours and re-reads with fresh eyes.</dd>
-        <dt>Action item owner</dt>
-        <dd>Each action item has one named owner and a target date. No owner = the action will not happen.</dd>
-      </dl>
-
-      <h2 id="how">How to write one</h2>
+      <h2 id="steps">Steps</h2>
       <ol>
-        <li>Copy <a href="../../../foundations/reference/sa/templates/postmortem.html">handbook/templates/postmortem.html</a> into a new file named <code>YYYY-MM-DD-incident-slug.html</code> (date = the day the incident started, slug = short, kebab-case).</li>
-        <li>Fill each section. Stick to facts and timestamps; avoid adjectives like "huge" or "scary".</li>
-        <li>For "Root cause", list <em>contributing factors</em>, not one single cause. Real incidents almost always have several.</li>
-        <li>For "Action items", make each one a single ticket with an owner and a date. "Improve monitoring" is not an action item; "Add alert for connection pool saturation, owner: Ivan, by 2026-05-20" is.</li>
-        <li>Add the new file to the index below and link it from the history of the page that changed because of the incident.</li>
+        <li><strong>Copy the template.</strong> Clone <a href="../../../foundations/reference/sa/templates/postmortem.html"><code>foundations/reference/sa/templates/postmortem.html</code></a> into <code>services/portal/internal/how-to/incidents/postmortems/&lt;YYYY-MM-DD&gt;-&lt;incident-slug&gt;.html</code> (date = the day the incident started; slug = short kebab-case, e.g. <code>connection-pool-saturation</code>).</li>
+        <li><strong>Write blamelessly.</strong> Describe actions without judging the person — same facts, opposite effect on the system:
+          <ul>
+            <li><em>Blame:</em> «Ivan deployed without checking the migration.»</li>
+            <li><em>Blameless:</em> «The deploy was shipped before the migration finished. There was no automatic check in CI for the order.»</li>
+          </ul>
+          The first sentence makes future engineers hide mistakes; the second points at a missing check we can add.
+        </li>
+        <li><strong>Fill in the timeline.</strong> Stick to facts and exact timestamps (UTC). Drop adjectives like «huge» or «scary». If you can't pin a time, write «&lt;~time&gt;» rather than glossing — uncertainty is data.</li>
+        <li><strong>Build the root-cause section as contributing factors, not «the» cause.</strong> Real incidents almost always have several. List each factor as a separate bullet and link each one to the evidence (a log excerpt, a graph, a commit hash).</li>
+        <li><strong>Write action items per the SMART quality bar below.</strong> «Improve monitoring» is not an action item; «Add alert for connection-pool saturation, owner: @ivan, target 2026-05-20, ticket BL-XXX» is.</li>
+        <li><strong>Link from the changed surfaces.</strong> Add a one-line entry to the History footer of every page whose content changed because of this incident (runbook, ADR, code-reference). Cross-link the postmortem URL from each.</li>
+        <li><strong>Get a review.</strong> Send the draft to the Reviewer; for a solo team, sleep on it 24 h and re-read. Apply changes; ratify.</li>
       </ol>
 
-      <h2 id="action-items">Action items — what makes them stick</h2>
+      <h2 id="verify">Verify</h2>
       <ul>
-        <li><strong>Specific.</strong> Names a file, an alert, or a runbook. No vague verbs.</li>
-        <li><strong>Owned.</strong> One name. Not a team.</li>
-        <li><strong>Dated.</strong> A real date, not "soon".</li>
-        <li><strong>Tracked.</strong> Linked to a backlog item or a ticket — not just text in the postmortem.</li>
-        <li><strong>Sized.</strong> Less than two weeks of effort each. Bigger work splits into several action items.</li>
+        <li>The file exists at <code>postmortems/&lt;YYYY-MM-DD&gt;-&lt;slug&gt;.html</code> and renders with the standard internal-portal shell.</li>
+        <li>Every required section in the template is filled in — no «TODO» or «TK» placeholders survive into the published version.</li>
+        <li>Every action item passes the SMART bar (next section) — Specific, Owned, Dated, Tracked, Sized.</li>
+        <li>Timeline timestamps are UTC and monotonic (no entry references a time earlier than the previous row).</li>
+        <li>The Reviewer signed off (or, for solo teams, the author re-reviewed after 24 h with no remaining issues).</li>
+        <li>The postmortem index below lists the new file; every surface whose content changed because of the incident links to the postmortem from its History footer.</li>
       </ul>
-      <p>Review the open action items at the start of each on-call shift handoff. Items older than 60 days either get done, get reassigned, or get explicitly closed with a reason.</p>
+
+      <section class="numbered-section" aria-labelledby="action-items">
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">05</span>
+          <h2 id="action-items">Action-item quality bar (SMART)</h2>
+        </div>
+        <p class="numbered-section__lede">
+          The five tests every action item must pass to land in the document. Items that fail one of these are the ones that quietly stall — flag them before the postmortem is ratified, not at the next on-call review.
+        </p>
+        <ul class="rail-list" data-tone="success">
+          <li><strong>Specific.</strong> Names a file, an alert, or a runbook. No vague verbs («improve», «harden», «consider»).</li>
+          <li><strong>Owned.</strong> One name. Not a team. Not «whoever is on-call next».</li>
+          <li><strong>Dated.</strong> A real date, not «soon» / «next sprint» / «ASAP».</li>
+          <li><strong>Tracked.</strong> Linked to a backlog item or a ticket — not just prose inside the postmortem.</li>
+          <li><strong>Sized.</strong> Less than two weeks of effort each. Bigger work splits into several action items.</li>
+        </ul>
+        <p style="margin-top:var(--space-4)">Review open action items at the start of each on-call shift handoff. Items older than 60 days either get done, get reassigned, or get explicitly closed with a reason.</p>
+      </section>
 
       <h2 id="index">Index</h2>
       <ul>
-        <li>No postmortems on file yet. New incidents land here as <code>YYYY-MM-DD-incident-slug.html</code> using the <a href="_template.html">postmortem template</a>.</li>
+        <li>No postmortems on file yet. New incidents land here as <code>YYYY-MM-DD-incident-slug.html</code> using the <a href="../../../foundations/reference/sa/templates/postmortem.html">postmortem template</a>.</li>
       </ul>
+
+      <aside id="related" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li>Reference · <a href="../../../foundations/reference/sa/templates/postmortem.html">Postmortem template</a> — the empty scaffold you'll copy in step 1.</li>
+          <li>Explanation · <a href="../../../explanation/sre/incident-response.html">Incident response</a> — severity matrix, why-blameless rationale, on-call workflow this procedure plugs into.</li>
+          <li>Reference · <a href="https://sre.google/sre-book/postmortem-culture/" rel="external">Google SRE Book · Postmortem culture</a> — the external model this team's procedure is modelled on.</li>
+          <li>How-to · <a href="../runbooks/0009-error-budget-exhaustion.html">Runbook 0009 — Error-budget exhaustion</a> — the on-call surface that most often triggers a SEV-1/2 postmortem.</li>
+        </ul>
+      </aside>
     </article>
 
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-29</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Full refactor per Diátaxis audit § 4 row 6. Restructured into the canonical How-to shape: Before you start → Steps (7 numbered, each load-bearing) → Verify (6 success criteria, ratification gate) → SMART action-item quality bar (red 05 numbered-section + anti-list — preserves the original «what makes them stick» rules without leaving the page Explanation-flavoured) → Index → Related (gradient card). Two Explanation-mode sections cut: §«What a postmortem is» (now a one-clause framing in the lede; full conceptual treatment lives in <code>explanation/sre/incident-response.html</code>) and §«Blameless — what it really means» (compressed into step 2 of the procedure — the contrast example is preserved verbatim because it's load-bearing for the procedure). §«When we write one» + §«Roles» hoisted into the Before-you-start gate where they actually function as preconditions. §«How to write one» expanded from 5 informal bullets to 7 numbered Steps with concrete file paths, slug convention, and a UTC timestamp rule. Stale path mention <code>handbook/templates/postmortem.html</code> in the lede corrected to <code>foundations/reference/sa/templates/postmortem.html</code> (handbook/ tree retired during IA migration). Added explicit Verify block as a ratification gate. Added Related (gradient card) hinging postmortem template + incident-response Explanation + the external SRE-Book model + runbook 0009 (the on-call surface that most often triggers postmortems). Follow-up from the per-page Diátaxis audit (<code>~/Desktop/diataxis-quadrant-audit-2026-05-26.html</code> § 4 row 6).</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-05-16</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
@@ -123,13 +146,12 @@
   <aside class="docs-toc" aria-label="On this page">
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#what">What it is</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#blameless">Blameless</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#when">When to write</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#roles">Roles</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#how">How to write</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#action-items">Action items</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#prereqs">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#action-items">SMART action items</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#index">Index</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
