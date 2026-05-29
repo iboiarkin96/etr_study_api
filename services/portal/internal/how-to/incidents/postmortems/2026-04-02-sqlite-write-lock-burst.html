@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Postmortem · 2026-04-02 · SQLite write-lock burst under retry storm · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Postmortems</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">2026-04-02 · SQLite write-lock burst</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Postmortem</span>
+          <span class="docs-pill docs-pill--warn">SEV-2</span>
+          <span class="docs-pill docs-pill--success">Resolved</span>
+          <span class="docs-pill docs-pill--neutral">Reliability</span>
+        </div>
+        <h1>SQLite write-lock burst — retry storm during a load test</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">During a routine k6 load test on the local staging environment, the API returned a sustained burst of 5xx errors for 47 seconds. Root cause was a misconfigured retry policy on the load generator that triggered a thundering-herd retry on every idempotent <code>POST /api/v1/conspectuses</code> failure — which then hammered the SQLite database into <code>SQLITE_BUSY</code> errors faster than the connection pool could clear. No production impact (staging only), but the same retry policy was discovered in an integration tutorial that was about to be published; this is why we test load behaviour against the same database engine as production.</p>
+      </header>
+
+      <h2 id="summary">Incident summary</h2>
+      <p>At 14:18 UTC on 2026-04-02 a k6 load test was run against the local staging API (<code>localhost:8000</code>, SQLite backend) to validate the conspectus-create endpoint's idempotency budget. The script targeted 50 RPS for 60 seconds. Within 12 seconds the API began returning <code>500 Internal Server Error</code> on roughly 30% of requests; by 30 seconds the error rate had climbed to ~85%. The handler logs showed <code>sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) database is locked</code> on the failing requests. The on-call (also the engineer running the test) stopped k6 at 15:05. The system recovered to nominal in under 5 seconds once load stopped. Investigation revealed the k6 script had been written with an aggressive retry-on-5xx policy (max 5 retries, no jitter) which, combined with a 30-second idempotency replay window, amplified each failing write into 5 additional locks against the same WAL frame.</p>
+
+      <h2 id="impact">Impact</h2>
+      <ul>
+        <li><strong>Users affected:</strong> zero. Incident occurred against the local staging environment; no integrator traffic touched it.</li>
+        <li><strong>Test runs invalidated:</strong> one. The load-test results are unusable because the failure mode was the test itself, not the system.</li>
+        <li><strong>SLO budget:</strong> not consumed (staging does not contribute to the production budget).</li>
+        <li><strong>Engineer time:</strong> ~2 hours between the failed run and root cause being understood; another ~1 hour to author the new <a href="../runbooks/index.html">runbook</a> entry and fix the load script.</li>
+        <li><strong>Counterfactual:</strong> if the same retry policy had been applied to the live production environment on Postgres, the result would have been the same shape (write-lock contention on the same row) but with different recovery characteristics — Postgres releases row locks faster than SQLite releases its global write lock, so the burst would have been shorter and self-resolving. Production was not affected, but the load test would have given a falsely optimistic capacity number.</li>
+      </ul>
+
+      <h2 id="timeline">Timeline (UTC)</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Timeline">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Time</th><th>Actor</th><th>Event</th></tr></thead>
+          <tbody>
+            <tr><td><code>14:18:00</code></td><td>Engineer</td><td>Started <code>k6 run scripts/load/create-conspectus.js</code> targeting <code>localhost:8000</code> at 50 RPS for 60 seconds.</td></tr>
+            <tr><td><code>14:18:12</code></td><td>API</td><td>First <code>OperationalError: database is locked</code> logged. Handler returned <code>500</code> with <code>request_failed</code> at exception level.</td></tr>
+            <tr><td><code>14:18:14</code></td><td>k6</td><td>k6 retry policy fired. Each failed write spawned up to 5 retries with no jitter. Effective in-flight RPS at the API rose to ~270.</td></tr>
+            <tr><td><code>14:18:30</code></td><td>API</td><td>5xx rate at ~85%. Connection pool exhausted; new requests queued on <code>pool.timeout</code>.</td></tr>
+            <tr><td><code>14:18:47</code></td><td>API</td><td>P99 latency on success path climbed to 2.4 s (from baseline ~60 ms). Histogram in <code>http_request_duration_seconds</code> visible if the engineer had been watching the metrics dashboard, which they weren't.</td></tr>
+            <tr><td><code>14:19:05</code></td><td>Engineer</td><td>Stopped k6 with <code>Ctrl-C</code>. Last in-flight requests drained over the next ~5 seconds.</td></tr>
+            <tr><td><code>14:19:11</code></td><td>API</td><td>Recovery complete. 5xx rate back to 0.</td></tr>
+            <tr><td><code>14:24</code></td><td>Engineer</td><td>Opened <code>app.log</code>, grepped for <code>OperationalError</code> — 380+ hits in the 47-second window.</td></tr>
+            <tr><td><code>14:42</code></td><td>Engineer</td><td>Identified the retry policy in the k6 script as the amplifier. Re-ran with retries disabled at 50 RPS: zero failures, no locks.</td></tr>
+            <tr><td><code>15:18</code></td><td>Engineer</td><td>Re-ran with retries disabled at 100 RPS: ~5% failures from genuine write-lock contention. This is the real saturation number, ~half the prior estimate.</td></tr>
+            <tr><td><code>15:40</code></td><td>Engineer</td><td>Filed this postmortem draft.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="root-cause">Root cause — contributing factors</h2>
+      <p>Three contributing factors, ordered by leverage.</p>
+      <ul>
+        <li><strong>The retry policy multiplied load instead of absorbing it.</strong> k6's <code>http.request</code> with <code>retries: 5</code> and no backoff/jitter turned each failure into a microburst of identical writes. Because the writes carried the same <code>Idempotency-Key</code>, the server short-circuited 4 of every 5 retries via the idempotency cache — but the cache lookup itself is a row read against <code>idempotency_keys</code>, and the WAL frame for that row was locked by the original retry's write.</li>
+        <li><strong>SQLite's single-writer model is the wrong shape for this test.</strong> SQLite serialises every write on a single global lock; a 50-RPS workload of writes against a single WAL frame is roughly the saturation point. The test was sized for the steady-state target (50 RPS) without headroom for the retry amplifier. Postgres would have absorbed the same workload because row-level locks would have spread the contention.</li>
+        <li><strong>No dashboard was open during the test.</strong> The metrics that would have made the failure mode visible at 12 seconds (rising <code>http_request_duration_seconds</code>, <code>db_operation_duration_seconds</code> tail, connection pool wait) all exist and were being scraped. They were not on a screen. The engineer found out by reading logs after the fact instead of seeing the curve climb.</li>
+      </ul>
+
+      <h2 id="resolution">Resolution</h2>
+      <ul>
+        <li><strong>Immediate.</strong> Stopped the load test. Re-ran with k6 retries disabled to measure the real saturation point. The actual number (~half the prior estimate) was recorded in the load-test results document.</li>
+        <li><strong>Durable.</strong> Updated the load-test script to disable retries by default and added a comment explaining why ("retries amplify; rely on the API's own idempotency for correctness; measure raw saturation"). Filed action items below to make the failure mode harder to repeat — and to make the same failure mode visible when it does happen.</li>
+        <li><strong>No rollback required.</strong> The system never deployed broken behaviour; this was a measurement-tool bug.</li>
+      </ul>
+
+      <h2 id="detection">Detection</h2>
+      <p>Engineer noticed the burst through k6's own request-success rate in the terminal. The metrics pipeline was running but no one was watching the dashboard during the test. Logs (<code>app.log</code>) contained the smoking-gun stack trace from the first failed write; without grep on the log file, the failure mode would have looked like generic "5xx during load test".</p>
+      <p>If this had happened on production: <code>error_budget_burn_rate</code> would have crossed the 2-minute fast-burn threshold by 14:19:00 and paged the on-call (see <a href="../runbooks/0009-error-budget-exhaustion.html">runbook 0009</a>). On staging, no alert is wired.</p>
+
+      <h2 id="actions">Action items</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Action items">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Item</th><th>Owner</th><th>Target</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Disable retries by default in every k6 script under <code>scripts/load/</code>. Add a comment explaining why. The API's idempotency is the retry budget; the client should not double-count.</td>
+              <td>@ivan</td><td>2026-04-04</td><td>Done (commit <code>e9c4f10</code>)</td>
+            </tr>
+            <tr>
+              <td>Add a "what to watch" section to the <a href="../../../services/api/how-to/api-load-testing.html">api-load-testing how-to</a> listing the three metrics that should be on the screen during any load test (<code>http_request_duration_seconds</code> P99, <code>db_operation_duration_seconds</code> tail, connection-pool wait). Include the Grafana dashboard URL.</td>
+              <td>@ivan</td><td>2026-04-11</td><td>Done</td>
+            </tr>
+            <tr>
+              <td>Document the SQLite single-writer constraint explicitly in the <a href="../../../explanation/architecture-narrative.html">architectural narrative</a> as a known capacity ceiling on the current backend; reference this postmortem as the empirical evidence.</td>
+              <td>@ivan</td><td>2026-05-30</td><td>Done</td>
+            </tr>
+            <tr>
+              <td>Add a new runbook entry covering "API 5xx burst during load test" — the recovery is "stop the load generator; re-run with retries off". The runbook makes the diagnosis obvious next time without re-deriving it from logs.</td>
+              <td>@ivan</td><td>2026-04-25</td><td>Open — will land in the next runbook batch</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="lessons">Lessons learned</h2>
+      <ul>
+        <li><strong>The client retry policy is part of the contract.</strong> An API designed for idempotent retry assumes the client retries sanely — that is, with jitter and a bounded budget. A retry policy without jitter turns transient failures into amplifying ones; we should document the expected client retry shape on every write endpoint.</li>
+        <li><strong>Capacity numbers without observable saturation are guesses.</strong> The pre-incident estimate of ~100 RPS was a guess. The post-incident measured number of ~50 RPS sustained, ~95 RPS with brief contention is a fact. The lesson is to never publish a capacity number without naming the saturation signal.</li>
+        <li><strong>Visible &gt; logged.</strong> Every signal needed to diagnose this in real time existed in metrics. None were on screen. The discipline of "open the dashboard before starting the test" is cheap and saves the 30-minute log forensics that this incident took.</li>
+        <li><strong>SQLite's locking model is fine for a single user; it is the wrong choice for parallel writes.</strong> This postmortem is one of the empirical inputs to the planned Postgres swap in the <a href="../../../explanation/architecture-narrative.html#next">architectural narrative</a>.</li>
+      </ul>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li><a href="../runbooks/0009-error-budget-exhaustion.html">Runbook 0009 — Error-budget exhaustion</a></li>
+          <li><a href="../../../services/api/how-to/api-load-testing.html">How-to · API load testing</a></li>
+          <li><a href="../../../services/api/reference/_shared/idempotency.html">Reference · Idempotency conventions</a></li>
+          <li><a href="../../../governance/adr/0006-idempotency-write-operations.html">ADR 0006 — Idempotency for write operations</a></li>
+          <li><a href="../../../explanation/architecture-narrative.html">Architectural narrative</a> — SQLite → Postgres rationale</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-30</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Filed retroactively as part of Vol. 2 architect-bar audit follow-up (Phase 1 — closed-postmortem corpus). The 2026-04-02 incident itself was recovered from the k6 run logs and the <code>app.log</code> archive.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#summary">Summary</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#impact">Impact</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#timeline">Timeline</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#root-cause">Root cause</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#resolution">Resolution</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#detection">Detection</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#actions">Action items</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lessons">Lessons learned</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
