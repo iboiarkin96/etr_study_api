@@ -27,6 +27,7 @@ import { mountSparklines } from "../../ui-kit/components/sparkline.js";
 import { mountRadars } from "../../ui-kit/components/radar.js";
 import { mountFilterChips } from "../../ui-kit/components/filter-chips.js";
 import { mountMultiFilterChips } from "../../ui-kit/components/multi-filter-chips.js";
+import { mountNotesFilter } from "../../ui-kit/components/notes-filter.js";
 import { mountBacklogCockpit } from "../../ui-kit/components/backlog-cockpit.js";
 import { mountTerminalCard } from "../../ui-kit/components/terminal-card.js";
 import { mountDesignCanvasCard } from "../../ui-kit/components/design-canvas-card.js";
@@ -70,6 +71,10 @@ function boot() {
   mountViewSwitcher();
   mountFilterChips();
   mountMultiFilterChips();
+  // Notes filter listens on `multifilterchange` — mount AFTER
+  // multi-filter-chips so it sees the initial state, and reads the URL
+  // hash on first paint for deep-links like #group=documentation.
+  mountNotesFilter();
   // Backlog cockpit is async (fetches JSON); fire-and-forget. Mounts only
   // when [data-component="backlog-cockpit"] is present on the page.
   mountBacklogCockpit();
