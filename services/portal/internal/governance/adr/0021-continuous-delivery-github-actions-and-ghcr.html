@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0021</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0021</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Continuous Delivery — GitHub Actions and GitHub Container Registry</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           After CI passes, build the repository Dockerfile and push to GHCR
           so every accepted change yields a pullable image traceable to a Git commit.
         </p>
@@ -108,35 +142,31 @@
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <div class="docs-card-grid">
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Manual <code>docker build</code> and <code>docker push</code> only</h3></div>
+        <p>Three alternatives evaluated before adopting GitHub Actions <code>publish-image</code> + GHCR. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Manual <code>docker build</code> + <code>docker push</code> only</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li><strong>Pros:</strong> no CI minutes; full manual control.</li>
-                <li><strong>Cons:</strong> easy to forget; inconsistent tags; no guarantee the image matches a commit that passed CI. Rejected as the default for the integration branch.</li>
-              </ul>
+              <p><strong>Why considered:</strong> no CI minutes spent, full manual control, simpler to reason about.</p>
+              <p><strong>Why rejected:</strong> the image-to-commit traceability promise fails the day someone forgets the manual step. No CI gate means «the image on GHCR matches a commit that passed CI» is a vibe, not a guarantee. The very property this ADR exists to establish.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">A separate workflow file for CD only</h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Separate <code>cd.yml</code> workflow for CD only</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li><strong>Pros:</strong> clearer separation of "CI" vs "CD" in the GitHub Actions UI.</li>
-                <li><strong>Cons:</strong> duplicated trigger conditions; a single workflow with <code>needs</code> keeps ordering obvious. We keep CD in <code>ci.yml</code> for simplicity.</li>
-              </ul>
+              <p><strong>Why considered:</strong> clean separation in the GitHub Actions UI — «CI» tab vs «CD» tab. Pattern recommended by some style guides.</p>
+              <p><strong>Why rejected:</strong> the two workflows would duplicate trigger conditions and depend on each other in subtle ways (CD must wait for CI). A single workflow with explicit <code>needs</code> on the publish job makes the ordering visible in one file. We accept the «CI tab carries both» readability cost for the simpler graph.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Deploy to a host (SSH or remote API) in the same job</h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Full deploy (SSH or remote API) in the same job</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li><strong>Pros:</strong> end-to-end automation from push to running service.</li>
-                <li><strong>Cons:</strong> requires secrets and target infrastructure; not generic. Deferred until a concrete environment exists.</li>
-              </ul>
+              <p><strong>Why considered:</strong> end-to-end automation — push to <code>main</code> ⇒ image on registry ⇒ container running in prod.</p>
+              <p><strong>Why rejected:</strong> requires target infrastructure that does not yet exist (no production environment, no deploy credentials, no rollback plan). Adding deploy steps to the workflow before the infra is real is hard-coded coupling to a future we have not designed. The «stop at registry» line is the right boundary until a concrete deploy target lands.</p>
             </div>
           </article>
         </div>
+        <p><strong>Trade we accept by choosing CI-triggered <code>publish-image</code> + GHCR.</strong> Every push spends CI minutes building and pushing an image. We accept it because each rejected alternative either forfeits the traceability guarantee (manual), splits the workflow graph without matching benefit (separate <code>cd.yml</code>), or pre-commits to infrastructure we have not built (full deploy).</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -155,14 +185,23 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>GitHub Actions minutes accrue (public repos have generous limits; private repos need billing awareness).</li>
-                <li>Package visibility and pull authentication for <em>consumers</em> of the image remain an operator concern (configure package visibility or tokens as needed).</li>
-                <li>Running the container in production still requires a real database and secrets outside the workflow.</li>
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>GHCR-by-default (vs registry-agnostic).</strong> We gain native auth with <code>GITHUB_TOKEN</code> — no extra secrets to manage. We lose the «works for any registry out of the box» property; mirroring to ECR / Artifact Registry requires extra credentials. We accept it because the «no extra secrets» story is the load-bearing «zero-friction publish» property; mirroring is opt-in for teams that need it, not a default cost.</li>
+                <li><strong>Stops at the registry, not at production.</strong> We gain a clear deployment boundary — the workflow's responsibility ends at «pullable image exists». We lose end-to-end automation. We accept it because the deploy half needs target-specific secrets, networking, and rollback policy that do not generalise; coupling the publish step to a specific deploy target would lock the workflow to that target.</li>
               </ul>
             </div>
           </article>
         </div>
+      </section>
+
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>Yes.</strong> Two refinements we would add on day one:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Add image-vulnerability scanning (<code>trivy</code> or GHCR's built-in scan) as a publish-job gate.</strong> Today the image is published without a CVE check at build time; an image with a critical CVE in the base layer can land on <code>:latest</code>. A 30-second <code>trivy</code> step before push would prevent that without slowing the loop materially.</li>
+          <li><strong>Sign images with sigstore / cosign keyless.</strong> Free, GHCR-native, gives downstream consumers a way to verify «this image came from this commit on this repo». Cheap supply-chain hygiene the day we ship for real.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="compat-h">
@@ -185,6 +224,11 @@
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten to «Why considered / Why rejected» template; <code>§ Trade-offs</code> restructured into canonical entries; new <code>§ Would we do this again?</code> proposing <code>trivy</code> scan gate + sigstore signing. Inline <code>style</code> stripped.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

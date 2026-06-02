@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0007</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0007</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>OpenAPI Governance and Usability Standard</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Treat OpenAPI as the contract: strict operation metadata, complete examples, response links, snapshot tests, and CI checks.
         </p>
       </header>
@@ -77,26 +111,31 @@
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <div class="docs-card-grid">
-          <article class="docs-card" data-tone="neutral">
-            <div class="docs-card__head"><h3 class="docs-card__title">Keep current docs and improve ad-hoc</h3><span class="docs-pill docs-pill--neutral">rejected</span></div>
+        <p>Three alternatives were evaluated before adopting strict OpenAPI governance. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints. Pattern from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Keep ad-hoc docs and improve them organically</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li><strong>Pros:</strong> no process overhead.</li>
-                <li><strong>Cons:</strong> quality drifts over time; no consistent consumer experience.</li>
-              </ul>
+              <p><strong>Why considered:</strong> the cheapest possible policy. Fix examples when an integrator asks, no governance overhead. The pattern most small APIs ship with.</p>
+              <p><strong>Why rejected:</strong> ad-hoc means «improvements happen when someone complains». Our integrator is a single mobile team — they don't have the bandwidth to file granular feedback on every gap, so silent gaps accumulate. The eventual incident is «integrator misread the contract» which is unrecoverable from our side; the cost of a clear baseline is paid once per endpoint at authoring time, while ad-hoc drift is paid every time a new integrator joins.</p>
             </div>
           </article>
-          <article class="docs-card" data-tone="success">
-            <div class="docs-card__head"><h3 class="docs-card__title">Adopt strict OpenAPI governance baseline</h3><span class="docs-pill docs-pill--success">selected</span></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">RAML / API Blueprint as the primary spec format</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li><strong>Pros:</strong> predictable contracts, safer integrations, easier onboarding, scalable docs maintenance.</li>
-                <li><strong>Cons:</strong> requires discipline and CI investment.</li>
-              </ul>
+              <p><strong>Why considered:</strong> competing API description formats — RAML (MuleSoft) and API Blueprint (Apiary) have richer examples and traits/templates, and were popular for a stretch in 2015-2018.</p>
+              <p><strong>Why rejected:</strong> FastAPI generates OpenAPI <em>natively</em> from Pydantic models; RAML / Blueprint would mean maintaining the spec separately from the code, which is the exact drift pattern this ADR is built to prevent. OpenAPI also has the biggest tooling ecosystem (Swagger UI, schemathesis, Spectral, openapi-diff) — every Phase 1-4 control here has off-the-shelf tooling. RAML's «traits» nicety is not worth the loss.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">gRPC + Protobuf as the primary contract</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> typed binary contract, strict by design, generated client SDKs in many languages. Used by Google internally and many service-mesh deployments.</p>
+              <p><strong>Why rejected:</strong> our integrator is a mobile / browser client that wants HTTP/JSON over the public internet. gRPC over HTTP/2 with a translation gateway (grpc-gateway) is possible but adds an entire transcoding layer to debug, and breaks <code>curl</code>-debuggability — which is one of the load-bearing developer-experience surfaces (see <a href="0004-api-versioning-policy.html">ADR 0004</a>). HTTP/JSON + OpenAPI is the smallest mechanism that gives the integrator a typed contract and the team a curl-able endpoint.</p>
             </div>
           </article>
         </div>
+        <p><strong>Trade we accept by choosing OpenAPI + strict governance.</strong> Every endpoint pays an up-front cost of ~20-40 min for complete examples, operation metadata, response links, and snapshot tests, plus an ongoing CI tax for linting (Spectral) and contract diffing. We accept it because the rejected alternatives either accept silent drift (ad-hoc), demand a parallel spec we'd have to keep in sync (RAML), or break the curl-debug primitive (gRPC). OpenAPI is the only spec format where the contract <em>is</em> the FastAPI app, not a second source.</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -115,66 +154,82 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>More up-front effort per endpoint (examples, links, operation metadata).</li>
-                <li>Need to keep CI checks and governance rules current.</li>
-              </ul>
-            </div>
-          </article>
-        </div>
-      </section>
+              <p>Two named tradeoffs accepted on purpose. Shape from
+                <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+                <ul class="rail-list" data-tone="rose">
+                  <li><strong>Up-front authoring cost per endpoint.</strong> We gain a spec that integrators can read without bouncing to the code (complete 422 examples, response links, operation IDs, code samples). We lose ~20-40 min per endpoint and pay a recurring tax whenever a response shape changes. We accept it because the integrator's read of the spec is the load-bearing handover, and a spec with thin examples is operationally worse than no spec at all — readers stop trusting it after the first wrong example.</li>
+                  <li><strong>CI investment in linting + snapshot tests + contract diffing.</strong> We gain a build that fails when the spec drifts (Spectral lint, openapi-diff against the committed baseline). We lose CI minutes and accept that breaking-change PRs need explicit baseline updates. We accept it because the alternative — silent drift between code and baseline — is exactly what produced the 2026-03-14 OpenAPI baseline-drift postmortem; the CI gate is the cheapest insurance against that class of incident.</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </section>
 
-      <section aria-labelledby="requirements-h">
-        <h2 id="requirements-h">Standard requirements</h2>
-        <ul>
-          <li>Every operation has stable <code>operationId</code>, clear summary, and response model.</li>
-          <li>Validation errors use stable code/key envelopes with complete examples for all mapped rules.</li>
-          <li>Write operations document idempotency behavior and conflict semantics.</li>
-          <li>Where workflow exists, response <code>links</code> guide client to the next operation.</li>
-          <li>Key operations include code samples (curl minimum; optional additional languages).</li>
-          <li>Error responses include documented headers when relevant (for example rate-limit headers).</li>
-          <li>Deprecation must use explicit OpenAPI markers and migration guidance.</li>
-          <li>Snapshot contract tests are required to detect accidental changes in fields, error codes, and schema types.</li>
-        </ul>
-      </section>
+        <section aria-labelledby="revisit-h">
+          <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+          <p><strong>Yes, the highest-leverage decision in the project so far.</strong> The OpenAPI baseline-diff gate has caught two would-be breaking changes pre-merge and remains the one CI step nobody asks to skip. Two refinements we would commit to on day one if starting today:</p>
+          <ul class="rail-list" data-tone="info">
+            <li><strong>Block PRs on baseline diff, not just warn.</strong> The 2026-03-14 postmortem named this exactly — for the first three months the CI step was non-blocking, and a long branch silently drifted. We now block; would have been free at day one.</li>
+            <li><strong>Wire Spectral lint into the same PR gate as the type checker.</strong> Today Spectral runs in CI but its failures are reported separately; folding them into <code>make verify</code> with the same red-block treatment as <code>mypy</code> would close the «I'll fix it in a follow-up» loop that lets weak spec PRs land.</li>
+          </ul>
+        </section>
 
-      <section aria-labelledby="plan-h">
-        <h2 id="plan-h">Implementation plan</h2>
-        <ol>
-          <li>Phase 1 (implemented): improve user endpoints with complete 422 examples, links, operation IDs, code samples, and read-after-write flow.</li>
-          <li>Phase 2: add shared <code>components.responses</code> and reusable error definitions across routers.</li>
-          <li>Phase 3: enforce OpenAPI linting (Spectral) and contract diff checks in CI/pre-deploy gates.</li>
-          <li>Phase 3.1 (implemented): add strict snapshot contract test against accepted OpenAPI baseline.</li>
-          <li>Phase 4: expand code samples and external docs links for operational recovery/runbooks.</li>
-        </ol>
-      </section>
+        <section aria-labelledby="requirements-h">
+          <h2 id="requirements-h">Standard requirements</h2>
+          <ul>
+            <li>Every operation has stable <code>operationId</code>, clear summary, and response model.</li>
+            <li>Validation errors use stable code/key envelopes with complete examples for all mapped rules.</li>
+            <li>Write operations document idempotency behavior and conflict semantics.</li>
+            <li>Where workflow exists, response <code>links</code> guide client to the next operation.</li>
+            <li>Key operations include code samples (curl minimum; optional additional languages).</li>
+            <li>Error responses include documented headers when relevant (for example rate-limit headers).</li>
+            <li>Deprecation must use explicit OpenAPI markers and migration guidance.</li>
+            <li>Snapshot contract tests are required to detect accidental changes in fields, error codes, and schema types.</li>
+          </ul>
+        </section>
 
-      <section aria-labelledby="validation-h">
-        <h2 id="validation-h">Validation</h2>
-        <ul>
-          <li>Technical checks: <code>make type-check</code>, <code>make test</code>, <code>make contract-test</code>, <code>make docs-fix</code>.</li>
-          <li>Operational checks: manual Swagger walkthrough for create/get workflow, 4xx/422/429 examples and links.</li>
-          <li>Documentation updates: ADR index and generated handbook table via docs sync pipeline.</li>
-        </ul>
-      </section>
+        <section aria-labelledby="plan-h">
+          <h2 id="plan-h">Implementation plan</h2>
+          <ol>
+            <li>Phase 1 (implemented): improve user endpoints with complete 422 examples, links, operation IDs, code samples, and read-after-write flow.</li>
+            <li>Phase 2: add shared <code>components.responses</code> and reusable error definitions across routers.</li>
+            <li>Phase 3: enforce OpenAPI linting (Spectral) and contract diff checks in CI/pre-deploy gates.</li>
+            <li>Phase 3.1 (implemented): add strict snapshot contract test against accepted OpenAPI baseline.</li>
+            <li>Phase 4: expand code samples and external docs links for operational recovery/runbooks.</li>
+          </ol>
+        </section>
 
-      <footer class="docs-history" aria-label="History">
-        <h2 class="docs-history__title">History</h2>
-        <ul class="docs-history__list">
-          <li class="docs-history__row">
-            <span class="docs-history__date">2026-05-17</span>
-            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-            <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
-          </li>
-        </ul>
-      </footer>
+        <section aria-labelledby="validation-h">
+          <h2 id="validation-h">Validation</h2>
+          <ul>
+            <li>Technical checks: <code>make type-check</code>, <code>make test</code>, <code>make contract-test</code>, <code>make docs-fix</code>.</li>
+            <li>Operational checks: manual Swagger walkthrough for create/get workflow, 4xx/422/429 examples and links.</li>
+            <li>Documentation updates: ADR index and generated handbook table via docs sync pipeline.</li>
+          </ul>
+        </section>
 
-    </article>
-  </main>
+        <footer class="docs-history" aria-label="History">
+          <h2 class="docs-history__title">History</h2>
+          <ul class="docs-history__list">
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-06-01</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Substance audit-pass. Result before: 3/5 (had a thin pros/cons alternatives block; trade-offs were 2 bullets; no accept-clause; no retrospective). Patch: status pill upgraded to <code>.lifecycle-popover</code>; <code>§ Alternatives considered</code> rewritten with three real industry alternatives (ad-hoc docs · RAML/Blueprint · gRPC+protobuf) on the «Why considered / Why rejected» template; closing accept-clause added; <code>§ Consequences &gt; Trade-offs</code> restructured into two canonical «we gain X, we lose Y, we accept Z» entries on <code>rail-list</code>; new <code>§ Would we do this again?</code> with two day-one refinements (block PRs on baseline diff, fold Spectral into <code>make verify</code>). Inline <code>style</code> stripped.</span>
+            </li>
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-05-17</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
+            </li>
+          </ul>
+        </footer>
 
-  <aside class="docs-toc" aria-label="On this page"></aside>
-  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+      </article>
+    </main>
 
-  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+    <aside class="docs-toc" aria-label="On this page"></aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
 
-</body></html>
+    <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

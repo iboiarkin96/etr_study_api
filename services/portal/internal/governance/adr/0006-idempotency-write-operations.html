@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0006</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0006</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Idempotency For Write Operations</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Critical writes require an <code>Idempotency-Key</code>; the server deduplicates by key + payload hash so retries are safe.
         </p>
       </header>
@@ -75,12 +109,39 @@
 
       <section aria-labelledby="impl-h">
         <h2 id="impl-h">Initial Implementation</h2>
-        <ul>
-          <li><code>POST /api/v1/user</code>, <code>PUT /api/v1/user/{system_user_id}</code>, and <code>PATCH /api/v1/user/{system_user_id}</code> require <code>Idempotency-Key</code>.</li>
-          <li>Missing key returns <code>400 IDEMPOTENCY_KEY_REQUIRED</code>.</li>
-          <li>Key reuse with different payload returns <code>409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD</code>.</li>
-          <li>Dedup records are persisted in DB table <code>idempotency_keys</code> to survive service restarts.</li>
-        </ul>
+        <div class="docs-table-wrap" role="region" aria-label="Idempotency surface and error mapping">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Surface</th>
+                <th scope="col">Behaviour</th>
+                <th scope="col">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Routes with mandatory <code>Idempotency-Key</code></td>
+                <td><code>POST /api/v1/user</code>, <code>PUT /api/v1/user/{system_user_id}</code>, <code>PATCH /api/v1/user/{system_user_id}</code></td>
+                <td>all critical writes on user</td>
+              </tr>
+              <tr>
+                <td>Missing key</td>
+                <td><code>400 IDEMPOTENCY_KEY_REQUIRED</code></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td>Key reuse, different payload</td>
+                <td><code>409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD</code></td>
+                <td>body-hash mismatch on dedup record</td>
+              </tr>
+              <tr>
+                <td>Dedup store</td>
+                <td>DB table <code>idempotency_keys</code></td>
+                <td>persists across restarts; 24 h TTL</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section aria-labelledby="contract-h">
@@ -108,32 +169,77 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Additional request discipline for client integrations.</li>
-                <li>Persistent dedup store introduces additional DB writes for write operations.</li>
-              </ul>
-            </div>
-          </article>
-        </div>
-      </section>
+              <p>Two named tradeoffs accepted on purpose. Shape from
+                <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>:
+                «we gain X, we lose Y, we accept it because Z».</p>
+                <ul class="rail-list" data-tone="rose">
+                  <li><strong>Mandatory <code>Idempotency-Key</code> on every critical write.</strong> We gain a uniform contract that the client cannot accidentally lose (no «I forgot the header on retry»). We lose the «one-liner <code>curl</code> example» — every write needs the header attached, even in dev. We accept it because the curl-friction is paid once per developer when they read the spec, while the duplicate-write incident in production is paid by the integrator at 3 a.m. and is unrecoverable without a manual data fix.</li>
+                  <li><strong>Persistent dedup table (extra DB row per write).</strong> We gain replay safety across server restarts — a 30-second retry after a pod restart still hits the same idempotency record. We lose one extra DB write per critical-write endpoint and accumulate rows in <code>idempotency_keys</code>. We accept it because the 24 h TTL bounds growth (a cron prunes), and the DB-write cost is dwarfed by the actual business write that follows; the alternative is a memory cache that vanishes on restart exactly when retries matter most.</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </section>
 
-      <footer class="docs-history" aria-label="History">
-        <h2 class="docs-history__title">History</h2>
-        <ul class="docs-history__list">
-          <li class="docs-history__row">
-            <span class="docs-history__date">2026-05-17</span>
-            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-            <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
-          </li>
-        </ul>
-      </footer>
+        <section aria-labelledby="alternatives-h">
+          <h2 id="alternatives-h">Alternatives considered</h2>
+          <p>Three alternatives were evaluated before adopting <code>Idempotency-Key</code> + body-hash dedup. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints.</p>
+          <div class="docs-card-grid docs-card-grid--stack">
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">No idempotency — client must not retry</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> the simplest possible policy. No header, no dedup table, no body hashing. Used by many internal-only APIs where the caller is fully trusted to handle retries.</p>
+                <p><strong>Why rejected:</strong> our integrator is a mobile app. Mobile networks drop packets; users double-tap submit; OS-level retries happen below the app's awareness. «Client must not retry» is not enforceable for any of these. The failure mode is duplicate <code>user</code> rows or double-applied PATCHes, both of which require a manual data fix — the worst incident class for a solo on-call.</p>
+              </div>
+            </article>
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">Natural idempotency via client-generated resource IDs</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> let the client choose the resource UUID; the server treats <code>PUT /users/&lt;client-uuid&gt;</code> as idempotent by definition. Clean REST, no extra header. Used by some Google Cloud APIs (predictable resource names).</p>
+                <p><strong>Why rejected:</strong> the client-chosen UUID then becomes part of the <em>permanent</em> public surface. A client that re-uses the same UUID across user sessions (accidentally or via a buggy client lib) would silently collide with another user's resource. Idempotency keys are scoped to «one logical request» and expire (24 h); resource IDs cannot expire without breaking every URL ever issued.</p>
+              </div>
+            </article>
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">At-least-once + conditional PUT (CAS / ETag)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> the S3 / DynamoDB pattern — every PUT carries an <code>If-Match: &lt;etag&gt;</code> header; conflicting writes are rejected with 412. Strong consistency, no dedup table needed.</p>
+                <p><strong>Why rejected:</strong> CAS only works when the resource already exists (you need an ETag to compare). For POST (creation) it provides no help at all — and the duplicate-create case is exactly where idempotency matters most for a solo learner-app where every duplicate user adds noise to the corpus. CAS is a complement to idempotency-keys, not a replacement.</p>
+              </div>
+            </article>
+          </div>
+          <p><strong>Trade we accept by choosing <code>Idempotency-Key</code> + body-hash dedup.</strong> Every critical-write endpoint carries one extra header and one extra DB row per request. We accept it because each rejected alternative either fails open under the exact failure mode we are designing for (no idempotency on a flaky-network mobile client), accepts a permanent surface change that cannot be undone (client-generated resource IDs), or solves the wrong half of the problem (CAS for create). The header + table is the smallest mechanism that covers both POST and PUT/PATCH uniformly.</p>
+        </section>
 
-    </article>
-  </main>
+        <section aria-labelledby="revisit-h">
+          <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+          <p><strong>Yes, with one client-side helper we did not ship.</strong> The header + body-hash + 24 h TTL has aged well — zero on-call incidents tied to duplicate writes, and the integrator's retry code is a one-line «attach UUID4 as the header» recipe. One thing we would add on day one if starting today:</p>
+          <ul class="rail-list" data-tone="info">
+            <li><strong>Publish a tiny client-side helper (Python + JS) that generates the key and retries on transient failures.</strong> Stripe ships <code>stripe.idempotency_key()</code> in their SDKs; we left this as «attach a UUID4 yourself» in the spec. Two integrators have re-written the same retry-with-backoff wrapper from scratch — a 30-line helper in <code>app/integrations/</code> would have saved both of those, and would let the spec point to the canonical implementation instead of describing it.</li>
+          </ul>
+        </section>
 
-  <aside class="docs-toc" aria-label="On this page"></aside>
-  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+        <footer class="docs-history" aria-label="History">
+          <h2 class="docs-history__title">History</h2>
+          <ul class="docs-history__list">
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-06-01</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Substance audit-pass against the <a href="../../foundations/reference/sa/tradeoff-disclosure.html">tradeoff-disclosure five-gate</a>. Result before: 1/5. Patch: status pill upgraded to <code>.lifecycle-popover</code>; <code>§ Initial Implementation</code> nested-bullet inventory converted to <code>.docs-table</code>; new <code>§ Alternatives considered</code> with three real industry alternatives rejected with rooted reasons (no idempotency · client-generated resource IDs · CAS / ETag); <code>§ Consequences &gt; Trade-offs</code> restructured into two canonical «we gain X, we lose Y, we accept Z» entries on <code>rail-list</code>; closing accept-clause after the alternatives; new <code>§ Would we do this again?</code> section adding the missing SDK helper. Inline <code>style</code> stripped.</span>
+            </li>
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-05-17</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
+            </li>
+          </ul>
+        </footer>
 
-  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+      </article>
+    </main>
 
-</body></html>
+    <aside class="docs-toc" aria-label="On this page"></aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

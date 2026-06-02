@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0018</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0018</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR (self-reference)</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="#decision-h">Read the normative model ↓</a>
+            </div>
+          </div>
+        </div>
         <h1>ADR Lifecycle, Status Model, and Ratification</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Define one ordered weight scale and ratification pattern (Issue + PR + accepted date)
           so every ADR shows a current milestone and an auditable trail without a separate tracker.
         </p>
@@ -102,18 +136,61 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Authors must update <code>data-adr-weight</code> on <code>&lt;main&gt;</code> when the milestone changes.</li>
-                <li>Legacy ADRs may lack weights or ratification blocks until edited.</li>
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>One <code>data-adr-weight</code> attribute as source of truth.</strong> We gain a single machine-readable field that the renderer, the audit, and the search index can all key off. We lose the «just update Notion» convenience and accept that authors must touch the file when the milestone changes. We accept it because docs-as-code (<a href="0001-docs-as-code.html">ADR 0001</a>) means the artefact is the truth; a separate status tracker would re-introduce the drift this ADR exists to prevent.</li>
+                <li><strong>Legacy ADRs not retroactively conformant.</strong> We gain a zero-cost adoption — ADRs ≤ 0017 keep working unchanged. We lose visual uniformity across the ADR set until each old file is touched. We accept it because opportunistic updates land naturally during the 2026-06 audit-pass; a one-shot rewrite would have produced a single PR touching every ADR (impossible to review).</li>
               </ul>
             </div>
           </article>
         </div>
       </section>
 
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <p>Three alternatives evaluated before adopting the <code>data-adr-weight</code> + 8-state model. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Free-text status field (e.g. «<code>Status: Accepted</code>» in prose)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the MADR / Nygard default — a one-line status in the document body. No JS, no attribute, no parser.</p>
+              <p><strong>Why rejected:</strong> free-text status cannot drive a renderer (Status pill, lifecycle popover, status-timeline). It also drifts: «Accepted» vs «accepted» vs «active» vs «in use» all show up in the same corpus over time. A machine-readable enum (the weight) collapses the variation and lets the renderer normalise the visible label.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">External ADR tracker (Linear / Notion / Confluence)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> rich UI for browsing decisions by status, filtering, querying. Used by some enterprise teams.</p>
+              <p><strong>Why rejected:</strong> separates the status from the artefact. Same failure mode as wikis (<a href="0001-docs-as-code.html">ADR 0001</a>'s rejected wiki alternative): the day someone updates the Notion status but not the file, the source of truth becomes ambiguous. The renderer also needs the artefact's status, so the external tracker becomes a parallel system to keep in sync, not a replacement.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Five-state model (Proposed / Accepted / Deprecated / Superseded / Rejected) — Nygard original</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the canonical Nygard taxonomy from «Documenting Architecture Decisions» (cognitect.com 2011). Well-known, less ceremony.</p>
+              <p><strong>Why rejected:</strong> conflates the decision lifecycle («Accepted») with the implementation lifecycle («has the code shipped yet?»). We routinely have ADRs that are decision-Accepted but implementation-in-progress — the five-state model has no place to show that. The 8-state expansion (Decision · Documentation · Implementation phases) lets the renderer show exactly where a decision is along its arc.</p>
+            </div>
+          </article>
+        </div>
+        <p><strong>Trade we accept by choosing <code>data-adr-weight</code> + 8-state model.</strong> Every author updates one HTML attribute when the milestone changes. We accept it because each rejected alternative either decouples renderer from artefact (free-text), introduces a second system to drift against (external tracker), or fails to separate decision-vs-implementation (Nygard five-state).</p>
+      </section>
+
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>Yes — the model has held up across 30 ADRs.</strong> One refinement we would commit to on day one:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Wire <code>data-adr-weight</code> drift into the CI gate.</strong> Today the weight is honour-system; an ADR can claim «Implementation: Done» while its referenced runbook is missing. A small CI check that follows the cross-links and flags «claims Done but the artefact does not exist» would close the «aspirational status» loophole. We retrofit this; would have been free at day one.</li>
+        </ul>
+      </section>
+
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass. Status pill self-references via the new <code>.lifecycle-popover</code> (popover-Link targets in-page §Decision instead of opening another tab); <code>§ Trade-offs</code> restructured into canonical entries; new <code>§ Alternatives considered</code> with three real options (free-text status · external tracker · Nygard five-state); new <code>§ Would we do this again?</code> proposing CI gate for weight-drift detection. Inline <code>style</code> stripped.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

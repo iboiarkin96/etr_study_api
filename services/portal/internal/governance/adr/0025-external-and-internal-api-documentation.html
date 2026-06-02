@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0025</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0025</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>External and internal API documentation</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           OpenAPI is the sole normative HTTP contract for external integrators; <code>services/portal/internal/</code> is the engineering narrative for behavior and rationale.
         </p>
       </header>
@@ -119,22 +153,31 @@
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <div class="docs-card-grid">
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Single prose manual for everything</h3></div>
+        <p>Three alternatives evaluated before adopting the OpenAPI-external + <code>internal/</code>-narrative split. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Single prose manual that covers everything</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Pros:</strong> one place to open.</p>
-              <p><strong>Cons:</strong> duplicates OpenAPI; drifts from CI-checked contract; poor for machine clients.</p>
+              <p><strong>Why considered:</strong> one place to open, no audience confusion, classic «developer guide» pattern.</p>
+              <p><strong>Why rejected:</strong> duplicates OpenAPI for the contract surface — and the duplicate drifts. Within a year the prose manual would describe a different shape than what the spec test enforces, and integrators would split into «which one do I trust?» factions. OpenAPI's CI-checked guarantee is the load-bearing property; any artefact that competes with it forfeits its own correctness.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">OpenAPI-only, no internal tree</h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">OpenAPI-only, no <code>internal/</code> narrative tree</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Pros:</strong> minimal files.</p>
-              <p><strong>Cons:</strong> business rules and rationale scatter across code review and chat; disputes default to reading code.</p>
+              <p><strong>Why considered:</strong> minimal files, one source of truth, no audience split to maintain.</p>
+              <p><strong>Why rejected:</strong> OpenAPI cannot carry «why this 422 instead of 409», «what business invariant this enforces», or «why the read-after-write is eventually consistent here». Forcing those into the spec either bloats it (and breaks the «integrator-skimmable» promise) or pushes the team to keep the knowledge in chat — where it dies on rotation.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">External developer portal product (e.g. Backstage, Mintlify, Redocly)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> nicer UX, multi-language SDK tabs, hosted analytics, organisation-wide discovery.</p>
+              <p><strong>Why rejected:</strong> not justified at our scale (single internal integrator). The hosted portal would be empty 80% of the time and adds infrastructure the team would have to operate. We adopt the «one in-repo internal portal + raw OpenAPI for external» pattern; revisit the day there is a partner programme to discover.</p>
             </div>
           </article>
         </div>
+        <p><strong>Trade we accept by choosing OpenAPI-external + <code>internal/</code>-narrative.</strong> Two surfaces to maintain — but for two different audiences, with no overlap in authority. We accept it because each rejected alternative either lets prose drift from the contract test (single manual), starves the engineering audience of «why» (OpenAPI-only), or pre-commits to infrastructure we have not built (external portal).</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -152,17 +195,32 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Two maintained surfaces (OpenAPI + internal HTML) require discipline; internal pages must link to operations and PRs when they change behavior.</li>
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Two surfaces (OpenAPI + <code>internal/</code>).</strong> We gain audience-fit: integrators read what they need, engineers read what they need, neither sees the other's noise. We lose the «one URL to send» convenience and accept that authors must keep the internal pages in sync when behaviour changes. We accept it because the alternative — one shared surface — produces both audiences seeing each other's noise; clarity for both is the bigger win.</li>
+                <li><strong>OpenAPI is the contract; <code>internal/</code> is rationale.</strong> We gain a uniform answer to «who wins on conflict?» — OpenAPI does. We lose the option of contradicting it on purpose (e.g. «the real behaviour is different, OpenAPI is a stub»). We accept it because the contract-test pipeline (<a href="0007-openapi-governance-and-usability-standard.html">ADR 0007</a>) enforces OpenAPI matches reality; any «stub OpenAPI» pattern fights that gate, which is the wrong fight.</li>
               </ul>
             </div>
           </article>
         </div>
       </section>
 
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>Yes.</strong> One refinement we would commit to on day one if starting today:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Add a cross-link convention in every internal spec back to the OpenAPI operation.</strong> Today many internal pages reference behaviour without naming the operation; a small <code>data-openapi-operation-id="postUser"</code> attribute on every spec page would let a CI step verify the cross-reference is current. The internal-and-OpenAPI alignment would become machine-checkable instead of human-reviewed.</li>
+        </ul>
+      </section>
+
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten to «Why considered / Why rejected» template with a third real option (external developer portal); <code>§ Trade-offs</code> restructured into canonical entries; new <code>§ Would we do this again?</code> proposing <code>data-openapi-operation-id</code> cross-reference attribute. Inline <code>style</code> stripped.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

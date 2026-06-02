@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0027</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0027</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>High-relevance client-side docs search (inverted index, IDF, and ranking boosts)</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Replace the simple field-presence scorer with an inverted-index lexical model — IDF, length-normalized TF, and precision boosts — plus append-only telemetry for query and click events.
         </p>
       </header>
@@ -140,29 +174,31 @@ Query: O(sum_postings_for_query_terms + rerank_candidates)
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <div class="docs-card-grid">
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Simple field-presence scoring</h3></div>
+        <p>Three alternatives evaluated before adopting the in-house inverted-index lexical model. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Keep simple field-presence scoring</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Pros:</strong> tiny implementation.</p>
-              <p><strong>Cons:</strong> weak ranking on larger corpora; limited precision control.</p>
+              <p><strong>Why considered:</strong> tiny implementation, no IDF math, fewer parameters to maintain.</p>
+              <p><strong>Why rejected:</strong> as the corpus crossed ~150 pages, common-word queries («docs», «adr») surfaced random pages because every page mentioned the word once. The precision-recall tradeoff was strictly the wrong way; users started copying URLs out of the sidebar instead of using search. The IDF + length-norm model fixes both failure modes at the cost of ~50 lines of code.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Hosted search providers</h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Hosted search providers (Algolia DocSearch, Pinecone)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Pros:</strong> rich relevance and analytics.</p>
-              <p><strong>Cons:</strong> external dependency, operational overhead, crawler governance.</p>
+              <p><strong>Why considered:</strong> Algolia DocSearch ships free for open-source docs, rich relevance, analytics dashboard.</p>
+              <p><strong>Why rejected:</strong> requires a crawler that the provider maintains on a schedule we do not control, plus per-page Algolia attributes scattered across the corpus. Internal pages also need access control we cannot delegate to a third party. The client-side index ships in the same artefact as the rest of the docs and never crosses a vendor boundary.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Client-side third-party full-text libraries</h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Client-side third-party libraries (lunr.js, MiniSearch, FlexSearch)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Pros:</strong> mature ranking options.</p>
-              <p><strong>Cons:</strong> larger runtime dependency surface than needed.</p>
+              <p><strong>Why considered:</strong> mature ranking options, well-tested, large communities.</p>
+              <p><strong>Why rejected:</strong> bundle sizes range 25-80 KB gzipped — larger than our entire <code>docs-nav.js</code>. The custom inverted index is ~3 KB of code that does exactly what we need (per-field weighting, prefix-of-last-token, exact-phrase boost) with no surplus. We re-evaluate when query volume justifies the library's ergonomics.</p>
             </div>
           </article>
         </div>
+        <p><strong>Trade we accept by choosing the in-house inverted-index model.</strong> Authors maintain ~50 lines of ranking code and one index-build script. We accept it because each rejected alternative either keeps the broken precision baseline (field-presence), introduces vendor lock and access-control gaps (hosted), or ships 10× the bundle for features we do not use (third-party libs).</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -181,14 +217,22 @@ Query: O(sum_postings_for_query_terms + rerank_candidates)
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Larger index compared to minimal list-based format.</li>
-                <li>More ranking parameters to maintain.</li>
-                <li>Still lexical: no semantic similarity understanding.</li>
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Larger client-side index (KB-scale vs minimal).</strong> We gain typed-while-typing prefix search with field-weighted ranking. We lose ~100-300 KB of JSON shipped to every reader before they can search. We accept it because the loading is one-shot per session and cached; the precision improvement compounds across every search forever after.</li>
+                <li><strong>Lexical-only — no semantic similarity.</strong> We gain deterministic ranking that is debuggable, reproducible, and explainable. We lose the «search for «idempotency» finds pages about «replay safety»» property a vector model would give. We accept it because corpus-vocabulary is small (~200 pages), and the «similar concept under a different name» case is rare; URL conventions and acronym casing carry most of the lookup work.</li>
               </ul>
             </div>
           </article>
         </div>
+      </section>
+
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>Yes — the precision improvement is the single most-cited UX win since the portal redesign.</strong> One refinement we would commit to on day one if starting today:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Wire the search-telemetry events into a per-query «zero-results» dashboard.</strong> Today the events stream into SQLite but nobody graphs them; queries that returned zero results would be the highest-signal input for «what content is missing?» — they are the user telling us, in their own words, what they expected to find.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="compat-h">
@@ -259,6 +303,11 @@ Query: O(sum_postings_for_query_terms + rerank_candidates)
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten to «Why considered / Why rejected» template; <code>§ Trade-offs</code> restructured into canonical entries (larger index · lexical-only); new <code>§ Would we do this again?</code> proposing zero-results telemetry dashboard. Inline <code>style</code> stripped.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

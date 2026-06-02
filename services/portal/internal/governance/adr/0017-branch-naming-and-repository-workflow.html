@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0017</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0017</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Branch Naming and Repository Workflow</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Use trunk-based <code>main</code> with prefixed branches, semver tags, and a documented
           hotfix path so dashboards and release tooling stay scannable without GitFlow ceremony.
         </p>
@@ -140,26 +174,31 @@
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <div class="docs-card-grid">
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Free-form branch names only</h3></div>
+        <p>Three alternatives evaluated before adopting trunk-based + prefixed branches. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Free-form branch names</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Pros: zero rules.</li>
-                <li>Cons: hard to scan history and to automate changelog or CI by prefix.</li>
-              </ul>
+              <p><strong>Why considered:</strong> zero rules, zero enforcement, every contributor names their branch however.</p>
+              <p><strong>Why rejected:</strong> the changelog path-filter gate (<a href="0013-changelog-and-release-notes.html">ADR 0013</a>) and future automation (per-prefix CI fan-out, auto-labelling of PRs) all depend on being able to read branch metadata. Free-form names forfeit that lever permanently. The cost of prefixing is paid once per branch creation; the cost of free-form is paid every time someone tries to filter PR lists.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">GitFlow with long-lived <code>develop</code></h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">GitFlow with long-lived <code>develop</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Pros: strict staging.</li>
-                <li>Cons: extra overhead for a small service repo; <code>main</code>-as-trunk is enough with strong CI.</li>
-              </ul>
+              <p><strong>Why considered:</strong> Vincent Driessen's classic — <code>develop</code> integrates, <code>main</code> tracks releases, dedicated <code>release/*</code> branches stabilise. Standard for products with parallel release trains.</p>
+              <p><strong>Why rejected:</strong> GitFlow's mental overhead (5 branch types, explicit merge directions) is calibrated for teams shipping multiple release trains in parallel. We ship one trunk; the «which branch to merge into» question is trivial. GitFlow would add ceremony without the matching benefit.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trunk-based without any branches (push to <code>main</code> directly)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> some high-velocity teams (e.g. Google's monorepo) commit straight to trunk behind feature flags. Maximum simplicity.</p>
+              <p><strong>Why rejected:</strong> we have no feature-flag infrastructure (backlog <code>BL-013</code>/<code>BL-038</code>) to hide work-in-progress behind. Without flags, direct-to-trunk means every commit must be releasable independently — a constraint our docs-and-spec-heavy PRs cannot meet today. The PR-into-main pattern is the smallest mechanism that gives us reviewable units without forcing every commit to be production-ready.</p>
             </div>
           </article>
         </div>
+        <p><strong>Trade we accept by choosing trunk-based + prefixed branches.</strong> Contributors learn five prefixes (<code>feature/</code>, <code>fix/</code>, <code>services/portal/</code>, <code>chore/</code>, <code>refactor/</code>). We accept it because each rejected alternative either forfeits branch-name automation (free-form), adds ceremony without matching velocity gain (GitFlow), or assumes infrastructure we have not built (direct-to-trunk).</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -177,17 +216,32 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Existing branches keep their names until closed; rename is optional when touching an old branch.</li>
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Prefix-naming is policy, not enforcement.</strong> We gain a low-friction convention contributors learn in a day. We lose the «branch with no prefix lands on main» refusal that a server-side hook would give. We accept it because the failure mode of a wrong prefix is «reviewer asks for a rename», which is reversible; the failure mode of a hook is «contributor stuck at push» which corrodes the contributor's confidence in the tooling.</li>
+                <li><strong>Single integration branch (no <code>develop</code>).</strong> We gain the trunk-based simplicity «one branch tells you what is in production». We lose the GitFlow staging buffer where a half-baked feature can sit on <code>develop</code> without leaking to <code>main</code>. We accept it because the buffer's benefit only materialises when there are parallel release trains; with one trunk it is staging-for-its-own-sake.</li>
               </ul>
             </div>
           </article>
         </div>
       </section>
 
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>Yes.</strong> One refinement we would add on day one:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Add a GitHub Actions check that fails the PR if the source branch does not match a prefix from the table.</strong> Today the prefix policy is honour-system; a small <code>actions/github-script</code> check would catch the «I forgot to prefix» case at PR open time and rename automation would be one click away.</li>
+        </ul>
+      </section>
+
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten with a third real option (direct-to-trunk); <code>§ Trade-offs</code> restructured into canonical entries (prefix-as-policy · single-trunk); new <code>§ Would we do this again?</code> proposing PR-open prefix check. Inline <code>style</code> stripped.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

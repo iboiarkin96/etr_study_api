@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0019</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0019</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Python Dependency Security, pip-audit, and Pinning Policy</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Pin exact versions in <code>requirements.txt</code>, scan with <code>pip-audit</code> in Make and CI,
           and use a documented exception process so dependency regressions cannot merge silently.
         </p>
@@ -111,26 +145,31 @@
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <div class="docs-card-grid">
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Safety / other scanners only</h3></div>
+        <p>Three alternatives evaluated before adopting <code>pip-audit</code> + pinned <code>requirements.txt</code>. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title"><code>safety</code> (or other proprietary scanner) instead of <code>pip-audit</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Pros: historical familiarity in some teams.</li>
-                <li>Cons: pip-audit aligns with PyPA and OSV; fewer surprises for Python-centric workflows.</li>
-              </ul>
+              <p><strong>Why considered:</strong> <code>safety</code> (PyUp) has historical adoption and a richer commercial vuln-DB tier.</p>
+              <p><strong>Why rejected:</strong> <code>pip-audit</code> is the PyPA-maintained tool backed by OSV (Google's open vulnerability database), which has the broadest free-tier coverage. Picking a proprietary scanner couples our supply-chain policy to a vendor's roadmap. <code>pip-audit</code> is the smallest mechanism that gives us a Python-native check with no commercial dependency.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Poetry or <code>uv</code> lockfiles without migrating the repo</h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Poetry / <code>uv</code> lockfile instead of <code>requirements.txt</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Pros: richer dependency resolution metadata.</li>
-                <li>Cons: would duplicate or replace the current <code>requirements.txt</code>-centric Makefile and CI; defer until a dedicated migration ADR.</li>
-              </ul>
+              <p><strong>Why considered:</strong> richer dep-resolution metadata (separate dev / runtime groups, hash-pinning, transitive lock). <code>uv</code> is rapidly becoming the de-facto modern alternative.</p>
+              <p><strong>Why rejected:</strong> the current Makefile + CI + Docker pipeline is <code>requirements.txt</code>-centric. Migrating mid-stream means rewriting <code>make install</code>, the Dockerfile, and the CI install step. <code>requirements.txt</code> + <code>pip freeze</code> exact-pin gives 90% of the lockfile benefit (reproducibility) without the migration cost. Revisit when a dedicated migration ADR lands.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Dependabot / Renovate auto-PRs on every CVE</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> hands-off — bot opens a PR every time a vulnerable transitive lands, contributor just approves.</p>
+              <p><strong>Why rejected:</strong> Dependabot churns PRs faster than a solo maintainer can review. The PR queue becomes the failure mode. <code>pip-audit</code> in CI fails the current PR on the day a vuln lands; the contributor fixes it as part of the PR they were already opening. Same net coverage, no separate inbox to drain.</p>
             </div>
           </article>
         </div>
+        <p><strong>Trade we accept by choosing <code>pip-audit</code> + pinned <code>requirements.txt</code> + exception process.</strong> Manual upgrades, documented exceptions. We accept it because each rejected alternative either ties us to a vendor (<code>safety</code>), requires migration we have not justified (Poetry/<code>uv</code>), or produces queue-overflow we cannot service (Dependabot).</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -148,13 +187,22 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Exact pins require deliberate upgrades; dependabot-style automation may still be added later.</li>
-                <li>pip-audit depends on advisory completeness; false negatives are possible for unreported issues.</li>
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Exact-pin <code>requirements.txt</code>, no automated bumps.</strong> We gain reproducibility — every install across dev / CI / Docker resolves the same graph. We lose dependency churn: nobody bumps a transitive in the background, so deliberate upgrades are the only way to move forward. We accept it because <code>pip-audit</code> in CI surfaces the «time to bump» signal when it matters; «no surprise transitive» is the property that prevents «works locally, breaks in CI» class incidents.</li>
+                <li><strong>Advisory-database coverage gap.</strong> We gain a scan that uses the most current OSV / PyPA data. We lose detection of unreported issues (zero-days, advisories that have not landed in OSV yet). We accept it because no scanner closes this gap; the alternative is no scanner at all, which is strictly worse. Severity-tier response policy mitigates the residual risk.</li>
               </ul>
             </div>
           </article>
         </div>
+      </section>
+
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>Yes.</strong> One refinement we would add on day one:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Add a weekly scheduled <code>pip-audit</code> run that opens a GitHub Issue when new CVEs land, even without a PR.</strong> Today <code>pip-audit</code> runs only on PRs; a vuln disclosed on Tuesday is silent until the next PR Friday. A 5-minute scheduled job + auto-issue closes the «no PR, no signal» gap.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="compat-h">
@@ -188,6 +236,11 @@
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten with a third real option (Dependabot / Renovate); <code>§ Trade-offs</code> restructured into canonical entries (exact-pin · advisory coverage gap); new <code>§ Would we do this again?</code> proposing weekly scheduled scans. Inline <code>style</code> stripped.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

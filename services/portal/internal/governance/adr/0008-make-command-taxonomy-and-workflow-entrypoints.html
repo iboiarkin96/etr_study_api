@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0008</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0008</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Make Command Taxonomy and Workflow Entrypoints</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Two-level Make targets: atomic commands as source-of-truth building blocks, plus memorable scenario entrypoints (fix → verify → release).
         </p>
       </header>
@@ -132,32 +166,76 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Existing local habits may require migration to new canonical command names.</li>
-                <li>Help text must stay curated when targets evolve.</li>
-              </ul>
-            </div>
-          </article>
-        </div>
-      </section>
+              <p>Two named tradeoffs accepted on purpose. Shape from
+                <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+                <ul class="rail-list" data-tone="rose">
+                  <li><strong>Two-level structure (atomic + scenario).</strong> We gain readable <code>make help</code> output where the workflows a newcomer needs (<code>make verify</code>, <code>make release</code>) sit at the top, and the building blocks they may want to compose sit underneath. We lose the freedom of a flat list — every new atomic target needs to be filed under the right category in the help text, and a new scenario needs an explicit composite recipe. We accept it because flat 80-target output is the failure mode this ADR was built to prevent; help-text upkeep is a 30-second cost per new target.</li>
+                  <li><strong>Make's tab-sensitive syntax stays as the load-bearing build system.</strong> We gain a build system installed on every dev machine and CI runner since 1977 — no version pinning, no toolchain install. We lose the slightly cleaner syntax of <code>just</code> / <code>task</code> and accept that contributors will occasionally trip on tab-vs-space (the canonical Make footgun). We accept it because the syntax-tax is paid once per contributor when they read a target; the install-tax of a modern alternative would be paid by every new contributor and every CI runner forever.</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </section>
 
-      <footer class="docs-history" aria-label="History">
-        <h2 class="docs-history__title">History</h2>
-        <ul class="docs-history__list">
-          <li class="docs-history__row">
-            <span class="docs-history__date">2026-05-17</span>
-            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-            <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
-          </li>
-        </ul>
-      </footer>
+        <section aria-labelledby="alternatives-h">
+          <h2 id="alternatives-h">Alternatives considered</h2>
+          <p>Three alternatives were evaluated before adopting the two-level taxonomy. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints. This ADR is cited as the canonical exemplar in <a href="../../foundations/reference/sa/tradeoff-disclosure.html#exemplars">Tradeoff disclosure § 07</a>.</p>
+          <div class="docs-card-grid docs-card-grid--stack">
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">Keep ad-hoc <code>scripts/*.sh</code> wrappers (what we had)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> the original setup. Each developer maintained their own shortcuts in <code>scripts/</code>; new contributors copied whatever they found.</p>
+                <p><strong>Why rejected:</strong> drift was the #1 onboarding complaint. PRs kept adding redundant scripts that did almost-the-same thing under different names (<code>scripts/test.sh</code> vs <code>scripts/run-tests.sh</code> vs <code>scripts/check.sh</code>), and CI ran a fourth variation. The day a new joiner could not find the canonical «how do I run what CI runs?» answer was the day to fix this.</p>
+              </div>
+            </article>
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">Switch to <code>just</code> / <code>task</code> / <code>nox</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> modern Make-alternatives with cleaner syntax, named arguments, and proper variables. <code>just</code> (Casey Rodarmor) is the most popular successor; <code>task</code> is the Go-ecosystem version. Both are explicitly designed to be «Make but nicer».</p>
+                <p><strong>Why rejected:</strong> Make is already installed on every dev machine and CI runner without configuration. Adding a tool-install gate for «slightly nicer syntax» would burn onboarding budget we'd rather spend on docs-check, type-check, and contract-test. The footgun (tab-vs-space) is paid once per contributor when they read a target; the install-tax of <code>just</code> would be paid by every new contributor and every CI runner forever.</p>
+              </div>
+            </article>
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">Single monolithic <code>Makefile</code> with no taxonomy</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> the default «just dump every target in» pattern that most Makefiles end up with. Cheapest authoring cost.</p>
+                <p><strong>Why rejected:</strong> <code>make help</code> returned 80+ lines with no grouping; new joiners could not predict the target name for a workflow they'd never run. The lookup cost on <code>make help</code> is the load-bearing newcomer interaction in this project — pessimising it would have undone the value of having a help target at all.</p>
+              </div>
+            </article>
+          </div>
+          <p><strong>Trade we accept by choosing the two-level taxonomy.</strong> Every new atomic target costs ~30 s of help-text curation, and a new scenario target costs the composite recipe + a help entry. We accept it because the lookup cost on <code>make help</code> is the load-bearing newcomer interaction and it pays back within the first day; the rejected alternatives either invite the drift this ADR exists to prevent (ad-hoc scripts), add an install-tax we cannot justify (modern alternatives), or pessimise the very interaction we are optimising (flat list).</p>
+        </section>
 
-    </article>
-  </main>
+        <section aria-labelledby="revisit-h">
+          <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+          <p><strong>Yes, with one curation aid we did not build.</strong> The <code>make verify</code> / <code>make fix</code> / <code>make release</code> trio has become the canonical onboarding answer to «how do I run X?» and the two-level structure has held without drift across ~30 atomic targets. One thing we would add on day one if starting today:</p>
+          <ul class="rail-list" data-tone="info">
+            <li><strong>Make help text generated from per-target docstring comments (<code>## …</code>), not hand-curated.</strong> Today the help text is a separate <code>help</code> target that grep-formats the file; a contributor who adds a new target without updating the help block can land it silently. The community-standard <code>## description</code> pattern (parsed by a 5-line awk recipe) keeps the help in the same place as the target, so they cannot drift. The curation rule in <code>§ Implementation rules</code> would then be «add the <code>##</code> line» instead of «update <code>make help</code> manually».</li>
+          </ul>
+        </section>
 
-  <aside class="docs-toc" aria-label="On this page"></aside>
-  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+        <footer class="docs-history" aria-label="History">
+          <h2 class="docs-history__title">History</h2>
+          <ul class="docs-history__list">
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-06-01</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Substance audit-pass. This ADR is the canonical exemplar cited in <code>tradeoff-disclosure.html § 07</code>; the audit aligned the in-file content to the exemplar shape. Result before: 2/5 (no <code>§ Alternatives considered</code>; <code>§ Consequences &gt; Trade-offs</code> was 2 unstructured bullets). Patch: status pill upgraded to <code>.lifecycle-popover</code>; new <code>§ Alternatives considered</code> with three real industry alternatives rejected with rooted reasons (ad-hoc <code>scripts/*.sh</code> · <code>just</code>/<code>task</code>/<code>nox</code> · monolithic Makefile); closing accept-clause; <code>§ Consequences &gt; Trade-offs</code> restructured into two canonical entries on <code>rail-list</code>; new <code>§ Would we do this again?</code> proposing <code>## docstring</code> help-target generation. Inline <code>style</code> stripped.</span>
+            </li>
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-05-17</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
+            </li>
+          </ul>
+        </footer>
 
-  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+      </article>
+    </main>
 
-</body></html>
+    <aside class="docs-toc" aria-label="On this page"></aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>
