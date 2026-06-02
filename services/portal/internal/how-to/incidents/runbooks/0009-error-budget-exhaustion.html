@@ -78,17 +78,42 @@
         <li>Observability baseline: <a href="../../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009</a></li>
       </ul>
 
+      <h2 id="escalation">Escalation</h2>
+      <p>Error-budget exhaustion is inherently SEV-2 or higher — SLOs are violated by the time this runbook fires. If <strong>15 minutes</strong> of response hasn't bent the burn-rate curve, or the failure mode looks like a release rather than a one-off spike:</p>
+      <ol>
+        <li>Capture state — Grafana dashboard screenshot, the firing alert list (<code>http://127.0.0.1:9090/alerts</code>), the recent release/config-change timeline (correlate burn start with deploy timestamps), and the response steps tried.</li>
+        <li>Open a <strong>SEV-2</strong> incident in the team backlog (not SEV-3 — error-budget exhaustion has external customer impact by definition) and link this runbook from it. If a published SLA is at risk of breach in the current window, escalate to SEV-1 and trigger customer comms per the SLA contract.</li>
+        <li>Page on-call (or, for solo work, the project incident commander) with the captured state and the last known-good release tag. Do <strong>not</strong> wait for response steps to fully complete before paging — SLO breaches have a separate, faster acknowledgement SLA than regular incidents.</li>
+        <li>If a rollback to the last known-good release tag is single-step (Docker tag swap, env var revert, traffic shift), execute it before debugging further; the burn-rate clock dominates the cost.</li>
+        <li>Every SEV-2+ error-budget incident queues a postmortem (<a href="../postmortems/index.html">how to write one</a>) — non-optional, regardless of duration.</li>
+      </ol>
+
       <h2 id="exit">Exit criteria</h2>
       <ul>
         <li>Firing alerts are resolved or acknowledged with a documented exception.</li>
         <li>5xx rate and latency panels are back within SLO targets on the Grafana dashboard.</li>
         <li>Error budget burn is going down, or the team agreed a new window rule in writing.</li>
       </ul>
+
+      <aside id="related" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li>Explanation · <a href="../../../explanation/sre/slos.html">SLOs</a> — what budget exhaustion actually means and why the response window matters.</li>
+          <li>Reference · <a href="../../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011 — SLOs, SLAs, error budget</a> — the policy this runbook restores.</li>
+          <li>Reference · <a href="../../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009 — Health, readiness &amp; observability</a> — the metric pipeline error-budget calculations depend on.</li>
+          <li>How-to · <a href="0008-observability-scrape-failing.html">Runbook 0008 — Observability scrape failing</a> — sibling runbook for the upstream metrics failure that masks budget exhaustion.</li>
+        </ul>
+      </aside>
     </article>
 
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-29</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis audit § 4 row 16. Added Escalation block tightened for the SLO-side family — 15-min timeout (not 30), SEV-2 default (not SEV-3) because SLO breaches have external customer impact by definition, SEV-1 jump on imminent SLA breach with customer-comms trigger, page-before-response-completes rule, single-step rollback bias because the burn-rate clock dominates cost, mandatory postmortem regardless of duration. Added Related gradient card hinging the SLOs Explanation (the why of budget exhaustion), ADRs 0011 / 0009 (the SLO/SLA policy + the metric pipeline it depends on), and sibling runbook 0008 (upstream metrics failure that masks budget exhaustion). The original «Useful links» section kept as a runtime-debug surface (Grafana / Prometheus URLs) — that's operational helper data, not the Diátaxis Related-quadrant hinge.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-05-16</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
@@ -106,7 +131,9 @@
       <li class="docs-toc__item"><a class="docs-toc__link" href="#triage">Fast triage</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#response">Response</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#links">Useful links</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#escalation">Escalation</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#exit">Exit criteria</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>

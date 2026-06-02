@@ -101,14 +101,33 @@ observability/http500.py
       <h2 id="observability">Observability</h2>
       <p>Start the stack before or alongside the API (<code>docker compose -f docker-compose.observability.yml up -d</code>). After the traffic run, open Grafana (port from <code>.env</code>, default 3001) and the Study App Observability dashboard; in Prometheus, <code>/alerts</code> when SLO rules are configured.</p>
 
-      <h2 id="issues">Common issues</h2>
+      <h2 id="verify">Verify</h2>
       <ul>
-        <li><strong>Connection refused:</strong> the API is not running or the <code>base_url</code> is wrong.</li>
-        <li><strong>Script errors on "#":</strong> a comment was passed as an argument. Run the command again without a trailing <code># ...</code>.</li>
-        <li><strong>Expected 200, got 404</strong> on the user GET: fix <code>ROTATE_SYSTEM_USER_IDS</code> in <code>user/get.py</code>.</li>
-        <li><strong>429 Too Many Requests:</strong> lower the intensity through <code>--delay-ms</code>, or raise the dev rate limit.</li>
+        <li>Generator run completes without uncaught exception; the runner's summary line shows the total request count and the per-scenario breakdown.</li>
+        <li>Prometheus shows scrape target <code>UP</code> for the API for the entire run window; no gap in the latency / RPS / 5xx panels on Grafana.</li>
+        <li>Latency and 5xx panels stayed within SLO targets (or the breach was the explicit point of the test, with the breach window recorded).</li>
+        <li>If <code>simulate_500</code> scenario was enabled: <code>LOADTEST_HTTP_500=true</code> on the API side AND the generator drove non-zero traffic to <code>/__loadtest/http500</code>; observed 5xx rate matches the configured ratio.</li>
+        <li>No rate-limit-induced <code>429</code> mixed in with the expected error classes (would skew the run); if so, increase <code>API_RATE_LIMIT_REQUESTS_LOADTEST</code> or lower <code>--delay-ms</code>.</li>
+        <li>Report or session note attached to the team backlog with traffic shape, observed SLIs, and any defects opened.</li>
       </ul>
 
+      <h2 id="troubleshoot">Troubleshooting</h2>
+      <ul class="rail-list" data-tone="rose">
+        <li><strong>Connection refused.</strong> The API isn't running or the <code>base_url</code> is wrong. Start the API with <code>make run-loadtest-api</code> (which sets the high-limit env vars) and double-check the generator's <code>base_url</code>.</li>
+        <li><strong>Script errors on «#».</strong> A comment was passed as an argument. Re-run without a trailing <code># …</code>; the runner doesn't strip shell comments.</li>
+        <li><strong>Expected 200, got 404 on the user GET.</strong> Fix <code>ROTATE_SYSTEM_USER_IDS</code> in <code>user/get.py</code> — the generator is asking for ids that don't exist in the seeded set.</li>
+        <li><strong>429 Too Many Requests.</strong> Lower the intensity through <code>--delay-ms</code>, or raise the dev rate limit (<code>API_RATE_LIMIT_REQUESTS_LOADTEST</code>) and restart the API.</li>
+      </ul>
+
+      <aside id="related" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li>Tutorial · <a href="../../../tutorials/sre/your-first-capacity-drill.html">Your first capacity drill</a> — first-time walkthrough on this load-testing surface.</li>
+          <li>Reference · <a href="../../../governance/adr/0012-testing-strategy-and-load-testing.html">ADR 0012 — Testing strategy &amp; load testing</a> — the policy this how-to runs against.</li>
+          <li>Explanation · <a href="../../../explanation/sre/slos.html">SLOs</a> — what the load-test results actually inform.</li>
+          <li>How-to · <a href="../../../how-to/incidents/runbooks/0009-error-budget-exhaustion.html">Runbook 0009 — Error-budget exhaustion</a> — what fires if a load test exposes a real burn.</li>
+        </ul>
+      </aside>
     </article>
 
     <footer class="docs-history" aria-label="History">
@@ -139,7 +158,9 @@ observability/http500.py
       <li class="docs-toc__item"><a class="docs-toc__link" href="#commands">Commands</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#layout">Layout</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#observability">Observability</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#issues">Common issues</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshoot">Troubleshooting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>

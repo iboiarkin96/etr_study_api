@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0016</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0016</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Python Docstrings (Google Style) and pdoc</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Standardise on Google-style docstrings in <code>app/</code>, <code>scripts/</code>,
           <code>tests/</code>, and <code>tools/</code> so reviewers, pdoc, and assistants follow the same checklist.
         </p>
@@ -130,26 +164,31 @@ field: Meaning of this attribute.
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <div class="docs-card-grid">
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">NumPy-style docstrings</h3></div>
+        <p>Three alternatives evaluated before adopting Google-style + pdoc. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">NumPy-style docstrings</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Pros: common in data science stacks.</li>
-                <li>Cons: heavier visually; Google style already used in this repo (e.g. <code>scripts/sync_docs.py</code>).</li>
-              </ul>
+              <p><strong>Why considered:</strong> dominant in scientific Python stacks; rich underline-style sections.</p>
+              <p><strong>Why rejected:</strong> visually heavier (every parameter section gets its own underline + indent), and the repo already had Google-style scattered in <code>scripts/sync_docs.py</code> when this ADR landed. Picking NumPy would have forced a one-shot rewrite of every existing docstring; picking Google made the existing files conformant for free.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Sphinx-only (no pdoc)</h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Sphinx (reStructuredText) + autodoc</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Pros: maximum features.</li>
-                <li>Cons: more setup; pdoc matches the desired "cargo doc" workflow with minimal config.</li>
-              </ul>
+              <p><strong>Why considered:</strong> maximum features — cross-references, custom directives, the Read-the-Docs ecosystem, used by most large Python projects.</p>
+              <p><strong>Why rejected:</strong> Sphinx is the heaviest tool in Python docs land. <code>conf.py</code>, intersphinx mapping, theme customisation, RST syntax all add setup cost. pdoc gives a «cargo doc»-style zero-config experience that matches our «keep the toolchain small» bet — see <a href="0001-docs-as-code.html">ADR 0001</a>'s «no extra non-Python dependencies» reasoning.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">No docstrings — type hints + module-level comments only</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> «the code is the docs» — type hints carry the shape, comments carry the intent, no separate docstring discipline.</p>
+              <p><strong>Why rejected:</strong> type hints describe shape but not intent — they cannot say «raises HTTPException on cross-tenant access» or «idempotency replay returns the stored response, not a fresh one». pdoc has no signal to render without docstrings. The «no docstrings» world is the world where every new reader has to read the implementation; we already pay the docstring tax once per function and the savings compound across every reader.</p>
             </div>
           </article>
         </div>
+        <p><strong>Trade we accept by choosing Google-style + pdoc.</strong> Every public function pays the docstring-authoring tax and contributors must learn the Google section names. We accept it because each rejected alternative either rewrites the world (NumPy), brings a heavier toolchain than our «keep it small» bet allows (Sphinx), or sacrifices intent for shape (no docstrings).</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -167,17 +206,32 @@ field: Meaning of this attribute.
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Existing files may still carry older phrasing until touched; opportunistic updates are welcome.</li>
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Opportunistic (not retroactive) migration.</strong> We gain a zero-cost adoption — files keep working unchanged until touched. We lose temporary inconsistency: a reader of the codebase sees a mix of old phrasing and Google-style for a few months. We accept it because forcing a one-shot rewrite would mean a single PR that touches every Python file (a merge-conflict magnet); opportunistic updates land naturally.</li>
+                <li><strong>English-only docstrings (no Russian or other local-language tags).</strong> We gain alignment with code identifiers, API error keys, and the rest of the public surface — everything is in one language. We lose the «more accessible to native speakers» property a multilingual policy would carry. We accept it because the codebase has one writing voice and that voice is English; bilingual docstrings would compound the maintenance surface without a matching audience.</li>
               </ul>
             </div>
           </article>
         </div>
       </section>
 
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>Yes.</strong> One refinement we would add on day one:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Wire a docstring-coverage gate (<code>interrogate</code>) into <code>make verify</code>.</strong> Today docstring presence relies on review discipline; <code>interrogate</code> would surface gaps quantitatively (e.g. «<code>app/services/conspectus.py</code> at 60% — needs 4 more functions documented»). Cheap to add, hard to skip.</li>
+        </ul>
+      </section>
+
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten with a third real option (no docstrings); <code>§ Trade-offs</code> restructured into canonical entries (opportunistic migration · English-only); new <code>§ Would we do this again?</code> proposing <code>interrogate</code> coverage gate. Inline <code>style</code> stripped.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

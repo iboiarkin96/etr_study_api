@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0028</span> <span class="docs-pill docs-pill--warn">Proposed</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0028</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--warn" href="0018-adr-lifecycle-ratification-and-badges.html">Proposed</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li class="is-current">Proposed</li>
+                    <li>Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Monorepo with service boundaries</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           One repository, three service trees under <code>services/{api,portal,monitoring}</code> — independent deploy units (per-service Dockerfile, per-service CI job) without the multi-repo coordination tax.
         </p>
       </header>
@@ -146,15 +180,23 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li><strong>Repository root grows another layer.</strong> Day-one navigation in IDEs is slightly deeper: <code>services/api/app/main.py</code> instead of <code>app/main.py</code>. Path-based imports and tooling configurations (Ruff, pytest, pip-audit, the link checker) need updates.</li>
-                <li><strong>One CI run can still take longer than three independent runs in different repos.</strong> Mitigation: CI matrix runs services in parallel; the link checker stays sub-second per <a href="0001-docs-as-code.html">ADR 0001</a>.</li>
-                <li><strong>Per-service permissions are coarse.</strong> Anyone with write to the repo can edit any service. For a solo project this is fine; teams adopting this pattern would need <code>CODEOWNERS</code>.</li>
-                <li><strong>Not a real-microservices answer for everything.</strong> Database split, async messaging, and per-service teams still require their own ADRs; this one only sets the repo-and-deploy-unit boundary.</li>
+              <p>Two canonical tradeoffs (the four-bullet list is preserved as the «what changes» surface; these two name the accepted-cost-vs-gain shape). Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Folder boundary, not repo boundary.</strong> We gain the architectural separation (independent deploy units, per-service image, per-service CI matrix) without the multi-repo coordination tax (3× CI config, 3-PR refactors, contract-drift risk). We lose the explicit «only this team can touch this service» guarantee that separate repos enforce via permissions. We accept it because the per-team isolation is not the constraint for a solo project; folder boundaries + <code>CODEOWNERS</code> is the lighter mechanism that scales when team grows.</li>
+                <li><strong>Path depth + tooling-config churn.</strong> We gain «refactor without renaming images» — the API stays at <code>services/api/</code> through every internal restructure. We lose flat <code>app/main.py</code> imports and accept that Ruff, pytest, pip-audit, and the link checker need path updates. We accept it because the depth cost is paid once at the rename, while the «one repo, three deploy units» benefit pays every release.</li>
               </ul>
+              <p>The implementation-level costs (CI runtime, coarse permissions, partial-microservices answer) are documented in the original four bullets above — kept verbatim as the operational checklist contributors will hit during the four-phase rollout.</p>
             </div>
           </article>
         </div>
+      </section>
+
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>This ADR is Proposed; the «would we do this again?» question is forward-looking until Phase 1 ships.</strong> The clearest day-one investment we would commit to alongside Phase 1:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Add a <code>CODEOWNERS</code> file at the same commit as Phase 1's folder split.</strong> Today the codebase has no <code>CODEOWNERS</code>; the day a second contributor lands is the day folder-as-boundary needs reviewer enforcement. Adding it during the folder split is free; retrofitting it later is friction.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="compat-h">
@@ -196,6 +238,11 @@
         <footer class="docs-history" aria-label="History">
           <h2 class="docs-history__title">History</h2>
           <ul class="docs-history__list">
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-06-01</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Substance audit-pass on a Proposed ADR. Status pill → <code>.lifecycle-popover</code> with <code>is-current</code> on Proposed; <code>§ Trade-offs</code> kept the original four operational bullets and added two canonical «we gain X, we lose Y, we accept Z» entries; new <code>§ Would we do this again?</code> (forward-looking until Phase 1 ships) proposing <code>CODEOWNERS</code> at Phase 1. Inline <code>style</code> stripped. The <code>§ Alternatives considered</code> was already in the canonical «Why considered / Why rejected» template — kept verbatim.</span>
+            </li>
             <li class="docs-history__row">
               <span class="docs-history__date">2026-05-17</span>
               <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

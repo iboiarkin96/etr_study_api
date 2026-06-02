@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0003</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0003</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Error Contract Governance</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           One versioned error contract — stable codes and keys, additive evolution, shared transport pool plus per-entity matrices.
         </p>
       </header>
@@ -82,19 +116,77 @@
 
       <section aria-labelledby="contract-h">
         <h2 id="contract-h">Contract model</h2>
-        <ul>
-          <li>Business error shape:
-            <ul>
-              <li><code>{"code":"...","key":"...","message":"...","source":"business"}</code></li>
-            </ul>
-          </li>
-          <li>Validation error shape:
-            <ul>
-              <li><code>{"error_type":"validation_error","endpoint":"...","errors":[...]}</code></li>
-              <li>each <code>errors[]</code> item: <code>code</code>, <code>key</code>, <code>message</code>, <code>field</code>, <code>source</code>, <code>details</code></li>
-            </ul>
-          </li>
-        </ul>
+        <p>Two wire shapes — one for single-fact business errors, one for multi-field validation errors. Both are emitted as JSON; both are declared in <code>app/schemas/errors.py</code> and surfaced in OpenAPI via <code>app/openapi/examples/errors.py</code>.</p>
+
+        <h3>Business error shape</h3>
+        <p>Returned for any 4xx that names a single business or transport fault.</p>
+        <pre><code>{
+  "code": "...",
+  "key": "...",
+  "message": "...",
+  "source": "business"
+        }</code></pre>
+
+        <h3>Validation error shape</h3>
+        <p>Returned for 422 when one or more request fields fail validation. The top-level envelope carries the endpoint and an array of per-field facts; each <code>errors[]</code> item is itself a complete error record with field-level pointers.</p>
+        <pre><code>{
+  "error_type": "validation_error",
+  "endpoint": "...",
+  "errors": [
+    {
+      "code": "...",
+      "key": "...",
+      "message": "...",
+      "field": "...",
+      "source": "...",
+      "details": "..."
+    }
+  ]
+        }</code></pre>
+
+        <div class="docs-table-wrap" role="region" aria-label="errors[] item fields">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Field</th>
+                <th scope="col">Type</th>
+                <th scope="col">Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>code</code></td>
+                <td>string</td>
+                <td>stable numeric code (e.g. <code>USER_001</code>); the integrator's switch surface</td>
+              </tr>
+              <tr>
+                <td><code>key</code></td>
+                <td>string</td>
+                <td>symbolic identifier paired with <code>code</code>; both are immutable once published</td>
+              </tr>
+              <tr>
+                <td><code>message</code></td>
+                <td>string</td>
+                <td>human-readable text; locale-dependent, not for branching</td>
+              </tr>
+              <tr>
+                <td><code>field</code></td>
+                <td>string</td>
+                <td>dotted-path pointer to the offending request field (e.g. <code>user.email</code>)</td>
+              </tr>
+              <tr>
+                <td><code>source</code></td>
+                <td>string</td>
+                <td>where the error was raised — <code>validation</code> / <code>business</code></td>
+              </tr>
+              <tr>
+                <td><code>details</code></td>
+                <td>object</td>
+                <td>extra context (constraint name, attempted value, range); optional, free-shape</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section aria-labelledby="catalog-h">
@@ -118,33 +210,44 @@
 
       <section aria-labelledby="impl-h">
         <h2 id="impl-h">Implementation in this repository</h2>
-        <ul>
-          <li>Shared OpenAPI response blocks:
-            <ul>
-              <li><code>app/openapi/responses.py</code></li>
-            </ul>
-          </li>
-          <li>Validation mapping source:
-            <ul>
-              <li><code>app/validation/user.py</code></li>
-            </ul>
-          </li>
-          <li>Error response schemas:
-            <ul>
-              <li><code>app/schemas/errors.py</code></li>
-            </ul>
-          </li>
-          <li>OpenAPI examples:
-            <ul>
-              <li><code>app/openapi/examples/errors.py</code></li>
-            </ul>
-          </li>
-          <li>Endpoint declarations:
-            <ul>
-              <li>router <code>responses={...}</code> in <code>app/api/v1/*.py</code></li>
-            </ul>
-          </li>
-        </ul>
+        <div class="docs-table-wrap" role="region" aria-label="Error contract implementation surfaces">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Category</th>
+                <th scope="col">Path / target</th>
+                <th scope="col">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Shared OpenAPI response blocks</td>
+                <td><code>app/openapi/responses.py</code></td>
+                <td>reusable for <code>COMMON_*</code> across all endpoints</td>
+              </tr>
+              <tr>
+                <td>Validation mapping source</td>
+                <td><code>app/validation/user.py</code></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td>Error response schemas</td>
+                <td><code>app/schemas/errors.py</code></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td>OpenAPI examples</td>
+                <td><code>app/openapi/examples/errors.py</code></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td>Endpoint declarations</td>
+                <td>router <code>responses={...}</code> in <code>app/api/v1/*.py</code></td>
+                <td>per-endpoint declarative override</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -163,44 +266,89 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Requires governance discipline and documentation updates.</li>
-                <li>Expanding error catalog requires ongoing curation.</li>
-              </ul>
-            </div>
-          </article>
-        </div>
-      </section>
+              <p>Two named tradeoffs accepted on purpose. Shape from
+                <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>:
+                «we gain X, we lose Y, we accept it because Z».</p>
+                <ul class="rail-list" data-tone="rose">
+                  <li><strong>Catalog as a curated artefact.</strong> We gain stable, immutable <code>(code, key)</code> pairs that clients branch on without fear of silent semantic drift. We lose the freedom to refactor error semantics once a code is published (a typo in <code>USER_007</code> stays forever) and pay a curation tax every time a new business rule lands. We accept it because the integrator's branching code is the load-bearing surface — every silent semantic change there manifests as an outage on the integrator's side, not ours, where we cannot detect or fix it.</li>
+                  <li><strong>Two-layer split (COMMON pool + per-entity matrix).</strong> We gain a single canonical place for cross-cutting transport errors (auth, rate limit, idempotency) that every endpoint reuses verbatim. We lose the ability to vary transport behaviour per endpoint without a deliberate exception (and we accumulate boilerplate when an endpoint needs even a tiny per-route tweak). We accept it because the alternative — inline error declarations per router — drifted so reliably in past projects that <code>COMMON</code>-vs-<code>USER_*</code> is the cheapest deduplication boundary we know.</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </section>
 
-      <section aria-labelledby="rules-h">
-        <h2 id="rules-h">Operating rules</h2>
-        <ol>
-          <li>Add new codes; do not repurpose old ones.</li>
-          <li>Keep fallback validation codes for unmapped errors.</li>
-          <li>Prefer shared <code>COMMON</code> response blocks for cross-cutting errors.</li>
-          <li>Entity routers must keep their own matrix for domain-only errors.</li>
-          <li>Update OpenAPI examples and docs in the same change.</li>
-          <li>Ensure <code>make docs-fix</code> and <code>make release-check</code> pass before release.</li>
-        </ol>
-      </section>
+        <section aria-labelledby="alternatives-h">
+          <h2 id="alternatives-h">Alternatives considered</h2>
+          <p>Three alternatives were evaluated before committing to the <code>(code, key)</code> + COMMON-vs-entity model. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints.</p>
+          <div class="docs-card-grid docs-card-grid--stack">
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">HTTP status codes only (no error envelope)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> the most RESTful answer — every error is a status code, the body carries a human-readable message, no custom catalog to maintain. Used by many small public APIs.</p>
+                <p><strong>Why rejected:</strong> integrators need to branch on specific <em>business</em> errors (<code>USER_001</code> «email already exists» vs <code>USER_013</code> «email format invalid»), both of which are 422. Without a stable machine-readable discriminator, the integrator's only option is to regex the message — which breaks on i18n and on every wording change. Status codes are the transport layer of the contract; the semantic layer is the missing half.</p>
+              </div>
+            </article>
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">RFC 7807 Problem Details (<code>application/problem+json</code>)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> the IETF standard for HTTP error payloads (RFC 7807, March 2016). Has a <code>type</code> URI that doubles as a documentation link, plus <code>title</code>, <code>detail</code>, <code>status</code>, <code>instance</code>. Recognised by FastAPI, Spring, and Microsoft's API guidelines.</p>
+                <p><strong>Why rejected:</strong> RFC 7807's <code>type</code> is a URI, which is opaque to consumers that want a typed switch statement; «branch on <code>https://errors.example.com/user/email-taken</code>» reads as ceremony, not as a stable enum value. We adopt parts of the spirit — the <code>type</code>-as-docs-link idea reappears in <code>§ Would we do this again?</code> below — but the wire format with <code>(code, key)</code> ergonomics beats URI-as-discriminator for typed-client integration.</p>
+              </div>
+            </article>
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">gRPC-style status enum + Status / Details proto</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> Google's gRPC defines a fixed <em>Code</em> enum (16 canonical codes) plus a <code>details</code> array of typed messages — strongly-typed, well-tooled, widely adopted in service meshes.</p>
+                <p><strong>Why rejected:</strong> we ship HTTP/JSON over OpenAPI, not gRPC. Forcing 16-code-enum semantics into JSON loses the OpenAPI <code>responses{}</code> generation pipeline we rely on (<a href="0007-openapi-governance-and-usability-standard.html">ADR 0007</a>); and the canonical-code set was designed for service-to-service RPC, not for partner integrations that need rich validation matrices like <code>USER_001…USER_013</code>.</p>
+              </div>
+            </article>
+          </div>
+          <p><strong>Trade we accept by choosing <code>(code, key)</code> + COMMON pool.</strong> Each error needs an explicit numeric code and a symbolic key that we cannot reuse once published — that is the curation tax. We accept it because the cost of getting <em>any</em> of the rejected alternatives wrong is paid at the integrator's side (regex on messages breaks in production; URI-as-discriminator forces switch-on-string everywhere; gRPC-enum-on-HTTP loses OpenAPI tooling). Our cost is paid once per error code at authoring time and never again.</p>
+        </section>
 
-      <footer class="docs-history" aria-label="History">
-        <h2 class="docs-history__title">History</h2>
-        <ul class="docs-history__list">
-          <li class="docs-history__row">
-            <span class="docs-history__date">2026-05-17</span>
-            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-            <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
-          </li>
-        </ul>
-      </footer>
+        <section aria-labelledby="rules-h">
+          <h2 id="rules-h">Operating rules</h2>
+          <ol>
+            <li>Add new codes; do not repurpose old ones.</li>
+            <li>Keep fallback validation codes for unmapped errors.</li>
+            <li>Prefer shared <code>COMMON</code> response blocks for cross-cutting errors.</li>
+            <li>Entity routers must keep their own matrix for domain-only errors.</li>
+            <li>Update OpenAPI examples and docs in the same change.</li>
+            <li>Ensure <code>make docs-fix</code> and <code>make release-check</code> pass before release.</li>
+          </ol>
+        </section>
 
-    </article>
-  </main>
+        <section aria-labelledby="revisit-h">
+          <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+          <p><strong>Yes, with one borrowing from RFC 7807.</strong> The <code>(code, key)</code> pair has aged well — every spec page now links to its error matrix and integrators have a stable switch surface. One addition we would commit to on day one if starting today:</p>
+          <ul class="rail-list" data-tone="info">
+            <li><strong>Add a <code>type</code> URI field that points at the error's documentation page.</strong> Borrow this verbatim from RFC 7807. The integrator's runtime would surface a clickable link straight to the error matrix (e.g. <code>/services/api/reference/_shared/error-catalog.html#USER_001</code>) on every error response — turning every 4xx into a self-documenting incident. Cost is one extra string per error; benefit is that on-call triage stops at the response payload instead of needing to grep the catalog. We retrofit this; would have been free at day one.</li>
+          </ul>
+        </section>
 
-  <aside class="docs-toc" aria-label="On this page"></aside>
-  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+        <footer class="docs-history" aria-label="History">
+          <h2 class="docs-history__title">History</h2>
+          <ul class="docs-history__list">
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-05-30</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Substance audit-pass against the <a href="../../foundations/reference/sa/tradeoff-disclosure.html">tradeoff-disclosure five-gate</a>. Result before: 1/5 (no <code>§ Alternatives considered</code> section; <code>§ Consequences &gt; Trade-offs</code> was 2 unstructured bullets; no accept-clause; reasons partially rooted). Patch: new <code>§ Alternatives considered</code> with three real industry alternatives rejected with rooted reasons (HTTP status only · RFC 7807 Problem Details · gRPC-style Status proto); <code>§ Consequences &gt; Trade-offs</code> restructured into two canonical «we gain X, we lose Y, we accept Z» entries on <code>rail-list</code>; closing accept-clause paragraph after the alternatives; new <code>§ Would we do this again?</code> section ratifying the decision with one borrowing (RFC 7807's <code>type</code> URI as docs-link). Inline <code>style</code> on the lede stripped. Closes Vol. 2 audit High gap #7 («ADR alternatives weak») for this ADR.</span>
+            </li>
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-05-17</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
+            </li>
+          </ul>
+        </footer>
 
-  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+      </article>
+    </main>
 
-</body></html>
+    <aside class="docs-toc" aria-label="On this page"></aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

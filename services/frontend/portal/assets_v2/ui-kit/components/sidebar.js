@@ -8,6 +8,12 @@
 const STORAGE_KEY = "docs-sidebar-expanded-v2";
 const SCROLL_KEY = "docs-sidebar-scroll-v2";
 const SHELL_COLLAPSE_KEY = "docs-sidebar-shell-collapsed-v2";
+const WIDTH_KEY = "docs-sidebar-width-v2";
+
+const WIDTH_MIN = 220;
+const WIDTH_MAX = 520;
+const WIDTH_DEFAULT = 280;
+const WIDTH_STEP = 16;
 
 const CHEVRON_LEFT = "<svg viewBox='0 0 16 16' aria-hidden='true' width='14' height='14'><path d='M10 4l-4 4 4 4' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
@@ -61,10 +67,18 @@ function saveShellCollapsed(flag) {
   }
 }
 
+// `/services/X` hrefs → `<base>/X` so Pages (where services/ is the artifact root) doesn't 404.
+function resolvePortalHref(href) {
+  if (!href || !href.startsWith("/services/")) return href;
+  const m = window.location.pathname.match(/^(.*?)\/portal\//);
+  if (!m) return href;
+  return m[1] + href.slice("/services".length);
+}
+
 function isActive(href) {
   if (!href) return false;
   const here = window.location.pathname.replace(/\/+$/, "");
-  const target = href.replace(/\/+$/, "");
+  const target = resolvePortalHref(href).replace(/\/+$/, "");
   return here === target || here.startsWith(target + "/");
 }
 
@@ -89,7 +103,7 @@ function buildBrand(brand) {
   if (brand) {
     const link = document.createElement("a");
     link.className = "docs-sidebar__wordmark";
-    link.href = brand.href || "#";
+    link.href = resolvePortalHref(brand.href) || "#";
     if (brand.ariaLabel) link.setAttribute("aria-label", brand.ariaLabel);
 
     if (brand.mark) {
@@ -170,7 +184,7 @@ function buildNode(node, expanded) {
     const a = document.createElement("a");
     a.className = "docs-sidebar__link";
     if (node.kind) a.classList.add(`docs-sidebar__link--${node.kind}`);
-    a.href = node.href;
+    a.href = resolvePortalHref(node.href);
     a.textContent = node.label;
     if (isActive(node.href)) a.setAttribute("aria-current", "page");
     row.appendChild(a);
@@ -246,6 +260,114 @@ function applyShellCollapsed(shell, toggle, collapsed) {
   }
 }
 
+function readSidebarWidthVar(el) {
+  const computed = getComputedStyle(el).getPropertyValue("--layout-sidebar").trim();
+  const parsed = parseInt(computed, 10);
+  return Number.isFinite(parsed) ? parsed : WIDTH_DEFAULT;
+}
+
+function clampSidebarWidth(px) {
+  return Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, Math.round(px)));
+}
+
+function loadSidebarWidth() {
+  try {
+    const v = parseInt(localStorage.getItem(WIDTH_KEY) || "", 10);
+    return Number.isFinite(v) ? clampSidebarWidth(v) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveSidebarWidth(px) {
+  try {
+    localStorage.setItem(WIDTH_KEY, String(px));
+  } catch (_) {
+    /* ignore quota */
+  }
+}
+
+function applySidebarWidth(shell, resizer, px) {
+  shell.style.setProperty("--layout-sidebar", `${px}px`);
+  if (resizer) resizer.setAttribute("aria-valuenow", String(px));
+}
+
+function wireResizer(container) {
+  const shell = container.closest(".docs-shell");
+  // Drawer copies and showcase examples don't own the shell width.
+  if (!shell || container.closest(".docs-drawer") || container.closest(".docs-example")) {
+    return;
+  }
+
+  const resizer = document.createElement("button");
+  resizer.type = "button";
+  resizer.className = "docs-sidebar__resizer";
+  resizer.setAttribute("role", "separator");
+  resizer.setAttribute("aria-orientation", "vertical");
+  resizer.setAttribute("aria-label", "Resize sidebar");
+  resizer.setAttribute("aria-valuemin", String(WIDTH_MIN));
+  resizer.setAttribute("aria-valuemax", String(WIDTH_MAX));
+  resizer.setAttribute("data-tooltip", "Drag to resize. Double-click to reset.");
+  resizer.setAttribute("data-tooltip-placement", "right");
+  container.appendChild(resizer);
+
+  const persisted = loadSidebarWidth();
+  if (persisted != null) {
+    applySidebarWidth(shell, resizer, persisted);
+  } else {
+    resizer.setAttribute("aria-valuenow", String(readSidebarWidthVar(shell)));
+  }
+
+  let dragging = false;
+  let startX = 0;
+  let startW = 0;
+
+  resizer.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    dragging = true;
+    startX = e.clientX;
+    startW = container.getBoundingClientRect().width;
+    try { resizer.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    shell.classList.add("is-sidebar-resizing");
+    e.preventDefault();
+  });
+
+  resizer.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    applySidebarWidth(shell, resizer, clampSidebarWidth(startW + (e.clientX - startX)));
+  });
+
+  const finishDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    try { resizer.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    shell.classList.remove("is-sidebar-resizing");
+    saveSidebarWidth(clampSidebarWidth(container.getBoundingClientRect().width));
+  };
+  resizer.addEventListener("pointerup", finishDrag);
+  resizer.addEventListener("pointercancel", finishDrag);
+
+  resizer.addEventListener("keydown", (e) => {
+    const cur = readSidebarWidthVar(shell);
+    let next = null;
+    if (e.key === "ArrowLeft") next = cur - WIDTH_STEP;
+    else if (e.key === "ArrowRight") next = cur + WIDTH_STEP;
+    else if (e.key === "Home") next = WIDTH_MIN;
+    else if (e.key === "End") next = WIDTH_MAX;
+    else if (e.key === "Enter" || e.key === " ") next = WIDTH_DEFAULT;
+    if (next == null) return;
+    e.preventDefault();
+    next = clampSidebarWidth(next);
+    applySidebarWidth(shell, resizer, next);
+    saveSidebarWidth(next);
+  });
+
+  resizer.addEventListener("dblclick", () => {
+    applySidebarWidth(shell, resizer, WIDTH_DEFAULT);
+    saveSidebarWidth(WIDTH_DEFAULT);
+  });
+}
+
 function wireCollapseToggle(container, toggle) {
   const shell = container.closest(".docs-shell");
   // Skip the global shell-collapse wiring for drawer copies and showcase
@@ -270,21 +392,32 @@ function render(container, tree) {
   container.classList.add("docs-sidebar");
   container.innerHTML = "";
 
+  // Inner scroll wrapper: owns overflow + scrollbar so the resizer (a
+  // direct child of the outer container) sits in its own gutter and can
+  // catch pointer events without the scrollbar stealing them first.
+  const scroller = document.createElement("div");
+  scroller.className = "docs-sidebar__scroll";
+
   // Brand + collapse toggle header (brand is optional via `tree.brand`).
   const header = buildBrand(tree.brand);
-  container.appendChild(header);
+  scroller.appendChild(header);
 
   const list = document.createElement("ul");
   list.className = "docs-sidebar__list";
   tree.sections.forEach((s) => list.appendChild(buildNode(s, expanded)));
-  container.appendChild(list);
+  scroller.appendChild(list);
+
+  container.appendChild(scroller);
 
   // Restore scroll AFTER the DOM is populated so the offset is meaningful.
-  restoreScroll(container);
+  restoreScroll(scroller);
 
   // Wire the sidebar-wide collapse toggle (button is always present).
   const toggle = header.querySelector(".docs-sidebar__collapse-toggle");
   wireCollapseToggle(container, toggle);
+
+  // Right-edge drag handle for free-form width resize.
+  wireResizer(container);
 
   container.addEventListener("click", (e) => {
     // Sidebar-wide collapse button has its own handler — skip group logic.

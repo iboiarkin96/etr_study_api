@@ -40,7 +40,7 @@
         </div>
         <h1>Verify an API endpoint against its contract</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede">How to verify any HTTP operation under <code>/api/v1/…</code> against its internal specification. The playbook is the procedure; the line-by-line outcomes go in <a href="../../../reference/qa/checklists/0002-api-endpoint-acceptance-checklist.html">checklist 0002</a>.</p>
+        <p class="lede">How to verify any HTTP operation under <code>/api/v1/…</code> against its internal specification. The playbook is the procedure; the line-by-line outcomes go in <a href="../../../reference/qa/checklists/api-endpoint-acceptance.html">the API endpoint acceptance checklist</a>.</p>
       </header>
 
       <h2 id="orientation">Where to find the contract for an endpoint</h2>
@@ -58,7 +58,7 @@
         <li>Run the contract tests for that resource: <code>pytest tests/api/v1/&lt;resource&gt;/</code>.</li>
         <li>Open the static Swagger UI in the public developer portal and confirm the operation appears with the expected schema.</li>
         <li>Run the steps in <a href="#happy-path">happy path</a>, <a href="#error-paths">error paths</a>, <a href="#auth">auth</a>, <a href="#idempotency">idempotency</a>, <a href="#observability">observability</a> from this playbook.</li>
-        <li>Annotate <a href="../../../reference/qa/checklists/0002-api-endpoint-acceptance-checklist.html">checklist 0002</a> with pass/fail per row, attach evidence.</li>
+        <li>Annotate <a href="../../../reference/qa/checklists/api-endpoint-acceptance.html">the API endpoint acceptance checklist</a> with pass/fail per row, attach evidence.</li>
         <li>If anything fails, file a defect using <a href="../../../foundations/reference/sa/templates/bug-report.html">bug template</a>.</li>
       </ol>
 
@@ -162,6 +162,34 @@ curl -sS -X POST "$BASE/api/v1/conspectuses" \
 -d '{"title":"Replay","content":"x"}' -i
       done</code></pre>
       <p>Set <code>BASE</code> and <code>TOKEN</code> in your shell. Keep captures in a folder named after the ticket — paste them into the defect or sign-off note as evidence.</p>
+
+      <h2 id="verify">Verify</h2>
+      <ul>
+        <li>Every row of the <a href="../../../reference/qa/checklists/api-endpoint-acceptance.html">API endpoint acceptance checklist</a> recorded as PASS / FAIL — no row left as «?».</li>
+        <li>Happy path returns the documented 2xx status, schema, and headers; auth-required endpoints reject anonymous calls with the documented 401/403 envelope.</li>
+        <li>Idempotency replay (same key + same body) returns the same response twice without producing duplicate side-effects; idempotency conflict (same key + different body) returns the documented 409/422.</li>
+        <li>Every error class above (400 / 401 / 403 / 404 / 409 / 422 / 5xx) returns the canonical error envelope shape with stable <code>code</code> + <code>key</code> + <code>source</code> fields.</li>
+        <li>One log line per request, with the request id echoed when supplied via header.</li>
+        <li>Findings filed against the team backlog with severity per the API acceptance rubric.</li>
+      </ul>
+
+      <h2 id="troubleshoot">Troubleshooting</h2>
+      <ul class="rail-list" data-tone="rose">
+        <li><strong>«401 Unauthorized» on a request you expected to succeed.</strong> The token is missing, expired, or stripped by an intermediate proxy. Confirm <code>echo $TOKEN | wc -c</code> is non-zero and the header reached the server (server log should echo «authorization» presence, never the value).</li>
+        <li><strong>Idempotency replay produces a duplicate row instead of returning the cached response.</strong> The idempotency key store didn't see the first request, or the key was generated per-request. Verify <code>KEY="tc-replay-$(date +%s)"</code> stays constant across both <code>curl</code> calls in the loop.</li>
+        <li><strong>«422 Unprocessable Entity» for a body you believe is valid.</strong> The Pydantic schema sees the JSON as different from what you intended — usually a stray trailing comma, wrong content-type header, or a field name mismatch (camelCase vs snake_case).</li>
+        <li><strong>Response shape diverges from Swagger UI / OpenAPI baseline.</strong> The endpoint shipped without the contract test catching it. Run <code>make contract-test</code> locally; if it now fails, follow <a href="../../../how-to/incidents/runbooks/0007-openapi-contract-test-failing.html">Runbook 0007</a>.</li>
+      </ul>
+
+      <aside id="related" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li>Reference · <a href="../../../reference/qa/checklists/api-endpoint-acceptance.html">API endpoint acceptance checklist</a> — the canonical row-by-row list this playbook walks.</li>
+          <li>Tutorial · <a href="../../../tutorials/qa/your-first-api-checklist-run.html">Your first API checklist run</a> — first-time walkthrough on one endpoint.</li>
+          <li>Explanation · <a href="../../../explanation/dev/schemas-and-contracts.html">Schemas as the public contract</a> — why these tests guard what they guard.</li>
+          <li>How-to · <a href="../../../how-to/incidents/runbooks/0007-openapi-contract-test-failing.html">Runbook 0007 — OpenAPI contract test failing</a> — what to do when the gate the verify-step relies on breaks.</li>
+        </ul>
+      </aside>
     </article>
 
     <footer class="docs-history" aria-label="History">
@@ -194,6 +222,9 @@ curl -sS -X POST "$BASE/api/v1/conspectuses" \
       <li class="docs-toc__item"><a class="docs-toc__link" href="#observability">Observability</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#evidence">Evidence</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#examples">cURL examples</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshoot">Troubleshooting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>

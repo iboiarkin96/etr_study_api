@@ -12,6 +12,7 @@
  *
  * Supported languages (auto-detected or via class="language-*"):
  *   python · bash / sh / shell · json · yaml / yml · http · javascript / js
+ *   html / xml / markup
  *
  * Token CSS classes (see docs-syntax-theme.css for color values):
  *   st-kw   keyword          st-str  string
@@ -239,6 +240,9 @@
     js: tokenizeJS,
     typescript: tokenizeJS,
     ts: tokenizeJS,
+    html: tokenizeHTML,
+    xml: tokenizeHTML,
+    markup: tokenizeHTML,
   };
 
   function tokenize(escaped, lang) {
@@ -475,5 +479,54 @@
         .replace(NUMBERS, (m) => span("num", m));
     }
     return out;
+  }
+
+  /**
+   * HTML / XML / markup tokenizer.
+   * Input is already HTML-escaped: real "<" is "&lt;", real ">" is "&gt;",
+   * real "&" is "&amp;". Attribute quotes stay as real " and '.
+   * Order: comments and doctype first (protect their content), then tags;
+   * inside each tag, attribute names (st-key) and values (st-str).
+   */
+  function tokenizeHTML(code) {
+    const COMMENT = /&lt;!--[\s\S]*?--&gt;/g;
+    const DOCTYPE = /&lt;!doctype[\s\S]*?&gt;/gi;
+    // Tag: <opener><tag-name><body><closer> where opener is &lt; or &lt;/,
+    // closer is &gt; or /&gt;, and body is everything between (non-greedy).
+    const TAG = /(&lt;\/?)([a-zA-Z][\w-]*)([\s\S]*?)(\/?&gt;)/g;
+    // Attribute inside a tag body: name="value" | name='value' | bare-name.
+    // The value group is optional so bare boolean attributes parse cleanly.
+    const ATTR = /([a-zA-Z_:][\w:.-]*)(\s*=\s*)("[^"]*"|'[^']*'|[^\s/&]+)?/g;
+
+    const PROTECTED = new RegExp([COMMENT.source, DOCTYPE.source].join("|"), "gi");
+    let out = "";
+    let cursor = 0;
+    let match;
+    PROTECTED.lastIndex = 0;
+    while ((match = PROTECTED.exec(code)) !== null) {
+      if (match.index > cursor) {
+        out += tokenizeHTMLTags(code.slice(cursor, match.index), TAG, ATTR);
+      }
+      const isComment = /^&lt;!--/.test(match[0]);
+      out += span(isComment ? "cmt" : "kw", match[0]);
+      cursor = match.index + match[0].length;
+    }
+    if (cursor < code.length) {
+      out += tokenizeHTMLTags(code.slice(cursor), TAG, ATTR);
+    }
+    return out;
+  }
+
+  function tokenizeHTMLTags(code, TAG, ATTR) {
+    return code.replace(TAG, (_, open, tagName, body, close) => {
+      const head = span("kw", open + tagName);
+      const tail = close;
+      if (!body) { return head + tail; }
+      const attrPart = body.replace(ATTR, (__, name, eq, value) => {
+        if (!eq) { return span("key", name); }
+        return span("key", name) + eq + (value ? span("str", value) : "");
+      });
+      return head + attrPart + tail;
+    });
   }
 })();

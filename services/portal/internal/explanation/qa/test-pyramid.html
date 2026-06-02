@@ -113,7 +113,7 @@
       <p>Tests every public endpoint against the documented contract. Verifies status codes, response schema, error envelope, idempotency keys, headers (<code>X-Request-ID</code>), pagination, and known error catalog entries. The OpenAPI baseline is verified as a single test so contract drift fails CI.</p>
       <ul>
         <li><strong>Where:</strong> <code>tests/api/v1/</code>, <code>tests/openapi/</code>.</li>
-        <li><strong>Oracle:</strong> the spec page under <code>services/portal/internal/api/&lt;resource&gt;/</code> and the shared docs under <code>_shared/</code>.</li>
+        <li><strong>Oracle:</strong> the spec page under <code>services/portal/internal/services/api/reference/&lt;resource&gt;/</code> and the shared docs under <code>_shared/</code>.</li>
         <li><strong>Per endpoint, expect:</strong> one happy-path success, one or more validation-error cases, one auth-failure case, and schema validation against the OpenAPI document.</li>
         <li><strong>QA signal:</strong> any defect with a status-code or schema dimension lands here.</li>
       </ul>
@@ -131,7 +131,7 @@
       <p><strong>Owner:</strong> QA.</p>
       <p>Two flavours:</p>
       <ul>
-        <li><strong>Scripted manual</strong> — running a checklist line by line. See <a href="../../reference/qa/checklists/0001-documentation-pages-visual-checklist.html">checklist 0001</a>.</li>
+        <li><strong>Scripted manual</strong> — running a checklist line by line. See <a href="../../reference/qa/checklists/documentation-visual.html">the documentation visual checklist</a>.</li>
         <li><strong>Exploratory</strong> — chartered, time-boxed sessions to find what scripted tests miss. See <a href="../../how-to/qa/exploratory-testing.html">exploratory playbook</a>.</li>
       </ul>
       <p>We deliberately keep manual scripted runs short — anything that repeats every release should be a candidate for the contract layer.</p>
@@ -146,6 +146,26 @@
         <li><strong>Manual checks for things a contract test would catch.</strong> If the rule is "field X must be UUID", that is contract-layer, not a checklist line.</li>
       </ul>
 
+      <h2 id="tradeoffs">Tradeoffs</h2>
+      <p>The pyramid encodes deliberate costs. Choosing it means accepting these tensions rather than pretending they don't exist:</p>
+      <ul>
+        <li><strong>Speed vs realism.</strong> Unit tests are sub-second but don't catch wiring bugs. Contract tests catch wiring but take 10–100× longer. We pay the realism cost only at layers above unit.</li>
+        <li><strong>Coverage vs coupling.</strong> A test at a higher layer covers more code per assertion but also breaks for more reasons. A broken e2e test rarely points at a single line; a broken unit test usually does. The pyramid optimises for diagnostic resolution by keeping the base wide.</li>
+        <li><strong>Confidence vs cost.</strong> Adding an e2e test feels safer but doubles maintenance for every refactor it covers. Pushing the same check down to contract or unit gives you ~80% of the confidence for ~20% of the long-term tax.</li>
+        <li><strong>«No mocks» at integration vs CI speed.</strong> A real DB at the integration layer is the project's hard-won lesson, but it does slow CI vs mocked alternatives. We accept the slower run to avoid the «mock passes / migration fails in prod» class of bug.</li>
+        <li><strong>Manual layer as a feature, not a gap.</strong> A small dedicated manual layer is cheaper than automating every rarely-changing flow. The discipline is to actively prevent the layer from growing into a regression sink.</li>
+      </ul>
+
+      <aside id="next-to-read" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li>Explanation · <a href="./test-strategy.html">Test strategy</a> — what the pyramid is in service of: scope, boundaries, oracle precedence.</li>
+          <li>Explanation · <a href="./qa-process.html">QA process</a> — where the pyramid plugs into shift-left QA across the SDLC.</li>
+          <li>Reference · <a href="../../governance/adr/0002-testing-policy.html">ADR 0002 — Testing policy</a> — the normative version of «what we test, where».</li>
+          <li>Reference · <a href="../../governance/adr/0012-testing-strategy-and-load-testing.html">ADR 0012 — Testing strategy &amp; load testing</a> — broader rules and how load testing relates.</li>
+          <li>How-to · <a href="../../services/api/how-to/api-endpoint-testing.html">API endpoint testing playbook</a> — the recurring contract-layer activity.</li>
+        </ul>
+      </aside>
     </article>
 
     <footer class="docs-history" aria-label="History">
@@ -175,6 +195,8 @@
       <li class="docs-toc__item"><a class="docs-toc__link" href="#system">System / E2E</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#manual">Manual &amp; exploratory</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Anti-patterns</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs">Tradeoffs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#next-to-read">What to read next</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>

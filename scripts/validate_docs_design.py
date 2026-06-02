@@ -42,20 +42,14 @@ FROZEN_DOCS_REL_PATHS = {
 # Remove an entry once that page has been migrated to the v2 runtime.
 LEGACY_PENDING_MIGRATION = {
     Path("internal/foundations/reference/sa/templates/component-spec.html"),
-    Path("internal/governance/adr/0000-template.html"),
     Path("internal/governance/adr/0018-adr-lifecycle-ratification-and-badges.html"),
     Path("internal/governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html"),
     Path("internal/governance/adr/0024-architecture-and-quality-assessment-documents.html"),
     Path("internal/governance/adr/0026-internal-service-documentation-as-source-of-truth.html"),
     Path("internal/governance/adr/0027-client-side-docs-search-index-and-ranking.html"),
-    Path("internal/governance/audits/AUDIT_TEMPLATE.html"),
-    Path("internal/governance/rfc/0000-template.html"),
     Path("internal/governance/rfc/0001-docs-search-implementation.html"),
     Path("internal/governance/rfc/0003-documentation-authoring-model.html"),
     Path("internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html"),
-    Path("internal/how-to/docs/change-docs-frontend-safely.html"),
-    Path("internal/team/roles/sa/practices/index.html"),
-    Path("internal/team/roles/dev/practices/index.html"),
 }
 
 # Legacy asset hrefs/srcs that must never appear on real <link>/<script> tags

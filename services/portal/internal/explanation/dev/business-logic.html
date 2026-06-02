@@ -97,6 +97,31 @@
       <p>It is tempting to put transaction boundaries in the repository — open a transaction per write, commit on success. This breaks the moment a use case touches two repositories: an order of operations that should atomically succeed or fail together is split across two independent commits, and a crash in the middle leaves the system in a state no rule allows.</p>
       <p>The transaction boundary therefore belongs at the use case — the service method — because only the service knows what set of writes constitute one business event. The repository receives the session; it does not own it.</p>
 
+      <h2 id="tradeoffs">Tradeoffs</h2>
+      <p>The layering is not free. Every win it buys comes with a recurring cost that has to be paid in every change.</p>
+      <div class="docs-card-grid docs-card-grid--two">
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">The domain is testable without transport</h3>
+          <p class="docs-card__body">A service test runs in milliseconds without spinning up FastAPI; the wide base of the test pyramid stays cheap.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">More indirection per request</h3>
+          <p class="docs-card__body">A trivial CRUD operation passes through router → service → repository. Three files to read instead of one.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">Storage is swappable</h3>
+          <p class="docs-card__body">The SQLite → Postgres migration touches the persistence layer only; services and routers do not change.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">Newcomers don't see the win on day one</h3>
+          <p class="docs-card__body">The reward shows up the first time the layering saves a refactor — month two, not week one. Until then it feels like overhead.</p>
+        </article>
+      </div>
+
       <h2 id="anti-patterns">Common failure modes</h2>
       <ul>
         <li><strong>Logic creep into the router.</strong> A request handler grows an <code>if</code> branch that checks a domain rule. A year later, the rule lives in five routers and nowhere else, and a background worker silently breaks it.</li>
@@ -105,6 +130,16 @@
         <li><strong>Validation that needs the database.</strong> A Pydantic validator that runs a query. Schemas should not require IO; the moment they do, they cannot be reused, cached, or generated from OpenAPI.</li>
         <li><strong>Cross-layer exceptions.</strong> Domain code raising <code>HTTPException</code> directly couples it to the transport. We accept this pragmatically today, but the principled boundary is a domain exception translated by a single handler at the edge.</li>
       </ul>
+
+      <aside id="next-to-read" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li>Reference · <a href="../../governance/adr/0003-error-contract-governance.html">ADR 0003 — Error-contract governance</a> — the policy this layering enforces at the edge (where domain exceptions become HTTP envelopes).</li>
+          <li>Explanation · <a href="./schemas-and-contracts.html">Schemas as the public contract</a> — sibling explanation for what the «edge» is, and why additive-only changes preserve the boundary.</li>
+          <li>Explanation · <a href="./requirements.html">How requirements become code</a> — sibling explanation for what flows in through the same layers.</li>
+          <li>How-to · <a href="../../services/api/how-to/add-post-contract.html">Add a POST contract endpoint</a> — production-grade recipe that walks this layering on a real surface.</li>
+        </ul>
+      </aside>
     </article>
 
     <footer class="docs-history" aria-label="History">
@@ -138,7 +173,9 @@
       <li class="docs-toc__item"><a class="docs-toc__link" href="#why-strict-direction">Why the direction is strict</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#validation-order">Two kinds of validation</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#transactions">Transactions belong in services</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs">Tradeoffs</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Failure modes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#next-to-read">What to read next</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>

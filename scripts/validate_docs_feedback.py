@@ -3,8 +3,8 @@
 
 This smoke check guards against regressions in page-level feedback UX:
 - required GitHub issue template file exists;
-- shared docs navigation script still injects feedback card and issue link;
-- key docs pages still include the top-nav mount required for runtime injection.
+- v2 bug-report component still wires the issue template, repo target, and
+  the FEEDBACK_TYPES enum that populates the modal's type selector.
 """
 
 from __future__ import annotations
@@ -12,13 +12,17 @@ from __future__ import annotations
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DOCS_NAV_JS = REPO_ROOT / "services" / "frontend" / "portal" / "assets" / "docs-nav.js"
-ISSUE_TEMPLATE = REPO_ROOT / ".github" / "ISSUE_TEMPLATE" / "docs_feedback.md"
-KEY_DOC_PAGES = (
-    REPO_ROOT / "services" / "portal" / "index.html",
-    REPO_ROOT / "services" / "portal" / "internal" / "index.html",
-    REPO_ROOT / "services" / "portal" / "internal" / "governance" / "audits" / "index.html",
+BUG_REPORT_JS = (
+    REPO_ROOT
+    / "services"
+    / "frontend"
+    / "portal"
+    / "assets_v2"
+    / "ui-kit"
+    / "components"
+    / "bug-report.js"
 )
+ISSUE_TEMPLATE = REPO_ROOT / ".github" / "ISSUE_TEMPLATE" / "docs_feedback.md"
 
 
 def require_file(path: Path, errors: list[str]) -> None:
@@ -58,13 +62,9 @@ def run() -> int:
     """
     errors: list[str] = []
     require_file(ISSUE_TEMPLATE, errors)
-    require_contains(DOCS_NAV_JS, "function injectDocsFeedbackCard()", errors)
-    require_contains(DOCS_NAV_JS, "injectDocsFeedbackCard();", errors)
-    require_contains(DOCS_NAV_JS, "DOCS_FEEDBACK_TEMPLATE", errors)
-    require_contains(DOCS_NAV_JS, "DOCS_FEEDBACK_REPOSITORY", errors)
-
-    for page in KEY_DOC_PAGES:
-        require_contains(page, '<div id="docs-top-nav"></div>', errors)
+    require_contains(BUG_REPORT_JS, 'const TEMPLATE = "docs_feedback.md"', errors)
+    require_contains(BUG_REPORT_JS, "const REPO = ", errors)
+    require_contains(BUG_REPORT_JS, "const FEEDBACK_TYPES = [", errors)
 
     if errors:
         print("Docs feedback validation failed:")

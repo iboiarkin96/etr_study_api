@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0026</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0026</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Internal service documentation as source of truth</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Rules for the <code>services/portal/internal/</code> HTML tree — what belongs there, how pages relate to code and OpenAPI, how navigation is owned, and how history is kept.
         </p>
       </header>
@@ -159,29 +193,31 @@
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <div class="docs-card-grid">
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Wiki or external tool</h3></div>
+        <p>Three alternatives evaluated before adopting hub-and-spoke HTML under <code>services/portal/internal/</code>. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Wiki or external tool (Confluence / Notion)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Pros:</strong> rich editors, permissions.</p>
-              <p><strong>Cons:</strong> not versioned with the same PR as code; harder to enforce review alongside behavior changes.</p>
+              <p><strong>Why considered:</strong> rich editor, easier permissions, no HTML to maintain.</p>
+              <p><strong>Why rejected:</strong> docs that live elsewhere cannot be reviewed in the same PR as the behaviour change. The «doc and code change together or neither lands» discipline (<a href="0001-docs-as-code.html">ADR 0001</a>) is the load-bearing property; the wiki forfeits it the day a PR touches code without touching the wiki.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Markdown only under <code>services/portal/internal/</code></h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Markdown-only under <code>services/portal/internal/</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Pros:</strong> faster to write.</p>
-              <p><strong>Cons:</strong> this site's published docs are HTML-first; one stack keeps nav and styling consistent.</p>
+              <p><strong>Why considered:</strong> faster to write, fewer HTML tags, GitHub renders it natively.</p>
+              <p><strong>Why rejected:</strong> the published portal is HTML-first; mixing Markdown would split the navigation chrome, the sidebar wiring, and the styling rules into two stacks to maintain. One stack (HTML) keeps nav and styling consistent.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">One very long HTML file per resource</h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">One very long HTML file per resource</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Pros:</strong> single URL for everything.</p>
-              <p><strong>Cons:</strong> poor scanability; heavy merge conflicts; we instead use a hub plus per-method pages with reciprocal anchor links.</p>
+              <p><strong>Why considered:</strong> single URL per resource, no per-method file maintenance.</p>
+              <p><strong>Why rejected:</strong> long monolithic files scan poorly, generate heavy merge conflicts on parallel work, and force readers to load the whole resource document when they wanted one operation. Hub-and-spoke (resource <code>index.html</code> + per-method pages) is the smaller mechanism that preserves deep linking.</p>
             </div>
           </article>
         </div>
+        <p><strong>Trade we accept by choosing hub-and-spoke internal HTML.</strong> Authors maintain the sidebar JSON + per-resource hubs + per-method pages. We accept it because each rejected alternative either breaks the same-PR review property (wiki), forfeits stack uniformity (Markdown), or pessimises the operational query «open this one operation» (monolith).</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -200,17 +236,32 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Ongoing maintenance: hubs, operation pages, sidebar, and the how-to layout page (plus <code>STRUCTURE.md</code>) must move together when the HTTP surface changes, or authority of the doc set erodes.</li>
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Sidebar JSON as single source of truth.</strong> We gain a queryable structure that the renderer, the nav, and the «orphan page detector» can all key off. We lose the «just drop a file and forget it» convenience — every new page needs a sidebar entry. We accept it because orphan pages are the failure mode this ADR exists to prevent; the JSON discipline is what makes the «no orphan» property mechanical, not honour-system.</li>
+                <li><strong>Internal docs claim normative authority for documented topics.</strong> We gain a clear «doc wins on conflict» rule that prevents «well, the code does Y so the doc must be wrong» as a default response. We lose the implicit fallback «the code is the spec». We accept it because for documented topics the doc <em>is</em> the agreed behaviour; an undocumented topic falls back to code by default. The boundary is the «is there a page?» test, not an authority debate.</li>
               </ul>
             </div>
           </article>
         </div>
       </section>
 
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>Yes — this is the most-cited ADR in the project.</strong> One refinement we would commit to on day one if starting today:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Wire a «doc covers operation» check into CI.</strong> Today the «documented topics win» rule depends on humans noticing what is documented; a small CI step that lists every OpenAPI operation without a matching <code>api/&lt;resource&gt;/operations/*</code> page would surface the coverage gap as a build signal. Cheap to add, hard to ignore.</li>
+        </ul>
+      </section>
+
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten to «Why considered / Why rejected» template; <code>§ Trade-offs</code> restructured into canonical entries (sidebar JSON · normative authority); new <code>§ Would we do this again?</code> proposing «doc covers operation» CI check. Inline <code>style</code> stripped.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

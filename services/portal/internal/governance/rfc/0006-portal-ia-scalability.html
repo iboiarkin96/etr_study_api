@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RFC 0006 · Portal IA scalability · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">RFC</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0006</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">RFC · 0006</span>
+          <span class="docs-pill docs-pill--warn">Proposed</span>
+          <span class="docs-pill docs-pill--neutral">Program: Multi-service IA</span>
+        </div>
+        <h1>Portal IA scalability — three layers, one URL per page</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          The portal already feels crowded at ~250 pages and will not survive 1000 in its current flat shape.
+          This RFC lays two new layers above the entity catalog from RFC 0005 — <strong>audience portals</strong>
+          (who the reader is) and <strong>domain hubs</strong> (what concern the work touches) — so every page
+          still lives at one URL but can be reached from three different doors. Closes gap §9 from the
+          2026-05-30 Architect's-Bar audit.
+        </p>
+      </header>
+
+      <h2 id="why">Why this RFC exists</h2>
+      <p>
+        The audit's verdict was specific: <em>«работает для ~250 страниц; что if 1000+? Нужна policy: какие
+        dimension we slice on, какие top-level buckets разрешены, как handle cross-cutting concerns»</em>.
+        The three failure modes below are already visible at today's scale — they will not get better on their
+        own, and the cost of fixing them rises super-linearly with page count.
+      </p>
+
+      <div class="docs-signal-pillars">
+        <ol class="docs-signal-pillars__row" aria-label="Three failure modes of the current IA">
+
+          <li class="docs-signal-pillars__card" data-tone="warn">
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--warn">Flat quadrant</span>
+              </div>
+              <span class="docs-signal-pillars__link">tutorials/</span>
+            </div>
+            <p class="docs-signal-pillars__lede">A quadrant becomes a list nobody can scan.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Today</dt><dd>10 sub-folders by role, ~25 tutorials in one tree.</dd>
+              <dt>At 1000</dt><dd>No one browses 100 tutorials in a sidebar — they search. Search has no facets either.</dd>
+            </dl>
+          </li>
+
+          <li class="docs-signal-pillars__card" data-tone="rose">
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--danger">Stranded</span>
+              </div>
+              <span class="docs-signal-pillars__link">team/roles/sa/</span>
+            </div>
+            <p class="docs-signal-pillars__lede">Role guides live where a reader doesn't look.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Today</dt><dd>150 SA practice pages under «team» — a folder that <em>sounds</em> like a people directory.</dd>
+              <dt>At 1000</dt><dd>Readers looking for «SA practices» land on a member's profile first.</dd>
+            </dl>
+          </li>
+
+          <li class="docs-signal-pillars__card" data-tone="info">
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--info">Duplicated</span>
+              </div>
+              <span class="docs-signal-pillars__link">auth · obs · versioning</span>
+            </div>
+            <p class="docs-signal-pillars__lede">Cross-cutting concerns scatter across folders.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Today</dt><dd>The same concern lives in ADRs, Foundations, per-service how-tos, and Practices.</dd>
+              <dt>At 1000</dt><dd>No domain owner; no single hub a reader can land on; drift accelerates.</dd>
+            </dl>
+          </li>
+
+        </ol>
+      </div>
+
+      <h2 id="layers">The target picture — three orthogonal layers</h2>
+      <p>
+        Each page belongs to <strong>exactly one address</strong> and is reachable from <strong>three different
+        entry points</strong>. The layers do not contain each other in a folder sense — they contain each other
+        in a <em>reading</em> sense: a reader arriving from the audience layer narrows by domain, narrows again
+        by entity, and lands on the page. Pages don't move when audiences or domains are added or removed; only
+        the cross-link tables regenerate.
+      </p>
+
+      <div class="docs-concept-layers" aria-label="Three IA layers">
+        <div class="docs-concept-layers__layer" data-tone="rose">
+          <div class="docs-concept-layers__head">
+            <span class="docs-pill docs-pill--rose">L1</span>
+            <h3 class="docs-concept-layers__title">Audience portals — who the reader is</h3>
+            <span class="docs-concept-layers__rule"><code>filter by data-audience</code></span>
+          </div>
+          <p class="docs-concept-layers__note">
+            <strong>8 portals at launch</strong> — <code>sa</code>, <code>architect</code>, <code>dev</code>,
+            <code>sre</code>, <code>qa</code>, <code>pm</code>, <code>manager</code>, <code>security</code>.
+            Each one a landing + onboarding journey (Day-1 / Week-1 / Month-1) + curated reading list +
+            audience-scoped sidebar slice. A reader picks a hat and sees a curated portal instead of the firehose.
+          </p>
+
+          <div class="docs-concept-layers__layer" data-tone="accent">
+            <div class="docs-concept-layers__head">
+              <span class="docs-pill docs-pill--accent">L2</span>
+              <h3 class="docs-concept-layers__title">Domain hubs — what concern the work touches</h3>
+              <span class="docs-concept-layers__rule"><code>filter by data-domain</code></span>
+            </div>
+            <p class="docs-concept-layers__note">
+              <strong>7 hubs at launch</strong> — <code>api</code>, <code>data</code>, <code>observability</code>,
+              <code>security</code>, <code>governance</code>, <code>delivery</code>, <code>platform</code>.
+              Each one owns an ADR-index slice, a Foundations-page slice, a Practices slice, and has a single
+              owner team. Cross-cutting work that today scatters across folders gets one home per concern.
+            </p>
+
+            <div class="docs-concept-layers__layer" data-tone="info">
+              <div class="docs-concept-layers__head">
+                <span class="docs-pill docs-pill--info">L3</span>
+                <h3 class="docs-concept-layers__title">Entity catalog — which thing the page describes</h3>
+                <span class="docs-concept-layers__rule"><code>per RFC 0005 — unchanged</code></span>
+              </div>
+              <p class="docs-concept-layers__note">
+                Five entity types — <em>System / Component / Library / API / Resource</em> — each with its own
+                spine matrix. This is the layer where pages physically live. The catalog grows from 4 to 50+
+                entities without structural rework; this RFC does not touch the catalog model.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="doors">One page · three doors</h2>
+      <p>
+        Concrete example. Take a real runbook: <code>p95-latency-spike.html</code>. It lives at one URL inside
+        the <code>api</code> Component's catalog spine. After this RFC, the same page surfaces on three
+        landings — and no one has to maintain three copies.
+      </p>
+
+      <div class="docs-signal-pillars">
+        <ol class="docs-signal-pillars__row" aria-label="Three entry points for one page">
+
+          <li class="docs-signal-pillars__card" data-tone="rose">
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--rose">L1</span>
+                <span class="docs-pill docs-pill--neutral">audience</span>
+              </div>
+              <span class="docs-signal-pillars__link">/sre/</span>
+            </div>
+            <p class="docs-signal-pillars__lede">SRE on-call lands on their portal.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Door</dt><dd>Day-1 checklist → «runbooks you'll touch».</dd>
+              <dt>Why</dt><dd>Page carries <code>data-audience="sre"</code>.</dd>
+            </dl>
+          </li>
+
+          <li class="docs-signal-pillars__card" data-tone="accent">
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--accent">L2</span>
+                <span class="docs-pill docs-pill--neutral">domain</span>
+              </div>
+              <span class="docs-signal-pillars__link">/domains/observability/</span>
+            </div>
+            <p class="docs-signal-pillars__lede">Domain owner browses the hub.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Door</dt><dd>«Runbooks» slice on the hub landing.</dd>
+              <dt>Why</dt><dd>Page carries <code>data-domain="observability"</code>.</dd>
+            </dl>
+          </li>
+
+          <li class="docs-signal-pillars__card" data-tone="info">
+            <div class="docs-signal-pillars__head">
+              <div class="docs-signal-pillars__title-row">
+                <span class="docs-pill docs-pill--info">L3</span>
+                <span class="docs-pill docs-pill--neutral">entity</span>
+              </div>
+              <span class="docs-signal-pillars__link">/catalog/components/api/</span>
+            </div>
+            <p class="docs-signal-pillars__lede">Service owner opens its spine.</p>
+            <dl class="docs-signal-pillars__facts">
+              <dt>Door</dt><dd>Runbooks quadrant of the api Component.</dd>
+              <dt>Why</dt><dd>This is the canonical home — page <em>lives</em> here.</dd>
+            </dl>
+          </li>
+
+        </ol>
+      </div>
+
+      <p>
+        The canonical URL is <code>/catalog/components/api/runbooks/p95-latency-spike.html</code>. The other two
+        landings render <em>cards</em> that link to it. The nav-tree generator and the curated-reading-list
+        generator consume the page's facets to decide where the card appears.
+      </p>
+
+      <h2 id="snapshot">Today → Target — folder snapshot</h2>
+
+      <p><strong>Today.</strong> Eight top-level folders. Role guides live deep under <code>team/</code>;
+        cross-cutting work has no home — it lands in <code>foundations/</code>, <code>practices/</code>, or
+        inside the closest quadrant.</p>
+
+        <pre><code>services/portal/internal/                          ← today
+├── tutorials/{sa,dev,sre,qa,manager,architect}/   ← flat quadrant by role
+├── how-to/
+│   ├── qa/                                        ← audience-tagged
+│   ├── docs/                                      ← about docs-as-code
+│   ├── service/                                   ← about delivery
+│   └── incidents/{runbooks, postmortems}/         ← about observability
+├── reference/{qa, security, data, manager, ...}/  ← mixed audience+domain
+├── explanation/{sre, qa, dev}/                    ← audience-tagged
+├── foundations/                                   ← cross-cutting (RFC 0005)
+├── services/                                      ← entity catalog (RFC 0005)
+├── governance/                                    ← ADR · RFC · audits
+└── team/
+    ├── roles/{sa,dev,sre,qa,manager,architect}/   ← role hubs stranded
+    └── people/                                    ← people directory
+        </code></pre>
+
+        <p><strong>Target.</strong> Audience portals are first-class top-level entries. Cross-cutting work
+          gets seven explicit domain homes. The entity catalog (RFC 0005) is unchanged. People directory
+          moves to <code>operations/</code> where it belongs.</p>
+
+          <pre><code>services/portal/internal/                          ← target
+│
+├── sa/ architect/ dev/ sre/ qa/ pm/ manager/      ← L1 audience portals
+│   security/                                         (each: landing + onboarding
+│                                                     + reading lists + own sidebar)
+│   └── &lt;role&gt;/{tutorials, how-to, reference, explanation}/
+│
+├── domains/                                       ← L2 domain hubs
+│   ├── api/             obs/             security/
+│   ├── data/            governance/      delivery/
+│   └── platform/
+│       └── &lt;dom&gt;/{adr-index, practices, runbooks, …}/
+│
+├── catalog/                                       ← L3 entity catalog (RFC 0005)
+│   └── {systems, components, libraries, apis, resources}/
+│
+├── foundations/  practices/  governance/  handbook/  ← unchanged from 0005
+│
+└── operations/                                    ← people, on-call, dashboards
+    └── people/
+          </code></pre>
+
+          <h2 id="journey">A reader's first 30 seconds</h2>
+          <p>One scenario, two timelines. New systems analyst, Day 1, looking for «how do I write a domain model».</p>
+
+          <div class="docs-card-grid docs-card-grid--stack">
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">Today</h3><span class="docs-pill docs-pill--warn">6 clicks</span></div>
+              <div class="docs-card__body">
+                <p>Portal home has no SA-specific door. Sidebar shows 8 top-level folders. Guess «tutorials» — open
+                  <code>tutorials/sa/</code> — domain-model isn't there. Try «how-to» — nothing for SA. Try
+                  <code>team/roles/sa</code> — 150 practice pages, hard to scan. Eventually land on
+                  <code>foundations/reference/sa/domain-model.html</code>.</p>
+                </div>
+              </article>
+              <article class="docs-card" data-tone="success">
+                <div class="docs-card__head"><h3 class="docs-card__title">Target</h3><span class="docs-pill docs-pill--success">2 clicks</span></div>
+                <div class="docs-card__body">
+                  <p>Portal home → pick «I'm an SA» → open <code>/sa/</code>. The SA landing has a «Day-1 checklist»
+                    with «Write your first domain model» as a top item. One more click and the reader is on the page.
+                    For the reader who already knows the term: search «domain model» with the audience facet «SA» —
+                    one click.</p>
+                  </div>
+                </article>
+              </div>
+
+              <h2 id="migration">Migration — three phases</h2>
+              <p>
+                Each phase is independently shippable. Each step is preceded by a one-line «what I will do» note and
+                followed by a one-line «what was done» note in the PR description. No URL ever 404s — the redirect
+                contract (next section) is enforced by CI.
+              </p>
+
+              <div class="docs-signal-pillars">
+                <ol class="docs-signal-pillars__row" aria-label="Three migration phases">
+
+                  <li class="docs-signal-pillars__card" data-tone="success">
+                    <div class="docs-signal-pillars__head">
+                      <div class="docs-signal-pillars__title-row">
+                        <span class="docs-pill docs-pill--success">P1</span>
+                        <span class="docs-pill docs-pill--neutral">6 weeks</span>
+                      </div>
+                      <span class="docs-signal-pillars__link">additive</span>
+                    </div>
+                    <p class="docs-signal-pillars__lede">Nothing moves. Pure additive.</p>
+                    <dl class="docs-signal-pillars__facts">
+                      <dt>Ships</dt><dd>IA-scalability policy page, IA-vocabulary page, facets hook (<em>warn</em>), redirect hook, SA + Architect pilot portals.</dd>
+                      <dt>Risk</dt><dd>Zero. Revertable by <code>git revert</code>.</dd>
+                      <dt>404s</dt><dd>0.</dd>
+                    </dl>
+                  </li>
+
+                  <li class="docs-signal-pillars__card" data-tone="accent">
+                    <div class="docs-signal-pillars__head">
+                      <div class="docs-signal-pillars__title-row">
+                        <span class="docs-pill docs-pill--accent">P2</span>
+                        <span class="docs-pill docs-pill--neutral">3 months</span>
+                      </div>
+                      <span class="docs-signal-pillars__link">moves + redirects</span>
+                    </div>
+                    <p class="docs-signal-pillars__lede">Move ~250 pages. Stubs everywhere.</p>
+                    <dl class="docs-signal-pillars__facts">
+                      <dt>Ships</dt><dd>Folder moves along L1/L2 split; facets hook promoted to error; search facets; audience-scoped sidebar.</dd>
+                      <dt>Risk</dt><dd>href churn — mitigated by <code>check_redirect_consistency.py</code>.</dd>
+                      <dt>404s</dt><dd>0. Stubs live ≥ 12 months.</dd>
+                    </dl>
+                  </li>
+
+                  <li class="docs-signal-pillars__card" data-tone="info">
+                    <div class="docs-signal-pillars__head">
+                      <div class="docs-signal-pillars__title-row">
+                        <span class="docs-pill docs-pill--info">P3</span>
+                        <span class="docs-pill docs-pill--neutral">6 months</span>
+                      </div>
+                      <span class="docs-signal-pillars__link">federation</span>
+                    </div>
+                    <p class="docs-signal-pillars__lede">A hub forks into a sub-portal.</p>
+                    <dl class="docs-signal-pillars__facts">
+                      <dt>Ships</dt><dd>Hub scorecards, stale-detection digests, first federation candidate when a hub crosses ~150 pages.</dd>
+                      <dt>Risk</dt><dd>One-way door — reversal needs a follow-up RFC.</dd>
+                      <dt>404s</dt><dd>0. Sub-portal shares URL space with the shell.</dd>
+                    </dl>
+                  </li>
+
+                </ol>
+              </div>
+
+              <h2 id="redirects">Redirect contract — zero broken links</h2>
+              <p>
+                Every move in Phase 2 follows the same five-step contract. CI rejects any move that skips a step.
+                External readers, bookmarks, Slack pins, and ADR cross-references continue to work without modification.
+              </p>
+
+              <pre><code>1.  Create new page at target path           (git mv when content is unchanged)
+2.  Replace old path with a redirect stub    (0-second meta-refresh + canonical link)
+3.  Append row to redirects.html             (old → new · date · RFC)
+4.  Rewrite in-repo links to old path        (caught by check_redirect_consistency.py)
+5.  Stub stays ≥ 12 months                   (removal recorded in redirects.html)
+              </code></pre>
+
+              <p>
+                The move-log at <code>foundations/reference/sa/redirects.html</code> becomes the single audit trail for
+                «where did that page go».
+              </p>
+
+              <h2 id="signals">How we'll know it's working</h2>
+              <p>
+                Four numbers, surfaced on every hub's hero scorecard at Phase 3 Step 3.2. None of them is new
+                instrumentation — they all derive from frontmatter facets, git mtime, and the existing
+                search-telemetry endpoint. The targets are the falsifiable claims of this RFC: if any of them
+                drifts past its threshold for two consecutive months, the RFC is failing and the response is a
+                scope adjustment, not a tighter target.
+              </p>
+
+              <div class="docs-table-wrap">
+                <table class="docs-table docs-table--zebra docs-table--sticky-head">
+                  <thead><tr><th>Signal</th><th>Target</th><th>How we measure</th><th>Out-of-bounds action</th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Discoverability</strong><br><span class="docs-pill docs-pill--neutral">reader</span></td>
+                      <td>Median ≤ 3 clicks from portal home to the page the reader needed (today: ~5–6 for audience-scoped queries).</td>
+                      <td>Existing search-telemetry endpoint + landing-page click logs grouped by <code>data-audience</code>.</td>
+                      <td>Audit the audience portal's curated reading list; promote the missed page into Day-1 / Week-1.</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Freshness</strong><br><span class="docs-pill docs-pill--neutral">content</span></td>
+                      <td>Median <code>last-reviewed</code> age per hub ≤ 180 days.</td>
+                      <td>Git mtime per file, joined with frontmatter <code>data-domain</code>; rolled up per hub.</td>
+                      <td>Weekly digest issue auto-filed for the hub owner with the stalest five pages.</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Concentration</strong><br><span class="docs-pill docs-pill--neutral">structure</span></td>
+                      <td>≤ 150 pages per hub before federation triggers.</td>
+                      <td>Page count grouped by <code>data-domain</code> + <code>data-audience</code>.</td>
+                      <td>Fork the hub into a sub-portal per the federation contract — this is a planned event, not a regression.</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Integrity</strong><br><span class="docs-pill docs-pill--neutral">links</span></td>
+                      <td>Zero broken links across the portal.</td>
+                      <td>Existing <code>check-asset-refs</code> + new <code>check_redirect_consistency.py</code> in <code>make docs-check</code>.</td>
+                      <td>Pre-commit gate blocks the PR; no merge until 0.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h2 id="delta">Delta vs RFC 0005</h2>
+              <p>0005 and 0006 are complementary. They never fight over the same folder.</p>
+
+              <div class="docs-table-wrap">
+                <table class="docs-table docs-table--zebra docs-table--sticky-head">
+                  <thead><tr><th>Axis</th><th>RFC 0005 (entity)</th><th>RFC 0006 (audience &amp; domain)</th></tr></thead>
+                  <tbody>
+                    <tr><td>Layer</td><td>L3 — entity catalog</td><td>L1 — audience · L2 — domain</td></tr>
+                    <tr><td>Growth target</td><td>4 → 50+ <em>entities</em></td><td>250 → 1000+ <em>pages</em></td></tr>
+                    <tr><td>Owns folders</td><td><code>catalog/</code>, <code>foundations/</code>, <code>practices/</code></td><td><code>sa/</code>, <code>dev/</code>, …, <code>domains/*/</code></td></tr>
+                    <tr><td>Adds attributes</td><td><code>spec.type</code>, <code>spec.lifecycle</code>, <code>x-study-app.scorecard</code></td><td><code>data-audience</code>, <code>data-domain</code>, <code>data-lifecycle</code>, <code>data-tags</code></td></tr>
+                    <tr><td>Enforces with</td><td><code>check_spine_completeness.py</code></td><td><code>check_frontmatter_facets.py</code>, <code>check_redirect_consistency.py</code>, <code>check_canonical_home.py</code></td></tr>
+                    <tr><td>Sequencing</td><td>0005 Phase 1 (additive) — anytime</td><td>0006 Phase 1 in parallel with 0005 Phase 1. 0006 Phase 2 lands <em>before</em> 0005 Phase 2 (catalog rename) so href rewrites only happen once.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h2 id="appendix">Appendix — implementation detail</h2>
+              <p>The conceptual picture is above. The tables below are reference material for Phase-1 implementers.</p>
+
+              <h3 id="a-audience">A.1 — Audience portals</h3>
+              <div class="docs-table-wrap">
+                <table class="docs-table docs-table--zebra">
+                  <thead><tr><th>Portal</th><th>Path</th><th>Folds in</th></tr></thead>
+                  <tbody>
+                    <tr><td>SA</td><td><code>/sa/</code></td><td><code>team/roles/sa/</code>, <code>tutorials/sa/</code>, <code>foundations/reference/sa/</code></td></tr>
+                    <tr><td>Architect</td><td><code>/architect/</code></td><td><code>team/roles/architect/</code>, <code>tutorials/architect/</code></td></tr>
+                    <tr><td>Dev</td><td><code>/dev/</code></td><td><code>team/roles/dev/</code>, <code>tutorials/dev/</code>, internal/dev radar</td></tr>
+                    <tr><td>SRE</td><td><code>/sre/</code></td><td><code>team/roles/sre/</code>, <code>tutorials/sre/</code>, <code>explanation/sre/</code></td></tr>
+                    <tr><td>QA</td><td><code>/qa/</code></td><td><code>team/roles/qa/</code>, <code>tutorials/qa/</code>, <code>explanation/qa/</code>, <code>reference/qa/</code>, <code>how-to/qa/</code></td></tr>
+                    <tr><td>PM</td><td><code>/pm/</code></td><td>new — onboarding placeholder</td></tr>
+                    <tr><td>Manager</td><td><code>/manager/</code></td><td><code>team/roles/manager/</code>, <code>tutorials/manager/</code>, <code>reference/manager/</code></td></tr>
+                    <tr><td>Security</td><td><code>/security/</code></td><td><code>reference/security/</code></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p><strong>When to add an audience.</strong> All three of: (a) a clear «hat» distinct from existing portals,
+                (b) ≥ 10 pages with the new <code>data-audience</code> value, (c) an owner. Two-of-three veto.</p>
+
+                <h3 id="a-domain">A.2 — Domain hubs</h3>
+                <div class="docs-table-wrap">
+                  <table class="docs-table docs-table--zebra">
+                    <thead><tr><th>Hub</th><th>Owns (cross-cutting)</th><th>ADR anchors</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>domains/api/</code></td><td>Versioning, OpenAPI, error contracts, idempotency, pagination, deprecation</td><td>0003, 0004, 0005, 0006, 0007, 0025</td></tr>
+                      <tr><td><code>domains/data/</code></td><td>Schemas, migrations, ETL, DWH, retention, lineage</td><td>— (data ADRs to be written)</td></tr>
+                      <tr><td><code>domains/observability/</code></td><td>Logs, metrics, traces, SLOs, alerts, runbooks, postmortems</td><td>0009, 0011, 0023</td></tr>
+                      <tr><td><code>domains/security/</code></td><td>AuthN/Z, secrets, threat model, supply-chain</td><td>0005, 0019</td></tr>
+                      <tr><td><code>domains/governance/</code></td><td>ADR/RFC lifecycle, audits, ratification</td><td>0001, 0018, 0026</td></tr>
+                      <tr><td><code>domains/delivery/</code></td><td>CI, branching, releases, rollback, feature flags</td><td>0008, 0013, 0017</td></tr>
+                      <tr><td><code>domains/platform/</code></td><td>Runtime, networking, containers, infra cost, monorepo boundaries</td><td>0028</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p><strong>When to add a domain.</strong> All three of: (a) ≥ 3 ADRs accumulate around the concern,
+                  (b) ≥ 2 entities adopt patterns in it, (c) an owner. Two-of-three keeps the concern as a section inside
+                  an existing domain.</p>
+
+                  <h3 id="a-facets">A.3 — Frontmatter facets</h3>
+                  <div class="docs-table-wrap">
+                    <table class="docs-table docs-table--zebra">
+                      <thead><tr><th>Attribute</th><th>Allowed values</th><th>Status</th></tr></thead>
+                      <tbody>
+                        <tr><td><code>data-page-type</code></td><td><code>tutorial · how-to · reference · explanation · landing-portal · landing-section · adr · rfc · runbook · postmortem · practice · domain-hub · audience-portal</code></td><td>Already required (extended)</td></tr>
+                        <tr><td><code>data-audience</code></td><td><code>sa · architect · dev · sre · qa · pm · manager · security · any</code></td><td>New (closed vocab)</td></tr>
+                        <tr><td><code>data-domain</code></td><td><code>api · data · observability · security · governance · delivery · platform · none</code></td><td>New (closed vocab)</td></tr>
+                        <tr><td><code>data-lifecycle</code></td><td><code>experimental · stable · deprecated · archived</code></td><td>New (closed vocab)</td></tr>
+                        <tr><td><code>data-tags</code></td><td>Open vocab, whitelist-gated</td><td>New</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h3 id="a-enforcement">A.4 — CI enforcement</h3>
+                  <div class="docs-table-wrap">
+                    <table class="docs-table docs-table--zebra">
+                      <thead><tr><th>Rule</th><th>Hook</th><th>Phase added</th></tr></thead>
+                      <tbody>
+                        <tr><td>Required frontmatter facets</td><td><code>scripts/check_frontmatter_facets.py</code></td><td>1.4 warn → 2.1 error</td></tr>
+                        <tr><td>Redirect-stub log consistency</td><td><code>scripts/check_redirect_consistency.py</code></td><td>1.5</td></tr>
+                        <tr><td>Canonical home — one page per concept</td><td><code>scripts/check_canonical_home.py</code></td><td>3.x</td></tr>
+                        <tr><td>Asset-refs (existing)</td><td><code>scripts/check_asset_refs.py</code></td><td>extended to walk redirect stubs</td></tr>
+                        <tr><td>Spine-completeness (RFC 0005)</td><td><code>scripts/check_spine_completeness.py</code></td><td>extended to verify <code>data-domain</code> on catalog pages</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p>All five run under the existing <code>make docs-check</code> gate.</p>
+
+                  <h3 id="a-open">A.5 — Open questions to resolve before Phase 2</h3>
+                  <ol>
+                    <li>Audience-portal naming: <code>sa/</code> (proposed) vs <code>audience/sa/</code> — URL length wins; <code>sa/</code>.</li>
+                    <li>Domain-hub naming: <code>domains/api/</code> prefix is mandatory — collision with the <code>api</code> Component.</li>
+                    <li>QA placement: audience portal only; testing patterns stay in <code>practices/</code> per RFC 0005.</li>
+                    <li>SA vs Architect overlap: two portals; SA owns requirements/domain/process/NFR, Architect owns C4/ADR-curation.</li>
+                    <li>Pilot audience: SA first (richest source), SRE second.</li>
+                    <li>Federation threshold: 150 pages (lower triggers premature federation).</li>
+                    <li>Search facets UI: filter-chips (reuse RFC-index toolbar component).</li>
+                    <li>Redirect stub lifetime: 12 months; older becomes noise.</li>
+                  </ol>
+
+                  <h3 id="a-meta">A.6 — RFC metadata</h3>
+                  <ul>
+                    <li>Date: 2026-06-01</li>
+                    <li>Status: <strong>Proposed</strong> · policy form</li>
+                    <li>Owner: <a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></li>
+                    <li>Reviewers expected: Tech Lead, Architecture Lead, Senior Systems Analyst</li>
+                    <li>Discussion Issue: <em>open with <code>[RFC]</code> title per <a href="../adr/0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a></em></li>
+                    <li>Related ADRs:
+                      <a href="../adr/0001-docs-as-code.html">0001</a>,
+                      <a href="../adr/0018-adr-lifecycle-ratification-and-badges.html">0018</a>,
+                      <a href="../adr/0020-c4-plantuml-diagram-style-and-conventions.html">0020</a>,
+                      <a href="../adr/0025-external-and-internal-api-documentation.html">0025</a>,
+                      <a href="../adr/0026-internal-service-documentation-as-source-of-truth.html">0026</a>,
+                      <a href="../adr/0028-monorepo-with-service-boundaries.html">0028</a>
+                    </li>
+                    <li>Related RFCs:
+                      <a href="0003-documentation-authoring-model.html">0003</a> (authoring),
+                      <a href="0004-public-vs-internal-documentation-portal-ia.html">0004</a> (public/internal split — orthogonal),
+                      0005 (entity catalog — the L3 layer this builds on; superseded and carried forward into this RFC)
+                    </li>
+                    <li>Audit source: <code>diataxis-audit-2026-05-30-ru-vol2-architect-bar.html</code> §9 «IA scalability», severity <em>medium</em></li>
+                  </ul>
+
+                </article>
+
+                <footer class="docs-history" aria-label="History">
+                  <h2 class="docs-history__title">History</h2>
+                  <ul class="docs-history__list">
+                    <li class="docs-history__row">
+                      <span class="docs-history__date">2026-06-01</span>
+                      <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+                      <span class="docs-history__note">Reshaped RFC 0006 around the SRE Explanation visual language: standard <code>page-head</code> + chip-row (no home-hero); <code>docs-concept-layers</code> matryoshka for the L1 ⊃ L2 ⊃ L3 layers; three <code>docs-signal-pillars</code> rows (failure modes · one-page-three-doors · migration phases); <code>docs-signal-pillars--four</code> with inline SVG glyphs for the four success signals; <code>docs-card-grid--two</code> for the reader's-30-seconds Today-vs-Target panel; ASCII trees for the folder snapshot; «What to read next» dropped per the no-See-also rule.</span>
+                    </li>
+                    <li class="docs-history__row">
+                      <span class="docs-history__date">2026-06-01</span>
+                      <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+                      <span class="docs-history__note">Proposed RFC 0006: closes the §9 «IA scalability ceiling» gap from the 2026-05-30 Architect's-Bar audit. L1 audience portals (sa · dev · sre · qa · pm · manager · security · architect) + L2 domain hubs (api · data · observability · security · governance · delivery · platform) above the RFC 0005 entity catalog; faceted frontmatter; federation trigger at ~150 pages; three-phase migration with a zero-broken-link redirect contract.</span>
+                    </li>
+                  </ul>
+                </footer>
+              </main>
+
+              <aside class="docs-toc" aria-label="On this page">
+                <p class="docs-toc__title">On this page</p>
+                <ol class="docs-toc__list">
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#why">Why this RFC exists</a></li>
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#layers">Three layers</a></li>
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#doors">One page · three doors</a></li>
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#snapshot">Today → Target</a></li>
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#journey">A reader's 30 s</a></li>
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#migration">Migration phases</a></li>
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#redirects">Redirect contract</a></li>
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#signals">Success signals</a></li>
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#delta">Delta vs 0005</a></li>
+                  <li class="docs-toc__item"><a class="docs-toc__link" href="#appendix">Appendix</a></li>
+                </ol>
+              </aside>
+              <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+              <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+            </body></html>

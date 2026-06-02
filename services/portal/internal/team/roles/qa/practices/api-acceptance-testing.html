@@ -45,7 +45,7 @@
 
     <div class="pa-tldr">
       <span class="pa-tldr__label">TL;DR</span>
-      <p class="pa-tldr__text">API acceptance testing is the QA sign-off gate for every HTTP endpoint, verifying six dimensions: contract conformance, happy-path responses, error codes (4xx/5xx), authentication gates, idempotency, observability. Driven by the OpenAPI spec (SWE Practice 12) — Schemathesis runs the contract fuzz; hand-written tests cover business edge cases; checklist 0002 is the acceptance criterion. Without it, endpoints reach production missing auth edges, with wrong error shapes, or dropped correlation IDs.</p>
+      <p class="pa-tldr__text">API acceptance testing is the QA sign-off gate for every HTTP endpoint, verifying six dimensions: contract conformance, happy-path responses, error codes (4xx/5xx), authentication gates, idempotency, observability. Driven by the OpenAPI spec (SWE Practice 12) — Schemathesis runs the contract fuzz; hand-written tests cover business edge cases; the API endpoint acceptance checklist is the acceptance criterion. Without it, endpoints reach production missing auth edges, with wrong error shapes, or dropped correlation IDs.</p>
     </div>
 
     <figure class="pa-figure" aria-label="Six acceptance dimensions">
@@ -193,7 +193,7 @@
       <p><strong>Idempotency-Key is non-negotiable for write endpoints.</strong> Network retries are inevitable. Without idempotency, a retried POST charges the user twice. Stripe popularised the header; the IETF draft has crystallised it. Acceptance test simulates partial failure (server write commits, network drops before response) and verifies the retry returns the same result.</p>
       <p><strong>Tenant-isolation auth tests are the highest-ROI security check.</strong> User A authenticating and reading user B's resource is the most common multi-tenant bug. Acceptance test mints A's token; calls the endpoint for B's resource; asserts 403. Cheap to write; catches a real class of incidents.</p>
       <p><strong>Observability assertions catch silent breakage.</strong> Missing <code>trace_id</code> in logs doesn't break a feature; it just makes incidents 10× slower to debug. Acceptance test asserts <code>X-Request-ID</code> echoes back and shows up in the log line for the request. Cheap; catches regression.</p>
-      <p><strong>Checklist 0002 makes the bar uniform.</strong> Without it, each engineer's coverage depends on memory + mood. With it, the same six questions get asked per endpoint. The questions look obvious until you find the endpoint that missed three of them.</p>
+      <p><strong>API endpoint acceptance checklist makes the bar uniform.</strong> Without it, each engineer's coverage depends on memory + mood. With it, the same six questions get asked per endpoint. The questions look obvious until you find the endpoint that missed three of them.</p>
       <p><strong>Pair acceptance with contract tests in SWE radar.</strong> SWE Practice 12 (contract-first) makes acceptance much cheaper — the schema already exists; the SDK is generated; the mock is available. QA acceptance is the final human review on top.</p>
     </section>
 
@@ -203,7 +203,7 @@
         <div class="pa-states__item"><p class="pa-states__name">Schema landed</p><p class="pa-states__hint">OpenAPI changes merged. Contract-first PR (SWE Practice 12). Generated SDK + mock available.</p></div>
         <div class="pa-states__item"><p class="pa-states__name">Schemathesis green</p><p class="pa-states__hint">Contract fuzz passes against staging. No schema drift; no unexpected response shapes.</p></div>
         <div class="pa-states__item"><p class="pa-states__name">Hand-written tests pass</p><p class="pa-states__hint">Happy / errors / auth / idempotency / observability scenarios green. Postman / in-language.</p></div>
-        <div class="pa-states__item"><p class="pa-states__name">Checklist signed</p><p class="pa-states__hint">QA reviewer walks checklist 0002 per endpoint; signs the row.</p></div>
+        <div class="pa-states__item"><p class="pa-states__name">Checklist signed</p><p class="pa-states__hint">QA reviewer walks the API endpoint acceptance checklist per endpoint; signs the row.</p></div>
         <div class="pa-states__item"><p class="pa-states__name">Verified</p><p class="pa-states__hint">Endpoint marked QA-verified in the API catalogue; release sign-off can include it.</p></div>
         <div class="pa-states__item"><p class="pa-states__name">Re-checked on change</p><p class="pa-states__hint">Schema change triggers re-acceptance. Quarterly retroactive sweep catches drift.</p></div>
       </div>
@@ -215,7 +215,7 @@
         <table class="docs-table docs-table--sticky-head">
           <thead><tr><th scope="col">Pitfall</th><th scope="col">Why it happens</th><th scope="col">What to do instead</th></tr></thead>
           <tbody>
-            <tr><td>Only happy-path tests</td><td>Engineer writes 200-status test; ships. Error / auth / idempotency / observability skipped.</td><td>Checklist 0002. Six dimensions per endpoint; QA reviewer signs the row.</td></tr>
+            <tr><td>Only happy-path tests</td><td>Engineer writes 200-status test; ships. Error / auth / idempotency / observability skipped.</td><td>API endpoint acceptance checklist. Six dimensions per endpoint; QA reviewer signs the row.</td></tr>
             <tr><td>Hand-rolled error format</td><td>Each endpoint invents an error shape; clients special-case; surface fragments.</td><td>RFC 7807 problem-details for every 4xx/5xx. Reusable test helper asserts shape.</td></tr>
             <tr><td>No idempotency on writes</td><td>Retry charges the user twice; partial failures double-process.</td><td>Idempotency-Key per write endpoint. Test simulates partial failure + retry; asserts single effect.</td></tr>
             <tr><td>No tenant-isolation test</td><td>User A reads user B's data; security incident waiting to happen.</td><td>Tenant-isolation test in every acceptance suite. A's token → B's resource → expect 403.</td></tr>
@@ -229,7 +229,7 @@
     <section id="example">
       <h2>Worked example — Schemathesis + acceptance suite</h2>
       <div class="pa-example">
-        <p class="pa-example__intro">Pipeline for the lesson-player API: contract fuzz via Schemathesis + hand-written Postman acceptance scenarios + checklist 0002 sign-off.</p>
+        <p class="pa-example__intro">Pipeline for the lesson-player API: contract fuzz via Schemathesis + hand-written Postman acceptance scenarios + the API endpoint acceptance checklist sign-off.</p>
         <pre class="pa-example__code"><code># .github/workflows/api-acceptance.yml (excerpt)
 jobs:
   contract:
@@ -275,7 +275,7 @@ jobs:
         .to.eql(pm.environment.get("req-id"));
     });
         </code></pre>
-        <p class="pa-example__note">Contract fuzz + hand-written six-dimension scenarios in one CI workflow. Newman exports JUnit for the release dashboard; checklist 0002 is signed by QA reviewer per endpoint before "verified".</p>
+        <p class="pa-example__note">Contract fuzz + hand-written six-dimension scenarios in one CI workflow. Newman exports JUnit for the release dashboard; the API endpoint acceptance checklist is signed by QA reviewer per endpoint before "verified".</p>
       </div>
     </section>
 
@@ -284,7 +284,7 @@ jobs:
       <ul class="pa-quality">
         <li><strong>OpenAPI as source.</strong> Contract-first (SWE Practice 12).</li>
         <li><strong>Schemathesis in CI.</strong> Required check; drift fails the build.</li>
-        <li><strong>Six-dimension checklist per endpoint.</strong> Checklist 0002; QA reviewer signs.</li>
+        <li><strong>Six-dimension checklist per endpoint.</strong> API endpoint acceptance checklist; QA reviewer signs.</li>
         <li><strong>RFC 7807 error shape.</strong> Every 4xx/5xx conforms; reusable test helper.</li>
         <li><strong>Idempotency-Key on writes.</strong> Test simulates partial failure; verifies single effect.</li>
         <li><strong>Tenant-isolation test.</strong> A's token → B's resource → expect 403.</li>

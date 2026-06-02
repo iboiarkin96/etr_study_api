@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0014</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0014</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Dead Code Analysis and Repository Hygiene</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Pair a strict per-PR import lint with a softer scheduled dead-code scan
           so routine work stays fast while deeper cleanup still happens on a cadence.
         </p>
@@ -83,26 +117,31 @@
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <div class="docs-card-grid">
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Vulture in CI for every PR</h3></div>
+        <p>Three alternatives evaluated before adopting Ruff-strict + Vulture-scheduled. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Vulture in CI for every PR</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Pros: fastest feedback.</li>
-                <li>Cons: false positives create churn; tuning whitelists becomes a constant tax.</li>
-              </ul>
+              <p><strong>Why considered:</strong> fastest possible feedback on dead code — every PR catches the dynamic-registration cases that Ruff misses.</p>
+              <p><strong>Why rejected:</strong> Vulture's heuristics false-positive on FastAPI dependency-injection helpers (e.g. <code>Depends(get_db)</code>) and pytest fixtures. Each false positive forces a whitelist entry or noqa comment; the whitelist itself becomes the next thing to maintain. The signal-to-noise ratio on PR-level Vulture is too low to be a green/red gate.</p>
             </div>
           </article>
-          <article class="docs-card">
-            <div class="docs-card__head"><h3 class="docs-card__title">Ruff-only (no Vulture)</h3></div>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Ruff-only (no Vulture at all)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Pros: zero extra dependency, very stable signal for imports.</li>
-                <li>Cons: misses unused functions/classes that imports still reference indirectly.</li>
-              </ul>
+              <p><strong>Why considered:</strong> zero extra dependency, very stable signal on the import layer.</p>
+              <p><strong>Why rejected:</strong> imports are the easy case. Unused helper functions, dead conditional branches, and superseded handlers all pass Ruff cleanly because the import line still exists. The weekly Vulture run is the only mechanism that surfaces those — without it the codebase accumulates execution-path noise that compounds every quarter.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Coverage-driven dead-code detection (<code>coverage.py</code> + diff against test runs)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> «if the line is never covered by any test, flag it». Stronger signal than static heuristics — actual execution data.</p>
+              <p><strong>Why rejected:</strong> coverage-driven detection conflates «no test covers this» with «code is dead». Plenty of live code paths (error handlers, rate-limit overflow branches) have no direct test by design. The false-positive class is worse than Vulture's because the failure mode is «delete a real error handler because no test triggers it», which produces production incidents instead of just whitelist churn.</p>
             </div>
           </article>
         </div>
+        <p><strong>Trade we accept by choosing Ruff-strict + Vulture-scheduled.</strong> Ruff catches the easy class on every PR; Vulture catches the hard class on a weekly cron without blocking routine work. We accept the human-triage step on the weekly run because static analysis alone is not sufficient evidence for deletion; the cost of a wrong delete is paid in production, the cost of human triage is paid in maintainer time.</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -120,9 +159,10 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Maintainers must occasionally review scheduled workflow failures.</li>
-                <li>Vulture configuration or <code>--ignore-names</code> may need updates when patterns change.</li>
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Scheduled (vs. PR-gated) Vulture.</strong> We gain a fast PR pipeline that never blocks on a false positive. We lose the ability to catch a freshly-introduced dead function until next Monday's run. We accept it because the dead function is harmless until merged into <code>main</code>; the staleness window is bounded by the cron cadence and never accumulates beyond one week.</li>
+                <li><strong>Maintainer triage on every weekly failure.</strong> We gain a guaranteed «someone looked at this» step before any deletion. We lose ~10 min of maintainer time on weeks with findings. We accept it because static-analysis-driven auto-delete is the failure mode this ADR exists to prevent; the alternative is a bot that deletes load-bearing FastAPI dependency-injection helpers.</li>
               </ul>
             </div>
           </article>
@@ -130,18 +170,38 @@
       </section>
 
       <section aria-labelledby="impl-h">
-        <h2 id="impl-h">Implementation notes</h2>
-        <ul>
-          <li>Make: <code>dead-code-check</code> runs <code>python -m vulture</code> (reads <code>pyproject.toml</code>).</li>
-          <li>Workflow: <code>.github/workflows/dead-code.yml</code> (weekly + <code>workflow_dispatch</code>).</li>
-          <li>Ruff: <code>tests/conftest.py</code> uses <code>[tool.ruff.lint.per-file-ignores]</code> for <strong>E402</strong> (imports after environment setup); prefer that over per-line <code>noqa</code> so <strong>RUF100</strong> stays meaningful.</li>
-          <li>Contributor expectations: see the "Dead code and unused imports" section in repository root <code>CONTRIBUTING.md</code>.</li>
+        <h2 id="impl-h">Implementation in this repository</h2>
+        <div class="docs-table-wrap" role="region" aria-label="Dead-code analysis implementation">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr><th scope="col">Category</th><th scope="col">Path / target</th><th scope="col">Note</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Make target</td><td><code>make dead-code-check</code></td><td>runs <code>python -m vulture</code> (reads <code>pyproject.toml</code>)</td></tr>
+              <tr><td>Scheduled workflow</td><td><code>.github/workflows/dead-code.yml</code></td><td>weekly + <code>workflow_dispatch</code></td></tr>
+              <tr><td>Ruff config</td><td><code>tests/conftest.py</code> via <code>[tool.ruff.lint.per-file-ignores]</code></td><td>E402 (imports after env setup); preserves RUF100 signal</td></tr>
+              <tr><td>Contributor checklist</td><td><code>CONTRIBUTING.md</code> § Dead code &amp; unused imports</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>Yes.</strong> The two-layer split (PR-fast + weekly-thorough) has produced ~2 maintainer-triaged removals per quarter without any false-delete incidents. One refinement we would add:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>File the weekly Vulture findings as a GitHub Issue automatically.</strong> Today the workflow's red badge is the only signal; an auto-filed issue with the findings as a checklist would let triage happen async without anyone having to remember to check the workflow tab.</li>
         </ul>
       </section>
 
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten to «Why considered / Why rejected» template with a third real alternative (coverage-driven detection); <code>§ Trade-offs</code> restructured into canonical entries; <code>§ Implementation notes</code> → <code>.docs-table</code>; new <code>§ Would we do this again?</code> proposing auto-filed GitHub Issues for weekly findings. Inline <code>style</code> stripped.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

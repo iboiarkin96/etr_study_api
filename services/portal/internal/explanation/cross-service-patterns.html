@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cross-service patterns — placeholder · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Cross-service patterns</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Explanation</span>
+          <span class="docs-pill docs-pill--warn">Placeholder · not yet relevant</span>
+          <span class="docs-pill docs-pill--neutral">Single-service today</span>
+        </div>
+        <h1>Cross-service patterns — the namespace for when there are two</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Study App ships as one deployable today. Distributed tracing, service-to-service auth, and saga-style transactions are not patterns we run — they are patterns we will need to decide on the day a second service ships. This page is the namespace for those decisions and the early-warning list of design forces that will trigger each section being filled. It is deliberately empty in places; the alternative is to design distributed systems we don't yet need.</p>
+      </header>
+
+      <h2 id="why-now">Why a placeholder, not nothing</h2>
+      <p>Three forces make the empty-stub approach cheaper than starting from a blank page on day two-service-zero. <strong>(1)</strong> Cross-service patterns interlock — distributed tracing and service-to-service auth are not separable decisions; a stub forces an early read on the interlocks. <strong>(2)</strong> The architectural posture of «single service today» is itself a decision worth recording, with the alternatives we rejected at every monolith-vs-microservice fork. <strong>(3)</strong> The day a second service is proposed (RabbitMQ worker in <a href="../governance/backlog/index.html">BL-049</a>, or any future split), this page is where the design notes land. The audit trail starts here, not in a Slack thread.</p>
+
+      <h2 id="today">Today's posture — one service, three sub-components</h2>
+      <p>The <a href="../foundations/reference/sa/topology.html">topology</a> says four «services» live in the repo (<code>api</code>, <code>portal</code>, <code>monitoring</code>, <code>ui-kit</code>), but only <code>api</code> is a runtime service; the rest are static assets, build artefacts, or the portal itself. The <a href="../foundations/reference/sa/domain-model.html">domain model</a> describes six bounded contexts, all enforced inside one process. This page therefore documents <em>three explicit non-decisions</em> — patterns we deliberately have not paid for — and the signal that will end each non-decision.</p>
+
+      <h3 id="non-decisions">The three explicit non-decisions</h3>
+      <ul>
+        <li><strong>No distributed tracing.</strong> Spans live within one process; <a href="sre/observability.html">observability</a> is structured logs + request IDs, not OpenTelemetry spans crossing a wire. Reason: one process means causality is reconstructable from the log stream alone; OTLP would add a collector dependency for zero present-day benefit.</li>
+        <li><strong>No service-to-service auth.</strong> There is no «service B calls service A» surface. Internal calls are function calls. Reason: introducing mTLS or service-account JWTs before they have a caller is the canonical premature-design failure.</li>
+        <li><strong>No distributed transactions.</strong> Writes are single-database; SQLite's <a href="../how-to/incidents/postmortems/2026-04-02-sqlite-write-lock-burst.html">single-writer model</a> is the consistency boundary. Reason: sagas, two-phase commits, and outbox patterns each add operational complexity that we don't yet pay rent for.</li>
+      </ul>
+
+      <h2 id="triggers">What ends each non-decision</h2>
+      <p>Each of the three sub-sections below names the explicit trigger — the design force that, once it fires, turns the placeholder into a real Explanation page. Until the trigger fires, the section stays a stub and the architectural posture is to not pre-emptively design.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Cross-service triggers">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Pattern</th><th>Trigger to fill this section</th><th>Default landing decision when the trigger fires</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Distributed tracing</td>
+              <td>≥ 2 processes participate in any user-visible request, or any async worker emits events that downstream services subscribe to (BL-049 RabbitMQ is the first candidate).</td>
+              <td>OpenTelemetry SDK with OTLP export to a local collector; <code>traceparent</code> propagated in every cross-process call. ADR drafted before the second process ships, not after.</td>
+            </tr>
+            <tr>
+              <td>Service-to-service auth</td>
+              <td>Any internal API surface that a second service calls (not the public API used by external integrators, which already has the <a href="../governance/adr/0005-api-security-defaults.html">API-key contract</a> from ADR 0005).</td>
+              <td>Short-lived service-account JWTs signed by a shared secret; mTLS rejected unless we are also paying for service-mesh tooling. The trade is in <a href="../governance/adr/0005-api-security-defaults.html">ADR 0005 § Alternatives</a> already.</td>
+            </tr>
+            <tr>
+              <td>Distributed transactions / sagas</td>
+              <td>Any write that has to be atomic across two data stores (e.g. PostgreSQL primary plus a second store like Redis or a search index).</td>
+              <td>Transactional outbox + idempotent consumer, not 2PC. The <a href="../governance/adr/0006-idempotency-write-operations.html">idempotency-key contract</a> from ADR 0006 is the foundation; the consumer side fills in here.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="tracing">Distributed tracing — stub</h2>
+      <p class="pa-tldr"><span class="pa-tldr__label">Not yet relevant</span><span class="pa-tldr__text">Single-process spans live in structured logs; correlation is by request ID, not by trace ID. Re-evaluate the day a second process participates in a request.</span></p>
+      <p>When filled, this section will document the choice of OpenTelemetry SDK + OTLP collector vs alternatives (Honeycomb agent / Datadog APM / homegrown trace IDs in logs), the W3C <code>traceparent</code> propagation contract on every internal hop, sampling strategy (default head-based vs adaptive vs tail-based once we have the data), and the <em>cost</em> of each rejected alternative. The single load-bearing question to answer first: «can our existing log aggregator continue to be the primary observability surface, or does the trace become it?» — the answer determines whether OTLP is additive or a replacement.</p>
+
+      <h2 id="s2s-auth">Service-to-service auth — stub</h2>
+      <p class="pa-tldr"><span class="pa-tldr__label">Not yet relevant</span><span class="pa-tldr__text">There is no internal API surface. The day a second service exists, this stub becomes a real ADR — likely short-lived JWTs over mTLS.</span></p>
+      <p>When filled, this section will document the rejected alternatives explicitly: <strong>(a)</strong> mTLS-only with no application-layer identity — rejected because operations like rate-limit and authz cannot read «which service is calling» from a cert; <strong>(b)</strong> long-lived API keys reused across internal callers — rejected because rotation becomes a fleet operation; <strong>(c)</strong> SPIFFE / SPIRE workload identity — rejected unless we already run a service mesh that issues the SVIDs for free. The default landing decision is short-lived JWTs signed by a shared secret, with mTLS as transport hardening when the call crosses a network boundary outside our trust zone.</p>
+
+      <h2 id="sagas">Distributed transactions / sagas — stub</h2>
+      <p class="pa-tldr"><span class="pa-tldr__label">Not yet relevant</span><span class="pa-tldr__text">All writes go to one SQLite file. The day a second store enters the write path, the outbox-pattern decision is forced.</span></p>
+      <p>When filled, this section will document the contract for atomic-across-stores writes: a transactional outbox table local to the primary store, an idempotent consumer reading the outbox and applying side effects (search-index update, cache invalidation, downstream event publish). Rejected alternatives: <strong>(a)</strong> two-phase commit across stores — rejected because most modern stores don't expose the XA protocol; <strong>(b)</strong> compensating sagas without idempotency keys — rejected because compensation is unsound without exactly-once application; <strong>(c)</strong> «eventually consistent and hope» — rejected by name, because that is not a pattern, it is a missing design.</p>
+
+      <h2 id="tradeoffs">Tradeoffs of keeping this page as a stub</h2>
+      <p>Stub pages are themselves a tradeoff. We pay maintenance cost on a page that is not yet load-bearing; the alternative is paying design cost during an outage on day-two-service-zero. The pattern below pins the trade.</p>
+      <div class="docs-card-grid docs-card-grid--two">
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">Architecture decisions land in a known location</h3>
+          <p class="docs-card__body">The day a second service is proposed, this page is where the «what about tracing / auth / sagas?» questions get answered — not in a Slack thread, not in a one-off ADR drafted under deadline pressure.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">A stub page is a maintenance item</h3>
+          <p class="docs-card__body">Every audit pass has to re-check whether the page is still aspirational or has become real. The mitigation is the explicit trigger table above — when the trigger fires, the section gets filled or the page gets retired.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">The «single service» posture is recorded as a decision, not an accident</h3>
+          <p class="docs-card__body">Stating «we deliberately do not run distributed tracing because we have one process» is stronger than silence. Silence reads as «they didn't think about it»; this page proves we did.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">Pre-emptive design is a known anti-pattern</h3>
+          <p class="docs-card__body">If we fill the stubs before the trigger fires, we are designing for hypothetical futures — exactly what <a href="../foundations/reference/sa/principles.html">the principles</a> warn against. The discipline is to keep the stubs empty until the trigger lands, even when filling them would feel satisfying.</p>
+        </article>
+      </div>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li><a href="architecture-narrative.html">Architectural narrative</a> — the «one service» posture in the broader story.</li>
+          <li><a href="ia-scalability.html">IA scalability</a> — the ceiling at «per-service folders under services/» = 3 (we are at 1).</li>
+          <li><a href="../foundations/reference/sa/topology.html">Topology</a> — the actual deploy units today.</li>
+          <li><a href="../foundations/reference/sa/domain-model.html">Domain model</a> — six bounded contexts inside the one process.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-02</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created as Vol. 2 Phase 3 follow-up (cross-service patterns placeholder). Closes Vol. 2 low-severity gap #10. Records the three explicit non-decisions (no distributed tracing · no service-to-service auth · no sagas) and the explicit trigger that ends each. Stub sections kept deliberately empty until the trigger fires.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why-now">Why a placeholder</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#today">Today's posture</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#triggers">Triggers</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tracing">Distributed tracing</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#s2s-auth">Service-to-service auth</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#sagas">Sagas</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs">Tradeoffs</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

@@ -7,6 +7,8 @@ import { mountDrawer } from "../../ui-kit/components/drawer.js";
 import { mountTocFab } from "../../ui-kit/components/toc-fab.js";
 import { mountThemeToggle } from "../../ui-kit/components/theme-toggle.js";
 import { mountBugReport } from "../../ui-kit/components/bug-report.js";
+import { mountFeedbackWidget } from "../../ui-kit/components/feedback-widget.js";
+import { mountEditOnGithub } from "../../ui-kit/components/edit-on-github.js";
 import { mountReadingProgress } from "../../ui-kit/components/reading-progress.js";
 import { mountModal } from "../../ui-kit/components/modal.js";
 import { mountDiagramLightbox } from "../../ui-kit/components/diagram-lightbox.js";
@@ -25,6 +27,7 @@ import { mountSparklines } from "../../ui-kit/components/sparkline.js";
 import { mountRadars } from "../../ui-kit/components/radar.js";
 import { mountFilterChips } from "../../ui-kit/components/filter-chips.js";
 import { mountMultiFilterChips } from "../../ui-kit/components/multi-filter-chips.js";
+import { mountNotesFilter } from "../../ui-kit/components/notes-filter.js";
 import { mountBacklogCockpit } from "../../ui-kit/components/backlog-cockpit.js";
 import { mountTerminalCard } from "../../ui-kit/components/terminal-card.js";
 import { mountDesignCanvasCard } from "../../ui-kit/components/design-canvas-card.js";
@@ -50,6 +53,12 @@ function boot() {
   // [data-bug-report-open] link gets bound by mountBugReport's first pass.
   mountSiteFooter();
   mountBugReport();
+  // Both edit-on-github and feedback-widget land inside <main> right BEFORE
+  // <footer.docs-history>. They must mount before mountFooterHistory wraps
+  // the history block in <details>, otherwise the two would be hidden
+  // inside the collapsed history block.
+  mountEditOnGithub();
+  mountFeedbackWidget();
   mountReadingProgress();
   // Wrap the page-end <footer.docs-history> in a <details> for collapsing.
   // Must run before mountAuthorChip so the chips inside history rows pick up.
@@ -62,6 +71,10 @@ function boot() {
   mountViewSwitcher();
   mountFilterChips();
   mountMultiFilterChips();
+  // Notes filter listens on `multifilterchange` — mount AFTER
+  // multi-filter-chips so it sees the initial state, and reads the URL
+  // hash on first paint for deep-links like #group=documentation.
+  mountNotesFilter();
   // Backlog cockpit is async (fetches JSON); fire-and-forget. Mounts only
   // when [data-component="backlog-cockpit"] is present on the page.
   mountBacklogCockpit();

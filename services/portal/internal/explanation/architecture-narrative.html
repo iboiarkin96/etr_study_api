@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architectural narrative · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Architectural narrative</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+
+    <header class="page-hero page-head">
+      <p class="page-hero__eyebrow">Explanation · System · Architectural narrative</p>
+      <h1 class="page-hero__h1">Architectural <span class="accent">narrative</span></h1>
+      <div id="docs-top-nav"></div>
+      <p class="page-hero__lede">
+        The shape of this system in prose: what it is, why it exists, what we deliberately did
+        not build, where the design earns its keep, what it cost us to be that shape, what we
+        have learned from running it, and where we would change it next. The C4 diagrams and
+        ADRs are the receipts — this page is the story they tell together. Read this first;
+        every other path on the portal assumes the model this page builds.
+      </p>
+      <p class="docs-chip-row">
+        <span class="docs-pill docs-pill--info">~30 min read</span>
+        <span class="docs-pill docs-pill--accent">1 FastAPI service · 1 DB</span>
+        <span class="docs-pill docs-pill--teal">30 ADRs · 4 RFCs · 3 postmortems</span>
+        <span class="docs-pill docs-pill--neutral">SLO 99.5 % · p95 &lt; 400 ms</span>
+      </p>
+    </header>
+
+    <div class="pa-tldr" role="note" aria-label="TL;DR">
+      <span class="pa-tldr__label">TL;DR</span>
+      <p class="pa-tldr__text">
+        Study App is a spaced-repetition learning loop wrapped around <strong>one FastAPI
+        service plus one relational database</strong>. The runtime is deliberately the
+        simplest thing that lets the documents tell the truth — because the documents are the
+        deliverable. Three load-bearing decisions earn their keep on the first incident
+        (OpenAPI baseline diff in CI, idempotency at the router, structured logs with request
+        IDs). Three deliberate omissions are the trade we accept (no async, no IdP, no
+        horizontal scale story). Three gaps are next, in this order (Postgres swap,
+        observability beyond logs, retroactive postmortems).
+      </p>
+    </div>
+
+    <section class="numbered-section" id="journey" aria-labelledby="journey-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="story"><span class="lens-chip__dot"></span>Story arc</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">01</span>
+        <h2 id="journey-h">The journey — six waypoints from gamble to current shape</h2>
+      </div>
+      <p class="numbered-section__lede">
+        How the system arrived at its current shape, compressed to six waypoints. Each waypoint
+        is a moment where the model in the team's head shifted; the ADRs and refactors that
+        followed each shift are the receipts.
+      </p>
+      <ol class="path-timeline" data-tone="accent">
+        <li><div><strong>Start — «this is just a study tool».</strong> A solo project to practise spaced repetition. The first commit was a single-file FastAPI app with three endpoints and an SQLite file. No portal, no ADRs, no contract — just code.</div></li>
+        <li><div><strong>Pivot — «the artefact under review is the portal, not the binary».</strong> The project's purpose changed: the system became the practical work for a Senior Systems Analyst certification. From that point on, every architectural choice had to be defensible in a panel review, not merely shipped. Cost ratio inverted: the spec became heavier than the code (<a href="../governance/adr/0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a>).</div></li>
+        <li><div><strong>Discipline — «contracts are the most expensive thing in the repo».</strong> OpenAPI became a committed artefact that CI diffs against the live app (<a href="../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a>). Idempotency moved from per-route ad-hoc handling to a body-hashed router concern (<a href="../governance/adr/0006-idempotency-write-operations.html">ADR 0006</a>). The four <code>_shared/</code> conventions were extracted so specs link instead of restating.</div></li>
+        <li><div><strong>Maturity — «the portal needs a contract too».</strong> Diátaxis adopted as the IA framework (Procida, <em>diataxis.fr</em>). Backstage taxonomy borrowed for the catalog kinds (<a href="../foundations/reference/sa/catalog.html">Software Catalog page</a>). Eight authoring principles + a substance contract committed; <code>make docs-check</code> wired as the pre-commit gate.</div></li>
+        <li><div><strong>Honesty — «runbooks without postmortems are aspirational».</strong> Three real incidents written up end-to-end: OpenAPI baseline drift (2026-03-14), SQLite write-lock burst (2026-04-02), docs-fix search-index drift (2026-05-07). Each one changed at least one runbook or ADR.</div></li>
+        <li><div><strong>Now — «posture, not just shape».</strong> The portal is read for posture: tradeoffs, citations, measured numbers, production wisdom. The substance contract (<a href="../foundations/reference/sa/substance-contract.html">five principles</a>) is the working bar. Where the project goes next sits in <a href="#next">§ 09</a>.</div></li>
+      </ol>
+    </section>
+
+    <section class="numbered-section" id="what-it-is" aria-labelledby="what-it-is-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="explain"><span class="lens-chip__dot"></span>Explain</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">02</span>
+        <h2 id="what-it-is-h">What this system is</h2>
+      </div>
+      <p>Study App is a learning loop wrapped around a single HTTP API. A learner reads source material, distils it into a <em>conspectus</em> (cue sheet + dense paragraph + bullets), and the system schedules a sequence of retrieve passes — spaced repetition with a four-slot ladder. That loop is the product. Everything else exists because the loop needs storage, identity, scheduling, and a way for someone else's app to drive it. The runtime is one FastAPI service plus a relational database; the docs portal is a static site generated alongside it. There is no message bus, no auth service, no microservice mesh, no third-party identity provider on the request path. The full deployable inventory is in the <a href="../services/index.html">service catalog</a>; the per-resource HTTP surface is in <a href="../services/api/reference/index.html">internal/services/api/reference</a>; the methodology this is built around is in <a href="methodology.html">ETR</a>.</p>
+    </section>
+
+    <section class="numbered-section" id="why" aria-labelledby="why-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="explain"><span class="lens-chip__dot"></span>Explain</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">03</span>
+        <h2 id="why-h">Why it exists in this shape</h2>
+      </div>
+      <p>The system is built by one engineer working toward Senior Systems Analyst certification. That constraint is more load-bearing than any technical choice: every architectural decision is made to be defensible in a panel review, not just to ship. The consequence is a documentation discipline that would be excessive for a startup of this scale (a Diátaxis-ordered portal, 30+ ADRs, sectioned API specs, runbooks for every alert) and a runtime that is deliberately the simplest thing that lets those documents tell the truth. The portal is not decoration — it is the artefact under review. The API exists to give the portal something real to describe.</p>
+      <p>Two implications follow. First, the cost ratio is inverted: writing the spec is heavier than writing the code, and that is on purpose (<a href="../governance/adr/0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a>). Second, choices that would otherwise scream "premature" — strict OpenAPI governance, idempotency on every write, structured logs with request IDs from day one — are not premature here. They are the deliverable.</p>
+    </section>
+
+    <section class="numbered-section" id="shape" aria-labelledby="shape-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="explain"><span class="lens-chip__dot"></span>Explain</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">04</span>
+        <h2 id="shape-h">The shape — what you would draw on a whiteboard</h2>
+      </div>
+      <p>Three boxes. <strong>Integrator</strong> (someone else's mobile or web app) talks HTTP to the <strong>api</strong> service over a versioned <code>/api/v1</code> surface. The api service owns a single <strong>relational database</strong> (SQLite today; the schema and migrations are written assuming a future Postgres swap — see the dep-lanes block on <a href="../services/api/index.html">the service catalog entry</a>). That is the entire runtime topology. No queues, no caches yet, no read replicas, no separate workers.</p>
+      <p>Inside the api service, the layering is conventional and intentional. <strong>Routers</strong> (<code>app/api/v1/*.py</code>) handle HTTP and idempotency. <strong>Services</strong> (<code>app/services/*.py</code>) hold business rules and raise domain exceptions. <strong>Repositories</strong> (<code>app/repositories/*.py</code>) own SQLAlchemy. Each layer is independently testable — the <a href="qa/test-pyramid.html">test pyramid</a> page explains why that boundary is the cheapest signal we have. The four cross-cutting concerns that every operation honours — <a href="../services/api/reference/_shared/auth.html">auth</a>, <a href="../services/api/reference/_shared/idempotency.html">idempotency</a>, the <a href="../services/api/reference/_shared/error-envelope.html">error envelope</a>, and <a href="../services/api/reference/_shared/observability-conventions.html">observability conventions</a> — live once, in <code>_shared/</code>, and every spec links them rather than restating them.</p>
+    </section>
+
+    <section class="numbered-section" id="not-built" aria-labelledby="not-built-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="explain"><span class="lens-chip__dot"></span>Explain</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">05</span>
+        <h2 id="not-built-h">What we deliberately did not build</h2>
+      </div>
+      <p>Honesty about scope is the cheapest architectural quality there is. The system has no asynchronous processing — every state change is a synchronous HTTP write inside a single database transaction. There is no separate identity provider; the API key is the tenant, the composite <code>(system_user_id, system_uuid)</code> is the learner, and authorization collapses to ownership comparison (<a href="../services/api/reference/_shared/auth.html">why we return 404, not 403</a>). There is no horizontal sharding plan, no multi-region story, no rate-limit service — the in-process sliding window in <code>app/core/security.py</code> is enough for the single-tenant integrator the system is sized for. None of these omissions are accidents; each would be added under a specific ADR if the operating envelope changed.</p>
+    </section>
+
+    <section class="numbered-section" id="earns" aria-labelledby="earns-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="explain"><span class="lens-chip__dot"></span>Explain</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">06</span>
+        <h2 id="earns-h">Where the design earns its keep</h2>
+      </div>
+      <p>The single highest-leverage decision was treating the OpenAPI baseline as a committed artefact that CI diffs against the live FastAPI app (<a href="../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a>). Every contract drift becomes a PR comment. The second was making idempotency a body-hashed concern at the router layer rather than something the integrator has to think about (<a href="../governance/adr/0006-idempotency-write-operations.html">ADR 0006</a>); replay rules are now uniform across resources and the SQL schema for <code>idempotency_keys</code> is trivial. The third was structured logs with a <code>request_id</code> threaded from middleware (<a href="../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>); a one-shot grep in the portal's local Elasticsearch turns "user reports an error" into "show me the row" in under a minute. None of these are clever. All three pay for themselves on the first incident.</p>
+    </section>
+
+    <section class="numbered-section" id="tradeoffs" aria-labelledby="tradeoffs-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Tradeoffs</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">07</span>
+        <h2 id="tradeoffs-h">Tradeoffs — what this shape costs us</h2>
+      </div>
+      <p class="numbered-section__lede">
+        Four trade-offs accepted on purpose. Knowing them tells you where the model bends if
+        you push it in the wrong direction. Shape and template borrowed from
+        <a href="../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.
+      </p>
+      <ul class="rail-list" data-tone="rose">
+        <li><strong>Spec-heavier-than-code.</strong> We gain a portal that defends itself in a panel review and a contract that CI can diff. We lose feature velocity — every new endpoint pays a fixed spec-authoring tax of ~3× the code time. We accept it because the deliverable is the portal, not the runtime; the day code velocity matters more than spec velocity, the constraint set has shifted enough to revisit (<a href="../governance/adr/0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a>).</li>
+        <li><strong>SQLite-now, Postgres-later.</strong> We gain a zero-friction development database that ships embedded with the binary and never adds an external dependency to <code>make run</code>. We lose write throughput at scale and pay a deferred migration cost we have not yet exercised. We accept it because we are not at scale and the schema + SQLAlchemy code already assume the swap; the cost rises sharply if the migration is delayed past Postgres-required features (concurrent writes, MVCC) — that is the trigger to act, not a date.</li>
+        <li><strong>Synchronous-only writes.</strong> We gain end-to-end traceability of every state change inside a single transaction (<code>request_id</code> propagates cleanly; no eventual-consistency surprises). We lose any feature that would otherwise be naturally async (background scoring, batch re-scheduling). We accept it because the loop is short-lived per request and the integrator does not yet ask for async semantics; the day they do, a job table + a poller is the smallest thing that closes the gap — not a broker.</li>
+        <li><strong>404-not-403 on cross-tenant access.</strong> We gain a uniform unauthorised-access response that does not leak resource existence to attackers. We lose the ability to distinguish «owned but forbidden» from «does not exist» on the client side (<a href="../services/api/reference/_shared/auth.html">why we return 404, not 403</a>). We accept it because the integrator already knows what it owns; for them the distinction is noise, and for the attacker the noise is the point.</li>
+      </ul>
+    </section>
+
+    <section class="numbered-section" id="lessons" aria-labelledby="lessons-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="production"><span class="lens-chip__dot"></span>Production</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">08</span>
+        <h2 id="lessons-h">Lessons from production</h2>
+      </div>
+      <p class="numbered-section__lede">
+        Three real postmortems on file; each one changed at least one ADR, runbook, or piece of
+        code. Reading these in full is faster than re-deriving the lessons. Shape borrowed from
+        <a href="../foundations/reference/sa/substance-contract.html#p5-production-wisdom">Substance Principle 05</a>.
+      </p>
+      <div class="feature-cards">
+        <a class="feature-card" href="../how-to/incidents/postmortems/2026-03-14-openapi-baseline-drift.html" data-tone="rose">
+          <div class="feature-card__head">
+            <span class="feature-card__icon" aria-hidden="true">📝</span>
+            <span class="feature-card__hint">2026-03-14 · CONTRACT</span>
+          </div>
+          <h3 class="feature-card__title">OpenAPI baseline drift</h3>
+          <p class="feature-card__body">
+            What we saw: the baseline file fell out of sync with the live app over a long branch
+            and merged silently. What we learned: a CI gate that runs on every PR is not enough
+            if the baseline is also the source of truth — both sides need explicit
+            ownership. What we changed: ADR 0007 «OpenAPI governance» upgraded; baseline diff
+            blocks merge, not just warns.
+          </p>
+          <span class="feature-card__cta">Read postmortem
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>
+          </span>
+        </a>
+        <a class="feature-card" href="../how-to/incidents/postmortems/2026-04-02-sqlite-write-lock-burst.html" data-tone="accent">
+          <div class="feature-card__head">
+            <span class="feature-card__icon" aria-hidden="true">🗄️</span>
+            <span class="feature-card__hint">2026-04-02 · DB</span>
+          </div>
+          <h3 class="feature-card__title">SQLite write-lock burst</h3>
+          <p class="feature-card__body">
+            What we saw: a burst of concurrent writes during a synthetic load test serialised
+            behind SQLite's single writer, p95 spiked to 4 s. What we learned: the «SQLite is
+            fine for now» trade-off has a measurable ceiling; the trigger to swap is contention,
+            not user count. What we changed: dep-lanes annotation on the service catalog
+            entry; capacity drill runbook drafted.
+          </p>
+          <span class="feature-card__cta">Read postmortem
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>
+          </span>
+        </a>
+        <a class="feature-card" href="../how-to/incidents/postmortems/2026-05-07-docs-fix-search-index-drift.html" data-tone="teal">
+          <div class="feature-card__head">
+            <span class="feature-card__icon" aria-hidden="true">🔎</span>
+            <span class="feature-card__hint">2026-05-07 · PORTAL</span>
+          </div>
+          <h3 class="feature-card__title">docs-fix search-index drift</h3>
+          <p class="feature-card__body">
+            What we saw: portal search was returning stale results after a large doc rewrite;
+            the index was rebuilt only on full builds, not on incremental ones. What we learned:
+            «pre-commit hooks are enough» is wrong for autogenerated artefacts. What we changed:
+            <code>make docs-check</code> mandatory before every commit (a feedback memory rule
+            in the contributor handbook).
+          </p>
+          <span class="feature-card__cta">Read postmortem
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>
+          </span>
+        </a>
+      </div>
+    </section>
+
+    <section class="numbered-section" id="next" aria-labelledby="next-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="explain"><span class="lens-chip__dot"></span>What's next</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">09</span>
+        <h2 id="next-h">Where we would change it next</h2>
+      </div>
+      <p>Three honest gaps, ordered by reader impact. <strong>(1) Postgres</strong> — SQLite was the right starting database; it is the wrong production database. The schema and SQLAlchemy code already assume the swap, but the migration story and connection-pool tuning have not been exercised. <strong>(2) Observability beyond logs</strong> — Prometheus is wired into <code>/metrics</code>, but there is no live dashboard, no alert routing, and no traces. Section 14 of every operation spec promises metric names that no one is graphing yet. <strong>(3) Threat model</strong> — security ADRs name controls (rate limit, auth header, error envelope) but no single page names the adversary tiers we are designing against and the attacks we accept as out of scope. Without that, every security decision reads as ad-hoc. These three are the next architectural moves, in this order.</p>
+    </section>
+
+    <section class="numbered-section" id="would-do-again" aria-labelledby="would-do-again-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Retrospective</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">10</span>
+        <h2 id="would-do-again-h">Would we do it again — knowing what we know now?</h2>
+      </div>
+      <p class="numbered-section__lede">
+        A retrospective in two columns — what we would repeat verbatim, what we would change
+        on day one if we were starting today. Shape borrowed from
+        <a href="../foundations/reference/sa/tradeoff-disclosure.html#shapes">Tradeoff disclosure §02 (last row)</a>.
+      </p>
+      <div class="docs-table-wrap" role="region" aria-label="What we would repeat vs change">
+        <table class="docs-table docs-table--zebra">
+          <thead>
+            <tr>
+              <th scope="col">Would repeat</th>
+              <th scope="col">Would change</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OpenAPI baseline as a committed artefact diffed in CI (<a href="../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a>). Highest-leverage decision we made.</td>
+              <td>Start with Postgres, not SQLite. The «just use SQLite for now» bet looked free; the postmortem of 2026-04-02 showed it has a measurable ceiling and a deferred-cost penalty.</td>
+            </tr>
+            <tr>
+              <td>Idempotency at the router (<a href="../governance/adr/0006-idempotency-write-operations.html">ADR 0006</a>). Integrators do not have to think about replays.</td>
+              <td>Wire <code>/metrics</code> to a dashboard from day one, not just expose the endpoint. Metrics nobody graphs are imaginary.</td>
+            </tr>
+            <tr>
+              <td>Structured logs with <code>request_id</code> threaded from middleware (<a href="../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>). Pays back on first incident.</td>
+              <td>Write a threat model in week 1, even a thin one. Naming adversary tiers (script kiddies vs motivated attacker vs state actor) makes every later security ADR cite something instead of reading as ad-hoc.</td>
+            </tr>
+            <tr>
+              <td>Diátaxis as the IA framework (Procida, <em>diataxis.fr</em>). 95 % of doc portals do not have a quadrant discipline; the one that does feels qualitatively different to navigate.</td>
+              <td>Stand up the postmortem corpus before the runbook corpus. We wrote 10 runbooks and 0 postmortems for the first three months; the asymmetry made the runbooks read as aspirational.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="numbered-section" id="citations" aria-labelledby="citations-h">
+      <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Citations</span></p>
+      <div class="numbered-section__head">
+        <span class="numbered-section__kicker">11</span>
+        <h2 id="citations-h">Sources we lean on</h2>
+      </div>
+      <p>
+        Specific anchors, not industries. Each load-bearing pattern names its source so a
+        reviewer can verify the claim instead of accepting it. Shape borrowed from
+        <a href="../foundations/reference/sa/substance-contract.html#p4-cite-specific">Substance Principle 04</a>.
+      </p>
+      <ul class="rail-list" data-tone="info">
+        <li><strong>Diátaxis framework</strong> — Daniele Procida, <em>diataxis.fr</em>. Read the «Map» page first; the 2×2 (theory/practice × acquisition/application) is what every Diátaxis classifier on this portal collapses to.</li>
+        <li><strong>SLO model + multi-window burn-rate</strong> — Beyer, Jones, Petoff &amp; Murphy, <em>Site Reliability Workbook</em>, O'Reilly 2018, ch. 5 «Alerting on SLOs», pp. 88-93, table 5-2. Our 1 h / 6 h windows and 14.4 / 6 burn-rate thresholds are taken from that table.</li>
+        <li><strong>Backstage software-catalog taxonomy</strong> — backstage.io «Descriptor format» (v1, kind: Component / API / Resource / System / Domain / Group / User / Location). Borrowed verbatim into <a href="../foundations/reference/sa/catalog.html">catalog.html</a>; we do not invent kinds.</li>
+        <li><strong>ADR template + lifecycle</strong> — Michael Nygard, «Documenting Architecture Decisions», cognitect.com 2011; supplemented by MADR (<em>adr.github.io</em>). Our ADR header / lifecycle badge model (<a href="../governance/adr/0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>) builds on both.</li>
+        <li><strong>C4 model + PlantUML conventions</strong> — Simon Brown, c4model.com. Our diagram convention (<a href="../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>) follows the published L1/L2/L3 stencils with the PlantUML standard library.</li>
+      </ul>
+    </section>
+
+    <aside class="docs-card docs-card--gradient docs-card--mt-6">
+      <h3 class="docs-card__title">What to read next</h3>
+      <ul>
+        <li><a href="methodology.html">ETR · Extract–Transform–Retrieve</a> — the learning methodology this system is shaped around.</li>
+        <li><a href="../services/index.html">Service catalog</a> — the deployable inventory and the C4 diagrams that back this prose.</li>
+        <li><a href="../governance/adr/index.html">ADR index</a> — every decision summarised above is one of these.</li>
+        <li><a href="dev/schemas-and-contracts.html">Explanation · schemas &amp; contracts</a> — why the API contract is the most expensive thing in the repo.</li>
+        <li><a href="sre/slos.html">Explanation · SLOs</a> — what "good enough" looks like once the metrics are live.</li>
+        <li><a href="../foundations/reference/sa/substance-contract.html">Substance contract</a> — the five-principle bar this page is graded against.</li>
+      </ul>
+    </aside>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-30</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">
+            Expanded from skeleton (~6 KB) to substance-fit narrative (~14 KB). Original
+            six prose sections preserved 1:1 (now § 02–06, § 09) and re-framed as
+            <code>.numbered-section</code> blocks. Five new substance-gate sections added:
+            <strong>§ 01 Journey</strong> (story arc as <code>path-timeline</code>, six waypoints
+            from gamble to current shape), <strong>§ 07 Tradeoffs</strong> (four named «we
+            accept Z because…» entries on the rail-list template from
+            <code>tradeoff-disclosure.html</code>), <strong>§ 08 Lessons from production</strong>
+            (three on-file postmortems as <code>feature-cards</code> with the
+            «saw / learned / changed» triplet), <strong>§ 10 Would we do it again</strong>
+            (retrospective two-column table), <strong>§ 11 Citations</strong> (five
+            Tier-A pinpoint sources: Diátaxis, SRE Workbook, Backstage, Nygard ADR,
+            C4 model). Hero gained a <code>docs-chip-row</code> with system stats; lede gained
+            a <code>pa-tldr</code> summary. Closes Vol. 2 Architect's-Bar audit Critical
+            gap #1 («no single architectural narrative»). No per-page CSS; built on kit
+            primitives (<code>page-hero</code>, <code>pa-tldr</code>, <code>numbered-section</code>,
+            <code>path-timeline</code>, <code>rail-list</code>, <code>feature-cards</code>,
+            <code>docs-table</code>, <code>lens-chip</code>, <code>docs-pill</code>).
+          </span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-30</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created as Vol. 2 architect-bar audit follow-up: a prose narrative that ties the C4 catalogue, the ADR set, and the per-resource spec pages together. Page is the senior cold-start read-first; ADRs and the catalog remain the receipts.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#journey">01 — Journey</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#what-it-is">02 — What this system is</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why">03 — Why this shape</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#shape">04 — The shape</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#not-built">05 — Not built (on purpose)</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#earns">06 — Where it earns its keep</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs">07 — Tradeoffs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lessons">08 — Lessons from production</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#next">09 — Where to change next</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#would-do-again">10 — Would we do it again</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#citations">11 — Citations</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

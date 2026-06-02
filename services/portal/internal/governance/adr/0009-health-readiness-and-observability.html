@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0009</span> <span class="docs-pill docs-pill--success">Accepted</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0009</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Health, Readiness, and Prometheus Observability</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Separate liveness and readiness probes, Prometheus metrics on <code>/metrics</code>, and OpenAPI snapshot contract tests in the quality gate.
         </p>
       </header>
@@ -74,13 +108,50 @@
       </section>
 
       <section aria-labelledby="impl-h">
-        <h2 id="impl-h">Implementation</h2>
-        <ul>
-          <li>Health/readiness endpoints in <code>app/main.py</code> and schemas in <code>app/schemas/system.py</code>.</li>
-          <li>Metrics collector and SQLAlchemy hooks in <code>app/core/metrics.py</code>.</li>
-          <li>Config toggles and thresholds in <code>app/core/config.py</code> and <code>env/example</code>.</li>
-          <li>Operational commands in <code>Makefile</code> and observability stack in <code>docker-compose.observability.yml</code>.</li>
-        </ul>
+        <h2 id="impl-h">Implementation in this repository</h2>
+        <div class="docs-table-wrap" role="region" aria-label="Health, readiness, and observability surfaces">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Category</th>
+                <th scope="col">Path / target</th>
+                <th scope="col">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Health / readiness endpoints</td>
+                <td><code>app/main.py</code></td>
+                <td>routes for <code>/live</code> and <code>/ready</code></td>
+              </tr>
+              <tr>
+                <td>System schemas</td>
+                <td><code>app/schemas/system.py</code></td>
+                <td>response models for health endpoints</td>
+              </tr>
+              <tr>
+                <td>Metrics collector</td>
+                <td><code>app/core/metrics.py</code></td>
+                <td>SQLAlchemy hooks + HTTP latency histograms</td>
+              </tr>
+              <tr>
+                <td>Config toggles + thresholds</td>
+                <td><code>app/core/config.py</code>, <code>env/example</code></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td>Operational commands</td>
+                <td><code>Makefile</code> (<code>observability-up/down/smoke</code>)</td>
+                <td>(<a href="0008-make-command-taxonomy-and-workflow-entrypoints.html">ADR 0008</a>)</td>
+              </tr>
+              <tr>
+                <td>Local observability stack</td>
+                <td><code>docker-compose.observability.yml</code></td>
+                <td>Prometheus + Grafana</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section aria-labelledby="ops-h">
@@ -108,32 +179,76 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Additional maintenance for metrics and dashboards.</li>
-                <li>Need to enforce low-cardinality labels and avoid exposing sensitive dimensions.</li>
-              </ul>
-            </div>
-          </article>
-        </div>
-      </section>
+              <p>Two named tradeoffs accepted on purpose. Shape from
+                <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+                <ul class="rail-list" data-tone="rose">
+                  <li><strong>Two endpoints (<code>/live</code> and <code>/ready</code>) instead of one.</strong> We gain the ability for a load balancer or orchestrator to distinguish «process up but DB not reachable yet» (don't route, don't restart) from «process dead» (restart). We lose the simpler one-endpoint mental model. We accept it because the day a deploy is rolling and the new instance has not yet completed its DB connection-pool warmup is the day this distinction prevents an incident; the cost of the extra endpoint is paid once, the benefit pays every deploy.</li>
+                  <li><strong>Pull-based Prometheus on <code>/metrics</code>.</strong> We gain the standard ecosystem — every off-the-shelf dashboard, alert template, and exporter assumes pull. We lose the option of «push to a hosted observability vendor» without a translator (statsd-exporter, OpenTelemetry collector). We accept it because the vendor-push pattern locks us into one vendor's wire format; pull-based <code>/metrics</code> keeps the contract neutral and lets us swap the consumer (Prometheus / Mimir / Cortex / Grafana Agent) without touching the app.</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </section>
 
-      <footer class="docs-history" aria-label="History">
-        <h2 class="docs-history__title">History</h2>
-        <ul class="docs-history__list">
-          <li class="docs-history__row">
-            <span class="docs-history__date">2026-05-17</span>
-            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-            <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
-          </li>
-        </ul>
-      </footer>
+        <section aria-labelledby="alternatives-h">
+          <h2 id="alternatives-h">Alternatives considered</h2>
+          <p>Three alternatives were evaluated before adopting <code>/live</code> + <code>/ready</code> + pull-based Prometheus. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints.</p>
+          <div class="docs-card-grid docs-card-grid--stack">
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">One unified <code>/health</code> endpoint (no liveness / readiness split)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> simpler — one URL, one shape, one piece of doc. The default pattern in many small services.</p>
+                <p><strong>Why rejected:</strong> a unified endpoint conflates two questions the runtime needs to answer separately. «DB is briefly unreachable» should pull the instance out of the load-balancer pool but not restart it; «process is stuck in a deadlock» should restart it. With one endpoint, every probe failure looks the same and the orchestrator's policy is forced to be «restart on any failure» — which causes more outages than it prevents during transient DB hiccups.</p>
+              </div>
+            </article>
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">Push-based metrics to a hosted vendor (Datadog / New Relic / Honeycomb)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> «buy not build» for observability — vendor SDK in the app, hosted dashboards, alerting and traces out of the box. Saves the dockerised Prometheus + Grafana stack.</p>
+                <p><strong>Why rejected:</strong> vendor-lock at the wire format. Every metric name, label, tag, and aggregation policy ends up vendor-specific; migrating to a second vendor (or self-host) is a full rewrite of the metric layer. Pull-based <code>/metrics</code> keeps the application's observability contract <em>neutral</em> — the consumer is swappable. For a solo project that has not yet picked a long-term observability stack, optionality is worth more than turnkey ergonomics.</p>
+              </div>
+            </article>
+            <article class="docs-card" data-tone="warn">
+              <div class="docs-card__head"><h3 class="docs-card__title">OpenTelemetry collector + OTLP from day one</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+              <div class="docs-card__body">
+                <p><strong>Why considered:</strong> the modern «one signal pipeline for metrics, logs, traces» pattern. OTLP is becoming the de-facto wire format; adopting it now means traces «just work» when we add them later.</p>
+                <p><strong>Why rejected:</strong> OpenTelemetry collector is a separate process to operate, with its own config, version skew, and failure modes. We do not yet emit traces (Vol. 2 audit gap #2 — observability beyond logs) and our metrics needs are served by the Prometheus client library in-process. Adding the OTel collector before we have traces or distributed services is paying the operational tax before the benefit lands. We re-evaluate this the day we add the second service.</p>
+              </div>
+            </article>
+          </div>
+          <p><strong>Trade we accept by choosing <code>/live</code> + <code>/ready</code> + pull Prometheus.</strong> We pay for two endpoints (vs one) and operate a dockerised Prometheus stack locally (vs paying a vendor). We accept it because each rejected alternative forces a worse outcome: unified <code>/health</code> conflates restart-vs-route-out, vendor-push locks the wire format, and OTel-from-day-one taxes us before the benefit. The split-endpoint + pull-metrics pair is the smallest mechanism that is both <em>vendor-neutral</em> and <em>restart-policy-friendly</em>.</p>
+        </section>
 
-    </article>
-  </main>
+        <section aria-labelledby="revisit-h">
+          <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+          <p><strong>Yes, with one piece of homework that is overdue.</strong> The <code>/live</code> + <code>/ready</code> + <code>/metrics</code> trio has aged well — the contract is stable, the dockerised stack runs in dev and staging, and the OpenAPI snapshot test has caught two would-be contract drifts. One thing we are explicitly missing today (Vol. 2 audit gap #2):</p>
+          <ul class="rail-list" data-tone="info">
+            <li><strong>Wire <code>/metrics</code> to a live dashboard from day one, not just expose the endpoint.</strong> Section 14 of every operation spec promises metric names that no one is graphing yet. Today the metrics are emitted; tomorrow nobody knows whether the burn-rate calculation is correct because the input is unmeasured. Standing up the dockerised Grafana with one canonical dashboard (HTTP RPS, p50/p95/p99, error rate, DB query latency) would close the «we have metrics» / «we have observability» gap that the architecture narrative names as the next architectural move.</li>
+          </ul>
+        </section>
 
-  <aside class="docs-toc" aria-label="On this page"></aside>
-  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+        <footer class="docs-history" aria-label="History">
+          <h2 class="docs-history__title">History</h2>
+          <ul class="docs-history__list">
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-06-01</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Substance audit-pass. Result before: 1/5. Patch: status pill → <code>.lifecycle-popover</code>; <code>§ Implementation</code> nested bullets → 6-row <code>.docs-table</code>; <code>§ Consequences &gt; Trade-offs</code> restructured into two canonical entries (split endpoints · pull-based metrics); new <code>§ Alternatives considered</code> with three real alternatives (unified <code>/health</code> · push-based vendor · OTel-from-day-one); closing accept-clause; new <code>§ Would we do this again?</code> pointing at the missing live dashboard (Vol. 2 gap #2). Inline <code>style</code> stripped.</span>
+            </li>
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-05-17</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Migrated to UI Kit v3 (entry.css, docs-shell, page-head, consequences as paired tone cards).</span>
+            </li>
+          </ul>
+        </footer>
 
-  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+      </article>
+    </main>
 
-</body></html>
+    <aside class="docs-toc" aria-label="On this page"></aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

@@ -86,6 +86,31 @@
       <p>For write endpoints, the schema is not the whole contract: the rules around <em>retrying</em> a write are too. A client that retries a request after a network blip needs to know whether the second call will create a second resource, return the original result, or fail.</p>
       <p>Declaring an idempotency contract in the spec turns this from “depends on the implementation” into a property the client can rely on. The contract has three branches that have to be answered together: same key with the same body returns the original result; same key with a different body returns a conflict; missing key when one is required is a validation error. Specifying only the first branch silently leaves the others undefined, and undefined behaviour is the most reliable bug factory there is.</p>
 
+      <h2 id="tradeoffs">Tradeoffs</h2>
+      <p>Treating the contract as an append-only artefact buys consumers stability — and costs the maintainer flexibility every time the truth changes.</p>
+      <div class="docs-card-grid docs-card-grid--two">
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">Existing clients never break silently</h3>
+          <p class="docs-card__body">Additive-only means a field rename is a new version with a sunset window, not a Tuesday accident. Integrators can pin and forget.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">Mistakes live in the contract for a year</h3>
+          <p class="docs-card__body">A poorly named field is locked in for the version's life. We pay for haste up front; consumers pay if we get the name wrong.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">CI catches drift before review</h3>
+          <p class="docs-card__body">The baseline diff in <code>make verify</code> turns every accidental contract change into a PR comment, not a production incident.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">Intentional changes need an explicit accept step</h3>
+          <p class="docs-card__body">Every legitimate contract change requires <code>make openapi-accept-changes</code> and a written rationale. Friction is the point — and the toll.</p>
+        </article>
+      </div>
+
       <h2 id="anti-patterns">Common failure modes</h2>
       <ul>
         <li><strong>Returning ORM entities directly.</strong> Every column becomes a public field; adding a column is now a contract change.</li>
@@ -94,6 +119,17 @@
         <li><strong>Implicit idempotency.</strong> A write that happens to be idempotent in the current implementation, and is documented nowhere. The next refactor breaks every retrying client.</li>
         <li><strong>Validation rules in two places.</strong> The Pydantic model says “1–200 characters”; the service says “1–500”. Clients see whichever rule fires first; the other one becomes a latent bug.</li>
       </ul>
+
+      <aside id="next-to-read" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li>Reference · <a href="../../governance/adr/0003-error-contract-governance.html">ADR 0003 — Error-contract governance</a> — the policy this Explanation cites for «codes don't silently widen».</li>
+          <li>Reference · <a href="../../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007 — OpenAPI governance &amp; usability standard</a> — the policy that holds the OpenAPI baseline to the contract this page describes.</li>
+          <li>How-to · <a href="../../services/api/how-to/add-post-contract.html">Add a POST contract endpoint</a> — production-grade recipe; walks the three-schemas + idempotency contract on a real surface.</li>
+          <li>How-to · <a href="../../how-to/incidents/runbooks/0007-openapi-contract-test-failing.html">Runbook 0007 — OpenAPI contract test failing</a> — the on-call response when an additive-only violation lands on a baseline.</li>
+          <li>Explanation · <a href="./business-logic.html">Where business logic lives</a> — sibling explanation for the layering that protects the schema boundary from below.</li>
+        </ul>
+      </aside>
     </article>
 
     <footer class="docs-history" aria-label="History">
@@ -126,7 +162,9 @@
       <li class="docs-toc__item"><a class="docs-toc__link" href="#three-schemas">Three kinds of schema</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#error-as-contract">Errors as contract</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#idempotency-contract">Idempotency as contract</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs">Tradeoffs</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Failure modes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#next-to-read">What to read next</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>

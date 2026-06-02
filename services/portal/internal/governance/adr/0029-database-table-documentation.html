@@ -34,10 +34,44 @@
     <article class="docs-prose">
 
       <header class="page-head">
-        <p class="home-hero__eyebrow"><span class="docs-pill docs-pill--info">ADR · 0029</span> <span class="docs-pill docs-pill--warn">Proposed</span></p>
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0029</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--warn" href="0018-adr-lifecycle-ratification-and-badges.html">Proposed</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li class="is-current">Proposed</li>
+                    <li>Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
         <h1>Database table documentation conventions and template</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede" style="color:var(--muted);font-size:var(--fs-500)">
+        <p class="lede">
           Normative naming and column conventions for every table in <code>app/models/</code>, plus a fixed-shape per-table documentation template under <code>services/portal/internal/catalog/api/data/</code>.
         </p>
       </header>
@@ -129,7 +163,7 @@
           <li><strong>Cross-references</strong> — a list of: ORM source path, related HTTP endpoints (per-method internal spec pages), related ADRs (e.g. <a href="0006-idempotency-write-operations.html">ADR 0006</a> for <code>idempotency_keys</code>), and seed migrations if any.</li>
           <li><strong>History</strong> — the standard table per <a href="../../../internal/governance/rfc/0003-documentation-authoring-model.html">RFC 0003</a>.</li>
         </ol>
-        <p>The copy-paste shell lives at <a href="../../foundations/reference/sa/templates/data-table.html"><code>services/portal/internal/reference/templates/data-table.html</code></a>.</p>
+        <p>The copy-paste shell lives at <a href="../../foundations/reference/sa/templates/data-table.html"><code>services/portal/internal/foundations/reference/sa/templates/data-table.html</code></a>.</p>
 
         <h3>4. Placement</h3>
         <p><strong>Original decision (2026-05-08):</strong> per <a href="../../../internal/governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a>, the <code>api</code> service catalog entity was at <code>services/portal/internal/catalog/api/</code> and table specs lived one level deeper at <code>services/portal/internal/catalog/api/data/</code>, to avoid inventing a new top-level branch and to keep the per-service spine intact.</p>
@@ -196,13 +230,22 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
             <div class="docs-card__body">
-              <ul>
-                <li>Hand-authored column tables drift if the ORM changes without a doc update — mitigated by listing the ORM source path in every spec and by making "tables-touched" a required field on operation specs.</li>
-                <li>Per-table pages add ~5 new HTML files for the current schema; on PostgreSQL migration these double if a separate read-replica view is documented.</li>
+              <p>Two canonical tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Hand-authored column tables (vs auto-generated).</strong> We gain prose layer — business meaning, lifecycle stages, cross-HTTP references — that metadata cannot carry. We lose the «column-type changes propagate for free» property and accept drift risk if the ORM moves without the doc moving. We accept it because each spec lists the ORM source path and «tables-touched» is a required field on operation specs; PR review catches drift at the moment it would land, not after.</li>
+                <li><strong>Per-table pages, not catalog dump.</strong> We gain one canonical URL per table that operations and runbooks can link to. We lose ~5 HTML files of upfront authoring and accept that on Postgres migration these double if read-replica views are documented separately. We accept it because the «one URL per table» property is the load-bearing «where is the authoritative description?» test; without it, every operation spec re-states the schema and the corpus drifts.</li>
               </ul>
             </div>
           </article>
         </div>
+      </section>
+
+      <section aria-labelledby="revisit-h">
+        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <p><strong>This ADR is Proposed; the «would we do this again?» question is forward-looking until the first table pages ship.</strong> The clearest day-one investment we would commit to alongside the first set:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Wire a CI check that compares the column list in each table doc against SQLAlchemy metadata.</strong> The doc-drift risk in tradeoff #1 above is exactly the kind of thing CI can catch deterministically. A 30-line script that grep'd the column-table cells, loaded the ORM model, and diffed the names + types would turn the «honour-system» discipline into a mechanical gate.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="compat-h">
@@ -245,6 +288,11 @@
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-01</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Substance audit-pass on a Proposed ADR. Status pill → <code>.lifecycle-popover</code> with <code>is-current</code> on Proposed; <code>§ Trade-offs</code> restructured into two canonical entries (hand-authored vs auto-generated · per-table pages vs catalog dump); new <code>§ Would we do this again?</code> proposing CI column-drift check. Inline <code>style</code> stripped. <code>§ Alternatives considered</code> was already canonical — kept verbatim.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
