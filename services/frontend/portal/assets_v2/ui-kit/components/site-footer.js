@@ -1,3 +1,5 @@
+import { resolvePortalHref } from "./portal-href.js";
+
 /* ui-kit/components/site-footer.js — auto-mounted portal footer.
 
    Mount API
@@ -199,7 +201,7 @@ function el(tag, attrs = {}, ...children) {
 }
 
 function renderLink(link) {
-  const attrs = { class: "site-footer__link", href: link.href || "#" };
+  const attrs = { class: "site-footer__link", href: resolvePortalHref(link.href) || "#" };
   if (link.external) {
     attrs.target = "_blank";
     attrs.rel = "noopener noreferrer";
@@ -258,7 +260,7 @@ function renderBrand(brand) {
   const children = [
     el(
       "a",
-      { class: "site-footer__brand-mark", href: brand.href || "/" },
+      { class: "site-footer__brand-mark", href: resolvePortalHref(brand.href) || "/" },
       ...markChildren
     ),
   ];
@@ -299,7 +301,7 @@ function renderLegal(legal) {
   const metaItems = [];
   if (Array.isArray(legal.meta)) {
     legal.meta.forEach((m) =>
-      metaItems.push(el("li", {}, el("a", { href: m.href || "#" }, m.label)))
+      metaItems.push(el("li", {}, el("a", { href: resolvePortalHref(m.href) || "#" }, m.label)))
     );
   }
   if (legal.build) {

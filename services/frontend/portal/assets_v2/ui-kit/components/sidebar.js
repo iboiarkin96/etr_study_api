@@ -2,6 +2,8 @@
    with an optional brand block and a sidebar-wide collapse toggle.
    Persists group-collapse state, scroll, and full-sidebar collapse state. */
 
+import { resolvePortalHref } from "./portal-href.js";
+
 // Storage holds the set of explicitly-EXPANDED group IDs. Default (no entry
 // in localStorage) means all groups start collapsed — the user opens what
 // they need and that selection is what persists across navigation.
@@ -65,14 +67,6 @@ function saveShellCollapsed(flag) {
   } catch (_) {
     /* ignore quota */
   }
-}
-
-// `/services/X` hrefs → `<base>/X` so Pages (where services/ is the artifact root) doesn't 404.
-function resolvePortalHref(href) {
-  if (!href || !href.startsWith("/services/")) return href;
-  const m = window.location.pathname.match(/^(.*?)\/portal\//);
-  if (!m) return href;
-  return m[1] + href.slice("/services".length);
 }
 
 function isActive(href) {
