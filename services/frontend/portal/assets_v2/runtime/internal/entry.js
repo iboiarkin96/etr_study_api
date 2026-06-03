@@ -39,6 +39,7 @@ import { mountFooterHistory } from "../../ui-kit/components/footer-history.js";
 import { mountAuroraRail } from "../../ui-kit/components/aurora-rail.js";
 import { mountLensChip } from "../../ui-kit/components/lens-chip.js";
 import { mountInteractiveChecklist } from "../../ui-kit/components/interactive-checklist.js";
+import { mountPathTimeline } from "../../ui-kit/components/path-timeline.js";
 
 function boot() {
   mountToast();
@@ -95,6 +96,9 @@ function boot() {
   mountTocFab();
   mountToc();
   mountModal();
+  // Path-timeline mounts AFTER mountModal so the close/backdrop bindings
+  // are in place when a path modal is opened via picker tile or hash.
+  mountPathTimeline();
   mountDiagramLightbox();
   mountSearch();
   mountCode();
