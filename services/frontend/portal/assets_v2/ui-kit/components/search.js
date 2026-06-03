@@ -1,3 +1,5 @@
+import { resolvePortalHref } from "./portal-href.js";
+
 /* ui-kit/components/search.js — topbar search with BM25-style ranking.
 
    Ported from the legacy services/frontend/portal/assets/docs-search.js, with
@@ -238,8 +240,8 @@ function buildHref(url) {
   // sometimes "ui-kit/pages/...". Absolute or external URLs pass through.
   if (!url) return "#";
   if (/^https?:/i.test(url)) return url;
-  if (url.startsWith("/")) return url;
-  return "/services/portal/" + url.replace(/^\.\//, "");
+  if (url.startsWith("/")) return resolvePortalHref(url);
+  return resolvePortalHref("/services/portal/" + url.replace(/^\.\//, ""));
 }
 
 function renderResults(panel, results, queryTokens, onPick) {

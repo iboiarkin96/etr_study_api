@@ -1,3 +1,5 @@
+import { resolvePortalHref } from "./portal-href.js";
+
 /* ui-kit/components/terminal-card.js
    Self-typing terminal card. Mount via:
 
@@ -42,7 +44,7 @@ const DEFAULT_SCRIPT = [
 ];
 
 function buildShell(host) {
-  const tryHref = host.getAttribute("data-try-href") || "/services/portal/internal/api/index.html";
+  const tryHref = resolvePortalHref(host.getAttribute("data-try-href") || "/services/portal/internal/api/index.html");
   const tryLabel = host.getAttribute("data-try-label") || "Try in OpenAPI Explorer";
   const showCopy = !host.hasAttribute("data-no-copy");
   const copyBtn = showCopy

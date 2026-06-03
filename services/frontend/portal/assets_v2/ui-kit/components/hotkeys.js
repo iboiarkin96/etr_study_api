@@ -1,4 +1,5 @@
 import { openModal, closeModal } from "./modal.js";
+import { resolvePortalHref } from "./portal-href.js";
 
 /* ui-kit/components/hotkeys.js — global keyboard shortcuts for docs.
    Implements the contract documented in
@@ -240,7 +241,7 @@ function ensureCheatModal() {
         </section>
       </div>
       <footer class="docs-hotkeys-modal__foot">
-        Full contract: <a href="/services/portal/ui-kit/pages/foundations/hotkeys.html">Foundations · Hotkeys</a>
+        Full contract: <a href="${resolvePortalHref("/services/portal/ui-kit/pages/foundations/hotkeys.html")}">Foundations · Hotkeys</a>
       </footer>
     </div>
   `;
