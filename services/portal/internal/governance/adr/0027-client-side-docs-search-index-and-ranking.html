@@ -76,17 +76,20 @@
         </p>
       </header>
 
-      <section aria-labelledby="ratification-h">
-        <h2 id="ratification-h">Ratification</h2>
-        <article class="docs-card">
-          <div class="docs-card__body">
-            <ul>
-              <li>Discussion Issue: N/A (implemented as architecture improvement for docs UX)</li>
-              <li>Merge PR: pending</li>
-              <li>Accepted: 2026-04-17</li>
-            </ul>
-          </div>
-        </article>
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0027</code> — High-relevance client-side docs search (inverted index, IDF, and ranking boosts)</dd>
+          <dt>Category</dt>
+          <dd>documentation</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-05-17">2026-05-17</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-06-01">2026-06-01</time></dd>
+        </dl>
       </section>
 
       <section aria-labelledby="context-h">
@@ -106,62 +109,6 @@
           <li>Prefix expansion only for the last query token for good type-ahead UX.</li>
         </ol>
         <p>We also add <strong>search telemetry</strong> (append-only) in the app SQLite database so local runs stay simple and we can verify behavior.</p>
-      </section>
-
-      <section aria-labelledby="theory-h">
-        <h2 id="theory-h">Theoretical basis</h2>
-
-        <h3>Representation</h3>
-        <p>Each document is represented as:</p>
-        <pre><code>d = (title, url, section, preview, content_len, tf_title, tf_url, tf_section, tf_content)</code></pre>
-        <p>where <code>tf_field(term, d)</code> is term frequency in that field.</p>
-
-        <h3>Normalization</h3>
-        <p>Input text is lowercased, punctuation-normalized, and whitespace-collapsed:</p>
-        <pre><code>N(x) = trim(collapseSpaces(lowercase(x)))</code></pre>
-        <p>Tokens are alphanumeric terms extracted from normalized text.</p>
-
-        <h3>Core ranking formula</h3>
-        <p>For query tokens <code>T</code>, base score is:</p>
-        <pre><code>score_base(d, T) = Σ over t in T:
-idf(t) * (
-w_title   * log(1 + tf_title(t, d))
-+ w_url     * log(1 + tf_url(t, d))
-+ w_section * log(1 + tf_section(t, d))
-+ w_content * log(1 + tf_content(t, d))
-        )</code></pre>
-        <p>Weights are tuned for precision-first behavior:</p>
-        <pre><code>w_title = 8.0
-w_url = 4.0
-w_section = 2.0
-        w_content = 1.4</code></pre>
-
-        <h3>IDF and length normalization</h3>
-        <pre><code>idf(t) = log(1 + (N + 1) / (df(t) + 0.5))
-
-len_ratio(d) = content_len(d) / avg_content_len
-norm(d) = 1 / (1 + 0.08 * max(0, len_ratio(d) - 1))
-
-        score_norm(d, T) = score_base(d, T) * norm(d)</code></pre>
-        <p>This downweights very common tokens and prevents long pages from winning by volume alone.</p>
-
-        <h3>Precision boosts</h3>
-        <p>Final score adds deterministic bonuses:</p>
-        <pre><code>score_final = score_norm
-+ B_all_tokens_in_title
-+ B_all_tokens_in_url
-+ B_exact_phrase_in_title
-+ B_exact_phrase_in_url
-+ B_title_prefix
-        + B_exact_section</code></pre>
-        <p>These bonuses enforce intuitive ranking for navigational queries and short phrase queries.</p>
-
-        <h3>Complexity model</h3>
-        <p>With an inverted index, query complexity becomes proportional to postings, not all documents:</p>
-        <pre><code>Build: O(total_tokens)
-Query: O(sum_postings_for_query_terms + rerank_candidates)
-        Space: O(vocabulary + postings + doc_metadata)</code></pre>
-        <p>This is substantially faster than scanning every document on each query.</p>
       </section>
 
       <section aria-labelledby="scope-h">
@@ -225,18 +172,16 @@ Query: O(sum_postings_for_query_terms + rerank_candidates)
             </div>
           </article>
         </div>
-      </section>
-
-      <section aria-labelledby="revisit-h">
-        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+        <h3>Revisit — would we do this again?</h3>
         <p><strong>Yes — the precision improvement is the single most-cited UX win since the portal redesign.</strong> One refinement we would commit to on day one if starting today:</p>
         <ul class="rail-list" data-tone="info">
           <li><strong>Wire the search-telemetry events into a per-query «zero-results» dashboard.</strong> Today the events stream into SQLite but nobody graphs them; queries that returned zero results would be the highest-signal input for «what content is missing?» — they are the user telling us, in their own words, what they expected to find.</li>
         </ul>
+
       </section>
 
-      <section aria-labelledby="compat-h">
-        <h2 id="compat-h">Compatibility and migration</h2>
+      <section aria-labelledby="compatibility-h">
+        <h2 id="compatibility-h">Compatibility and migration</h2>
         <ul>
           <li>Backward-compatibility impact: low (search implementation change only).</li>
           <li>Migration plan: generate new index version in existing docs pipeline.</li>
@@ -244,8 +189,8 @@ Query: O(sum_postings_for_query_terms + rerank_candidates)
         </ul>
       </section>
 
-      <section aria-labelledby="impl-h">
-        <h2 id="impl-h">Implementation mapping</h2>
+      <section aria-labelledby="implementation-h">
+        <h2 id="implementation-h">Implementation mapping</h2>
         <ul>
           <li>Index builder: <code>scripts/build_docs_search_index.py</code></li>
           <li>Runtime search and reranking: <code>services/frontend/portal/assets/docs-nav.js</code></li>
@@ -256,6 +201,74 @@ Query: O(sum_postings_for_query_terms + rerank_candidates)
           <li>Telemetry store module: <code>app/core/docs_search_telemetry.py</code></li>
           <li>Telemetry database file: same SQLite file configured by <code>SQLITE_DB_PATH</code></li>
         </ul>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li>Run <code>make docs-fix</code> and verify index generation step succeeds.</li>
+          <li>Smoke-test queries across ADR/internal/developer/runbooks/api paths.</li>
+          <li>Verify keyboard UX: up/down/enter/escape.</li>
+          <li>Track payload size and first-query latency after docs growth.</li>
+          <li>Send a search event and verify row creation in telemetry DB (<code>docs_search_events</code>).</li>
+          <li>Call <code>GET /internal/telemetry/docs-search/metrics</code> and verify non-zero aggregates.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="theory-h">
+        <h2 id="theory-h">Theoretical basis</h2>
+
+        <h3>Representation</h3>
+        <p>Each document is represented as:</p>
+        <pre><code>d = (title, url, section, preview, content_len, tf_title, tf_url, tf_section, tf_content)</code></pre>
+        <p>where <code>tf_field(term, d)</code> is term frequency in that field.</p>
+
+        <h3>Normalization</h3>
+        <p>Input text is lowercased, punctuation-normalized, and whitespace-collapsed:</p>
+        <pre><code>N(x) = trim(collapseSpaces(lowercase(x)))</code></pre>
+        <p>Tokens are alphanumeric terms extracted from normalized text.</p>
+
+        <h3>Core ranking formula</h3>
+        <p>For query tokens <code>T</code>, base score is:</p>
+        <pre><code>score_base(d, T) = Σ over t in T:
+idf(t) * (
+w_title   * log(1 + tf_title(t, d))
++ w_url     * log(1 + tf_url(t, d))
++ w_section * log(1 + tf_section(t, d))
++ w_content * log(1 + tf_content(t, d))
+        )</code></pre>
+        <p>Weights are tuned for precision-first behavior:</p>
+        <pre><code>w_title = 8.0
+w_url = 4.0
+w_section = 2.0
+        w_content = 1.4</code></pre>
+
+        <h3>IDF and length normalization</h3>
+        <pre><code>idf(t) = log(1 + (N + 1) / (df(t) + 0.5))
+
+len_ratio(d) = content_len(d) / avg_content_len
+norm(d) = 1 / (1 + 0.08 * max(0, len_ratio(d) - 1))
+
+        score_norm(d, T) = score_base(d, T) * norm(d)</code></pre>
+        <p>This downweights very common tokens and prevents long pages from winning by volume alone.</p>
+
+        <h3>Precision boosts</h3>
+        <p>Final score adds deterministic bonuses:</p>
+        <pre><code>score_final = score_norm
++ B_all_tokens_in_title
++ B_all_tokens_in_url
++ B_exact_phrase_in_title
++ B_exact_phrase_in_url
++ B_title_prefix
+        + B_exact_section</code></pre>
+        <p>These bonuses enforce intuitive ranking for navigational queries and short phrase queries.</p>
+
+        <h3>Complexity model</h3>
+        <p>With an inverted index, query complexity becomes proportional to postings, not all documents:</p>
+        <pre><code>Build: O(total_tokens)
+Query: O(sum_postings_for_query_terms + rerank_candidates)
+        Space: O(vocabulary + postings + doc_metadata)</code></pre>
+        <p>This is substantially faster than scanning every document on each query.</p>
       </section>
 
       <section aria-labelledby="telemetry-h">
@@ -286,18 +299,6 @@ Query: O(sum_postings_for_query_terms + rerank_candidates)
         <pre><code>TTFS = distribution of s.time_to_success_ms for s in S
         reported as p50 and p75</code></pre>
         <p>For this ADR, dashboard defaults are: <strong>p50</strong> and <strong>p75</strong> over the selected rolling window.</p>
-      </section>
-
-      <section aria-labelledby="validation-h">
-        <h2 id="validation-h">Validation</h2>
-        <ul>
-          <li>Run <code>make docs-fix</code> and verify index generation step succeeds.</li>
-          <li>Smoke-test queries across ADR/internal/developer/runbooks/api paths.</li>
-          <li>Verify keyboard UX: up/down/enter/escape.</li>
-          <li>Track payload size and first-query latency after docs growth.</li>
-          <li>Send a search event and verify row creation in telemetry DB (<code>docs_search_events</code>).</li>
-          <li>Call <code>GET /internal/telemetry/docs-search/metrics</code> and verify non-zero aggregates.</li>
-        </ul>
       </section>
 
       <footer class="docs-history" aria-label="History">

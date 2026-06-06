@@ -76,18 +76,20 @@
         </p>
       </header>
 
-      <section aria-labelledby="ratification-h">
-        <h2 id="ratification-h">Ratification</h2>
-        <article class="docs-card">
-          <div class="docs-card__body">
-            <p>Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate ratification process. Git history for this file on <code>main</code> is the record.</p>
-            <ul>
-              <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
-              <li>Merge PR: <em>see git history for this file</em></li>
-              <li>Accepted: <em>as merged to <code>main</code></em></li>
-            </ul>
-          </div>
-        </article>
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0011</code> — SLOs, SLAs, Error Budget, and Monitoring Alerts</dd>
+          <dt>Category</dt>
+          <dd>operations</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-05-17">2026-05-17</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-06-01">2026-06-01</time></dd>
+        </dl>
       </section>
 
       <section aria-labelledby="context-h">
@@ -147,28 +149,41 @@
         <p>Prometheus <strong>alerting rules</strong> live under <code>ops/prometheus/rules/</code>. Alertmanager is not required for evaluation: firing alerts appear in the Prometheus UI (<code>/alerts</code>). Wiring Alertmanager for notifications is a follow-up.</p>
       </section>
 
-      <section aria-labelledby="impl-h">
-        <h2 id="impl-h">Implementation in this repository</h2>
-        <div class="docs-table-wrap" role="region" aria-label="SLO implementation surfaces">
-          <table class="docs-table docs-table--zebra">
-            <thead>
-              <tr>
-                <th scope="col">Category</th>
-                <th scope="col">Path / target</th>
-                <th scope="col">Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>Prometheus recording + alert rules</td><td><code>ops/prometheus/rules/study_app_slo.yml</code></td><td>burn-rate + threshold alerts</td></tr>
-              <tr><td>Blackbox config</td><td><code>ops/prometheus/blackbox.yml</code></td><td>module <code>http_2xx</code> for <code>/ready</code></td></tr>
-              <tr><td>Prometheus template</td><td><code>ops/prometheus/prometheus.tpl.yml</code></td><td><code>rule_files</code>, API scrape, Blackbox scrape</td></tr>
-              <tr><td>Config render script</td><td><code>scripts/render_prometheus_config.py</code></td><td>substitutes scrape target + ready-probe URL</td></tr>
-              <tr><td>Compose stack</td><td><code>docker-compose.observability.yml</code></td><td>Blackbox service; Prometheus mounts rules</td></tr>
-              <tr><td>Grafana dashboard</td><td><code>ops/grafana/dashboards/study-app-observability.json</code></td><td>SLO panels (5xx, readiness, budget, p95)</td></tr>
-              <tr><td>Incident runbook</td><td><a href="../../how-to/incidents/runbooks/0009-error-budget-exhaustion.html">Runbook 0009 — Error budget exhaustion</a></td><td>policy + triage</td></tr>
-            </tbody>
-          </table>
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li><strong>In scope:</strong> the conventions, rules, and artefacts named in the Decision section above.</li>
+          <li><strong>Out of scope:</strong> any system, process, or surface not explicitly listed here.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <p>Three alternatives were evaluated before committing to the SLI/SLO/budget triple + burn-rate alerts. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints. Anchored on <em>Site Reliability Workbook</em> ch. 5 «Alerting on SLOs», pp. 88-93, table 5-2.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Threshold alerts only (no SLO, no error budget)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the «5xx rate &gt; 1% for 5 min ⇒ page» pattern. Simpler to write, no recording rules. Most non-SRE teams start here.</p>
+              <p><strong>Why rejected:</strong> threshold alerts are decoupled from customer impact — they fire on the same percentage during low and high traffic, which makes them either alarmist (during low-traffic nights) or silent (during high-traffic days). Error-budget burn is denominator-aware: 5xx during the day's traffic peak is treated as bigger than the same percentage at 3 a.m. The burn-rate model from SRE Workbook ch. 5 is the only one that makes alerts proportional to user pain.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Higher target (99.99% «four nines»)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> a stricter SLO signals «we care about uptime». Used by payment-rail and identity-provider services.</p>
+              <p><strong>Why rejected:</strong> four-nines availability requires investment we have not made — multi-region active-active, no-downtime deploys, an on-call rotation, sub-minute recovery times. Publishing 99.99% without those is theatre; the moment we miss it (and we will, given a single instance) the SLO becomes meaningless. 99.9% with measurable infrastructure is a credible commitment; 99.99% with our current infrastructure is not.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">External SLA from day one (with credits / refunds clause)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the «commit publicly so the team has skin in the game» argument. Forces operational discipline. Used by SaaS vendors with revenue tied to uptime.</p>
+              <p><strong>Why rejected:</strong> SLA is a customer contract, with legal and financial implications. We have no paying customers yet and no team to defend a breach in court; publishing an SLA before there is a commercial relationship is empty signalling. Internal SLO + the «SLA stricter than SLO» rule in <code>§ Optional external SLA</code> keeps the door open for the day we ship for money.</p>
+            </div>
+          </article>
         </div>
+        <p><strong>Trade we accept by choosing SLO + budget + burn-rate alerts.</strong> We pay for the recording rules, the Blackbox container, and the operational overhead of explaining «what's the budget left?» to anyone new. We accept it because each rejected alternative either decouples alerts from customer impact (thresholds), commits us to infrastructure we have not built (99.99%), or makes promises we cannot defend (premature SLA). The SLI/SLO/budget triple is the smallest mechanism that ties reliability to a number we can actually move.</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -195,43 +210,54 @@
               </div>
             </article>
           </div>
-        </section>
 
-        <section aria-labelledby="alternatives-h">
-          <h2 id="alternatives-h">Alternatives considered</h2>
-          <p>Three alternatives were evaluated before committing to the SLI/SLO/budget triple + burn-rate alerts. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints. Anchored on <em>Site Reliability Workbook</em> ch. 5 «Alerting on SLOs», pp. 88-93, table 5-2.</p>
-          <div class="docs-card-grid docs-card-grid--stack">
-            <article class="docs-card" data-tone="warn">
-              <div class="docs-card__head"><h3 class="docs-card__title">Threshold alerts only (no SLO, no error budget)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-              <div class="docs-card__body">
-                <p><strong>Why considered:</strong> the «5xx rate &gt; 1% for 5 min ⇒ page» pattern. Simpler to write, no recording rules. Most non-SRE teams start here.</p>
-                <p><strong>Why rejected:</strong> threshold alerts are decoupled from customer impact — they fire on the same percentage during low and high traffic, which makes them either alarmist (during low-traffic nights) or silent (during high-traffic days). Error-budget burn is denominator-aware: 5xx during the day's traffic peak is treated as bigger than the same percentage at 3 a.m. The burn-rate model from SRE Workbook ch. 5 is the only one that makes alerts proportional to user pain.</p>
-              </div>
-            </article>
-            <article class="docs-card" data-tone="warn">
-              <div class="docs-card__head"><h3 class="docs-card__title">Higher target (99.99% «four nines»)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-              <div class="docs-card__body">
-                <p><strong>Why considered:</strong> a stricter SLO signals «we care about uptime». Used by payment-rail and identity-provider services.</p>
-                <p><strong>Why rejected:</strong> four-nines availability requires investment we have not made — multi-region active-active, no-downtime deploys, an on-call rotation, sub-minute recovery times. Publishing 99.99% without those is theatre; the moment we miss it (and we will, given a single instance) the SLO becomes meaningless. 99.9% with measurable infrastructure is a credible commitment; 99.99% with our current infrastructure is not.</p>
-              </div>
-            </article>
-            <article class="docs-card" data-tone="warn">
-              <div class="docs-card__head"><h3 class="docs-card__title">External SLA from day one (with credits / refunds clause)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-              <div class="docs-card__body">
-                <p><strong>Why considered:</strong> the «commit publicly so the team has skin in the game» argument. Forces operational discipline. Used by SaaS vendors with revenue tied to uptime.</p>
-                <p><strong>Why rejected:</strong> SLA is a customer contract, with legal and financial implications. We have no paying customers yet and no team to defend a breach in court; publishing an SLA before there is a commercial relationship is empty signalling. Internal SLO + the «SLA stricter than SLO» rule in <code>§ Optional external SLA</code> keeps the door open for the day we ship for money.</p>
-              </div>
-            </article>
-          </div>
-          <p><strong>Trade we accept by choosing SLO + budget + burn-rate alerts.</strong> We pay for the recording rules, the Blackbox container, and the operational overhead of explaining «what's the budget left?» to anyone new. We accept it because each rejected alternative either decouples alerts from customer impact (thresholds), commits us to infrastructure we have not built (99.99%), or makes promises we cannot defend (premature SLA). The SLI/SLO/budget triple is the smallest mechanism that ties reliability to a number we can actually move.</p>
-        </section>
-
-        <section aria-labelledby="revisit-h">
-          <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+          <h3>Revisit — would we do this again?</h3>
           <p><strong>Yes, with two SRE-Book moves we are still missing.</strong> The 99.9% target + 30-day window + Blackbox external probe has aged well; the budget arithmetic remains readable and the burn-rate alerts fire when something real is happening. Two refinements we would commit to on day one if starting today:</p>
           <ul class="rail-list" data-tone="info">
             <li><strong>Wire Alertmanager to Slack / PagerDuty, not just Prometheus UI.</strong> Today firing alerts appear at <code>/alerts</code>; nobody watches that URL. The page-on-burn loop is broken until Alertmanager routes; this was explicitly flagged as a follow-up in the ADR and is still open.</li>
             <li><strong>Publish a one-page «what does 99.9% feel like» explainer in onboarding.</strong> The number is meaningless without translation: 99.9% ≈ 43 min / month of downtime allowance, ≈ 8.7 h / year. New joiners ask this question every time; the answer should be in the onboarding handbook, not in chat.</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="compatibility-h">
+          <h2 id="compatibility-h">Compatibility and migration</h2>
+          <ul>
+            <li><strong>Backward-compatibility impact:</strong> none — pure governance / convention change with no wire-level effect for existing consumers.</li>
+            <li><strong>Migration plan:</strong> apply the rules to new work; bring existing artefacts into compliance during normal touch-ups.</li>
+            <li><strong>Rollback strategy:</strong> revert the merge PR; no data or schema changes to undo.</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="implementation-h">
+          <h2 id="implementation-h">Implementation in this repository</h2>
+          <div class="docs-table-wrap" role="region" aria-label="SLO implementation surfaces">
+            <table class="docs-table docs-table--zebra">
+              <thead>
+                <tr>
+                  <th scope="col">Category</th>
+                  <th scope="col">Path / target</th>
+                  <th scope="col">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Prometheus recording + alert rules</td><td><code>ops/prometheus/rules/study_app_slo.yml</code></td><td>burn-rate + threshold alerts</td></tr>
+                <tr><td>Blackbox config</td><td><code>ops/prometheus/blackbox.yml</code></td><td>module <code>http_2xx</code> for <code>/ready</code></td></tr>
+                <tr><td>Prometheus template</td><td><code>ops/prometheus/prometheus.tpl.yml</code></td><td><code>rule_files</code>, API scrape, Blackbox scrape</td></tr>
+                <tr><td>Config render script</td><td><code>scripts/render_prometheus_config.py</code></td><td>substitutes scrape target + ready-probe URL</td></tr>
+                <tr><td>Compose stack</td><td><code>docker-compose.observability.yml</code></td><td>Blackbox service; Prometheus mounts rules</td></tr>
+                <tr><td>Grafana dashboard</td><td><code>ops/grafana/dashboards/study-app-observability.json</code></td><td>SLO panels (5xx, readiness, budget, p95)</td></tr>
+                <tr><td>Incident runbook</td><td><a href="../../how-to/incidents/runbooks/0009-error-budget-exhaustion.html">Runbook 0009 — Error budget exhaustion</a></td><td>policy + triage</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section aria-labelledby="validation-h">
+          <h2 id="validation-h">Validation</h2>
+          <ul>
+            <li><strong>Technical checks:</strong> CI lints, type-checks, and contract tests stay green on every PR.</li>
+            <li><strong>Operational checks:</strong> the relevant runbook reflects this rule.</li>
+            <li><strong>Documentation updates:</strong> README, CHANGELOG, and related ADRs cross-reference this decision.</li>
           </ul>
         </section>
 

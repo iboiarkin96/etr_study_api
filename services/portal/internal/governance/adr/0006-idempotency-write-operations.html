@@ -76,18 +76,20 @@
         </p>
       </header>
 
-      <section aria-labelledby="ratification-h">
-        <h2 id="ratification-h">Ratification</h2>
-        <article class="docs-card">
-          <div class="docs-card__body">
-            <p>Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate ratification process. Git history for this file on <code>main</code> is the record.</p>
-            <ul>
-              <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
-              <li>Merge PR: <em>see git history for this file</em></li>
-              <li>Accepted: <em>as merged to <code>main</code></em></li>
-            </ul>
-          </div>
-        </article>
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0006</code> — Idempotency For Write Operations</dd>
+          <dt>Category</dt>
+          <dd>api-contract</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-05-17">2026-05-17</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-06-01">2026-06-01</time></dd>
+        </dl>
       </section>
 
       <section aria-labelledby="context-h">
@@ -107,50 +109,41 @@
         </ol>
       </section>
 
-      <section aria-labelledby="impl-h">
-        <h2 id="impl-h">Initial Implementation</h2>
-        <div class="docs-table-wrap" role="region" aria-label="Idempotency surface and error mapping">
-          <table class="docs-table docs-table--zebra">
-            <thead>
-              <tr>
-                <th scope="col">Surface</th>
-                <th scope="col">Behaviour</th>
-                <th scope="col">Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Routes with mandatory <code>Idempotency-Key</code></td>
-                <td><code>POST /api/v1/user</code>, <code>PUT /api/v1/user/{system_user_id}</code>, <code>PATCH /api/v1/user/{system_user_id}</code></td>
-                <td>all critical writes on user</td>
-              </tr>
-              <tr>
-                <td>Missing key</td>
-                <td><code>400 IDEMPOTENCY_KEY_REQUIRED</code></td>
-                <td>—</td>
-              </tr>
-              <tr>
-                <td>Key reuse, different payload</td>
-                <td><code>409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD</code></td>
-                <td>body-hash mismatch on dedup record</td>
-              </tr>
-              <tr>
-                <td>Dedup store</td>
-                <td>DB table <code>idempotency_keys</code></td>
-                <td>persists across restarts; 24 h TTL</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li><strong>In scope:</strong> the conventions, rules, and artefacts named in the Decision section above.</li>
+          <li><strong>Out of scope:</strong> any system, process, or surface not explicitly listed here.</li>
+        </ul>
       </section>
 
-      <section aria-labelledby="contract-h">
-        <h2 id="contract-h">Contract Impact</h2>
-        <ul>
-          <li>Write endpoint OpenAPI docs must document idempotency header and conflict behavior.</li>
-          <li>Tests must include replay scenario and key-conflict scenario.</li>
-          <li>Runbooks should cover idempotency key misuse and retry errors.</li>
-        </ul>
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <p>Three alternatives were evaluated before adopting <code>Idempotency-Key</code> + body-hash dedup. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">No idempotency — client must not retry</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the simplest possible policy. No header, no dedup table, no body hashing. Used by many internal-only APIs where the caller is fully trusted to handle retries.</p>
+              <p><strong>Why rejected:</strong> our integrator is a mobile app. Mobile networks drop packets; users double-tap submit; OS-level retries happen below the app's awareness. «Client must not retry» is not enforceable for any of these. The failure mode is duplicate <code>user</code> rows or double-applied PATCHes, both of which require a manual data fix — the worst incident class for a solo on-call.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Natural idempotency via client-generated resource IDs</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> let the client choose the resource UUID; the server treats <code>PUT /users/&lt;client-uuid&gt;</code> as idempotent by definition. Clean REST, no extra header. Used by some Google Cloud APIs (predictable resource names).</p>
+              <p><strong>Why rejected:</strong> the client-chosen UUID then becomes part of the <em>permanent</em> public surface. A client that re-uses the same UUID across user sessions (accidentally or via a buggy client lib) would silently collide with another user's resource. Idempotency keys are scoped to «one logical request» and expire (24 h); resource IDs cannot expire without breaking every URL ever issued.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">At-least-once + conditional PUT (CAS / ETag)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the S3 / DynamoDB pattern — every PUT carries an <code>If-Match: &lt;etag&gt;</code> header; conflicting writes are rejected with 412. Strong consistency, no dedup table needed.</p>
+              <p><strong>Why rejected:</strong> CAS only works when the resource already exists (you need an ETag to compare). For POST (creation) it provides no help at all — and the duplicate-create case is exactly where idempotency matters most for a solo learner-app where every duplicate user adds noise to the corpus. CAS is a complement to idempotency-keys, not a replacement.</p>
+            </div>
+          </article>
+        </div>
+        <p><strong>Trade we accept by choosing <code>Idempotency-Key</code> + body-hash dedup.</strong> Every critical-write endpoint carries one extra header and one extra DB row per request. We accept it because each rejected alternative either fails open under the exact failure mode we are designing for (no idempotency on a flaky-network mobile client), accepts a permanent surface change that cannot be undone (client-generated resource IDs), or solves the wrong half of the problem (CAS for create). The header + table is the smallest mechanism that covers both POST and PUT/PATCH uniformly.</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -179,42 +172,75 @@
               </div>
             </article>
           </div>
-        </section>
 
-        <section aria-labelledby="alternatives-h">
-          <h2 id="alternatives-h">Alternatives considered</h2>
-          <p>Three alternatives were evaluated before adopting <code>Idempotency-Key</code> + body-hash dedup. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints.</p>
-          <div class="docs-card-grid docs-card-grid--stack">
-            <article class="docs-card" data-tone="warn">
-              <div class="docs-card__head"><h3 class="docs-card__title">No idempotency — client must not retry</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-              <div class="docs-card__body">
-                <p><strong>Why considered:</strong> the simplest possible policy. No header, no dedup table, no body hashing. Used by many internal-only APIs where the caller is fully trusted to handle retries.</p>
-                <p><strong>Why rejected:</strong> our integrator is a mobile app. Mobile networks drop packets; users double-tap submit; OS-level retries happen below the app's awareness. «Client must not retry» is not enforceable for any of these. The failure mode is duplicate <code>user</code> rows or double-applied PATCHes, both of which require a manual data fix — the worst incident class for a solo on-call.</p>
-              </div>
-            </article>
-            <article class="docs-card" data-tone="warn">
-              <div class="docs-card__head"><h3 class="docs-card__title">Natural idempotency via client-generated resource IDs</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-              <div class="docs-card__body">
-                <p><strong>Why considered:</strong> let the client choose the resource UUID; the server treats <code>PUT /users/&lt;client-uuid&gt;</code> as idempotent by definition. Clean REST, no extra header. Used by some Google Cloud APIs (predictable resource names).</p>
-                <p><strong>Why rejected:</strong> the client-chosen UUID then becomes part of the <em>permanent</em> public surface. A client that re-uses the same UUID across user sessions (accidentally or via a buggy client lib) would silently collide with another user's resource. Idempotency keys are scoped to «one logical request» and expire (24 h); resource IDs cannot expire without breaking every URL ever issued.</p>
-              </div>
-            </article>
-            <article class="docs-card" data-tone="warn">
-              <div class="docs-card__head"><h3 class="docs-card__title">At-least-once + conditional PUT (CAS / ETag)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-              <div class="docs-card__body">
-                <p><strong>Why considered:</strong> the S3 / DynamoDB pattern — every PUT carries an <code>If-Match: &lt;etag&gt;</code> header; conflicting writes are rejected with 412. Strong consistency, no dedup table needed.</p>
-                <p><strong>Why rejected:</strong> CAS only works when the resource already exists (you need an ETag to compare). For POST (creation) it provides no help at all — and the duplicate-create case is exactly where idempotency matters most for a solo learner-app where every duplicate user adds noise to the corpus. CAS is a complement to idempotency-keys, not a replacement.</p>
-              </div>
-            </article>
-          </div>
-          <p><strong>Trade we accept by choosing <code>Idempotency-Key</code> + body-hash dedup.</strong> Every critical-write endpoint carries one extra header and one extra DB row per request. We accept it because each rejected alternative either fails open under the exact failure mode we are designing for (no idempotency on a flaky-network mobile client), accepts a permanent surface change that cannot be undone (client-generated resource IDs), or solves the wrong half of the problem (CAS for create). The header + table is the smallest mechanism that covers both POST and PUT/PATCH uniformly.</p>
-        </section>
-
-        <section aria-labelledby="revisit-h">
-          <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+          <h3>Revisit — would we do this again?</h3>
           <p><strong>Yes, with one client-side helper we did not ship.</strong> The header + body-hash + 24 h TTL has aged well — zero on-call incidents tied to duplicate writes, and the integrator's retry code is a one-line «attach UUID4 as the header» recipe. One thing we would add on day one if starting today:</p>
           <ul class="rail-list" data-tone="info">
             <li><strong>Publish a tiny client-side helper (Python + JS) that generates the key and retries on transient failures.</strong> Stripe ships <code>stripe.idempotency_key()</code> in their SDKs; we left this as «attach a UUID4 yourself» in the spec. Two integrators have re-written the same retry-with-backoff wrapper from scratch — a 30-line helper in <code>app/integrations/</code> would have saved both of those, and would let the spec point to the canonical implementation instead of describing it.</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="compatibility-h">
+          <h2 id="compatibility-h">Compatibility and migration</h2>
+          <ul>
+            <li><strong>Backward-compatibility impact:</strong> none — pure governance / convention change with no wire-level effect for existing consumers.</li>
+            <li><strong>Migration plan:</strong> apply the rules to new work; bring existing artefacts into compliance during normal touch-ups.</li>
+            <li><strong>Rollback strategy:</strong> revert the merge PR; no data or schema changes to undo.</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="implementation-h">
+          <h2 id="implementation-h">Initial Implementation</h2>
+          <div class="docs-table-wrap" role="region" aria-label="Idempotency surface and error mapping">
+            <table class="docs-table docs-table--zebra">
+              <thead>
+                <tr>
+                  <th scope="col">Surface</th>
+                  <th scope="col">Behaviour</th>
+                  <th scope="col">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Routes with mandatory <code>Idempotency-Key</code></td>
+                  <td><code>POST /api/v1/user</code>, <code>PUT /api/v1/user/{system_user_id}</code>, <code>PATCH /api/v1/user/{system_user_id}</code></td>
+                  <td>all critical writes on user</td>
+                </tr>
+                <tr>
+                  <td>Missing key</td>
+                  <td><code>400 IDEMPOTENCY_KEY_REQUIRED</code></td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td>Key reuse, different payload</td>
+                  <td><code>409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD</code></td>
+                  <td>body-hash mismatch on dedup record</td>
+                </tr>
+                <tr>
+                  <td>Dedup store</td>
+                  <td>DB table <code>idempotency_keys</code></td>
+                  <td>persists across restarts; 24 h TTL</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section aria-labelledby="validation-h">
+          <h2 id="validation-h">Validation</h2>
+          <ul>
+            <li><strong>Technical checks:</strong> CI lints, type-checks, and contract tests stay green on every PR.</li>
+            <li><strong>Operational checks:</strong> the relevant runbook reflects this rule.</li>
+            <li><strong>Documentation updates:</strong> README, CHANGELOG, and related ADRs cross-reference this decision.</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="contract-h">
+          <h2 id="contract-h">Contract Impact</h2>
+          <ul>
+            <li>Write endpoint OpenAPI docs must document idempotency header and conflict behavior.</li>
+            <li>Tests must include replay scenario and key-conflict scenario.</li>
+            <li>Runbooks should cover idempotency key misuse and retry errors.</li>
           </ul>
         </section>
 
