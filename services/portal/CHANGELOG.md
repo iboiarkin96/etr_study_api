@@ -4,6 +4,36 @@ All notable changes to the **documentation tree** under `services/portal/` (and 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-06-06
+
+### Added
+
+- **ADR 0031 — Foundations handbook canon (Accepted):** [`internal/governance/adr/0031-foundations-handbook-canon-explanation-and-lens-chips.html`](internal/governance/adr/0031-foundations-handbook-canon-explanation-and-lens-chips.html). Codifies that every page under `foundations/reference/<discipline>/` is Diátaxis *Explanation* (`data-page-type="explanation"`), carries a *lens chip* on each numbered section drawn from a 7-name vocabulary (`rules` · `principles` · `tradeoffs` · `examples` · `pitfalls` · `procedure` · `ratify`), and closes with a «What to read next» card. Reference *data* (live matrices, audits, traceability artefacts) lives in `governance/`. Linked from the ADR index, the lifecycle table, and the SA hub (inline cheat-sheet).
+- **Live traceability hub:** [`internal/governance/traceability/index.html`](internal/governance/traceability/index.html). 13 requirements traced across two functional surfaces (user registry + conspectus domain + error log) and 5 cross-cutting NFRs (idempotency, error envelope, structured logging, SLO, observability); five sev-1 gaps surface the spaced-repetition CRUD code debt (REQ-CON-001..005 — contract specified, no Python module on disk yet). The methodology stays at [`internal/foundations/reference/sa/traceability-matrix.html`](internal/foundations/reference/sa/traceability-matrix.html); the artefact lives under governance per ADR 0031.
+- **Authoring how-to «Add a history row»:** [`internal/foundations/reference/sa/authoring/add-a-history-row.html`](internal/foundations/reference/sa/authoring/add-a-history-row.html) — procedural twin of `history-format.html`, split per the SA authoring pattern (Reference describes form, How-to describes procedure). Cross-linked from page-skeleton + style-guide.
+- **Traceability matrix UI Kit component:** [`assets_v2/ui-kit/components/traceability-matrix.css`](../frontend/portal/assets_v2/ui-kit/components/traceability-matrix.css) — `.trace-table`, `.st-pill--ok/wip/gap/n-a`, `.legend-grid`, `.snippet`, `.cov-strip`. Promoted from the SA methodology page's inline `<style>` block per the «no per-page CSS» kit rule; wired via `entry.css` @import. Both traceability pages now render through the same UI Kit layer.
+
+### Changed
+
+- **Foundations · Reference · SA — full handbook canonization (ADR 0031 adoption):** every handbook page (hub, principles, substance contract, style guide, page-skeleton, history-format, nav-tree-schema, topology, 16 templates) re-laid out:
+  - `data-page-type="explanation"` on every page (templates stay `reference`; authoring how-tos stay `how-to`);
+  - one lens chip per numbered section, drawn from the 7-name canon;
+  - inline lens-vocabulary cheat-sheet embedded on the SA hub (satisfies ADR 0031 §Validation without a separate vocabulary page);
+  - «What to read next» closer added on every page;
+  - traceability methodology page no longer ships per-page `<style>` — styling lives in the new UI Kit component.
+- **Governance · Metadata block sweep:** uniform `<dl class="svc-meta">` header replaces the previous mix of «Ratification» cards / chip rows / preamble paragraphs across **all 30 ADRs** (Category / Owner / Decided on / Last reviewed), **6 RFCs** (Stream / Owner / Drafted / Last reviewed), **7 audit reports** (Stream / Assessment date / Owner / Last reviewed), and the governance hub. Same block adopted on **11 API operation spec pages**, **10 incident runbooks**, **3 postmortems**, **4 reference-data pages**, and the Ivan Boyarkin person page so every internal artefact opens with a machine-readable header.
+- **ADR 0030 ratified:** [`internal/governance/adr/0030-portal-shell-token-contract.html`](internal/governance/adr/0030-portal-shell-token-contract.html) flipped *Proposed → Accepted* across the ADR card, lifecycle table, and lifecycle popover on every ADR's status pill.
+- **Backlog data refresh:** [`internal/governance/backlog/data/tasks.json`](internal/governance/backlog/data/tasks.json) + [`sprints.json`](internal/governance/backlog/data/sprints.json) rebuilt against the current state — ADR 0031 closed, ADR 0030 ratified, traceability live, `spec_consistency` exemption shipped; REQ-CON-001..005 (the sev-1 spaced-repetition CRUD code debt) surfaced as their own backlog items.
+- **UI Kit refinements:** `cockpit.css`, `backlog-cockpit.{css,js}`, `backlog-table.js`, `page-hero.css` (new `home-hero__eyebrow` flex row used by the governance Metadata sweep), `radar.css` (chip-row alignment fix). `nav-tree-internal.json` extended with the SA authoring entry and the Governance · Traceability branch.
+- **Search index rebuilt:** [`services/frontend/portal/assets/search-index.json`](../frontend/portal/assets/search-index.json) — 611 internal + 23 public docs after the ADR 0031 / SA / governance / traceability / internal-metadata passes land.
+
+### Fixed
+
+- **`docs-spec-check` — `spec_consistency.py` exemptions for legitimate WARNs:** [`scripts/spec_consistency.py`](../../scripts/spec_consistency.py) teaches the linter two principled exclusions so six long-standing warnings stop firing on green builds:
+  - `SKIP_OPENAPI_TAGS = {"System"}` — health probes (`/live`, `/ready`) and internal telemetry endpoints (`ingestDocsSearchTelemetryEvent`, `getDocsSearchTelemetryMetrics`) are infrastructure plumbing without analyst-facing contracts, and a tag-aware `_read_openapi_operations()` reader replaces the old set-only one;
+  - `data-operator-only="true"` row marker on the shared error catalog — operator-only conditions (e.g. `COMMON_500 / SECURITY_AUTH_STRATEGY_INVALID` middleware misconfiguration) aren't expected to be enumerated in per-operation §12 tables, so codes/keys living on opted-out rows are excluded from the unreferenced-entry warning. [`internal/services/api/reference/_shared/error-catalog.html`](internal/services/api/reference/_shared/error-catalog.html) tagged accordingly.
+  - Dead `_NON_CODE_TOKENS` placeholder removed in the same pass. `make release-check` green end-to-end after the change.
+
 ## 2026-05-10
 
 ### Changed
