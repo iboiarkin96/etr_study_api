@@ -26,7 +26,54 @@ import { renderBacklogProfessionBoard } from "./backlog-profession-board.js";
 import { mountMultiFilterChips } from "./multi-filter-chips.js";
 import { openModal, closeModal } from "./modal.js";
 
-const DEADLINE_ISO = "2026-05-30";
+const DEADLINE_ISO = "2026-06-30";
+
+/* TIP — plain-English tooltip text for every field on the task-detail card.
+   Kept in one place so the wording stays consistent across the modal and
+   the «Help» affordance future readers may add. Sourced from the _schema
+   block at the top of tasks.json — keep these strings in sync if the
+   schema descriptions change. */
+const TIP = {
+  // Section titles
+  summary:    "One-sentence answer to «what does shipping this look like?»",
+  problem:    "Why this task exists — what hurts today that shipping it fixes. Read before deciding to cut or defer.",
+  actions:    "Ordered concrete steps to ship. The recipe, not the rationale — every line is something you actually do.",
+  acceptance: "What must be true before the task can flip to «done». If any line is still false, the task is in-progress, not done.",
+  meta:       "The bookkeeping fields — who owns it, which sprint, how big, when it last moved.",
+
+  // Top-line pills
+  priority: {
+    P0: "P0 · Critical — must ship before deadline; blocks other work.",
+    P1: "P1 · High — committed to current scope; ship before deadline if humanly possible.",
+    P2: "P2 · Medium — nice-to-have for current scope; first to be cut when the week is tight.",
+    P3: "P3 · Low — post-launch / opportunistic; safe to defer past the deadline.",
+    _default: "Task priority (P0 critical → P3 post-launch).",
+  },
+  status: {
+    "todo":        "To do · Queued but not started. Owner is assigned and the spec is ready to pick up.",
+    "in-progress": "In progress · Actively being worked on right now — there is an open branch, draft, or PR.",
+    "blocked":     "Blocked · Cannot move forward until an external dependency clears (see «Blocked by» field).",
+    "done":        "Done · Shipped and accepted — every Acceptance bullet passes and the change is merged.",
+    _default:      "Task lifecycle state.",
+  },
+
+  // Meta fields
+  professions:  "Which professional roles this task is relevant for (Architect · SWE · Manager · QA · SA · SRE). Drives the profession filter chips.",
+  sprint:       "Which one-week sprint this task is committed to. «backlog» means unscheduled — work that does not need to ship by the deadline.",
+  sprint_goal:  "Headline theme of the sprint this task belongs to — copied from sprints.json. Tells you why the task is grouped with its siblings.",
+  eta_hours:    "Estimated hours of focused work to ship this task. Rough order-of-magnitude, not a deadline contract — used for sprint capacity, not billing.",
+  owner:        "Person on the hook to drive this to done. An empty owner is the most serious smell — it means «no one owns it» and the row is a top-of-backlog defect.",
+  group:        "High-level area the task touches (backend · frontend · docs · devops). Used by the «By profession» board view to group cards.",
+  updated:      "Last date any field on this task changed. A long-stale «updated» on a «to do» row is a smell — either the row is dead or it needs a re-confirm.",
+  blocked_by:   "ID of the task that must finish first. While this is set, status auto-promotes to «blocked» and the row appears in the Blocked filter.",
+  tags:         "Free-form labels — «feature», «tech-debt», «bug», «research». Drive secondary filters and tell reviewers what shape of change to expect.",
+  links:        "External references for context — related ADRs, RFCs, postmortems, dashboards, source files.",
+
+  // Table column headers (used by backlog-table.js as well via the export)
+  col_id:       "Stable BL-NNN handle. Immutable, never reused — incidents and postmortems link by this ID forever.",
+  col_title:    "One-line description. Click the row to open the full detail card.",
+  col_pri:      "Priority. P0 critical → P3 post-launch.",
+};
 
 const STATUS_LABEL = {
   "todo":        "To do",
@@ -85,7 +132,7 @@ function getState(defaults) {
   return {
     sprint:     params.get("sprint")     || defaults.sprint,
     profession: params.get("profession") || "all",
-    status:     params.get("status")     || "all",
+    status:     params.get("status")     || "open",
     priority:   params.get("priority")   || "all",
     view:       params.get("view")       || "table",
   };
@@ -119,13 +166,13 @@ function computeKpis(tasks, allTasks, state, sprintsById) {
   const activeSprint = sprintsById[state.sprint];
 
   const open = tasks.filter(t => t.status !== "done");
-  const atRisk = allTasks.filter(t => {
-    if (t.status === "done") return false;
-    if (t.priority !== "P0" && t.priority !== "P1") return false;
-    const sp = sprintsById[t.sprint];
-    if (!sp || !sp.ends) return true;
-    return daysBetween(today, sp.ends) <= 7;
-  });
+  // At-risk = every open P0/P1, regardless of sprint timing. The previous
+  // «sprint ends within 7 days» refinement hid most of the queue and made
+  // the metric feel arbitrary; the simpler «critical work not yet shipped»
+  // reading is the one a reviewer actually wants on the hero.
+  const atRisk = allTasks.filter(t =>
+    t.status !== "done" && (t.priority === "P0" || t.priority === "P1")
+  );
   const doneThisSprint = activeSprint
     ? allTasks.filter(t => t.sprint === activeSprint.id && t.status === "done")
     : [];
@@ -182,17 +229,16 @@ function renderSprintSwitcher(host, sprints, defaultSprint) {
   if (!host) return;
   const buttons = sprints.map(s => {
     const dot = s.state === "active" ? `<span class="backlog-sprint-dot" aria-hidden="true"></span>` : "";
-    const dates = s.starts && s.ends
-      ? `<span class="backlog-sprint-chip__dates">${esc(fmtDateRange(s.starts, s.ends))}</span>`
-      : `<span class="backlog-sprint-chip__dates">Unscheduled</span>`;
+    // Compact chips: show only the date range. Sprints without dates
+    // (e.g. the synthetic «backlog» bucket) fall back to their label.
+    const labelText = s.starts && s.ends ? fmtDateRange(s.starts, s.ends) : s.label;
     const tip = esc(sprintTooltip(s));
     return `<button type="button"
                     class="docs-chip docs-chip--filter backlog-sprint-chip"
                     data-value="${esc(s.id)}"
                     aria-pressed="false"
                     title="${tip}">
-      <span class="backlog-sprint-chip__row">${dot}<span>${esc(s.label)}</span></span>
-      ${dates}
+      <span class="backlog-sprint-chip__row">${dot}<span class="backlog-sprint-chip__dates">${esc(labelText)}</span></span>
     </button>`;
   }).join("");
   const allBtn = `<button type="button"
@@ -200,8 +246,7 @@ function renderSprintSwitcher(host, sprints, defaultSprint) {
                           data-value="all"
                           aria-pressed="false"
                           title="All sprints — whole horizon">
-    <span class="backlog-sprint-chip__row"><span>All sprints</span></span>
-    <span class="backlog-sprint-chip__dates">whole horizon</span>
+    <span class="backlog-sprint-chip__row"><span class="backlog-sprint-chip__dates">All</span></span>
   </button>`;
   host.innerHTML = allBtn + buttons;
   host.setAttribute("data-component", "multi-filter-chips");
@@ -218,35 +263,35 @@ function renderTaskDetail(task, sprintsById, tasksById) {
     .map(p => `<span class="docs-pill docs-pill--neutral">${esc(PROF_LABEL[p] || p)}</span>`)
     .join(" ");
   const tags = (task.tags || []).length
-    ? `<dt>Tags</dt><dd class="backlog-detail__tags">${task.tags.map(t => `<span class="docs-chip">${esc(t)}</span>`).join(" ")}</dd>`
+    ? `<dt data-tooltip="${TIP.tags}">Tags</dt><dd class="backlog-detail__tags">${task.tags.map(t => `<span class="docs-chip">${esc(t)}</span>`).join(" ")}</dd>`
     : "";
   const blockedBy = task.blocked_by
-    ? `<dt>Blocked by</dt><dd><code>${esc(task.blocked_by)}</code>${tasksById[task.blocked_by] ? ` — ${esc(tasksById[task.blocked_by].title)}` : ""}</dd>`
+    ? `<dt data-tooltip="${TIP.blocked_by}">Blocked by</dt><dd><code>${esc(task.blocked_by)}</code>${tasksById[task.blocked_by] ? ` — ${esc(tasksById[task.blocked_by].title)}` : ""}</dd>`
     : "";
   const links = Array.isArray(task.links) && task.links.length
-    ? `<dt>Links</dt><dd><ul class="backlog-detail__links">${task.links.map(l => `<li><a href="${esc(l.href)}">${esc(l.label || l.href)}</a></li>`).join("")}</ul></dd>`
+    ? `<dt data-tooltip="${TIP.links}">Links</dt><dd><ul class="backlog-detail__links">${task.links.map(l => `<li><a href="${esc(l.href)}">${esc(l.label || l.href)}</a></li>`).join("")}</ul></dd>`
     : "";
   const sprintGoal = sprint && sprint.goal
-    ? `<dt>Sprint goal</dt><dd>${esc(sprint.goal)}</dd>`
+    ? `<dt data-tooltip="${TIP.sprint_goal}">Sprint goal</dt><dd>${esc(sprint.goal)}</dd>`
     : "";
 
   const summary = task.summary
-    ? `<section class="backlog-detail__section"><h4 class="backlog-detail__section-title">Summary</h4><p class="backlog-detail__summary">${esc(task.summary)}</p></section>`
+    ? `<section class="backlog-detail__section"><h4 class="backlog-detail__section-title" data-tooltip="${TIP.summary}">Summary</h4><p class="backlog-detail__summary">${esc(task.summary)}</p></section>`
     : "";
   const problem = task.problem
-    ? `<section class="backlog-detail__section"><h4 class="backlog-detail__section-title">Problem</h4><p class="backlog-detail__paragraph">${esc(task.problem)}</p></section>`
+    ? `<section class="backlog-detail__section"><h4 class="backlog-detail__section-title" data-tooltip="${TIP.problem}">Problem</h4><p class="backlog-detail__paragraph">${esc(task.problem)}</p></section>`
     : "";
   const actions = Array.isArray(task.actions) && task.actions.length
-    ? `<section class="backlog-detail__section"><h4 class="backlog-detail__section-title">Actions</h4><ol class="backlog-detail__steps">${task.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ol></section>`
+    ? `<section class="backlog-detail__section"><h4 class="backlog-detail__section-title" data-tooltip="${TIP.actions}">Actions</h4><ol class="backlog-detail__steps">${task.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ol></section>`
     : "";
   const acceptance = Array.isArray(task.acceptance) && task.acceptance.length
-    ? `<section class="backlog-detail__section"><h4 class="backlog-detail__section-title">Acceptance</h4><ul class="backlog-detail__checks">${task.acceptance.map(a => `<li>${esc(a)}</li>`).join("")}</ul></section>`
+    ? `<section class="backlog-detail__section"><h4 class="backlog-detail__section-title" data-tooltip="${TIP.acceptance}">Acceptance</h4><ul class="backlog-detail__checks">${task.acceptance.map(a => `<li>${esc(a)}</li>`).join("")}</ul></section>`
     : "";
 
   return `
     <div class="backlog-detail__head-row">
-      <span class="docs-pill ${PRI_CLASS[task.priority] || "docs-pill--neutral"}">${esc(task.priority)}</span>
-      <span class="docs-status-pill ${STATUS_CLASS[task.status] || ""}">${esc(STATUS_LABEL[task.status] || task.status)}</span>
+      <span class="docs-pill ${PRI_CLASS[task.priority] || "docs-pill--neutral"}" data-tooltip="${TIP.priority[task.priority] || TIP.priority._default}">${esc(task.priority)}</span>
+      <span class="docs-status-pill ${STATUS_CLASS[task.status] || ""}" data-tooltip="${TIP.status[task.status] || TIP.status._default}">${esc(STATUS_LABEL[task.status] || task.status)}</span>
       <span class="backlog-detail__id"><code>${esc(task.id)}</code></span>
     </div>
     <h3 class="backlog-detail__title">${esc(task.title)}</h3>
@@ -255,15 +300,15 @@ function renderTaskDetail(task, sprintsById, tasksById) {
     ${actions}
     ${acceptance}
     <section class="backlog-detail__section">
-      <h4 class="backlog-detail__section-title">Meta</h4>
+      <h4 class="backlog-detail__section-title" data-tooltip="${TIP.meta}">Meta</h4>
       <dl class="backlog-detail__meta">
-        <dt>Professions</dt><dd class="backlog-detail__profs">${profs}</dd>
-        <dt>Sprint</dt><dd>${sprintLine}</dd>
+        <dt data-tooltip="${TIP.professions}">Professions</dt><dd class="backlog-detail__profs">${profs}</dd>
+        <dt data-tooltip="${TIP.sprint}">Sprint</dt><dd>${sprintLine}</dd>
         ${sprintGoal}
-        <dt>ETA</dt><dd>${Number(task.eta_hours) || 0}h</dd>
-        <dt>Owner</dt><dd>${esc(task.owner || "—")}</dd>
-        ${task.group ? `<dt>Group</dt><dd>${esc(task.group)}</dd>` : ""}
-        <dt>Updated</dt><dd><time datetime="${esc(task.updated)}">${esc(task.updated)}</time></dd>
+        <dt data-tooltip="${TIP.eta_hours}">ETA</dt><dd>${Number(task.eta_hours) || 0}h</dd>
+        <dt data-tooltip="${TIP.owner}">Owner</dt><dd>${esc(task.owner || "—")}</dd>
+        ${task.group ? `<dt data-tooltip="${TIP.group}">Group</dt><dd>${esc(task.group)}</dd>` : ""}
+        <dt data-tooltip="${TIP.updated}">Updated</dt><dd><time datetime="${esc(task.updated)}">${esc(task.updated)}</time></dd>
         ${blockedBy}
         ${tags}
         ${links}
@@ -313,8 +358,15 @@ function openTaskDetail(task, sprintsById, tasksById) {
 }
 
 function findDefaultSprint(sprints) {
-  const active = sprints.find(s => s.state === "active");
-  if (active) return active.id;
+  // Prefer the sprint whose date window contains today — survives a stale
+  // `state: "active"` flag in sprints.json (which decays the moment a week
+  // ends if no one re-stamps the file). Falls back to the declared active
+  // sprint, then to the first record.
+  const today = todayIso();
+  const current = sprints.find(s => s.starts && s.ends && s.starts <= today && today <= s.ends);
+  if (current) return current.id;
+  const declared = sprints.find(s => s.state === "active");
+  if (declared) return declared.id;
   return sprints[0] ? sprints[0].id : "all";
 }
 
@@ -334,7 +386,9 @@ export async function mountBacklogCockpit() {
   try {
     const [tRes, sRes] = await Promise.all([fetch(tasksUrl), fetch(sprintsUrl)]);
     if (!tRes.ok || !sRes.ok) throw new Error("fetch failed");
-    tasks   = await tRes.json();
+    const tasksPayload = await tRes.json();
+    // tasks.json may be a bare array (legacy) or { _schema, tasks } (current).
+    tasks   = Array.isArray(tasksPayload) ? tasksPayload : tasksPayload.tasks;
     sprints = await sRes.json();
   } catch (err) {
     root.innerHTML = `<p class="docs-empty">Could not load backlog data. Check <code>${esc(tasksUrl)}</code> and <code>${esc(sprintsUrl)}</code>.</p>`;
