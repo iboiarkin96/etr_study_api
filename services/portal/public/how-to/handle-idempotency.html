@@ -31,11 +31,12 @@
 
   <main class="container">
     <article class="docs-prose">
-      <header class="page-head">
+      <header class="page-hero page-head">
+        <p class="page-hero__eyebrow">How-to · Resilience</p>
         <div class="docs-chip-row">
           <span class="docs-pill docs-pill--neutral">How-to</span>
         </div>
-        <h1>Handle idempotency</h1>
+        <h1 class="page-hero__h1"><span class="accent">Handle</span> idempotency</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">
           Network failures and timeouts make it unsafe to retry a write blindly. The Study API uses an
@@ -43,12 +44,6 @@
           outcome instead of duplicating work.
         </p>
       </header>
-
-      <h2 id="why-it-matters">Why it matters</h2>
-      <p>
-        Without a stable idempotency key, you can create two users for one request after a single
-        retry. The contract on this page protects you from that class of bug end-to-end.
-      </p>
 
       <h2 id="recipe">The recipe</h2>
       <ol>
@@ -78,14 +73,51 @@ curl -X POST "$BASE_URL/api/v1/user" \
         <li><strong>Missing key (<code>400 IDEMPOTENCY_KEY_REQUIRED</code>, <code>COMMON_400</code>):</strong> writes without the header are rejected up front; there is no implicit fallback.</li>
       </ul>
 
-      <h2 id="logical-operation">What "logical operation" means</h2>
-      <p>
-        One key per intent, not one key per HTTP call. If your code retries on transient failure
-        (timeout, 5xx, connection reset), reuse the key. If a human user clicks "Create" twice in a
-        UI, that is two intents — two keys. If you need to recreate the same row after a soft-delete,
-        that too is a new intent — a new key.
-      </p>
+      <h2 id="verify">Verify</h2>
+      <p>Confirm the replay path by running the same write twice with one key and a third time with a different body under that same key.</p>
+      <pre><code class="language-bash">KEY=$(uuidgen)
+BODY='{"system_user_id":"42","system_uuid":"b2c3d4e5-0002-4000-8000-000000000002","full_name":"Ivan"}'
+
+# 1st call → expect 201 with a fresh body
+curl -s -w '\n%{http_code}\n' "$BASE_URL/api/v1/user" -X POST \
+  -H "X-API-Key: $API_KEY" \
+  -H "Idempotency-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d "$BODY"
+
+# 2nd call with same key + same body → expect 201 with the SAME body
+curl -s -w '\n%{http_code}\n' "$BASE_URL/api/v1/user" -X POST \
+  -H "X-API-Key: $API_KEY" \
+  -H "Idempotency-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d "$BODY"
+
+# 3rd call with same key + DIFFERENT body → expect 409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD
+curl -s -w '\n%{http_code}\n' "$BASE_URL/api/v1/user" -X POST \
+  -H "X-API-Key: $API_KEY" \
+  -H "Idempotency-Key: $KEY" \
+  -H "Content-Type: application/json" \
+      -d '{"system_user_id":"99","system_uuid":"b2c3d4e5-0002-4000-8000-000000000002","full_name":"Maria"}'</code></pre>
+      <p>The middle call must return the original response body byte-for-byte — that is the contract integrators rely on for safe retries. The third call must return <code>409</code>; any other status means the request body normalisation is bypassed somewhere in your client stack.</p>
+
+      <h2 id="related">Related</h2>
+      <ul>
+        <li><a href="../explanation/idempotency-rationale.html">Idempotency rationale</a> — why a header-based contract, what "logical operation" means, when to mint a fresh key.</li>
+        <li><a href="handle-errors.html">Handle errors</a> — the retry pseudocode that consumes the contract above.</li>
+        <li><a href="../reference/errors/index.html">Error catalogue</a> — <code>COMMON_400</code> / <code>COMMON_409</code> details.</li>
+      </ul>
     </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-06</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis remediation — moved "Why it matters" and "What logical operation means" rationale into explanation/idempotency-rationale.html (split how-to vs explanation per rubric); added explicit Verify step (3-call replay assertion); added Related block; page-history footer per SA contract.</span>
+        </li>
+      </ul>
+    </footer>
   </main>
 
   <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>

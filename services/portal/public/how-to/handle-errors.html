@@ -31,11 +31,12 @@
 
   <main class="container">
     <article class="docs-prose">
-      <header class="page-head">
+      <header class="page-hero page-head">
+        <p class="page-hero__eyebrow">How-to · Errors</p>
         <div class="docs-chip-row">
           <span class="docs-pill docs-pill--neutral">How-to</span>
         </div>
-        <h1>Handle errors</h1>
+        <h1 class="page-hero__h1"><span class="accent">Handle</span> errors</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">
           Every non-2xx response uses one envelope shape, regardless of which endpoint failed. Switch
@@ -103,12 +104,40 @@ for attempt in range(3):
         <a href="handle-idempotency.html">handle idempotency</a>.
       </p>
 
-      <h2 id="where-to-look">Where to look up codes</h2>
+      <h2 id="verify">Verify</h2>
+      <p>Sanity-check the switch-on-code path before you ship the client: trigger one expected failure for each status class you handle, and assert on <code>code</code> — not <code>detail</code>.</p>
+      <pre><code class="language-bash"># Missing X-API-Key → 401 SECURITY_AUTH_REQUIRED
+curl -s "$BASE_URL/api/v1/user" -X POST \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: verify-401" \
+  -d '{}' | jq '{status,code}'
+
+# Empty body → 422 with errors[]
+curl -s "$BASE_URL/api/v1/user" -X POST \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: verify-422" \
+      -d '{}' | jq '{status,code,errors}'</code></pre>
+      <p>If your client surfaces the <code>code</code> field from both responses (not a phrase from <code>detail</code>), the recipe is wired up correctly.</p>
+
+      <h2 id="where-to-look">Related</h2>
       <ul>
         <li><a href="../reference/errors/index.html">Error catalogue</a> — every code, what it means, what to do.</li>
         <li><a href="../reference/api/index.html">OpenAPI explorer</a> — per-endpoint examples for each error response.</li>
+        <li><a href="handle-idempotency.html">Handle idempotency</a> — the retry contract referenced above.</li>
       </ul>
     </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-06</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis remediation — added Verify step (two curl assertions, one per status class), Related block, page-history footer per SA contract.</span>
+        </li>
+      </ul>
+    </footer>
   </main>
 
   <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
