@@ -33,21 +33,39 @@
   <main class="container">
     <article class="docs-prose">
       <header class="page-head">
-        <div class="docs-chip-row">
+        <p class="home-hero__eyebrow">
           <span class="docs-pill docs-pill--info">Postmortem</span>
           <span class="docs-pill docs-pill--warn">SEV-2</span>
           <span class="docs-pill docs-pill--success">Resolved</span>
           <span class="docs-pill docs-pill--neutral">Reliability</span>
-        </div>
+        </p>
         <h1>SQLite write-lock burst — retry storm during a load test</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">During a routine k6 load test on the local staging environment, the API returned a sustained burst of 5xx errors for 47 seconds. Root cause was a misconfigured retry policy on the load generator that triggered a thundering-herd retry on every idempotent <code>POST /api/v1/conspectuses</code> failure — which then hammered the SQLite database into <code>SQLITE_BUSY</code> errors faster than the connection pool could clear. No production impact (staging only), but the same retry policy was discovered in an integration tutorial that was about to be published; this is why we test load behaviour against the same database engine as production.</p>
       </header>
 
-      <h2 id="summary">Incident summary</h2>
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Postmortem</dt>
+          <dd>SQLite write-lock burst — retry storm during a load test</dd>
+          <dt>Incident date</dt>
+          <dd><time datetime="2026-04-02">2026-04-02</time></dd>
+          <dt>Severity</dt>
+          <dd>SEV-2</dd>
+          <dt>Category</dt>
+          <dd>Reliability</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-05-30">2026-05-30</time></dd>
+        </dl>
+      </section>
+
+      <h2 id="summary-h">Incident summary</h2>
       <p>At 14:18 UTC on 2026-04-02 a k6 load test was run against the local staging API (<code>localhost:8000</code>, SQLite backend) to validate the conspectus-create endpoint's idempotency budget. The script targeted 50 RPS for 60 seconds. Within 12 seconds the API began returning <code>500 Internal Server Error</code> on roughly 30% of requests; by 30 seconds the error rate had climbed to ~85%. The handler logs showed <code>sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) database is locked</code> on the failing requests. The on-call (also the engineer running the test) stopped k6 at 15:05. The system recovered to nominal in under 5 seconds once load stopped. Investigation revealed the k6 script had been written with an aggressive retry-on-5xx policy (max 5 retries, no jitter) which, combined with a 30-second idempotency replay window, amplified each failing write into 5 additional locks against the same WAL frame.</p>
 
-      <h2 id="impact">Impact</h2>
+      <h2 id="impact-h">Impact</h2>
       <ul>
         <li><strong>Users affected:</strong> zero. Incident occurred against the local staging environment; no integrator traffic touched it.</li>
         <li><strong>Test runs invalidated:</strong> one. The load-test results are unusable because the failure mode was the test itself, not the system.</li>
@@ -56,7 +74,7 @@
         <li><strong>Counterfactual:</strong> if the same retry policy had been applied to the live production environment on Postgres, the result would have been the same shape (write-lock contention on the same row) but with different recovery characteristics — Postgres releases row locks faster than SQLite releases its global write lock, so the burst would have been shorter and self-resolving. Production was not affected, but the load test would have given a falsely optimistic capacity number.</li>
       </ul>
 
-      <h2 id="timeline">Timeline (UTC)</h2>
+      <h2 id="timeline-h">Timeline (UTC)</h2>
       <div class="docs-table-wrap" role="region" aria-label="Timeline">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Time</th><th>Actor</th><th>Event</th></tr></thead>
@@ -76,7 +94,7 @@
         </table>
       </div>
 
-      <h2 id="root-cause">Root cause — contributing factors</h2>
+      <h2 id="root-cause-h">Root cause — contributing factors</h2>
       <p>Three contributing factors, ordered by leverage.</p>
       <ul>
         <li><strong>The retry policy multiplied load instead of absorbing it.</strong> k6's <code>http.request</code> with <code>retries: 5</code> and no backoff/jitter turned each failure into a microburst of identical writes. Because the writes carried the same <code>Idempotency-Key</code>, the server short-circuited 4 of every 5 retries via the idempotency cache — but the cache lookup itself is a row read against <code>idempotency_keys</code>, and the WAL frame for that row was locked by the original retry's write.</li>
@@ -84,18 +102,18 @@
         <li><strong>No dashboard was open during the test.</strong> The metrics that would have made the failure mode visible at 12 seconds (rising <code>http_request_duration_seconds</code>, <code>db_operation_duration_seconds</code> tail, connection pool wait) all exist and were being scraped. They were not on a screen. The engineer found out by reading logs after the fact instead of seeing the curve climb.</li>
       </ul>
 
-      <h2 id="resolution">Resolution</h2>
+      <h2 id="resolution-h">Resolution</h2>
       <ul>
         <li><strong>Immediate.</strong> Stopped the load test. Re-ran with k6 retries disabled to measure the real saturation point. The actual number (~half the prior estimate) was recorded in the load-test results document.</li>
         <li><strong>Durable.</strong> Updated the load-test script to disable retries by default and added a comment explaining why ("retries amplify; rely on the API's own idempotency for correctness; measure raw saturation"). Filed action items below to make the failure mode harder to repeat — and to make the same failure mode visible when it does happen.</li>
         <li><strong>No rollback required.</strong> The system never deployed broken behaviour; this was a measurement-tool bug.</li>
       </ul>
 
-      <h2 id="detection">Detection</h2>
+      <h2 id="detection-h">Detection</h2>
       <p>Engineer noticed the burst through k6's own request-success rate in the terminal. The metrics pipeline was running but no one was watching the dashboard during the test. Logs (<code>app.log</code>) contained the smoking-gun stack trace from the first failed write; without grep on the log file, the failure mode would have looked like generic "5xx during load test".</p>
       <p>If this had happened on production: <code>error_budget_burn_rate</code> would have crossed the 2-minute fast-burn threshold by 14:19:00 and paged the on-call (see <a href="../runbooks/0009-error-budget-exhaustion.html">runbook 0009</a>). On staging, no alert is wired.</p>
 
-      <h2 id="actions">Action items</h2>
+      <h2 id="actions-h">Action items</h2>
       <div class="docs-table-wrap" role="region" aria-label="Action items">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Item</th><th>Owner</th><th>Target</th><th>Status</th></tr></thead>
@@ -120,7 +138,7 @@
         </table>
       </div>
 
-      <h2 id="lessons">Lessons learned</h2>
+      <h2 id="lessons-h">Lessons learned</h2>
       <ul>
         <li><strong>The client retry policy is part of the contract.</strong> An API designed for idempotent retry assumes the client retries sanely — that is, with jitter and a bounded budget. A retry policy without jitter turns transient failures into amplifying ones; we should document the expected client retry shape on every write endpoint.</li>
         <li><strong>Capacity numbers without observable saturation are guesses.</strong> The pre-incident estimate of ~100 RPS was a guess. The post-incident measured number of ~50 RPS sustained, ~95 RPS with brief contention is a fact. The lesson is to never publish a capacity number without naming the saturation signal.</li>
@@ -155,14 +173,14 @@
   <aside class="docs-toc" aria-label="On this page">
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#summary">Summary</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#impact">Impact</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#timeline">Timeline</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#root-cause">Root cause</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#resolution">Resolution</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#detection">Detection</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#actions">Action items</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#lessons">Lessons learned</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#summary-h">Summary</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#impact-h">Impact</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#timeline-h">Timeline</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#root-cause-h">Root cause</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#resolution-h">Resolution</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#detection-h">Detection</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#actions-h">Action items</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lessons-h">Lessons learned</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>

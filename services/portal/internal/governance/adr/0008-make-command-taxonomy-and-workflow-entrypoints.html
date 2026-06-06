@@ -76,18 +76,20 @@
         </p>
       </header>
 
-      <section aria-labelledby="ratification-h">
-        <h2 id="ratification-h">Ratification</h2>
-        <article class="docs-card">
-          <div class="docs-card__body">
-            <p>Adopted before <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>. There was no separate ratification process. Git history for this file on <code>main</code> is the record.</p>
-            <ul>
-              <li>Discussion Issue: <em>not recorded (before ADR 0018)</em></li>
-              <li>Merge PR: <em>see git history for this file</em></li>
-              <li>Accepted: <em>as merged to <code>main</code></em></li>
-            </ul>
-          </div>
-        </article>
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0008</code> — Make Command Taxonomy and Workflow Entrypoints</dd>
+          <dt>Category</dt>
+          <dd>workflow</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-05-17">2026-05-17</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-06-01">2026-06-01</time></dd>
+        </dl>
       </section>
 
       <section aria-labelledby="context-h">
@@ -112,42 +114,41 @@
         </ul>
       </section>
 
-      <section aria-labelledby="ops-h">
-        <h2 id="ops-h">Operational reference (diagrams and scenarios)</h2>
-        <p>For grouped targets, PlantUML pipeline figures (sources under <code>services/portal/internal/uml/make/</code>), and <strong>if → then</strong> onboarding flows, see the developer guide <a href="../../how-to/service/make-commands-and-workflows.html">Make commands and workflows</a>. It does not replace <code>make help</code>; it explains how composite targets relate for day-to-day use.</p>
-      </section>
-
-      <section aria-labelledby="taxonomy-h">
-        <h2 id="taxonomy-h">Command taxonomy</h2>
-        <h3>Atomic commands</h3>
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
         <ul>
-          <li>Environment: <code>venv</code>, <code>install</code>, <code>requirements</code>, <code>env-check</code>.</li>
-          <li>Code quality: <code>format-fix</code>, <code>format-check</code>, <code>lint-fix</code>, <code>lint-check</code>, <code>dead-code-check</code>, <code>type-check</code>.</li>
-          <li>Contracts: <code>openapi-check</code>, <code>contract-test</code>, <code>openapi-accept-changes</code>.</li>
-          <li>Tests: <code>test</code>, <code>test-one</code>, <code>test-warnings</code>.</li>
-          <li>Docs: <code>docs-fix</code>, <code>docs-check</code>.</li>
-          <li>Local Docker stacks (optional): metrics — <code>observability-up</code>, <code>observability-down</code>, <code>observability-smoke</code>; structured logs — <code>logging-up</code>, <code>logging-down</code>, <code>logging-reset</code>, <code>logging-smoke</code>, <code>logging-es-query</code> (<a href="0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>).</li>
-          <li>Deploy primitive: external deployment command passed via <code>DEPLOY_CMD</code>.</li>
-        </ul>
-
-        <h3>Scenario entrypoints</h3>
-        <ul>
-          <li>Fix loop: <code>make fix</code>.</li>
-          <li>Local verification: <code>make verify</code>.</li>
-          <li>Pre-push alignment with CI (dependency audit + strict docs sync): <code>make verify</code>.</li>
-          <li>Release gate: <code>make release-check</code>.</li>
-          <li>Release execution: <code>make release DEPLOY_CMD='...'</code>.</li>
+          <li><strong>In scope:</strong> the conventions, rules, and artefacts named in the Decision section above.</li>
+          <li><strong>Out of scope:</strong> any system, process, or surface not explicitly listed here.</li>
         </ul>
       </section>
 
-      <section aria-labelledby="impl-rules-h">
-        <h2 id="impl-rules-h">Implementation rules</h2>
-        <ol>
-          <li>Keep one canonical command per workflow; avoid duplicate aliases with identical behavior.</li>
-          <li>When adding a new atomic target, update <code>make help</code> under Atomic commands.</li>
-          <li>When adding a new multi-step process, expose it as scenario entrypoint in <code>make help</code>.</li>
-          <li>Keep release flow explicit and parameterized via <code>DEPLOY_CMD</code>.</li>
-        </ol>
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <p>Three alternatives were evaluated before adopting the two-level taxonomy. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints. This ADR is cited as the canonical exemplar in <a href="../../foundations/reference/sa/tradeoff-disclosure.html#exemplars">Tradeoff disclosure § 07</a>.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Keep ad-hoc <code>scripts/*.sh</code> wrappers (what we had)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the original setup. Each developer maintained their own shortcuts in <code>scripts/</code>; new contributors copied whatever they found.</p>
+              <p><strong>Why rejected:</strong> drift was the #1 onboarding complaint. PRs kept adding redundant scripts that did almost-the-same thing under different names (<code>scripts/test.sh</code> vs <code>scripts/run-tests.sh</code> vs <code>scripts/check.sh</code>), and CI ran a fourth variation. The day a new joiner could not find the canonical «how do I run what CI runs?» answer was the day to fix this.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Switch to <code>just</code> / <code>task</code> / <code>nox</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> modern Make-alternatives with cleaner syntax, named arguments, and proper variables. <code>just</code> (Casey Rodarmor) is the most popular successor; <code>task</code> is the Go-ecosystem version. Both are explicitly designed to be «Make but nicer».</p>
+              <p><strong>Why rejected:</strong> Make is already installed on every dev machine and CI runner without configuration. Adding a tool-install gate for «slightly nicer syntax» would burn onboarding budget we'd rather spend on docs-check, type-check, and contract-test. The footgun (tab-vs-space) is paid once per contributor when they read a target; the install-tax of <code>just</code> would be paid by every new contributor and every CI runner forever.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Single monolithic <code>Makefile</code> with no taxonomy</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the default «just dump every target in» pattern that most Makefiles end up with. Cheapest authoring cost.</p>
+              <p><strong>Why rejected:</strong> <code>make help</code> returned 80+ lines with no grouping; new joiners could not predict the target name for a workflow they'd never run. The lookup cost on <code>make help</code> is the load-bearing newcomer interaction in this project — pessimising it would have undone the value of having a help target at all.</p>
+            </div>
+          </article>
+        </div>
+        <p><strong>Trade we accept by choosing the two-level taxonomy.</strong> Every new atomic target costs ~30 s of help-text curation, and a new scenario target costs the composite recipe + a help entry. We accept it because the lookup cost on <code>make help</code> is the load-bearing newcomer interaction and it pays back within the first day; the rejected alternatives either invite the drift this ADR exists to prevent (ad-hoc scripts), add an install-tax we cannot justify (modern alternatives), or pessimise the very interaction we are optimising (flat list).</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -175,42 +176,67 @@
               </div>
             </article>
           </div>
-        </section>
 
-        <section aria-labelledby="alternatives-h">
-          <h2 id="alternatives-h">Alternatives considered</h2>
-          <p>Three alternatives were evaluated before adopting the two-level taxonomy. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints. This ADR is cited as the canonical exemplar in <a href="../../foundations/reference/sa/tradeoff-disclosure.html#exemplars">Tradeoff disclosure § 07</a>.</p>
-          <div class="docs-card-grid docs-card-grid--stack">
-            <article class="docs-card" data-tone="warn">
-              <div class="docs-card__head"><h3 class="docs-card__title">Keep ad-hoc <code>scripts/*.sh</code> wrappers (what we had)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-              <div class="docs-card__body">
-                <p><strong>Why considered:</strong> the original setup. Each developer maintained their own shortcuts in <code>scripts/</code>; new contributors copied whatever they found.</p>
-                <p><strong>Why rejected:</strong> drift was the #1 onboarding complaint. PRs kept adding redundant scripts that did almost-the-same thing under different names (<code>scripts/test.sh</code> vs <code>scripts/run-tests.sh</code> vs <code>scripts/check.sh</code>), and CI ran a fourth variation. The day a new joiner could not find the canonical «how do I run what CI runs?» answer was the day to fix this.</p>
-              </div>
-            </article>
-            <article class="docs-card" data-tone="warn">
-              <div class="docs-card__head"><h3 class="docs-card__title">Switch to <code>just</code> / <code>task</code> / <code>nox</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-              <div class="docs-card__body">
-                <p><strong>Why considered:</strong> modern Make-alternatives with cleaner syntax, named arguments, and proper variables. <code>just</code> (Casey Rodarmor) is the most popular successor; <code>task</code> is the Go-ecosystem version. Both are explicitly designed to be «Make but nicer».</p>
-                <p><strong>Why rejected:</strong> Make is already installed on every dev machine and CI runner without configuration. Adding a tool-install gate for «slightly nicer syntax» would burn onboarding budget we'd rather spend on docs-check, type-check, and contract-test. The footgun (tab-vs-space) is paid once per contributor when they read a target; the install-tax of <code>just</code> would be paid by every new contributor and every CI runner forever.</p>
-              </div>
-            </article>
-            <article class="docs-card" data-tone="warn">
-              <div class="docs-card__head"><h3 class="docs-card__title">Single monolithic <code>Makefile</code> with no taxonomy</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-              <div class="docs-card__body">
-                <p><strong>Why considered:</strong> the default «just dump every target in» pattern that most Makefiles end up with. Cheapest authoring cost.</p>
-                <p><strong>Why rejected:</strong> <code>make help</code> returned 80+ lines with no grouping; new joiners could not predict the target name for a workflow they'd never run. The lookup cost on <code>make help</code> is the load-bearing newcomer interaction in this project — pessimising it would have undone the value of having a help target at all.</p>
-              </div>
-            </article>
-          </div>
-          <p><strong>Trade we accept by choosing the two-level taxonomy.</strong> Every new atomic target costs ~30 s of help-text curation, and a new scenario target costs the composite recipe + a help entry. We accept it because the lookup cost on <code>make help</code> is the load-bearing newcomer interaction and it pays back within the first day; the rejected alternatives either invite the drift this ADR exists to prevent (ad-hoc scripts), add an install-tax we cannot justify (modern alternatives), or pessimise the very interaction we are optimising (flat list).</p>
-        </section>
-
-        <section aria-labelledby="revisit-h">
-          <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+          <h3>Revisit — would we do this again?</h3>
           <p><strong>Yes, with one curation aid we did not build.</strong> The <code>make verify</code> / <code>make fix</code> / <code>make release</code> trio has become the canonical onboarding answer to «how do I run X?» and the two-level structure has held without drift across ~30 atomic targets. One thing we would add on day one if starting today:</p>
           <ul class="rail-list" data-tone="info">
             <li><strong>Make help text generated from per-target docstring comments (<code>## …</code>), not hand-curated.</strong> Today the help text is a separate <code>help</code> target that grep-formats the file; a contributor who adds a new target without updating the help block can land it silently. The community-standard <code>## description</code> pattern (parsed by a 5-line awk recipe) keeps the help in the same place as the target, so they cannot drift. The curation rule in <code>§ Implementation rules</code> would then be «add the <code>##</code> line» instead of «update <code>make help</code> manually».</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="compatibility-h">
+          <h2 id="compatibility-h">Compatibility and migration</h2>
+          <ul>
+            <li><strong>Backward-compatibility impact:</strong> none — pure governance / convention change with no wire-level effect for existing consumers.</li>
+            <li><strong>Migration plan:</strong> apply the rules to new work; bring existing artefacts into compliance during normal touch-ups.</li>
+            <li><strong>Rollback strategy:</strong> revert the merge PR; no data or schema changes to undo.</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="implementation-h">
+          <h2 id="implementation-h">Implementation rules</h2>
+          <ol>
+            <li>Keep one canonical command per workflow; avoid duplicate aliases with identical behavior.</li>
+            <li>When adding a new atomic target, update <code>make help</code> under Atomic commands.</li>
+            <li>When adding a new multi-step process, expose it as scenario entrypoint in <code>make help</code>.</li>
+            <li>Keep release flow explicit and parameterized via <code>DEPLOY_CMD</code>.</li>
+          </ol>
+        </section>
+
+        <section aria-labelledby="validation-h">
+          <h2 id="validation-h">Validation</h2>
+          <ul>
+            <li><strong>Technical checks:</strong> CI lints, type-checks, and contract tests stay green on every PR.</li>
+            <li><strong>Operational checks:</strong> the relevant runbook reflects this rule.</li>
+            <li><strong>Documentation updates:</strong> README, CHANGELOG, and related ADRs cross-reference this decision.</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="ops-h">
+          <h2 id="ops-h">Operational reference (diagrams and scenarios)</h2>
+          <p>For grouped targets, PlantUML pipeline figures (sources under <code>services/portal/internal/uml/make/</code>), and <strong>if → then</strong> onboarding flows, see the developer guide <a href="../../how-to/service/make-commands-and-workflows.html">Make commands and workflows</a>. It does not replace <code>make help</code>; it explains how composite targets relate for day-to-day use.</p>
+        </section>
+
+        <section aria-labelledby="taxonomy-h">
+          <h2 id="taxonomy-h">Command taxonomy</h2>
+          <h3>Atomic commands</h3>
+          <ul>
+            <li>Environment: <code>venv</code>, <code>install</code>, <code>requirements</code>, <code>env-check</code>.</li>
+            <li>Code quality: <code>format-fix</code>, <code>format-check</code>, <code>lint-fix</code>, <code>lint-check</code>, <code>dead-code-check</code>, <code>type-check</code>.</li>
+            <li>Contracts: <code>openapi-check</code>, <code>contract-test</code>, <code>openapi-accept-changes</code>.</li>
+            <li>Tests: <code>test</code>, <code>test-one</code>, <code>test-warnings</code>.</li>
+            <li>Docs: <code>docs-fix</code>, <code>docs-check</code>.</li>
+            <li>Local Docker stacks (optional): metrics — <code>observability-up</code>, <code>observability-down</code>, <code>observability-smoke</code>; structured logs — <code>logging-up</code>, <code>logging-down</code>, <code>logging-reset</code>, <code>logging-smoke</code>, <code>logging-es-query</code> (<a href="0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>).</li>
+            <li>Deploy primitive: external deployment command passed via <code>DEPLOY_CMD</code>.</li>
+          </ul>
+
+          <h3>Scenario entrypoints</h3>
+          <ul>
+            <li>Fix loop: <code>make fix</code>.</li>
+            <li>Local verification: <code>make verify</code>.</li>
+            <li>Pre-push alignment with CI (dependency audit + strict docs sync): <code>make verify</code>.</li>
+            <li>Release gate: <code>make release-check</code>.</li>
+            <li>Release execution: <code>make release DEPLOY_CMD='...'</code>.</li>
           </ul>
         </section>
 

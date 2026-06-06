@@ -2,6 +2,20 @@
    Renders the filtered backlog as a sticky-head zebra table. Pure function:
    call with the container, the filtered task array, and the sprints index. */
 
+/* Column-header tooltips — kept locally to avoid a circular import with
+   backlog-cockpit.js (which already imports this module). The full TIP
+   map lives there; the strings below are a subset matched in wording. */
+const TIP = {
+  col_id:       "Stable BL-NNN handle. Immutable, never reused — incidents and postmortems link by this ID forever.",
+  col_title:    "One-line description. Click the row to open the full detail card.",
+  col_pri:      "Priority. P0 critical → P3 post-launch.",
+  professions:  "Which professional roles this task is relevant for (Architect · SWE · Manager · QA · SA · SRE).",
+  sprint:       "Which one-week sprint this task is committed to. «backlog» means unscheduled — work that does not need to ship by the deadline.",
+  status:       "Task lifecycle state — To do · In progress · Blocked · Done.",
+  eta_hours:    "Estimated hours of focused work to ship this task. Rough order-of-magnitude, not a deadline contract.",
+  updated:      "Last date any field on this task changed. A long-stale «updated» on a «to do» row is a smell.",
+};
+
 const STATUS_LABEL = {
   "todo":        "To do",
   "in-progress": "In progress",
@@ -69,14 +83,14 @@ export function renderBacklogTable(container, tasks, sprintsById) {
     <table class="docs-table docs-table--zebra docs-table--sticky-head">
       <thead>
         <tr>
-          <th scope="col" style="width:8ch">ID</th>
-          <th scope="col">Title</th>
-          <th scope="col">Professions</th>
-          <th scope="col" style="width:14ch">Sprint</th>
-          <th scope="col" style="width:14ch">Status</th>
-          <th scope="col" style="width:6ch">Pri</th>
-          <th scope="col" style="width:6ch">ETA</th>
-          <th scope="col" style="width:12ch">Updated</th>
+          <th scope="col" style="width:8ch" data-tooltip="${TIP.col_id}">ID</th>
+          <th scope="col" data-tooltip="${TIP.col_title}">Title</th>
+          <th scope="col" data-tooltip="${TIP.professions}">Professions</th>
+          <th scope="col" style="width:14ch" data-tooltip="${TIP.sprint}">Sprint</th>
+          <th scope="col" style="width:14ch" data-tooltip="${TIP.status}">Status</th>
+          <th scope="col" style="width:6ch" data-tooltip="${TIP.col_pri}">Pri</th>
+          <th scope="col" style="width:6ch" data-tooltip="${TIP.eta_hours}">ETA</th>
+          <th scope="col" style="width:12ch" data-tooltip="${TIP.updated}">Updated</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>

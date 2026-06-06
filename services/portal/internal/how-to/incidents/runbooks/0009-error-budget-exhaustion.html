@@ -33,16 +33,48 @@
   <main class="container">
     <article class="docs-prose">
       <header class="page-head">
-        <div class="docs-chip-row">
+        <p class="home-hero__eyebrow">
           <span class="docs-pill docs-pill--danger">Runbook</span>
           <span class="docs-pill docs-pill--info">SLO</span>
-        </div>
+        </p>
         <h1>0009 — Error budget exhaustion and SLO alerts</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">SLO alerts firing — sustained 5xx burn, latency violations, or readiness probe failures. Incident response and feature-freeze rules.</p>
       </header>
 
-      <h2 id="trigger">Trigger</h2>
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Runbook</dt>
+          <dd>0009 — Error budget exhaustion and SLO alerts</dd>
+          <dt>Category</dt>
+          <dd>SLO</dd>
+          <dt>Severity</dt>
+          <dd>SEV-2</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-05-29">2026-05-29</time></dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="impact-h">
+        <h2 id="impact-h">Impact</h2>
+        <ul>
+          <li>Local developer loop blocked until the failing stage clears.</li>
+          <li>No production user impact unless the failure is in shipped artefacts.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="followup-h">
+        <h2 id="followup-h">Follow-up</h2>
+        <ul>
+          <li>Capture the root cause in the related postmortem if SEV-2 or higher.</li>
+          <li>Open backlog items for any preventive change discovered during recovery.</li>
+        </ul>
+      </section>
+
+      <h2 id="trigger-h">Trigger</h2>
       <ul>
         <li>Prometheus alerts <code>StudyAppErrorBudgetExhausted</code>, <code>StudyAppErrorBudgetCritical</code>, <code>StudyAppFast5xxBurn</code>, <code>StudyAppHighHttp5xxRate</code>, <code>StudyAppLatencySLOViolation</code>, or <code>StudyAppReadyProbeFailing</code> are firing.</li>
         <li>Grafana shows error budget burn over 1, a high 5xx rate, or readiness at 0.</li>
@@ -53,7 +85,7 @@
       <p>For this API we allow at most <strong>0.1%</strong> of requests to return HTTP 5xx in a rolling 30-day window (99.9% success). The rule <code>job:study_app:http_5xx:burn30d</code> compares real 5xx share to that allowance. When burn is <strong>above 1</strong>, you have used more errors than budget for that window.</p>
       <p>Full policy and SLI text: <a href="../../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011: SLOs, SLAs, error budget, and monitoring alerts</a>.</p>
 
-      <h2 id="triage">Fast triage (order)</h2>
+      <h2 id="triage-h">Fast triage (order)</h2>
       <ol>
         <li><strong>Readiness / dependencies</strong> — If <code>StudyAppReadyProbeFailing</code> fires, use <a href="0008-observability-scrape-failing.html">Observability scrape failing</a>: API up, DB reachable, <code>curl -i http://127.0.0.1:8000/ready</code> returns <code>200</code>.</li>
         <li><strong>5xx and latency</strong> — Open Grafana dashboard <a href="http://127.0.0.1:3001/d/study-app-observability/study-app-observability?orgId=1">Study App Observability</a> and Prometheus <a href="http://127.0.0.1:9090/alerts">Alerts</a> / <a href="http://127.0.0.1:9090/graph">Graph</a>.</li>
@@ -62,7 +94,15 @@
         <li><strong>Saturation</strong> — If latency SLO fires but 5xx are low, check CPU, memory, pools, and rate limits.</li>
       </ol>
 
-      <h2 id="response">Response when budget is exhausted or critical</h2>
+      <h2 id="causes-h">Most common causes</h2>
+      <ul>
+        <li>Sustained 5xx spike after a recent deploy, config change, or migration.</li>
+        <li>Latency degradation that drives timeouts (saturation: CPU, memory, pool exhaustion).</li>
+        <li>Dependency or readiness failure (DB unreachable, downstream returning 5xx).</li>
+        <li>Traffic spike that exceeds rate-limit capacity for the current window.</li>
+      </ul>
+
+      <h2 id="recovery-h">Recovery steps</h2>
       <ul>
         <li><strong>Incident</strong> — Sustained burn or user impact: name a lead, use one channel, write a short timeline.</li>
         <li><strong>Feature freeze</strong> — Until things are stable, pause non-urgent releases; ship only fixes for the incident.</li>
@@ -78,7 +118,7 @@
         <li>Observability baseline: <a href="../../../governance/adr/0009-health-readiness-and-observability.html">ADR 0009</a></li>
       </ul>
 
-      <h2 id="escalation">Escalation</h2>
+      <h2 id="escalation-h">Escalation</h2>
       <p>Error-budget exhaustion is inherently SEV-2 or higher — SLOs are violated by the time this runbook fires. If <strong>15 minutes</strong> of response hasn't bent the burn-rate curve, or the failure mode looks like a release rather than a one-off spike:</p>
       <ol>
         <li>Capture state — Grafana dashboard screenshot, the firing alert list (<code>http://127.0.0.1:9090/alerts</code>), the recent release/config-change timeline (correlate burn start with deploy timestamps), and the response steps tried.</li>
@@ -88,7 +128,7 @@
         <li>Every SEV-2+ error-budget incident queues a postmortem (<a href="../postmortems/index.html">how to write one</a>) — non-optional, regardless of duration.</li>
       </ol>
 
-      <h2 id="exit">Exit criteria</h2>
+      <h2 id="exit-h">Exit criteria</h2>
       <ul>
         <li>Firing alerts are resolved or acknowledged with a documented exception.</li>
         <li>5xx rate and latency panels are back within SLO targets on the Grafana dashboard.</li>
@@ -126,13 +166,13 @@
   <aside class="docs-toc" aria-label="On this page">
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#trigger">Trigger</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#trigger-h">Trigger</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#meaning">What it means</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#triage">Fast triage</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#triage-h">Fast triage</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#response">Response</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#links">Useful links</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#escalation">Escalation</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#exit">Exit criteria</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#escalation-h">Escalation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#exit-h">Exit criteria</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
     </ol>
   </aside>

@@ -76,16 +76,20 @@
         </p>
       </header>
 
-      <section aria-labelledby="ratification-h">
-        <h2 id="ratification-h">Ratification</h2>
-        <article class="docs-card">
-          <div class="docs-card__body">
-            <ul>
-              <li>Discussion: backlog item 18 (structured logging) and operational need for searchable logs.</li>
-              <li>Accepted: as merged to <code>main</code> with this ADR and implementation.</li>
-            </ul>
-          </div>
-        </article>
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0023</code> — Structured Logging, Request Correlation, and Local Elasticsearch</dd>
+          <dt>Category</dt>
+          <dd>operations</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-05-17">2026-05-17</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-06-01">2026-06-01</time></dd>
+        </dl>
       </section>
 
       <section aria-labelledby="context-h">
@@ -105,58 +109,12 @@
         </ul>
       </section>
 
-      <section aria-labelledby="impl-h">
-        <h2 id="impl-h">Implementation in this repository</h2>
-        <div class="docs-table-wrap" role="region" aria-label="Structured logging implementation surfaces">
-          <table class="docs-table docs-table--zebra">
-            <thead>
-              <tr><th scope="col">Category</th><th scope="col">Path / target</th><th scope="col">Note</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>Request-context</td><td><code>app/core/request_context.py</code></td><td>context variables + <code>X-Request-Id</code> validation</td></tr>
-              <tr><td>Logging formatters</td><td><code>app/core/logging.py</code></td><td>text vs JSON; <code>RequestContextFilter</code></td></tr>
-              <tr><td>Middleware wiring</td><td><code>app/main.py</code></td><td><code>request_context_middleware</code> registered last (runs first on the wire)</td></tr>
-              <tr><td>Filebeat config</td><td><code>ops/filebeat/filebeat.yml</code></td><td>—</td></tr>
-              <tr><td>Compose stack</td><td><code>docker-compose.logging.yml</code></td><td>Elasticsearch + Kibana + Filebeat</td></tr>
-              <tr><td>Make targets</td><td><code>logging-up</code> / <code>logging-down</code> / <code>logging-smoke</code> / <code>logging-reset</code></td><td>(<a href="0008-make-command-taxonomy-and-workflow-entrypoints.html">ADR 0008</a>)</td></tr>
-              <tr><td>Smoke scripts</td><td><code>scripts/check_logging_links.py</code></td><td>ES + Kibana liveness</td></tr>
-              <tr><td>CLI search</td><td><code>scripts/check_es_request_id.py</code></td><td>find a request_id without Kibana</td></tr>
-              <tr><td>Uvicorn config</td><td><code>--no-access-log</code></td><td>structured <code>request_done</code> entries replace access lines</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section aria-labelledby="kibana-h">
-        <h2 id="kibana-h">Kibana index pattern (important)</h2>
-        <p>Create the data view with index pattern <strong><code>*study-app-logs*</code></strong>, not only <code>study-app-logs-*</code>. Otherwise Discover may target no indices: Elasticsearch 8 often writes Filebeat output to data stream backing indices named <code>.ds-study-app-logs-…</code>, which do not match a prefix of <code>study-app-logs-</code>. A symptom is "No results" for valid <code>request_id</code> queries even though documents exist in <code>logs/app.log</code>. Filebeat is configured with <code>setup.template.type: legacy</code> so new daily indices align with <code>study-app-logs-*</code>; the broad pattern still matches old and new names.</p>
-        <p>JSON lines must follow ECS shapes where the index template expects objects: use <code>service.name</code> (nested under <code>service</code>), not a string at <code>service</code>. Otherwise bulk indexing can fail with <code>mapper_parsing_exception</code> and indices show <code>docs.count: 0</code> while <code>logs/app.log</code> still grows on disk.</p>
-      </section>
-
-      <section aria-labelledby="consequences-h">
-        <h2 id="consequences-h">Consequences</h2>
-        <div class="docs-card-grid docs-card-grid--stack">
-          <article class="docs-card" data-tone="success">
-            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
-            <div class="docs-card__body">
-              <ul>
-                <li>Logs can be indexed and searched in Kibana during local debugging.</li>
-                <li>Correlation id is visible to API clients and appears in log lines.</li>
-                <li>No new Python dependency for JSON logging (stdlib only).</li>
-              </ul>
-            </div>
-          </article>
-          <article class="docs-card" data-tone="warn">
-            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
-            <div class="docs-card__body">
-              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
-              <ul class="rail-list" data-tone="rose">
-                <li><strong>NDJSON with stable schema (vs free-form text).</strong> We gain a log that Kibana, jq, and any future log shipper can index without bespoke parsers. We lose readability when tailing without a pretty-printer — a raw NDJSON line is unfriendly to the human eye. We accept it because <code>jq</code> or <code>lnav</code> is one pipe away, and the indexable property is the load-bearing «can we grep request_id in production-style storage?» test.</li>
-                <li><strong>Elasticsearch + Kibana stack is heavy.</strong> We gain a real log-search UX that mirrors what production logging would look like. We lose ~2 GiB of memory when the stack is up, and accept that the local stack is optional (not a default). We accept it because the alternative — toy log viewers — fail to surface the indexing semantics (mapping conflicts, data streams) that real production debugging hits. Better to learn those on a local stack than during the first SEV-2.</li>
-              </ul>
-            </div>
-          </article>
-        </div>
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li><strong>In scope:</strong> the conventions, rules, and artefacts named in the Decision section above.</li>
+          <li><strong>Out of scope:</strong> any system, process, or surface not explicitly listed here.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="alternatives-h">
@@ -188,12 +146,82 @@
         <p><strong>Trade we accept by choosing NDJSON + <code>X-Request-Id</code> + optional ES Compose.</strong> Stdlib-only JSON formatter, no external dependency, ECS-aligned. We accept it because each rejected alternative either forfeits the field-query property (text), locks us to a vendor (hosted), or adds a process before the benefit lands (OTel-from-day-one).</p>
       </section>
 
-      <section aria-labelledby="revisit-h">
-        <h2 id="revisit-h">Would we do this again — knowing what we know now?</h2>
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Logs can be indexed and searched in Kibana during local debugging.</li>
+                <li>Correlation id is visible to API clients and appears in log lines.</li>
+                <li>No new Python dependency for JSON logging (stdlib only).</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <p>Two named tradeoffs. Shape from <a href="../../foundations/reference/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>NDJSON with stable schema (vs free-form text).</strong> We gain a log that Kibana, jq, and any future log shipper can index without bespoke parsers. We lose readability when tailing without a pretty-printer — a raw NDJSON line is unfriendly to the human eye. We accept it because <code>jq</code> or <code>lnav</code> is one pipe away, and the indexable property is the load-bearing «can we grep request_id in production-style storage?» test.</li>
+                <li><strong>Elasticsearch + Kibana stack is heavy.</strong> We gain a real log-search UX that mirrors what production logging would look like. We lose ~2 GiB of memory when the stack is up, and accept that the local stack is optional (not a default). We accept it because the alternative — toy log viewers — fail to surface the indexing semantics (mapping conflicts, data streams) that real production debugging hits. Better to learn those on a local stack than during the first SEV-2.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+        <h3>Revisit — would we do this again?</h3>
         <p><strong>Yes — the «<code>request_id</code> on every line» bet has paid back on every debug session.</strong> One refinement we would commit to on day one if starting today:</p>
         <ul class="rail-list" data-tone="info">
           <li><strong>Document the «data-stream vs index pattern» Kibana gotcha as a runbook entry, not just in the ADR.</strong> The «<code>study-app-logs-*</code> vs <code>*study-app-logs*</code>» trap (Kibana shows zero docs while files grow on disk) cost ~30 min on first encounter and is recurring. A dedicated runbook step would let on-call resolve it in 60 s.</li>
         </ul>
+
+      </section>
+
+      <section aria-labelledby="compatibility-h">
+        <h2 id="compatibility-h">Compatibility and migration</h2>
+        <ul>
+          <li><strong>Backward-compatibility impact:</strong> none — pure governance / convention change with no wire-level effect for existing consumers.</li>
+          <li><strong>Migration plan:</strong> apply the rules to new work; bring existing artefacts into compliance during normal touch-ups.</li>
+          <li><strong>Rollback strategy:</strong> revert the merge PR; no data or schema changes to undo.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="implementation-h">
+        <h2 id="implementation-h">Implementation in this repository</h2>
+        <div class="docs-table-wrap" role="region" aria-label="Structured logging implementation surfaces">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr><th scope="col">Category</th><th scope="col">Path / target</th><th scope="col">Note</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Request-context</td><td><code>app/core/request_context.py</code></td><td>context variables + <code>X-Request-Id</code> validation</td></tr>
+              <tr><td>Logging formatters</td><td><code>app/core/logging.py</code></td><td>text vs JSON; <code>RequestContextFilter</code></td></tr>
+              <tr><td>Middleware wiring</td><td><code>app/main.py</code></td><td><code>request_context_middleware</code> registered last (runs first on the wire)</td></tr>
+              <tr><td>Filebeat config</td><td><code>ops/filebeat/filebeat.yml</code></td><td>—</td></tr>
+              <tr><td>Compose stack</td><td><code>docker-compose.logging.yml</code></td><td>Elasticsearch + Kibana + Filebeat</td></tr>
+              <tr><td>Make targets</td><td><code>logging-up</code> / <code>logging-down</code> / <code>logging-smoke</code> / <code>logging-reset</code></td><td>(<a href="0008-make-command-taxonomy-and-workflow-entrypoints.html">ADR 0008</a>)</td></tr>
+              <tr><td>Smoke scripts</td><td><code>scripts/check_logging_links.py</code></td><td>ES + Kibana liveness</td></tr>
+              <tr><td>CLI search</td><td><code>scripts/check_es_request_id.py</code></td><td>find a request_id without Kibana</td></tr>
+              <tr><td>Uvicorn config</td><td><code>--no-access-log</code></td><td>structured <code>request_done</code> entries replace access lines</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li><strong>Technical checks:</strong> CI lints, type-checks, and contract tests stay green on every PR.</li>
+          <li><strong>Operational checks:</strong> the relevant runbook reflects this rule.</li>
+          <li><strong>Documentation updates:</strong> README, CHANGELOG, and related ADRs cross-reference this decision.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="kibana-h">
+        <h2 id="kibana-h">Kibana index pattern (important)</h2>
+        <p>Create the data view with index pattern <strong><code>*study-app-logs*</code></strong>, not only <code>study-app-logs-*</code>. Otherwise Discover may target no indices: Elasticsearch 8 often writes Filebeat output to data stream backing indices named <code>.ds-study-app-logs-…</code>, which do not match a prefix of <code>study-app-logs-</code>. A symptom is "No results" for valid <code>request_id</code> queries even though documents exist in <code>logs/app.log</code>. Filebeat is configured with <code>setup.template.type: legacy</code> so new daily indices align with <code>study-app-logs-*</code>; the broad pattern still matches old and new names.</p>
+        <p>JSON lines must follow ECS shapes where the index template expects objects: use <code>service.name</code> (nested under <code>service</code>), not a string at <code>service</code>. Otherwise bulk indexing can fail with <code>mapper_parsing_exception</code> and indices show <code>docs.count: 0</code> while <code>logs/app.log</code> still grows on disk.</p>
       </section>
 
       <footer class="docs-history" aria-label="History">

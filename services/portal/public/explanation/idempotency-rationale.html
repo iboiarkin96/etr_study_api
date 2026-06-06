@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" data-portal="public" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Idempotency rationale · Explanation · ETR Study API</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/public/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🚀</span><span>ETR Study API</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Developer Documentation</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Idempotency rationale</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-public.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-hero page-head">
+        <p class="page-hero__eyebrow">Explanation · Contract</p>
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1 class="page-hero__h1"><span class="accent">Idempotency</span> rationale</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Network failures, client timeouts and proxy retries make every <code>POST</code> ambiguous:
+          did the server apply the write or not? The Study API resolves that ambiguity with a
+          header-based <code>Idempotency-Key</code> contract — chosen over the obvious alternatives
+          because it keeps the client API trivial, the server logic explicit, and the failure mode
+          loud.
+        </p>
+      </header>
+
+      <h2 id="why-keyed-replay">Why keyed replay, not server-side deduplication</h2>
+      <p>
+        Without a stable idempotency key, a single retry of a successful-but-unacknowledged write
+        creates two rows. A naive deduplication strategy server-side (hash the body, look for a
+        recent match) silently breaks the moment two genuinely-distinct intents share a payload
+        shape — for example, two human "Create" clicks for the same form. The header-based contract
+        makes intent explicit: <em>one key per logical operation</em>. The server cannot guess; the
+        client cannot drift.
+      </p>
+
+      <h2 id="logical-operation">What "logical operation" means</h2>
+      <p>
+        One key per intent, not one key per HTTP call. Concretely:
+      </p>
+      <ul>
+        <li>If your code retries on a transient failure (timeout, <code>5xx</code>, connection reset), <strong>reuse</strong> the key — that is the same intent.</li>
+        <li>If a human user clicks "Create" twice in a UI, that is <strong>two intents</strong> — mint two keys.</li>
+        <li>If you need to recreate the same row after a soft-delete, that too is a <strong>new intent</strong> — mint a new key.</li>
+        <li>If a background job processes a queue with at-least-once delivery, the queue message ID is a natural idempotency key — there is exactly one intent per message, even if the worker crashes mid-write.</li>
+      </ul>
+
+      <h2 id="tradeoffs">Trade-offs we accepted</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead>
+            <tr><th>Option</th><th>Verdict</th><th>Why</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Header-based <code>Idempotency-Key</code> (the choice)</td><td>Adopted</td><td>Stripe-style contract integrators already know; server logic is one read + one hash compare; failure mode (<code>COMMON_409</code>) is loud and unambiguous.</td></tr>
+            <tr><td>Server-side body-hash deduplication (no header)</td><td>Rejected</td><td>Conflates "two retries of one intent" with "two intents that happen to look identical"; silent correctness bug.</td></tr>
+            <tr><td>Idempotent <code>PUT</code> with client-issued resource IDs</td><td>Partially used</td><td>Works for resources whose business key is client-issued; does not generalise to flows where the server mints an ID, and forces clients to invent ID schemes.</td></tr>
+            <tr><td>At-most-once delivery (no retries)</td><td>Rejected</td><td>Pushes the duplication-prevention problem entirely to the network — incompatible with retry-aware clients and queue workers.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="implications">Implications for your client</h2>
+      <ul>
+        <li>Generate the key <em>before</em> the first attempt and persist it locally with the request payload until you receive a definitive (non-retryable) response.</li>
+        <li>Retry with the same key on transient errors (<code>5xx</code>, network reset). The server-side replay window is 24 hours.</li>
+        <li>Treat <code>409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD</code> as a programmer error — never auto-recover.</li>
+        <li>For queue workers, prefer using the queue message ID as the idempotency key — it gives you "exactly once" semantics on top of "at least once" delivery.</li>
+      </ul>
+
+      <h2 id="next">What to read next</h2>
+      <ul>
+        <li><a href="../how-to/handle-idempotency.html">How-to: handle idempotency</a> — the recipe and the Verify steps.</li>
+        <li><a href="../reference/errors/index.html#common-codes">Reference: error catalogue — <code>COMMON_*</code></a> — every idempotency-related code with stable identifiers.</li>
+        <li><a href="api-versioning.html">API versioning</a> — what stays stable across releases of the idempotency contract.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-06</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">New page — extracted from how-to/handle-idempotency.html during Diátaxis remediation so the procedural recipe stays a How-to and the rationale (choice, trade-offs, what 'logical operation' means) sits in Explanation per Diátaxis compass.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" data-component="toc" aria-label="On this page"></aside>
+  <button data-component="toc-fab" type="button" aria-label="Open on-this-page navigation" hidden=""></button>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/public/entry.js"></script>
+
+</body></html>
