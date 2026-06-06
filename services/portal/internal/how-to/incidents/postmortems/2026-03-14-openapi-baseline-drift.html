@@ -33,21 +33,39 @@
   <main class="container">
     <article class="docs-prose">
       <header class="page-head">
-        <div class="docs-chip-row">
+        <p class="home-hero__eyebrow">
           <span class="docs-pill docs-pill--info">Postmortem</span>
           <span class="docs-pill docs-pill--warn">SEV-3</span>
           <span class="docs-pill docs-pill--success">Resolved</span>
           <span class="docs-pill docs-pill--neutral">Contract</span>
-        </div>
+        </p>
         <h1>OpenAPI baseline drift — silent field rename slipped to PR review</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">A field on the <code>UserResponse</code> schema was quietly renamed in a feature branch. Local <code>make verify</code> never ran the OpenAPI diff because the developer ran <code>make test</code> only. CI caught it 4 minutes into the PR build — but the integrator-facing baseline would have shipped with a breaking change had the contract test not existed. No production impact; this is the canonical example of why <a href="../../../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a> exists.</p>
       </header>
 
-      <h2 id="summary">Incident summary</h2>
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Postmortem</dt>
+          <dd>OpenAPI baseline drift — silent field rename slipped to PR review</dd>
+          <dt>Incident date</dt>
+          <dd><time datetime="2026-03-14">2026-03-14</time></dd>
+          <dt>Severity</dt>
+          <dd>SEV-3</dd>
+          <dt>Category</dt>
+          <dd>Contract</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-05-30">2026-05-30</time></dd>
+        </dl>
+      </section>
+
+      <h2 id="summary-h">Incident summary</h2>
       <p>On 2026-03-14, during work on the User profile feature branch (<code>feat/user-profile-display-name</code>), the <code>UserResponse</code> Pydantic model field <code>full_name</code> was renamed to <code>display_name</code> in <code>app/schemas/user.py</code>. The change was semantically reasonable inside the codebase. It was a <em>breaking</em> change on the wire: every integrator's deserialiser would have failed on the next response. The author ran <code>make test</code> locally — all tests green, including the user-resource integration tests, because the tests were updated in the same commit. The CI pipeline ran <code>make verify</code> on the PR, which includes the OpenAPI baseline diff (<code>scripts/openapi_check.py</code>). The diff failed; the PR build went red; the change was reverted to additive (added <code>display_name</code> alongside <code>full_name</code>, with <code>full_name</code> kept and deprecated). Total time from breakage commit to detection: ~14 minutes. No code reached <code>main</code>.</p>
 
-      <h2 id="impact">Impact</h2>
+      <h2 id="impact-h">Impact</h2>
       <ul>
         <li><strong>Users affected:</strong> zero. The break was caught pre-merge.</li>
         <li><strong>Integrators affected:</strong> zero. No artefact shipped.</li>
@@ -56,7 +74,7 @@
         <li><strong>Counterfactual:</strong> without the CI contract diff, the rename would have shipped on the next release. Every integrator deserialiser branching on <code>data.full_name</code> would have raised a missing-field error on the first request after deploy. Detection would have come from the integrator, not us.</li>
       </ul>
 
-      <h2 id="timeline">Timeline (UTC)</h2>
+      <h2 id="timeline-h">Timeline (UTC)</h2>
       <div class="docs-table-wrap" role="region" aria-label="Timeline">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Time</th><th>Actor</th><th>Event</th></tr></thead>
@@ -73,7 +91,7 @@
         </table>
       </div>
 
-      <h2 id="root-cause">Root cause — contributing factors</h2>
+      <h2 id="root-cause-h">Root cause — contributing factors</h2>
       <p>Real incidents almost always have several contributing factors, not one cause. Listed below in order of leverage (closing the first would have prevented the others).</p>
       <ul>
         <li><strong>Local-loop didn't include the contract diff.</strong> <code>make test</code> runs unit + integration; it does not run <code>make openapi-check</code>. The developer's mental model was "tests pass = safe to push". The contract test only ran in CI.</li>
@@ -82,18 +100,18 @@
         <li><strong>OpenAPI baseline diff output is dense.</strong> The failure message lists every changed line in the JSON baseline; for a one-field rename that is ~30 lines of diff. The "what should I do?" wasn't immediately clear from the output; the developer had to read <a href="../runbooks/0007-openapi-contract-test-failing.html">runbook 0007</a> to understand the fix path.</li>
       </ul>
 
-      <h2 id="resolution">Resolution</h2>
+      <h2 id="resolution-h">Resolution</h2>
       <ul>
         <li><strong>Immediate.</strong> The rename was converted to an additive change: both <code>full_name</code> and <code>display_name</code> are now returned. <code>full_name</code> is documented as deprecated; removal will follow the standard deprecation flow (see <a href="../../../foundations/reference/sa/deprecation.html">deprecation policy</a>).</li>
         <li><strong>Durable.</strong> A pre-push git hook was added that runs <code>make openapi-check</code> when <code>app/schemas/**/*.py</code> changes (see action items). This moves the signal from CI back to the developer's terminal, where it can be acted on without the round-trip.</li>
         <li><strong>No code rollback required.</strong> The break never reached <code>main</code>.</li>
       </ul>
 
-      <h2 id="detection">Detection</h2>
+      <h2 id="detection-h">Detection</h2>
       <p>The OpenAPI baseline diff in <code>make verify</code> (CI). Specifically: <code>scripts/openapi_check.py</code> compares the runtime <code>app.openapi()</code> output against the committed <code>services/portal/public/reference/api/openapi-baseline.json</code> and exits non-zero on any difference. This is the script that enforces <a href="../../../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a>.</p>
       <p>The contract test caught the change. Nothing else would have. The unit and integration tests were green; the type-check (mypy) was green; the lint (ruff) was green. Without the baseline diff, this lands.</p>
 
-      <h2 id="actions">Action items</h2>
+      <h2 id="actions-h">Action items</h2>
       <div class="docs-table-wrap" role="region" aria-label="Action items">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Item</th><th>Owner</th><th>Target</th><th>Status</th></tr></thead>
@@ -118,7 +136,7 @@
         </table>
       </div>
 
-      <h2 id="lessons">Lessons learned</h2>
+      <h2 id="lessons-h">Lessons learned</h2>
       <ul>
         <li><strong>"Tests pass" ≠ "contract safe."</strong> A test suite that is updated alongside the production code asserts the new shape, not the contract. The contract diff is the only check that asserts <em>continuity</em> with the previously shipped artefact.</li>
         <li><strong>The cheapest place to catch a contract break is the developer's terminal.</strong> CI catches it in 4 minutes; a pre-push hook catches it in 4 seconds. We should not need to wait for CI for a check that runs locally.</li>
@@ -152,14 +170,14 @@
   <aside class="docs-toc" aria-label="On this page">
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#summary">Summary</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#impact">Impact</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#timeline">Timeline</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#root-cause">Root cause</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#resolution">Resolution</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#detection">Detection</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#actions">Action items</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#lessons">Lessons learned</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#summary-h">Summary</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#impact-h">Impact</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#timeline-h">Timeline</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#root-cause-h">Root cause</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#resolution-h">Resolution</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#detection-h">Detection</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#actions-h">Action items</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lessons-h">Lessons learned</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>

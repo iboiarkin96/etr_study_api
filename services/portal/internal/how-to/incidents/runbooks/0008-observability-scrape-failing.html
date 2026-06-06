@@ -33,23 +33,55 @@
   <main class="container">
     <article class="docs-prose">
       <header class="page-head">
-        <div class="docs-chip-row">
+        <p class="home-hero__eyebrow">
           <span class="docs-pill docs-pill--danger">Runbook</span>
           <span class="docs-pill docs-pill--info">Observability</span>
-        </div>
+        </p>
         <h1>0008 — Observability scrape failing</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">Prometheus target <code>DOWN</code>, empty <code>/metrics</code>, or Grafana panels showing <code>No data</code>.</p>
       </header>
 
-      <h2 id="trigger">Trigger</h2>
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Runbook</dt>
+          <dd>0008 — Observability scrape failing</dd>
+          <dt>Category</dt>
+          <dd>Observability</dd>
+          <dt>Severity</dt>
+          <dd>SEV-2</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-05-29">2026-05-29</time></dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="impact-h">
+        <h2 id="impact-h">Impact</h2>
+        <ul>
+          <li>Local developer loop blocked until the failing stage clears.</li>
+          <li>No production user impact unless the failure is in shipped artefacts.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="followup-h">
+        <h2 id="followup-h">Follow-up</h2>
+        <ul>
+          <li>Capture the root cause in the related postmortem if SEV-2 or higher.</li>
+          <li>Open backlog items for any preventive change discovered during recovery.</li>
+        </ul>
+      </section>
+
+      <h2 id="trigger-h">Trigger</h2>
       <ul>
         <li>Prometheus target is <code>DOWN</code>.</li>
         <li><code>/metrics</code> endpoint returns non-200 or empty payload.</li>
         <li>Grafana dashboard panels show <code>No data</code>.</li>
       </ul>
 
-      <h2 id="triage">Fast triage</h2>
+      <h2 id="triage-h">Fast triage</h2>
       <ol>
         <li>Ensure API is running: <code>make run</code>.</li>
         <li>Ensure observability stack is running: <code>docker compose -f docker-compose.observability.yml up -d</code>.</li>
@@ -64,7 +96,7 @@
         <li>Quick Prometheus queries: <a href="http://127.0.0.1:9090/graph?g0.expr=sum%28rate%28http_requests_total%5B1m%5D%29%29&amp;g0.tab=0">RPS</a> · <a href="http://127.0.0.1:9090/graph?g0.expr=100%20*%20sum%28rate%28http_requests_total%7Bstatus_code%3D~%225..%7C4..%22%7D%5B5m%5D%29%29%20%2F%20sum%28rate%28http_requests_total%5B5m%5D%29%29&amp;g0.tab=0">Error rate</a> · <a href="http://127.0.0.1:9090/graph?g0.expr=1000%20*%20histogram_quantile%280.95%2C%20sum%28rate%28http_request_duration_seconds_bucket%5B5m%5D%29%29%20by%20%28le%29%29&amp;g0.tab=0">API p95</a> · <a href="http://127.0.0.1:9090/graph?g0.expr=1000%20*%20histogram_quantile%280.95%2C%20sum%28rate%28db_operation_duration_seconds_bucket%5B5m%5D%29%29%20by%20%28le%29%29&amp;g0.tab=0">DB p95</a></li>
       </ul>
 
-      <h2 id="causes">Most common causes</h2>
+      <h2 id="causes-h">Most common causes</h2>
       <ul>
         <li>API process is down or started on a different port.</li>
         <li><code>METRICS_ENABLED=false</code> in runtime environment.</li>
@@ -72,7 +104,7 @@
         <li>Docker cannot reach the host (<code>host.docker.internal</code> missing or broken).</li>
       </ul>
 
-      <h2 id="recovery">Recovery steps</h2>
+      <h2 id="recovery-h">Recovery steps</h2>
       <h3>Endpoint-level checks</h3>
       <ul>
         <li>Run <code>curl -i http://127.0.0.1:8000/metrics</code> and confirm status <code>200</code>.</li>
@@ -92,14 +124,14 @@
       <pre class="docs-code"><code class="language-bash">for i in {1..20}; do curl -s http://127.0.0.1:8000/live  &gt; /dev/null; done
       for i in {1..20}; do curl -s http://127.0.0.1:8000/ready &gt; /dev/null; done</code></pre>
 
-      <h2 id="exit">Exit criteria</h2>
+      <h2 id="exit-h">Exit criteria</h2>
       <ul>
         <li>Prometheus target is <code>UP</code>.</li>
         <li><code>/metrics</code> returns expected metrics.</li>
         <li>Grafana dashboard panels show non-empty time-series data.</li>
       </ul>
 
-      <h2 id="escalation">Escalation</h2>
+      <h2 id="escalation-h">Escalation</h2>
       <p>If <strong>30 minutes</strong> of triage didn't restore the scrape, or the failure mode isn't on the «Most common causes» list:</p>
       <ol>
         <li>Capture state — <code>curl -i http://127.0.0.1:8000/metrics</code> output, Prometheus targets page screenshot (<code>http://127.0.0.1:9090/targets</code>), the rendered <code>ops/prometheus/prometheus.yml</code>, relevant env vars (<code>METRICS_ENABLED</code>, <code>PROMETHEUS_SCRAPE_TARGET</code>), <code>docker compose ps</code>, and the recovery steps tried.</li>
@@ -108,7 +140,7 @@
         <li>If a rollback is config-only (env var, Prometheus target, Docker network), revert the offending commit before debugging further; observability gaps compound incident cost.</li>
       </ol>
 
-      <h2 id="followup">Follow-up</h2>
+      <h2 id="followup-h">Follow-up</h2>
       <ul>
         <li>If scrape targets or metrics policy changed, update ops docs or an ADR.</li>
         <li>If the same scrape failure repeats, add a note to this runbook.</li>
@@ -145,13 +177,13 @@
   <aside class="docs-toc" aria-label="On this page">
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#trigger">Trigger</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#triage">Fast triage</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#causes">Common causes</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#recovery">Recovery</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#exit">Exit criteria</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#escalation">Escalation</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#followup">Follow-up</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#trigger-h">Trigger</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#triage-h">Fast triage</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#causes-h">Common causes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#recovery-h">Recovery</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#exit-h">Exit criteria</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#escalation-h">Escalation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#followup-h">Follow-up</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
     </ol>
   </aside>
