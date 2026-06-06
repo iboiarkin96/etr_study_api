@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Postmortem · 2026-03-14 · OpenAPI baseline drift · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-06" data-role="sre">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">api</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Postmortems</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">2026-03-14 · OpenAPI baseline drift</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Postmortem</span>
+          <span class="docs-pill docs-pill--warn">SEV-3</span>
+          <span class="docs-pill docs-pill--success">Resolved</span>
+          <span class="docs-pill docs-pill--neutral">Contract</span>
+        </p>
+        <h1>OpenAPI baseline drift — silent field rename slipped to PR review</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">A field on the <code>UserResponse</code> schema was quietly renamed in a feature branch. Local <code>make verify</code> never ran the OpenAPI diff because the developer ran <code>make test</code> only. CI caught it 4 minutes into the PR build — but the integrator-facing baseline would have shipped with a breaking change had the contract test not existed. No production impact; this is the canonical example of why <a href="../../../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a> exists.</p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Postmortem</dt>
+          <dd>OpenAPI baseline drift — silent field rename slipped to PR review</dd>
+          <dt>Incident date</dt>
+          <dd><time datetime="2026-03-14">2026-03-14</time></dd>
+          <dt>Severity</dt>
+          <dd>SEV-3</dd>
+          <dt>Category</dt>
+          <dd>Contract</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-05-30">2026-05-30</time></dd>
+        </dl>
+      </section>
+
+      <h2 id="summary-h">Incident summary</h2>
+      <p>On 2026-03-14, during work on the User profile feature branch (<code>feat/user-profile-display-name</code>), the <code>UserResponse</code> Pydantic model field <code>full_name</code> was renamed to <code>display_name</code> in <code>app/schemas/user.py</code>. The change was semantically reasonable inside the codebase. It was a <em>breaking</em> change on the wire: every integrator's deserialiser would have failed on the next response. The author ran <code>make test</code> locally — all tests green, including the user-resource integration tests, because the tests were updated in the same commit. The CI pipeline ran <code>make verify</code> on the PR, which includes the OpenAPI baseline diff (<code>scripts/openapi_check.py</code>). The diff failed; the PR build went red; the change was reverted to additive (added <code>display_name</code> alongside <code>full_name</code>, with <code>full_name</code> kept and deprecated). Total time from breakage commit to detection: ~14 minutes. No code reached <code>main</code>.</p>
+
+      <h2 id="impact-h">Impact</h2>
+      <ul>
+        <li><strong>Users affected:</strong> zero. The break was caught pre-merge.</li>
+        <li><strong>Integrators affected:</strong> zero. No artefact shipped.</li>
+        <li><strong>SLO budget:</strong> not consumed.</li>
+        <li><strong>Engineer time:</strong> ~45 min between the failed CI run and the revert PR landing. Cost: one half-day's planned work pushed by one day.</li>
+        <li><strong>Counterfactual:</strong> without the CI contract diff, the rename would have shipped on the next release. Every integrator deserialiser branching on <code>data.full_name</code> would have raised a missing-field error on the first request after deploy. Detection would have come from the integrator, not us.</li>
+      </ul>
+
+      <h2 id="timeline-h">Timeline (UTC)</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Timeline">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Time</th><th>Actor</th><th>Event</th></tr></thead>
+          <tbody>
+            <tr><td><code>10:42</code></td><td>Engineer</td><td>Committed rename of <code>full_name</code> → <code>display_name</code> in <code>app/schemas/user.py</code> and four tests. Locally <code>make test</code> green.</td></tr>
+            <tr><td><code>10:43</code></td><td>Engineer</td><td>Pushed branch. PR opened against <code>main</code>.</td></tr>
+            <tr><td><code>10:46</code></td><td>CI</td><td><code>make verify</code> stage started. Steps run: deps-audit, lint, types, OpenAPI diff, contract tests, tests, docs-check.</td></tr>
+            <tr><td><code>10:50</code></td><td>CI</td><td>OpenAPI diff step failed: <code>UserResponse.full_name: removed</code>; <code>UserResponse.display_name: added</code>. Build went red.</td></tr>
+            <tr><td><code>10:52</code></td><td>Engineer</td><td>Read failure on Slack notification; read the failing step output; understood the rename was a breaking removal.</td></tr>
+            <tr><td><code>10:55</code></td><td>Engineer</td><td>Pushed fix commit: kept <code>full_name</code>, added <code>display_name</code> as a duplicate (both populated server-side), deprecated <code>full_name</code> in the docstring.</td></tr>
+            <tr><td><code>11:01</code></td><td>CI</td><td>Second build green. PR ready for review.</td></tr>
+            <tr><td><code>11:24</code></td><td>Reviewer (self)</td><td>Re-read after lunch. Approved. Merged.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="root-cause-h">Root cause — contributing factors</h2>
+      <p>Real incidents almost always have several contributing factors, not one cause. Listed below in order of leverage (closing the first would have prevented the others).</p>
+      <ul>
+        <li><strong>Local-loop didn't include the contract diff.</strong> <code>make test</code> runs unit + integration; it does not run <code>make openapi-check</code>. The developer's mental model was "tests pass = safe to push". The contract test only ran in CI.</li>
+        <li><strong>Rename felt cosmetic.</strong> <code>full_name</code> → <code>display_name</code> was discussed as a naming improvement in a code review the previous week. The change reads as a rename inside the codebase, not as a contract break. Pydantic field renames carry no semantic warning.</li>
+        <li><strong>The tests were updated in the same commit.</strong> Updating tests to match the new field name made the local test suite green, which removed the last signal the developer had. The tests asserted the new shape, not the contract.</li>
+        <li><strong>OpenAPI baseline diff output is dense.</strong> The failure message lists every changed line in the JSON baseline; for a one-field rename that is ~30 lines of diff. The "what should I do?" wasn't immediately clear from the output; the developer had to read <a href="../runbooks/openapi-contract-test-failing.html">runbook 0007</a> to understand the fix path.</li>
+      </ul>
+
+      <h2 id="resolution-h">Resolution</h2>
+      <ul>
+        <li><strong>Immediate.</strong> The rename was converted to an additive change: both <code>full_name</code> and <code>display_name</code> are now returned. <code>full_name</code> is documented as deprecated; removal will follow the standard deprecation flow (see <a href="../../../handbook/sa/deprecation.html">deprecation policy</a>).</li>
+        <li><strong>Durable.</strong> A pre-push git hook was added that runs <code>make openapi-check</code> when <code>app/schemas/**/*.py</code> changes (see action items). This moves the signal from CI back to the developer's terminal, where it can be acted on without the round-trip.</li>
+        <li><strong>No code rollback required.</strong> The break never reached <code>main</code>.</li>
+      </ul>
+
+      <h2 id="detection-h">Detection</h2>
+      <p>The OpenAPI baseline diff in <code>make verify</code> (CI). Specifically: <code>scripts/openapi_check.py</code> compares the runtime <code>app.openapi()</code> output against the committed <code>services/portal/public/reference/api/openapi-baseline.json</code> and exits non-zero on any difference. This is the script that enforces <a href="../../../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a>.</p>
+      <p>The contract test caught the change. Nothing else would have. The unit and integration tests were green; the type-check (mypy) was green; the lint (ruff) was green. Without the baseline diff, this lands.</p>
+
+      <h2 id="actions-h">Action items</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Action items">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Item</th><th>Owner</th><th>Target</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Add a <code>pre-push</code> git hook that runs <code>make openapi-check</code> when files under <code>app/schemas/</code> or <code>app/api/</code> change. The hook calls the same script the CI does; failure blocks the push with the runbook URL in the error.</td>
+              <td>@ivan</td><td>2026-03-21</td><td>Done (commit <code>a47c2e1</code>)</td>
+            </tr>
+            <tr>
+              <td>Rewrite <a href="../runbooks/openapi-contract-test-failing.html">runbook 0007</a> to lead with the two recovery paths — "intended change → <code>make openapi-accept-changes</code>" and "unintended change → revert the schema". The current ordering treats both as equally likely.</td>
+              <td>@ivan</td><td>2026-03-28</td><td>Done</td>
+            </tr>
+            <tr>
+              <td>Add a one-line rule to the <a href="../../../handbook/swe/schemas-and-contracts.html">schemas-and-contracts Explanation</a> page: "renames are removals + adds — never quietly rename a field on a wire schema". The page already implied this; saying it explicitly closes the gap.</td>
+              <td>@ivan</td><td>2026-04-04</td><td>Done</td>
+            </tr>
+            <tr>
+              <td>Update the <a href="../../../handbook/sa/templates/api-spec.html">API spec template</a> §16 (OpenAPI authoring hints) to flag "field rename" as a breaking change with an explicit additive recipe. Mirrors the rule above at the spec-author entry point.</td>
+              <td>@ivan</td><td>2026-04-11</td><td>Open</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="lessons-h">Lessons learned</h2>
+      <ul>
+        <li><strong>"Tests pass" ≠ "contract safe."</strong> A test suite that is updated alongside the production code asserts the new shape, not the contract. The contract diff is the only check that asserts <em>continuity</em> with the previously shipped artefact.</li>
+        <li><strong>The cheapest place to catch a contract break is the developer's terminal.</strong> CI catches it in 4 minutes; a pre-push hook catches it in 4 seconds. We should not need to wait for CI for a check that runs locally.</li>
+        <li><strong>Renames look cosmetic; on a wire schema they are breaking.</strong> This is obvious in retrospect and was the failure mode here. Worth saying out loud in the docs so the next engineer doesn't have to learn it the same way.</li>
+        <li><strong>Dense diff output is a usability bug.</strong> The error message is a tool surface; making it actionable (lead with the recovery path, not the raw diff) is part of what makes the check effective.</li>
+      </ul>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li><a href="../runbooks/openapi-contract-test-failing.html">Runbook 0007 — OpenAPI contract test failing</a></li>
+          <li><a href="../../../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007 — OpenAPI governance &amp; usability standard</a></li>
+          <li><a href="../../../handbook/swe/schemas-and-contracts.html">Explanation · Schemas as the public contract</a></li>
+          <li><a href="../../../handbook/sa/deprecation.html">Deprecation policy</a></li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-30</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Filed retroactively as part of Vol. 2 architect-bar audit follow-up (Phase 1 — closed-postmortem corpus). The 2026-03-14 incident itself was recovered from CI logs and PR history.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#summary-h">Summary</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#impact-h">Impact</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#timeline-h">Timeline</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#root-cause-h">Root cause</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#resolution-h">Resolution</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#detection-h">Detection</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#actions-h">Action items</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lessons-h">Lessons learned</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

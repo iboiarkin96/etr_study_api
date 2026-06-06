@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How-to · Run the API locally · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Handbook</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Authoring</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Service · Run the API locally</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Service</span>
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+        </div>
+        <h1>Run the API locally</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">From a fresh clone to a running API on <code>http://127.0.0.1:8000</code>, plus the optional observability and logging stacks. The fallback page when setup hits friction.</p>
+      </header>
+
+      <h2 id="prereq">Prerequisites</h2>
+      <ul>
+        <li><strong>Python 3.14</strong> on the system <code>PATH</code> (see <code>.python-version</code> for the exact pin). Older minors will install but break some scripts.</li>
+        <li><strong>GNU Make</strong> (macOS ships it; on Linux it is in the distro tooling).</li>
+        <li><strong>Git</strong>, with the repo cloned.</li>
+        <li><strong>Docker</strong> is <em>optional</em>. You only need it for the observability stack (Prometheus + Grafana) or the logging stack (Elasticsearch + Kibana + Filebeat). The API itself runs without Docker — see <a href="docker-image-and-container.html">Build and run as Docker image</a> for when you do need it.</li>
+      </ul>
+
+      <h2 id="first-run">First-time setup</h2>
+      <p>One command from a fresh clone:</p>
+      <pre class="docs-code"><code class="language-bash">make setup</code></pre>
+      <p>That target chains three steps so a fresh checkout is ready in one go:</p>
+      <ol>
+        <li><code>make venv</code> — create <code>.venv/</code> via <code>python3 -m venv .venv</code>. Skipped if it already exists.</li>
+        <li><code>make install</code> — upgrade <code>pip</code>, then <code>pip install -r requirements.txt</code> into <code>.venv</code>. Every dependency is pinned (<code>==</code>) — both direct and transitive — so the env is reproducible.</li>
+        <li><code>make env-init</code> — copy <code>env/example</code> → <code>.env</code>. Skipped if <code>.env</code> already exists.</li>
+      </ol>
+      <p>Open <code>.env</code> and set at least <code>APP_ENV=dev</code> and an <code>API_MOCK_API_KEY</code> (anything is fine in dev). The full env-var contract and load order live in <code>env/example</code> — it is the source of truth.</p>
+
+      <h2 id="run">Run the API</h2>
+      <pre class="docs-code"><code class="language-bash">make run</code></pre>
+      <p>This target reads <code>.env</code>, runs <code>alembic upgrade head</code> against the configured database, then starts Uvicorn with <code>--reload</code>. Defaults: host <code>127.0.0.1</code>, port <code>8000</code>; override with <code>APP_HOST</code> / <code>APP_PORT</code> in <code>.env</code> or on the command line.</p>
+      <p>Quick verification once the server boots:</p>
+      <ul>
+        <li><code>http://127.0.0.1:8000/live</code> — liveness probe (no auth).</li>
+        <li><code>http://127.0.0.1:8000/ready</code> — readiness probe (DB reachable).</li>
+        <li><code>http://127.0.0.1:8000/docs</code> — Swagger UI for the OpenAPI surface.</li>
+        <li><code>http://127.0.0.1:8000/metrics</code> — Prometheus exposition (requires the obs stack to scrape it).</li>
+      </ul>
+      <p>Migrations alone, without starting the server: <code>make migrate</code>.</p>
+
+      <h2 id="loop">The daily loop</h2>
+      <p>Most days look like this:</p>
+      <ul>
+        <li><strong>Write code.</strong> The Uvicorn reload picks up edits under <code>app/</code> automatically.</li>
+        <li><strong>Run tests.</strong> <code>make test</code> runs the full pytest suite with coverage; <code>make test-one path=tests/api/v1/test_user_create.py</code> isolates one file or node.</li>
+        <li><strong>Auto-fix.</strong> <code>make fix</code> runs <code>format-fix</code> + <code>lint-fix</code> + <code>docs-fix</code> in sequence. Run it before <code>make verify</code> to keep the diff clean.</li>
+        <li><strong>Verify.</strong> <code>make verify</code> is the strict gate — deps audit, lint, types, OpenAPI, contract test, tests, docs drift, docs a11y. Same gate CI runs.</li>
+      </ul>
+      <p>Full command taxonomy with grouping rationale: <a href="make-commands-and-workflows.html">Make commands and workflows</a>.</p>
+
+      <h2 id="ports">Ports</h2>
+      <p>What runs where on <code>127.0.0.1</code> by default. Conflicts? Override the matching env var in <code>.env</code>.</p>
+      <table class="docs-table docs-table--sticky-head docs-table--zebra">
+        <thead>
+          <tr><th>Port</th><th>Service</th><th>Started by</th><th>Override</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>8000</code></td><td>FastAPI / Uvicorn (the API)</td><td><code>make run</code></td><td><code>APP_PORT</code></td></tr>
+          <tr><td><code>9090</code></td><td>Prometheus (metrics scrape + query)</td><td><code>docker compose -f docker-compose.observability.yml up -d</code></td><td><code>OBS_PROM_PORT</code> / <code>PROMETHEUS_PORT</code></td></tr>
+          <tr><td><code>3001</code></td><td>Grafana (dashboards)</td><td>same compose file</td><td><code>OBS_GRAF_PORT</code> / <code>GRAFANA_PORT</code></td></tr>
+          <tr><td><code>9200</code></td><td>Elasticsearch (log index)</td><td><code>make logging-up</code></td><td><code>OBS_ES_PORT</code> / <code>ELASTICSEARCH_PORT</code></td></tr>
+          <tr><td><code>5601</code></td><td>Kibana (log search UI)</td><td>same compose file</td><td><code>OBS_KIB_PORT</code> / <code>KIBANA_PORT</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="observability">Observability stack (optional)</h2>
+      <p>For metrics dashboards locally:</p>
+      <pre class="docs-code"><code class="language-bash">docker compose -f docker-compose.observability.yml up -d
+      make run</code></pre>
+      <p>Prometheus comes up at <code>http://127.0.0.1:9090</code> and scrapes the API's <code>/metrics</code> endpoint. Grafana at <code>http://127.0.0.1:3001</code> (default login is documented inside the compose file). The API exposes Prometheus metrics out of the box; no extra config needed.</p>
+      <p>Tear down: <code>docker compose -f docker-compose.observability.yml down</code> (add <code>-v</code> to wipe volumes).</p>
+
+      <h2 id="logging">Logging stack (optional)</h2>
+      <p>For log search in Kibana locally:</p>
+      <ol>
+        <li>Start the stack: <code>make logging-up</code> (Elasticsearch + Kibana + Filebeat via <code>docker-compose.logging.yml</code>).</li>
+        <li>Make sure the API writes NDJSON to <code>./logs/</code>: <code>LOG_FORMAT=json</code> in <code>.env</code> (this is the default). Filebeat tails <code>LOG_DIR=logs</code> and ships into ES.</li>
+        <li>Open Kibana at <code>http://127.0.0.1:5601</code> and create a data view for <code>*study-app-logs*</code> with <code>@timestamp</code> as the time field.</li>
+        <li>Health check: <code>make logging-smoke</code>. CLI search by request id: <code>make logging-es-query QUERY=&lt;uuid&gt;</code>.</li>
+      </ol>
+      <p>Tear down: <code>make logging-down</code> (or <code>make logging-reset</code> to wipe ES volumes too). Background and rationale: <a href="../../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023 — structured logging and local Elasticsearch</a>.</p>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <table class="docs-table docs-table--sticky-head docs-table--zebra">
+        <thead><tr><th>Symptom</th><th>What to check</th></tr></thead>
+        <tbody>
+          <tr><td><code>make run</code> says <code>.env not found</code></td><td><code>make env-init</code>, then edit <code>.env</code>.</td></tr>
+          <tr><td><code>make run</code> says <code>.venv not found</code></td><td><code>make venv &amp;&amp; make install</code>, or just <code>make setup</code>.</td></tr>
+          <tr><td>Port <code>8000</code> already in use</td><td>Stop the other process, or set <code>APP_PORT=8001</code> in <code>.env</code>.</td></tr>
+          <tr><td>Migration error on boot</td><td><code>make migrate</code> on its own to see the full Alembic trace; check <code>SQLITE_DB_PATH</code> in <code>.env</code>.</td></tr>
+          <tr><td><code>make verify</code> fails on docs drift</td><td><code>make docs-fix</code>, commit the regenerated artifacts, retry.</td></tr>
+          <tr><td>Pre-commit hook fails on staged files</td><td>Fix the underlying issue, re-stage, recommit (do not skip with <code>--no-verify</code>).</td></tr>
+          <tr><td>Kibana shows zero events</td><td>Confirm <code>LOG_FORMAT=json</code> and the API actually wrote to <code>./logs/app.log</code>; check Filebeat is up via <code>make logging-smoke</code>.</td></tr>
+          <tr><td>Grafana dashboards empty</td><td>Confirm Prometheus is up at <code>:9090</code> and that <code>/metrics</code> on the API is reachable from inside the obs container.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="verify">Verify</h2>
+      <ul>
+        <li><code>make run</code> stays in the foreground without immediate exit; the last log line names the Uvicorn bind <code>http://127.0.0.1:8000</code>.</li>
+        <li><code>curl -i http://127.0.0.1:8000/live</code> returns HTTP <code>200</code> with a JSON body.</li>
+        <li><code>curl -i http://127.0.0.1:8000/ready</code> returns HTTP <code>200</code> after Alembic upgrade head completes (logs visible in the terminal).</li>
+        <li><code>make verify</code> exits 0 — same checks CI will run, includes lint / type / test / docs gates.</li>
+        <li>No pre-commit drift on a clean tree: <code>git status</code> is empty after <code>make verify</code>.</li>
+      </ul>
+
+      <aside id="related" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li>How-to · <a href="make-commands-and-workflows.html">Make commands and workflows</a> — full make-target taxonomy this how-to drives.</li>
+          <li>How-to · <a href="docker-image-and-container.html">Build and run the API as a Docker image</a> — packaged alternative to the venv loop.</li>
+          <li>Reference · <a href="../../../handbook/qa/test-environments.html">Test environments</a> — what dev / qa / prod differ on.</li>
+          <li>Reference · <a href="../../../governance/adr/0008-make-command-taxonomy-and-workflow-entrypoints.html">ADR 0008 — Make-command taxonomy</a> — the make-target architecture this how-to relies on.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-26</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm"></a>
+          <span class="docs-history__note">First version. Closes the 16-page IA gap where sibling pages, role onboarding flows, and the sidebar all linked here but the page never existed.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#prereq">Prerequisites</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#first-run">First-time setup</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#run">Run the API</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#loop">The daily loop</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#ports">Ports</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#observability">Observability stack</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#logging">Logging stack</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting">Troubleshooting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

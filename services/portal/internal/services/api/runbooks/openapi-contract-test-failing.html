@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runbook 0007 · OpenAPI contract-test failing · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-06" data-role="sre">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">api</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Runbooks</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0007 · OpenAPI contract drift</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--danger">Runbook</span>
+          <span class="docs-pill docs-pill--accent">CI</span>
+        </p>
+        <h1>0007 — OpenAPI contract-test failing</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Snapshot drift vs baseline. Intentional vs accidental contract changes — recovery paths for each.</p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Runbook</dt>
+          <dd>0007 — OpenAPI contract-test failing</dd>
+          <dt>Category</dt>
+          <dd>CI</dd>
+          <dt>Severity</dt>
+          <dd>SEV-2</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-05-29">2026-05-29</time></dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="impact-h">
+        <h2 id="impact-h">Impact</h2>
+        <ul>
+          <li>Local developer loop blocked until the failing stage clears.</li>
+          <li>No production user impact unless the failure is in shipped artefacts.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="followup-h">
+        <h2 id="followup-h">Follow-up</h2>
+        <ul>
+          <li>Capture the root cause in the related postmortem if SEV-2 or higher.</li>
+          <li>Open backlog items for any preventive change discovered during recovery.</li>
+        </ul>
+      </section>
+
+      <h2 id="trigger-h">Trigger</h2>
+      <ul>
+        <li><code>make contract-test</code> fails.</li>
+        <li><code>make verify</code> fails on the <code>contract-test</code> stage.</li>
+        <li>CI reports OpenAPI snapshot drift vs baseline.</li>
+      </ul>
+
+      <h2 id="triage-h">Fast triage</h2>
+      <ol>
+        <li>Run <code>make contract-test</code> to see the diff summary.</li>
+        <li>Identify whether changes are intentional or accidental.</li>
+        <li>If accidental, revert/fix API contract changes in code.</li>
+        <li>If intentional, validate compatibility and docs, then accept baseline update.</li>
+      </ol>
+
+      <h2 id="causes-h">Most common causes</h2>
+      <ul>
+        <li>Field type changed in request/response schema.</li>
+        <li>Error code/key mapping changed unintentionally.</li>
+        <li>Response status set changed (for example removed <code>422</code> or <code>404</code>).</li>
+        <li>A field or parameter flipped between required and optional.</li>
+        <li>OpenAPI examples or router response declarations diverged from implementation.</li>
+      </ul>
+
+      <h2 id="recovery-h">Recovery paths</h2>
+      <h3>Unintentional contract drift</h3>
+      <ul>
+        <li>Fix schema/router/validation code to restore expected contract.</li>
+        <li>Re-run <code>make openapi-check</code> and <code>make contract-test</code>.</li>
+        <li>Run <code>make verify</code> before commit.</li>
+      </ul>
+      <h3>Intentional contract change</h3>
+      <ul>
+        <li>Confirm the change is safe for the current API major version.</li>
+        <li>Update tests, examples, and related <code>services/portal/</code> ADR notes.</li>
+        <li>Accept new baseline: <code>make openapi-accept-changes</code>.</li>
+        <li>Re-run <code>make contract-test</code> and <code>make verify</code>.</li>
+      </ul>
+
+      <h2 id="final">Final recovery sequence</h2>
+      <pre class="docs-code"><code class="language-bash">make openapi-check
+make contract-test
+      make verify</code></pre>
+
+      <h2 id="exit-h">Exit criteria</h2>
+      <ul>
+        <li><code>make contract-test</code> passes.</li>
+        <li><code>make verify</code> passes end-to-end.</li>
+        <li>If you updated the baseline, the commit message or PR explains why.</li>
+      </ul>
+
+      <h2 id="escalation-h">Escalation</h2>
+      <p>If <strong>30 minutes</strong> of triage didn't get <code>make contract-test</code> green, or the failure mode isn't on the «Most common causes» list:</p>
+      <ol>
+        <li>Capture state — <code>make contract-test 2&gt;&amp;1 | tee /tmp/runbook-0007-state.txt</code>, the diff against the current OpenAPI baseline, <code>git status</code>, and the recovery steps tried.</li>
+        <li>Open a SEV-3 incident in the team backlog and link this runbook from it. A breaking contract change shipped to a published version jumps to SEV-2 immediately — downstream consumers will hit it on the next deploy.</li>
+        <li>Page on-call (or, for solo work, the project incident commander) with the captured state and the last known-good baseline commit hash.</li>
+        <li><strong>Do not</strong> run <code>make openapi-accept-changes</code> blindly to «make the test pass» — that hides breakage rather than fixing it; accept the new baseline only when the change is intentional and the PR explains why.</li>
+      </ol>
+
+      <h2 id="followup-h">Follow-up</h2>
+      <ul>
+        <li>If compatibility rules changed, update an ADR and developer docs.</li>
+        <li>If this keeps happening, tighten checks in <code>scripts/openapi_governance.py</code>.</li>
+      </ul>
+
+      <aside id="related" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li>Reference · <a href="../../../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007 — OpenAPI governance &amp; usability standard</a> — the policy this contract test enforces.</li>
+          <li>Reference · <a href="../../../governance/adr/0022-embedded-swagger-ui-openapi-sandbox.html">ADR 0022 — Embedded Swagger UI / OpenAPI sandbox</a> — adjacent surface that consumes the same baseline.</li>
+          <li>Reference · <a href="../../../handbook/sa/templates/api-spec.html">API spec template</a> — the per-endpoint scaffold whose section order the contract test guards.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-29</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis audit § 4 row 14. Added Escalation block (30-min timeout, SEV-3 default with SEV-2 jump on breaking contract changes shipped to a published version — downstream consumers hit it on the next deploy, hard «do not blindly <code>openapi-accept-changes</code>» rule). Added Related gradient card hinging ADR 0007 (the OpenAPI governance policy this test enforces), ADR 0022 (embedded Swagger UI — adjacent baseline consumer), and the API-spec template (per-endpoint scaffold the test guards).</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; h2/h3 recovery paths; shell snippet on <code>docs-code language-bash</code>.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#trigger-h">Trigger</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#triage-h">Fast triage</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#causes-h">Common causes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#recovery-h">Recovery paths</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#final">Final sequence</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#exit-h">Exit criteria</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#escalation-h">Escalation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#followup-h">Follow-up</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

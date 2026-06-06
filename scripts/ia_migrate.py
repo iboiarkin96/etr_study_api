@@ -55,9 +55,9 @@ def map_path(rel: str) -> Mapping | None:
     parts = rel.split("/")
     top = parts[0]
 
-    # ---- Commit 1: uml/* -> reference/uml/* ------------------------------
+    # ---- Commit 1: uml/* -> handbook/uml/* ------------------------------
     if top == "uml":
-        return Mapping(rel, f"reference/uml/{'/'.join(parts[1:])}", 1)
+        return Mapping(rel, f"handbook/uml/{'/'.join(parts[1:])}", 1)
 
     # ---- Commit 2: analysis -> 3 targets ---------------------------------
     if top == "analysis":
@@ -102,9 +102,9 @@ def map_path(rel: str) -> Mapping | None:
             return Mapping(rel, f"how-to/runbooks/{'/'.join(parts[2:])}", 3)
         if parts[1] == "postmortems":
             return Mapping(rel, f"how-to/postmortems/{'/'.join(parts[2:])}", 3)
-        # SRE foundations -> explanation/sre/*
+        # SRE foundations -> handbook/sre/*
         if len(parts) == 2 and rel.endswith(".html"):
-            return Mapping(rel, f"explanation/sre/{parts[1]}", 3)
+            return Mapping(rel, f"handbook/sre/{parts[1]}", 3)
 
     # ---- Commit 4: architect ---------------------------------------------
     if top == "architect":
@@ -145,7 +145,7 @@ def map_path(rel: str) -> Mapping | None:
         if rel == "manager/sdlc-raci-matrix.html":
             return Mapping(
                 rel,
-                "reference/manager/sdlc-raci-matrix.html",
+                "handbook/manager/sdlc-raci-matrix.html",
                 6,
                 notes="reference matrix; could be explanation/ — chose reference",
             )
@@ -173,32 +173,32 @@ def map_path(rel: str) -> Mapping | None:
         if rel == "handbook/qa/tester-onboarding.html":
             return Mapping(rel, "tutorials/qa/onboarding.html", 7)
         if rel == "handbook/qa/glossary.html":
-            return Mapping(rel, "reference/qa/glossary.html", 7)
+            return Mapping(rel, "handbook/qa/glossary.html", 7)
         if rel in (
             "handbook/qa/test-strategy.html",
             "handbook/qa/test-pyramid.html",
             "handbook/qa/qa-process.html",
         ):
-            return Mapping(rel, f"explanation/qa/{parts[2]}", 7)
+            return Mapping(rel, f"handbook/qa/{parts[2]}", 7)
         if parts[2] == "playbooks":
             return Mapping(rel, f"how-to/qa/{'/'.join(parts[3:])}", 7)
         if parts[2] == "practices":
             return Mapping(rel, f"explanation/practices/qa/{'/'.join(parts[3:])}", 7)
         if parts[2] == "reference":
-            return Mapping(rel, f"reference/qa/{'/'.join(parts[3:])}", 7)
+            return Mapping(rel, f"handbook/qa/{'/'.join(parts[3:])}", 7)
         if parts[2] == "templates":
-            return Mapping(rel, f"reference/qa/templates/{'/'.join(parts[3:])}", 7)
+            return Mapping(rel, f"handbook/qa/templates/{'/'.join(parts[3:])}", 7)
         # 0001-0005 checklists at handbook/qa root
         if re.match(r"^000\d-.*-checklist\.html$", parts[2] or ""):
-            return Mapping(rel, f"reference/qa/checklists/{parts[2]}", 7)
+            return Mapping(rel, f"handbook/qa/checklists/{parts[2]}", 7)
 
     # ---- Commit 8: handbook/developer ------------------------------------
     if top == "handbook" and parts[1] == "developer":
         name = parts[2]
         dev_explanation = {
-            "0001-requirements.html": "explanation/dev/requirements.html",
-            "0002-schemas-and-contracts.html": "explanation/dev/schemas-and-contracts.html",
-            "0003-business-logic.html": "explanation/dev/business-logic.html",
+            "0001-requirements.html": "handbook/swe/requirements.html",
+            "0002-schemas-and-contracts.html": "handbook/swe/schemas-and-contracts.html",
+            "0003-business-logic.html": "handbook/swe/business-logic.html",
         }
         if name in dev_explanation:
             return Mapping(rel, dev_explanation[name], 8)
@@ -221,7 +221,7 @@ def map_path(rel: str) -> Mapping | None:
         name = parts[2]
         howto_map = {
             "0001-onboarding-from-zero-to-endpoint-docs.html": "tutorials/onboarding-zero-to-endpoint.html",
-            "0002-internal-service-docs-layout.html": "how-to/docs/internal-service-docs-layout.html",
+            "0002-internal-service-docs-layout.html": "handbook/sa/authoring/internal-service-docs-layout.html",
             "0003-make-commands-inventory.html": "how-to/docs/make-commands-inventory.html",
             "0004-how-to-add-post-contract.html": "how-to/api/add-post-contract.html",
             "0005-how-to-change-docs-frontend-safely.html": "how-to/docs/change-docs-frontend-safely.html",

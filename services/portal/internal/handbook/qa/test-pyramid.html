@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QA · Test Pyramid · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="qa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">QA · Test Pyramid</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--success">QA</span>
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1>Test pyramid &amp; layer ownership</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          The pyramid models where each kind of check lives in this codebase. Each layer
+          answers a specific question — fastest at the bottom, broadest at the top. A test
+          belongs to exactly one layer; if you can't decide, push it down.
+        </p>
+      </header>
+
+      <h2 id="shape">Shape</h2>
+      <div class="docs-test-pyramid" role="figure" aria-label="Test pyramid — Unit at the wide base, Manual at the narrow apex">
+        <ol class="docs-test-pyramid__stack" aria-label="Test layers (apex first)">
+          <li class="docs-test-pyramid__tier" data-tier="1" data-tone="rose">
+            <span class="docs-test-pyramid__label">Manual</span>
+          </li>
+          <li class="docs-test-pyramid__tier" data-tier="2" data-tone="warn">
+            <span class="docs-test-pyramid__label">System / E2E</span>
+          </li>
+          <li class="docs-test-pyramid__tier" data-tier="3" data-tone="accent">
+            <span class="docs-test-pyramid__label">Contract</span>
+          </li>
+          <li class="docs-test-pyramid__tier" data-tier="4" data-tone="info">
+            <span class="docs-test-pyramid__label">Integration</span>
+          </li>
+          <li class="docs-test-pyramid__tier" data-tier="5" data-tone="teal">
+            <span class="docs-test-pyramid__label">Unit</span>
+          </li>
+        </ol>
+        <ul class="docs-test-pyramid__notes" aria-label="Per-tier volume &amp; cadence">
+          <li class="docs-test-pyramid__note" data-tier="1">
+            <span class="docs-test-pyramid__note-title">Manual / exploratory</span>
+            <span class="docs-test-pyramid__note-rule">minutes per session — charter-based</span>
+          </li>
+          <li class="docs-test-pyramid__note" data-tier="2">
+            <span class="docs-test-pyramid__note-title">System / E2E (manual + API)</span>
+            <span class="docs-test-pyramid__note-rule">golden paths only — run on releases</span>
+          </li>
+          <li class="docs-test-pyramid__note" data-tier="3">
+            <span class="docs-test-pyramid__note-title">Contract (HTTP / OpenAPI)</span>
+            <span class="docs-test-pyramid__note-rule">every endpoint — schema + errors</span>
+          </li>
+          <li class="docs-test-pyramid__note" data-tier="4">
+            <span class="docs-test-pyramid__note-title">Integration (DB, repo)</span>
+            <span class="docs-test-pyramid__note-rule">every repository &amp; migration</span>
+          </li>
+          <li class="docs-test-pyramid__note" data-tier="5">
+            <span class="docs-test-pyramid__note-title">Unit (pure functions)</span>
+            <span class="docs-test-pyramid__note-rule">the bulk — fast, isolated, no I/O</span>
+          </li>
+        </ul>
+      </div>
+      <p>Read top-down for "what does the user feel" or bottom-up for "where do we get fast feedback". A test belongs to <strong>exactly one</strong> layer; when you can't decide, push it down.</p>
+
+      <h2 id="unit">Unit</h2>
+      <p><strong>Owner:</strong> developer. <strong>QA reads but rarely writes</strong> — uses unit tests as documentation of intended behavior.</p>
+      <p>Tests one function or one small class with no I/O. No DB, no HTTP, no filesystem (except a tmp_path), no time, no randomness.</p>
+      <ul>
+        <li><strong>What we expect:</strong> exhaustive on logic; one test per branch; one test per error path.</li>
+        <li><strong>Where in this repo:</strong> <code>tests/core/</code>, <code>tests/domain/</code>.</li>
+        <li><strong>Run:</strong> <code>pytest tests/core tests/domain</code> — should be sub-second per module.</li>
+        <li><strong>QA signal:</strong> if a unit test is missing for a defect you found, file a follow-up referencing the test that <em>should</em> have caught it.</li>
+      </ul>
+
+      <h2 id="integration">Integration (DB, repository, infra adapters)</h2>
+      <p><strong>Owner:</strong> developer. <strong>QA reviews</strong> for missing coverage.</p>
+      <p>Tests a real component with one real adapter — usually the database. We keep the transaction scope tight and roll back per test. We do not mock the database in this layer on principle: mocked tests passed in the past while a migration broke production.</p>
+      <ul>
+        <li><strong>Where:</strong> <code>tests/repositories/</code> and migration tests.</li>
+        <li><strong>Test data:</strong> created in fixtures; never relies on prior test order.</li>
+        <li><strong>QA signal:</strong> if a defect is rooted in SQL behavior or migration order, the regression test belongs here, not on the API layer.</li>
+      </ul>
+
+      <h2 id="contract">Contract (HTTP / OpenAPI)</h2>
+      <p><strong>Owner:</strong> developer + QA. This is the layer QA actively co-owns.</p>
+      <p>Tests every public endpoint against the documented contract. Verifies status codes, response schema, error envelope, idempotency keys, headers (<code>X-Request-ID</code>), pagination, and known error catalog entries. The OpenAPI baseline is verified as a single test so contract drift fails CI.</p>
+      <ul>
+        <li><strong>Where:</strong> <code>tests/api/v1/</code>, <code>tests/openapi/</code>.</li>
+        <li><strong>Oracle:</strong> the spec page under <code>services/portal/internal/services/api/reference/&lt;resource&gt;/</code> and the shared docs under <code>_shared/</code>.</li>
+        <li><strong>Per endpoint, expect:</strong> one happy-path success, one or more validation-error cases, one auth-failure case, and schema validation against the OpenAPI document.</li>
+        <li><strong>QA signal:</strong> any defect with a status-code or schema dimension lands here.</li>
+      </ul>
+
+      <h2 id="system">System / end-to-end</h2>
+      <p><strong>Owner:</strong> QA, with developer pairing on flow design.</p>
+      <p>Tests a user-visible flow across multiple endpoints or pages. We keep this layer small — only golden paths and one or two failure modes per flow. Every E2E test you add is a new tax forever; pay it only for high-impact paths.</p>
+      <ul>
+        <li><strong>Examples:</strong> "create user → create conspectus → mark reviewed → appears in due list".</li>
+        <li><strong>How we run them:</strong> manual via the <a href="../../services/api/how-to/api-endpoint-testing.html">API playbook</a> for now; candidate flows for automation are tracked in <a href="../../governance/backlog/index.html">backlog</a>.</li>
+        <li><strong>Evidence:</strong> request/response captures attached to the run report.</li>
+      </ul>
+
+      <h2 id="manual">Manual &amp; exploratory</h2>
+      <p><strong>Owner:</strong> QA.</p>
+      <p>Two flavours:</p>
+      <ul>
+        <li><strong>Scripted manual</strong> — running a checklist line by line. See <a href="checklists/documentation-visual.html">the documentation visual checklist</a>.</li>
+        <li><strong>Exploratory</strong> — chartered, time-boxed sessions to find what scripted tests miss. See <a href="exploratory-testing.html">exploratory playbook</a>.</li>
+      </ul>
+      <p>We deliberately keep manual scripted runs short — anything that repeats every release should be a candidate for the contract layer.</p>
+
+      <h2 id="anti-patterns">Anti-patterns to avoid</h2>
+      <ul>
+        <li><strong>Inverted pyramid (ice-cream cone).</strong> Heavy E2E, thin unit. Slow CI, flaky signal. If our pyramid leans this way, push tests down.</li>
+        <li><strong>Mocking the database in integration tests.</strong> A historical incident is the reason we don't. Use a real DB or skip the test.</li>
+        <li><strong>Asserting on log strings as a proxy for behavior.</strong> Assert on the behavior; logs are diagnostics.</li>
+        <li><strong>Tests that depend on test order.</strong> Use independent fixtures.</li>
+        <li><strong>Snapshot tests on rapidly changing UI.</strong> They become "press accept" tests. Reserve snapshots for stable contracts.</li>
+        <li><strong>Manual checks for things a contract test would catch.</strong> If the rule is "field X must be UUID", that is contract-layer, not a checklist line.</li>
+      </ul>
+
+      <h2 id="tradeoffs">Tradeoffs</h2>
+      <p>The pyramid encodes deliberate costs. Choosing it means accepting these tensions rather than pretending they don't exist:</p>
+      <ul>
+        <li><strong>Speed vs realism.</strong> Unit tests are sub-second but don't catch wiring bugs. Contract tests catch wiring but take 10–100× longer. We pay the realism cost only at layers above unit.</li>
+        <li><strong>Coverage vs coupling.</strong> A test at a higher layer covers more code per assertion but also breaks for more reasons. A broken e2e test rarely points at a single line; a broken unit test usually does. The pyramid optimises for diagnostic resolution by keeping the base wide.</li>
+        <li><strong>Confidence vs cost.</strong> Adding an e2e test feels safer but doubles maintenance for every refactor it covers. Pushing the same check down to contract or unit gives you ~80% of the confidence for ~20% of the long-term tax.</li>
+        <li><strong>«No mocks» at integration vs CI speed.</strong> A real DB at the integration layer is the project's hard-won lesson, but it does slow CI vs mocked alternatives. We accept the slower run to avoid the «mock passes / migration fails in prod» class of bug.</li>
+        <li><strong>Manual layer as a feature, not a gap.</strong> A small dedicated manual layer is cheaper than automating every rarely-changing flow. The discipline is to actively prevent the layer from growing into a regression sink.</li>
+      </ul>
+
+      <aside id="next-to-read" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li>Explanation · <a href="./test-strategy.html">Test strategy</a> — what the pyramid is in service of: scope, boundaries, oracle precedence.</li>
+          <li>Explanation · <a href="./qa-process.html">QA process</a> — where the pyramid plugs into shift-left QA across the SDLC.</li>
+          <li>Reference · <a href="../../governance/adr/0002-testing-policy.html">ADR 0002 — Testing policy</a> — the normative version of «what we test, where».</li>
+          <li>Reference · <a href="../../governance/adr/0012-testing-strategy-and-load-testing.html">ADR 0012 — Testing strategy &amp; load testing</a> — broader rules and how load testing relates.</li>
+          <li>How-to · <a href="../../services/api/how-to/api-endpoint-testing.html">API endpoint testing playbook</a> — the recurring contract-layer activity.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; pyramid ASCII as <code>docs-code</code>; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-04-30</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial publication of the test pyramid.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#shape">Shape</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#unit">Unit</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#integration">Integration</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#contract">Contract</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#system">System / E2E</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#manual">Manual &amp; exploratory</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Anti-patterns</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs">Tradeoffs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#next-to-read">What to read next</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

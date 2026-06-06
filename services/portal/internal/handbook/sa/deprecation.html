@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>🗑️ Deprecation — how we retire pages, APIs, entities · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <style>
+    /* Local overlays — same shapes as the other Process-tree deep-dives. */
+    .stages { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; counter-reset: stage; }
+    .stages li {
+    display: grid;
+    grid-template-columns: 2.6rem 1fr;
+    gap: var(--space-3);
+    align-items: start;
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--line);
+    border-left: var(--rail-w) solid var(--warn);
+    border-radius: var(--radius-md);
+    background: var(--bg-elev);
+    counter-increment: stage;
+    }
+    .stages li::before {
+    content: counter(stage, decimal-leading-zero);
+    font-family: var(--font-mono);
+    font-size: var(--fs-300);
+    font-weight: var(--fw-bold);
+    color: var(--warn);
+    }
+    .stages li strong { color: var(--text-strong); }
+    .stages li p { margin: 0; color: var(--muted); font-size: var(--fs-300); line-height: var(--lh-base); }
+    .stages li p + p { margin-top: var(--space-2); }
+    .stages li code { font-size: var(--fs-200); padding: 1px 5px; background: var(--bg-mute); border-radius: var(--radius-xs); white-space: nowrap; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+
+    /* Banner snippet — copy-paste deprecation HTML */
+    .snippet { font-family: var(--font-mono); font-size: var(--fs-200); line-height: 1.6; background: var(--bg-mute); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-5); overflow-x: auto; white-space: pre; color: var(--text); margin: var(--space-3) 0; }
+    .snippet .t-tag  { color: var(--accent); font-weight: var(--fw-semibold); }
+    .snippet .t-attr { color: var(--info); }
+    .snippet .t-note { color: var(--muted); font-style: italic; }
+
+    /* Tradeoff cards — frame, grid, rail tone now come from the kit
+    (.docs-card, .docs-card-grid--two, .docs-card--rail[data-tone=…]).
+    Only the per-card eyebrow remains local. */
+    .tradeoff__head { font-family: var(--font-mono); font-size: var(--fs-100); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-soft); margin: 0 0 var(--space-2); }
+
+    @media (max-width: 760px) {
+    .stages li { grid-template-columns: 1fr; gap: var(--space-1); }
+    }
+  </style>
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Handbook</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="principles.html">Principles</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="process.html">Process</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">🗑️ Deprecation</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+
+    <article class="docs-prose">
+
+      <header class="page-hero page-head">
+        <p class="page-hero__eyebrow">🗑️ Process · Deprecation</p>
+        <h1 class="page-hero__h1">Deprecation — <span class="accent">how we retire pages, APIs, entities</span></h1>
+        <div id="docs-top-nav"></div>
+        <p class="page-hero__lede">
+          Pages, APIs, and entities don't just stop being relevant — they get retired through a five-stage flow
+          with explicit consumer notification, a sunset date, and a migration target. «Deprecated but kept around»
+          is forbidden by Principle 03: a page is either current or replaced, never silently dead.
+        </p>
+      </header>
+
+      <!-- 01 · WHAT GETS DEPRECATED -->
+      <section class="numbered-section" aria-labelledby="what-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Rules</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">01</span>
+          <h2 id="what-h">What gets deprecated — three flavours</h2>
+        </div>
+        <p class="numbered-section__lede">
+          The flow is the same; the timeline and the artefacts differ by kind.
+        </p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Kind</th>
+                <th>When to deprecate</th>
+                <th>Required artefacts</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Page</strong></td>
+                <td>The page is superseded by another, or the underlying capability is removed.</td>
+                <td>Deprecation banner · supersession link · merged into <code>main</code> + <code>git rm</code> in the removal PR.</td>
+              </tr>
+              <tr>
+                <td><strong>API endpoint / contract</strong></td>
+                <td>v2 ships; v1 is no longer the canonical contract.</td>
+                <td>Deprecation banner · <code>Sunset</code> / <code>Deprecation</code> HTTP headers · migration guide · ADR if the boundary changed.</td>
+              </tr>
+              <tr>
+                <td><strong>Catalog entity</strong> (Component / Resource / Library)</td>
+                <td>The thing itself is going away — service decommissioned, library archived.</td>
+                <td><code>spec.lifecycle: deprecated</code> · banner on every entity page · ADR ratifying the decision · migration target entity link.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 02 · FIVE-STAGE FLOW -->
+      <section class="numbered-section" aria-labelledby="flow-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Apply</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">02</span>
+          <h2 id="flow-h">The five-stage deprecation flow</h2>
+        </div>
+        <p class="numbered-section__lede">
+          From decision-to-deprecate to actual removal. Skipping a stage is a CI failure — the spine check rejects
+          any deprecated entity without a sunset date and migration target.
+        </p>
+        <ol class="stages">
+          <li><div>
+            <strong>Decide.</strong>
+            <p>An ADR ratifies the deprecation. Includes context, alternatives considered (e.g. keep it / soft-deprecate / hard-remove), the chosen sunset date, and the migration target. No deprecation without an ADR.</p>
+          </div></li>
+          <li><div>
+            <strong>Mark.</strong>
+            <p>Flip the entity to <code>spec.lifecycle: deprecated</code> (catalog), add the <code>data-status="deprecated"</code> attribute to pages, return <code>Sunset</code> + <code>Deprecation</code> headers on API endpoints. The deprecation banner renders at the top of every affected page automatically.</p>
+          </div></li>
+          <li><div>
+            <strong>Notify consumers.</strong>
+            <p>Cross-reference the deprecation in every consumer page (use <code>spec.consumedBy</code> to enumerate). Open issues in consumer repos. For APIs, post to the engineering channel one cycle ahead of the sunset date.</p>
+          </div></li>
+          <li><div>
+            <strong>Wait out the sunset window.</strong>
+            <p>The window is per-kind (see § 04 below). During this window the entity is read-only — new consumers are forbidden (<code>check_no_new_deprecated_consumers.py</code>), existing consumers must migrate.</p>
+          </div></li>
+          <li><div>
+            <strong>Remove.</strong>
+            <p>On or after the sunset date, the removal PR <code>git rm</code>s the entity files, removes its <code>catalog-info.yaml</code>, and leaves a tombstone redirect at the old URL pointing at the migration target. The ADR's status flips from «Accepted» to «Active» — the decision is now executed.</p>
+          </div></li>
+        </ol>
+      </section>
+
+      <!-- 03 · REQUIRED ARTEFACTS -->
+      <section class="numbered-section" aria-labelledby="artefacts-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Rules</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">03</span>
+          <h2 id="artefacts-h">Required artefacts — the deprecation banner</h2>
+        </div>
+        <p class="numbered-section__lede">
+          Every deprecated page carries the canonical banner immediately after the hero. It's a UI Kit component,
+          not a per-page invention — copy the snippet, set the dates, ship.
+        </p>
+        <pre class="snippet" aria-label="Deprecation banner snippet"><span class="t-tag">&lt;aside</span> <span class="t-attr">class=</span>"docs-banner docs-banner--deprecated" <span class="t-attr">role=</span>"alert"<span class="t-tag">&gt;</span>
+  <span class="t-tag">&lt;p</span> <span class="t-attr">class=</span>"docs-banner__head"<span class="t-tag">&gt;</span>
+    🗑️ <span class="t-tag">&lt;strong&gt;</span>Deprecated.<span class="t-tag">&lt;/strong&gt;</span> Sunset <span class="t-tag">&lt;time</span> <span class="t-attr">datetime=</span>"2026-12-31"<span class="t-tag">&gt;</span>2026-12-31<span class="t-tag">&lt;/time&gt;</span>.
+  <span class="t-tag">&lt;/p&gt;</span>
+  <span class="t-tag">&lt;p</span> <span class="t-attr">class=</span>"docs-banner__body"<span class="t-tag">&gt;</span>
+    Use <span class="t-tag">&lt;a</span> <span class="t-attr">href=</span>"path/to/replacement.html"<span class="t-tag">&gt;</span>the v2 replacement<span class="t-tag">&lt;/a&gt;</span> instead.
+    See <span class="t-tag">&lt;a</span> <span class="t-attr">href=</span>"../../../governance/adr/00XX-deprecation.html"<span class="t-tag">&gt;</span>ADR 00XX<span class="t-tag">&lt;/a&gt;</span>
+    for context.
+  <span class="t-tag">&lt;/p&gt;</span>
+<span class="t-tag">&lt;/aside&gt;</span>
+<span class="t-note">&lt;!-- Banner styles &amp; icon come from sa-reference.css; no per-page CSS needed --&gt;</span>
+        </pre>
+        <p>
+          The banner is rejected at review if any of the three required fields is missing — <strong>sunset date</strong>,
+          <strong>migration target link</strong>, <strong>ratifying ADR link</strong>. <code>validate_docs_design.py</code> checks
+          that <code>docs-banner--deprecated</code> always carries a <code>&lt;time datetime&gt;</code> child.
+        </p>
+      </section>
+
+      <!-- 04 · TIMELINE NORMS -->
+      <section class="numbered-section" aria-labelledby="timeline-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Rules</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">04</span>
+          <h2 id="timeline-h">Timeline norms — sunset windows by kind</h2>
+        </div>
+        <p class="numbered-section__lede">
+          The default sunset window depends on the kind of thing being deprecated and how many consumers it has.
+          Shorter windows need an exception (granted in the ratifying ADR).
+        </p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Kind</th>
+                <th>Default sunset window</th>
+                <th>Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Internal page (Tutorial / How-to / Explanation)</td><td><strong>4 weeks</strong></td><td>Pages have no programmatic consumers; readers find the supersession via search and the banner.</td></tr>
+              <tr><td>Reference page that's cited from code (e.g. error catalog)</td><td><strong>12 weeks</strong></td><td>Code references need time to migrate; we wait one release-train cycle plus a buffer.</td></tr>
+              <tr><td>API endpoint (internal · ≤ 5 consumers)</td><td><strong>1 quarter</strong></td><td>Small consumer base; we coordinate directly in the engineering channel.</td></tr>
+              <tr><td>API endpoint (external or wide internal · ≥ 6 consumers)</td><td><strong>2 quarters</strong></td><td>Wide blast radius; consumers need a release of their own.</td></tr>
+              <tr><td>Catalog entity (Library)</td><td><strong>1 quarter after the last consumer migrates</strong></td><td>Library can stay published but archived; we remove the catalog entry only after consumers move off.</td></tr>
+              <tr><td>Catalog entity (Component / Resource)</td><td><strong>2 quarters</strong></td><td>Operational dependency — runbooks, on-call rotations, and dashboards all need re-pointing.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 05 · ANTI-PATTERNS -->
+      <section class="numbered-section" aria-labelledby="anti-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="apply"><span class="lens-chip__dot"></span>Apply</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">05</span>
+          <h2 id="anti-h">Anti-patterns to avoid</h2>
+        </div>
+        <ul class="rail-list" data-tone="rose">
+          <li><strong>«Soft-deprecation forever.»</strong> A page sits with a banner for two years and nobody removes it. The sunset date isn't a suggestion — when it passes, the removal PR is overdue. CI flags any deprecated entity past its sunset date.</li>
+          <li><strong>Deprecation without an ADR.</strong> An engineer adds a banner because «we should probably stop using this». A deprecation that isn't ratified can be silently reverted; an ADR makes the decision durable.</li>
+          <li><strong>Hard-remove without notification.</strong> The migration target is named only in the removal PR description. Consumers find out when their CI breaks. Always run § 03 «Notify consumers» before § 05 «Remove».</li>
+          <li><strong>Tombstone-as-content.</strong> The removed page is replaced with a 200-word essay about why it's gone. A tombstone is a single line redirect: «Moved to X». The history lives in the ADR.</li>
+          <li><strong>Banner without a target.</strong> «This page is deprecated.» But to what? Every banner names the migration target — no exceptions.</li>
+        </ul>
+      </section>
+
+      <!-- 06 · TRADEOFFS -->
+      <section class="numbered-section" aria-labelledby="tradeoffs-h">
+        <p class="lens-chip-row"><span class="lens-chip" data-lens="rationale"><span class="lens-chip__dot"></span>Rationale</span></p>
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">06</span>
+          <h2 id="tradeoffs-h">Tradeoffs</h2>
+        </div>
+        <div class="docs-card-grid docs-card-grid--two">
+          <article class="docs-card docs-card--rail" data-tone="success">
+            <p class="tradeoff__head">Wins</p>
+            <h3 class="docs-card__title">Nothing rots silently</h3>
+            <p class="docs-card__body">Every removed page has a date, a reason, and a successor. A reader who lands on an old URL gets a one-line redirect; an engineer who reviews the deprecation can audit the decision via the ADR.</p>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <p class="tradeoff__head">Cost</p>
+            <h3 class="docs-card__title">Removing is a 5-PR effort</h3>
+            <p class="docs-card__body">ADR PR → mark PR → notify PRs (one per consumer) → wait → remove PR. For a tiny page change this is overkill; we accept the friction because the alternative is rot.</p>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="success">
+            <p class="tradeoff__head">Wins</p>
+            <h3 class="docs-card__title">Sunset windows are predictable</h3>
+            <p class="docs-card__body">Consumers don't have to negotiate per-deprecation. The kind tells you the window; the ADR documents any exception.</p>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <p class="tradeoff__head">Cost</p>
+            <h3 class="docs-card__title">Bookkeeping for small teams</h3>
+            <p class="docs-card__body">A 3-person team feels the per-PR overhead more than a 30-person team. We mitigate with a «micro-deprecation» exception in the ADR template (≤ 1 consumer, ≤ 1 week sunset).</p>
+          </article>
+        </div>
+      </section>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-25</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Applied the handbook lens-chip pattern. Reading-guide placeholder; chips: §§ 01 / 03 / 04 → <strong>Rules</strong>; §§ 02 / 05 → <strong>Apply</strong>; § 06 → <strong>Rationale</strong>. Sources footer added.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-24</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">
+            Created the Deprecation deep-dive as a child of Process. Same UI Kit shape as <code>diataxis</code> / <code>catalog</code>: <code>.page-hero</code> with 🗑️ emoji, seven <code>.numbered-section</code> blocks (kinds · five-stage flow · banner snippet · timeline norms · anti-patterns · tradeoffs · see-also). Closes the «Missing topics» gap from the Phase 1 audit — explains who can retire what, with which artefacts, and under which sunset window.
+          </span>
+        </li>
+      </ul>
+    </footer>
+
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#what-h">What gets deprecated</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#flow-h">Five-stage flow</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#artefacts-h">Required artefacts</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#timeline-h">Timeline norms</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-h">Anti-patterns</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs-h">Tradeoffs</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

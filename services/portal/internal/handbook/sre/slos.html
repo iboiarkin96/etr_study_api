@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SRE · SLOs · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="sre">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">SRE · SLOs</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--danger">SRE</span>
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1>SLOs &amp; error budget</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Without numbers, “the service is fine” is just an opinion. SLOs give us a target;
+          the error budget tells us when to slow down and fix instead of shipping more.
+        </p>
+      </header>
+
+      <h2 id="why">Why we need SLOs</h2>
+      <p>An <strong>SLO</strong> (service-level objective) gives us a clear target. As long as we hit the target, we can focus on building features. When we miss it, we slow down and spend time on stability. The SLO is also what tells an alert “this is worth waking somebody up for.”</p>
+      <p>The contract for this service is defined in <a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011 — SLO, SLA, and error budget</a>. This page explains what each term means and how we use them day to day.</p>
+
+      <h2 id="three-terms">The three terms</h2>
+      <p>The three terms are <strong>nested</strong>, not parallel. Each outer layer wraps the layer below it and adds one more thing: a target on the measurement, then a contract on the target.</p>
+      <div class="docs-concept-layers" aria-label="SLI inside SLO inside SLA">
+        <div class="docs-concept-layers__layer" data-tone="rose">
+          <div class="docs-concept-layers__head">
+            <span class="docs-pill docs-pill--rose">SLA</span>
+            <h3 class="docs-concept-layers__title">Service-Level Agreement</h3>
+            <span class="docs-concept-layers__rule"><code>= SLO + money penalty</code></span>
+          </div>
+          <p class="docs-concept-layers__note">A contract with a paying customer. <strong>This solo project has no SLA today</strong>; the layer exists so we can plug one in later without renaming concepts.</p>
+          <div class="docs-concept-layers__layer" data-tone="accent">
+            <div class="docs-concept-layers__head">
+              <span class="docs-pill docs-pill--accent">SLO</span>
+              <h3 class="docs-concept-layers__title">Service-Level Objective</h3>
+              <span class="docs-concept-layers__rule"><code>= SLI ≥ target, over a window</code></span>
+            </div>
+            <p class="docs-concept-layers__note">The target value of the SLI over a window. An <strong>internal promise</strong> — we set it ourselves and we measure ourselves. Example: <em>99.5% of API requests succeed over a rolling 30 days.</em></p>
+            <div class="docs-concept-layers__layer" data-tone="info">
+              <div class="docs-concept-layers__head">
+                <span class="docs-pill docs-pill--info">SLI</span>
+                <h3 class="docs-concept-layers__title">Service-Level Indicator</h3>
+                <span class="docs-concept-layers__rule"><code>= raw measurement</code></span>
+              </div>
+              <p class="docs-concept-layers__note">A measurement we can read from the system. Examples:</p>
+              <ul class="docs-concept-layers__examples">
+                <li>Share of HTTP requests with status 2xx or 3xx.</li>
+                <li>p95 response time of <code>GET /conspectuses/due</code>.</li>
+                <li>Share of background jobs that finished without error.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="defaults">Default SLOs for this service</h2>
+      <p>The numbers below are the starting point. They are intentionally moderate so we are honest about what a one-person project can guarantee. Every value is set in <a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011</a> and changing it requires an ADR amendment.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th scope="col">SLI</th><th scope="col">Window</th><th scope="col">SLO</th><th scope="col">Why this number</th></tr></thead>
+          <tbody>
+            <tr><td>API availability — share of non-5xx responses</td><td>Rolling 30 days</td><td>99.5%</td><td>Allows ~3.6 hours of downtime per month — realistic for a single-region, single-maintainer service.</td></tr>
+            <tr><td>API latency — p95 of read endpoints</td><td>Rolling 7 days</td><td>&lt; 400 ms</td><td>The user-facing budget; anything slower starts to feel sluggish on a flaky network.</td></tr>
+            <tr><td>API latency — p99 of read endpoints</td><td>Rolling 7 days</td><td>&lt; 1 s</td><td>Catches the long tail without forcing premature optimisation.</td></tr>
+            <tr><td>Background job success rate</td><td>Rolling 7 days</td><td>99.0%</td><td>Jobs can be retried, so we accept a slightly lower bar than user-facing requests.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="budget">Error budget — what it is and how to spend it</h2>
+      <p>An <strong>error budget</strong> is “100% minus the SLO”. If the SLO is 99.5%, the budget is 0.5%. Over 30 days that is about 3.6 hours where we are allowed to be unhealthy without breaking our promise.</p>
+      <p>The budget is a tool, not a punishment. The simple rules:</p>
+      <ul>
+        <li><strong>Budget remaining:</strong> ship features. Risky migrations, new endpoints, dependency upgrades — go ahead.</li>
+        <li><strong>Budget low (less than 25% left):</strong> slow down. Prefer reversible changes, add extra tests, postpone optional refactors.</li>
+        <li><strong>Budget exhausted:</strong> feature work pauses. Only changes that improve reliability or fix the SLO miss are merged. Follow <a href="../../handbook/sre/runbooks/error-budget-exhaustion.html">runbook 0009 — error budget exhaustion</a>.</li>
+      </ul>
+
+      <h2 id="burn-rate">Burn-rate alerting</h2>
+      <p>We do not wait for the budget to run out before we react. <strong>Burn-rate</strong> is the ratio between how fast budget is being spent and how fast it would be spent if we exactly hit the SLO. A burn rate of <strong>1×</strong> means we're spending budget at the SLO's pace — sustainable. A burn rate of <strong>10×</strong> means we'll exhaust the 30-day budget in three days; <strong>40×</strong> exhausts it in eighteen hours; <strong>100×+</strong> is an active outage.</p>
+      <p>The trick is that one burn-rate window alone is either too jumpy or too slow. Multi-window alerting layers two windows on the same burn-rate threshold: a short window catches the «right now, this is bad» signal, and a longer window confirms it's a sustained pattern, not a 30-second spike. The two have to fire together to page.</p>
+      <p>The reference table we anchor against (from Google's SRE Workbook):</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Severity</th><th>Long window</th><th>Short window</th><th>Burn rate</th><th>Budget exhausted in</th></tr></thead>
+          <tbody>
+            <tr><td>Fast</td><td>1 h</td><td>5 min</td><td>≥ 14.4×</td><td>~50 hours</td></tr>
+            <tr><td>Slow</td><td>6 h</td><td>30 min</td><td>≥ 6×</td><td>~5 days</td></tr>
+            <tr><td>Ticket-only</td><td>24 h</td><td>2 h</td><td>≥ 3×</td><td>~10 days</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Two pages we use as the reference:</p>
+      <ul>
+        <li>SRE Workbook — <a href="https://sre.google/workbook/alerting-on-slos/" rel="external">Alerting on SLOs</a> (the multi-window, multi-burn-rate pattern in detail).</li>
+        <li>SRE Book — <a href="https://sre.google/sre-book/service-level-objectives/" rel="external">Service-Level Objectives</a> (foundations).</li>
+      </ul>
+      <p>Concrete Prometheus rules + Grafana panels live in <a href="../../governance/backlog/index.html#item-48">backlog item-48</a>; the runbook side is already in place at <a href="../../handbook/sre/runbooks/error-budget-exhaustion.html">runbook 0009</a>.</p>
+
+      <h2 id="review">How we review SLOs</h2>
+      <ol>
+        <li>Once a month, look at the previous 30 days for each SLI.</li>
+        <li>Record the result in the changelog (“met / missed / N/A”).</li>
+        <li>If we missed an SLO, write a short note: was it one big incident, slow drift, or a measurement bug?</li>
+        <li>If the same SLO is missed twice in a row, either fix the system or change the target through an ADR — never silently lower a number.</li>
+      </ol>
+
+      <h2 id="mistakes">Common mistakes to avoid</h2>
+      <ul>
+        <li><strong>“100% uptime” SLO.</strong> Impossible to hit and impossible to spend a budget against. Always pick a target less than 100%.</li>
+        <li><strong>Vanity metrics.</strong> Picking an SLI that always looks green (e.g., “the homepage returns HTML”). Pick something that reflects user pain.</li>
+        <li><strong>Silent SLO changes.</strong> If a number stops being realistic, change it through an ADR. Never quietly relax a target after a bad month.</li>
+        <li><strong>No window.</strong> “99.5% availability” with no window can mean anything. Always state the window (7 / 30 days).</li>
+      </ul>
+
+      <aside id="next-to-read" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li>Reference · <a href="../../governance/adr/0011-slo-sla-error-budget.html">ADR 0011 — SLOs, SLAs, error budget</a> — the normative version of this Explanation.</li>
+          <li>How-to · <a href="../../handbook/sre/runbooks/error-budget-exhaustion.html">Runbook 0009 — Error-budget exhaustion</a> — the on-call response when the budget defined here runs out.</li>
+          <li>Explanation · <a href="./monitoring.html">Monitoring</a> — where the burn-rate signals come from in practice.</li>
+          <li>Explanation · <a href="./incident-response.html">Incident response</a> — the SEV-1/2 workflow an SLO breach triggers.</li>
+          <li>Explanation · <a href="./on-call.html">On-call</a> — who gets paged when the burn-rate alerts fire.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code> + <code>docs-table--sticky-head --zebra</code> for the default SLOs table; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-11</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Replaced skeleton stub with full SLI/SLO/SLA explanation, default targets, error budget rules, burn-rate notes, and review cadence.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-08</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial skeleton stub per RFC 0004 Phase D.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why">Why we need SLOs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#three-terms">The three terms</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#defaults">Default SLOs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#budget">Error budget</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#burn-rate">Burn-rate alerting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#review">How we review SLOs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#mistakes">Common mistakes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#next-to-read">What to read next</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How-to · Run the docs pipeline · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-06" data-role="swe">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">portal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Docs · Run the docs pipeline</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Docs</span>
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+        </div>
+        <h1>Run the docs pipeline</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Regenerate machine-owned docs artefacts (UML, service catalog HTML, pdoc, search index) and verify there is no autogen drift before commit. Use this after any change under <code>services/portal/</code> or any source the pipeline syncs from (Makefile targets, FastAPI error catalog, Python docstrings, service catalog YAML).</p>
+      </header>
+
+      <h2 id="prereqs">Before you start</h2>
+      <ul>
+        <li><code>.venv</code> exists — <code>make venv &amp;&amp; make install</code> ran successfully once on this clone.</li>
+        <li>Working tree clean (or you accept that the regenerated artefacts will mix with your in-flight edits in the same diff).</li>
+        <li>You're not editing files the pipeline owns by hand — see <a href="#managed">Managed paths</a> below.</li>
+      </ul>
+
+      <h2 id="steps">Steps</h2>
+      <ol>
+        <li><strong>Regenerate artefacts.</strong>
+          <pre class="docs-code"><code class="language-bash">make docs-fix</code></pre>
+          Each of the 9 stages is idempotent — running the command twice produces the same result. Last log line should read <code>== DOCS-FIX: SUCCESS ==</code>.
+        </li>
+        <li><strong>Inspect what changed.</strong>
+          <pre class="docs-code"><code class="language-bash">git status</code></pre>
+          Expect modifications only under the paths listed in <a href="#managed">Managed paths</a>. Anything else means the pipeline touched something it shouldn't — re-check your edits.
+        </li>
+        <li><strong>Run the gate.</strong>
+          <pre class="docs-code"><code class="language-bash">make docs-check</code></pre>
+          This runs the four validation checks (HTML, design, feedback, spec), re-runs <code>docs-fix</code>, then compares <code>git diff HEAD</code> before and after. If the diffs match, the working tree is converged. Last log line should read <code>Docs check passed (no drift)</code>.
+        </li>
+        <li><strong>If drift was detected,</strong> stage the regenerated files, commit them with your edits, and re-run step 3 to confirm the gate is now green.</li>
+      </ol>
+
+      <h2 id="verify">Verify</h2>
+      <ul>
+        <li><code>make docs-fix</code> exits 0 with <code>== DOCS-FIX: SUCCESS ==</code> as the final line.</li>
+        <li><code>make docs-check</code> exits 0 with <code>Docs check passed (no drift)</code> as the final line.</li>
+        <li>A second <code>make docs-fix</code> immediately after the first produces an identical diff — idempotency confirms the pipeline converged.</li>
+        <li>CI's <code>docs-check</code> job is green on the PR (same command, same scripts).</li>
+      </ul>
+
+      <h2 id="docs-fix">What <code>make docs-fix</code> does (9 stages)</h2>
+      <p>Each stage runs in order; later stages may depend on earlier ones (e.g. step 9 indexes HTML normalized by step 5).</p>
+      <ol>
+        <li><strong>UML rendering</strong> — <code>scripts/regenerate_docs.py</code> sends <code>services/portal/internal/handbook/uml/**/*.puml</code> to Kroki and writes SVGs under <code>services/portal/internal/handbook/uml/rendered/</code>. Requires network. Skipped per-file when the hash hasn't changed.</li>
+        <li><strong>Marker sync</strong> — <code>scripts/sync_docs.py</code> overwrites marker blocks in <code>README.md</code> and <code>services/portal/internal/services/api/reference/errors.html</code> from the live FastAPI error catalog. Prose outside markers is never touched.</li>
+        <li><strong>Markdown → HTML companions</strong> — <code>scripts/render_docs_html.py</code> rewrites the <code>.html</code> file next to any <code>.md</code> companion in governed trees. Only runs when companion <code>.md</code> files exist.</li>
+        <li><strong>HTML structure repair</strong> — <code>scripts/repair_docs_html.py</code> parses every <code>services/portal/**/*.html</code> through html5lib and rewrites it back, fixing unclosed tags, attribute quoting, and similar low-level drift.</li>
+        <li><strong>HTML formatting</strong> — <code>scripts/format_docs_html.py</code> normalizes the v3 stylesheet/script imports, indentation (two-space, <code>&lt;pre&gt;</code> interiors preserved), and the <code>&lt;main class="container"&gt;</code> shell on every v3 page.</li>
+        <li><strong>Service catalog</strong> — <code>scripts/render_service_descriptors.py</code> reads <code>services/portal/internal/services/*/catalog-info.yaml</code> and rewrites the per-service hub HTML, the catalog hub, and the <code>services</code> subtree in <code>nav-tree-internal.json</code>.</li>
+        <li><strong>Maintainers attribute</strong> — <code>scripts/ensure_docs_maintainers.py</code> injects <code>data-maintainer-ids</code> on every <code>&lt;body&gt;</code> that's missing one, so the v2 author-chip can resolve the «Edited by» block.</li>
+        <li><strong>Python API reference (pdoc)</strong> — <code>pdoc</code> regenerates HTML for the <code>app</code> package into <code>services/portal/internal/services/api/code-reference/</code>; <code>scripts/normalize_pdoc_output.py</code> then strips unstable reprs.</li>
+        <li><strong>Search index</strong> — <code>scripts/build_docs_search_index.py</code> indexes every page under <code>services/portal/</code> and writes <code>services/frontend/portal/assets/search-index.json</code> (internal) and <code>search-index-public.json</code> (public corpus).</li>
+      </ol>
+
+      <h2 id="managed">Managed paths</h2>
+      <p>Three ownership boundaries — answer the question «if I hand-edit this file, will <code>docs-fix</code> overwrite me?»</p>
+      <div class="docs-card-grid docs-card-grid--wide">
+
+        <article class="docs-card docs-card--rail" data-tone="info">
+          <h3 class="docs-card__title">🤖 Generated — don't hand-edit</h3>
+          <p class="docs-card__subtitle">Edit the source instead; <code>docs-fix</code> regenerates the output on every run.</p>
+          <ul>
+            <li><code>internal/handbook/uml/rendered/*.svg</code> <small>· stage 1, from <code>.puml</code> sources</small></li>
+            <li><code>internal/services/<em>&lt;name&gt;</em>/index.html</code> + catalog hub + <code>services</code> subtree of <code>nav-tree-internal.json</code> <small>· stage 6, from <code>catalog-info.yaml</code></small></li>
+            <li><code>internal/services/api/code-reference/</code> <small>· stage 8, from Python docstrings (<a href="../../../governance/adr/0016-python-docstrings-google-style-and-pdoc.html">ADR 0016</a>)</small></li>
+            <li><code>assets/search-index.json</code>, <code>assets/search-index-public.json</code> <small>· stage 9, from the indexed corpus</small></li>
+          </ul>
+        </article>
+
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <h3 class="docs-card__title">🪧 Partially managed — markers only</h3>
+          <p class="docs-card__subtitle">Inside the marker comments: auto-overwritten. Outside: hand-edited prose.</p>
+          <ul>
+            <li><code>README.md</code> <small>· stage 2</small></li>
+            <li><code>internal/services/api/reference/errors.html</code> <small>· stage 2, from the live FastAPI error catalog</small></li>
+          </ul>
+        </article>
+
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <h3 class="docs-card__title">✍️ Hand-edited — yours</h3>
+          <p class="docs-card__subtitle">Your normal prose territory. Stages 4–5 only repair structure and re-indent on every run.</p>
+          <ul>
+            <li><code>services/portal/**/*.html</code> (except <code>backlog/</code> and the generated trees above)</li>
+            <li><code>env/example</code> <small>· not touched by <code>docs-fix</code>; copied to <code>.env</code> by <code>make env-init</code></small></li>
+            <li><code>public/reference/api/openapi-baseline.json</code> <small>· managed by <code>make openapi-accept-changes</code></small></li>
+            <li><code>public/reference/api/index.html</code> <small>· static Swagger UI</small></li>
+          </ul>
+        </article>
+
+      </div>
+
+      <section class="numbered-section" aria-labelledby="troubleshoot">
+        <div class="numbered-section__head">
+          <span class="numbered-section__kicker">05</span>
+          <h2 id="troubleshoot">Troubleshooting</h2>
+        </div>
+        <p class="numbered-section__lede">
+          The five failure modes you'll hit most often. Catch them at <code>make docs-check</code>, not on the CI run.
+        </p>
+        <ul class="rail-list" data-tone="rose">
+          <li><strong>«Docs check failed» on first run after a docs edit.</strong> Expected — <code>docs-fix</code> regenerated artefacts to match your edits. Re-stage the regenerated files, commit alongside your edit, re-run <code>make docs-check</code>.</li>
+          <li><strong>UML stage (1/9) network error.</strong> Kroki call failed. Retry. If persistent, check connectivity to the Kroki endpoint configured in <code>scripts/regenerate_docs.py</code>; PUML files unchanged since the last successful render are skipped by content hash.</li>
+          <li><strong>Marker sync (2/9) reports «out of sync» under <code>--check</code>.</strong> Means <code>README.md</code> or <code>errors.html</code> markers diverged from the live source. Run <code>make docs-fix</code> to refresh, then commit.</li>
+          <li><strong>Catalog stage (6/9) rewrote a service hub you weren't expecting.</strong> The YAML at <code>services/portal/internal/services/&lt;name&gt;/catalog-info.yaml</code> is authoritative — your manual edits to the rendered <code>index.html</code> get overwritten. Edit the YAML instead.</li>
+          <li><strong>Search index (9/9) shows huge diff after a tiny edit.</strong> The index is rebuilt unconditionally — JSON formatting + ordering may shift even on tiny content changes. Commit the diff as-is; the diff is deterministic across machines.</li>
+        </ul>
+      </section>
+
+      <aside id="related" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Related</h3>
+        <ul>
+          <li>Reference · <a href="../../../governance/adr/0001-docs-as-code.html">ADR 0001 — Docs-as-code policy</a> — why every doc that can be generated, is.</li>
+          <li>Reference · <a href="../../../governance/adr/0016-python-docstrings-google-style-and-pdoc.html">ADR 0016 — Python docstrings (Google) + pdoc</a> — what stage 8 expects from the source code.</li>
+          <li>Reference · <a href="../../../governance/adr/0013-changelog-and-release-notes.html">ADR 0013 — Changelog and release notes</a> — what's NOT in the docs-fix pipeline (release history is hand-curated).</li>
+          <li>Explanation · <a href="../../../explanation/methodology.html">Methodology — ETR study pattern</a> — the broader docs philosophy this pipeline serves.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-28</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Full refactor per Diátaxis audit § 4 row 3. Title renamed «Documentation pipeline (docs-as-code)» → «Run the docs pipeline» (verb-first). Body restructured into the canonical How-to shape: <em>Before you start → Steps → Verify → What docs-fix does → Managed paths → Troubleshooting → Related</em>. Stage list updated 6 → 9 (matches the current Makefile after the legacy-cleanup commit retired the docs-portal-data step). Stale path references fixed: <code>internal/uml/</code> → <code>internal/handbook/uml/</code>, <code>internal/api/errors.html</code> → <code>internal/services/api/reference/errors.html</code>, <code>internal/handbook/howto/0003-make-commands-inventory.html</code> dropped (handbook tree retired by IA migration), <code>services/portal/pdoc/</code> → <code>internal/services/api/code-reference/</code>. Removed two Explanation-drifting sections: «In-page «On this page» sidebar» (referenced the just-deleted <code>docs-nav.js</code>; v2 TOC is handled by the runtime mounts) and «Versioning and optional publishing» (Explanation territory, not procedural). Added explicit Verify block (three-line success criterion + idempotency check) per template. Added Related block hinging Reference (ADR 0001 / 0013 / 0016) and Explanation (methodology). Follow-up from the per-page Diátaxis audit (<code>~/Desktop/diataxis-quadrant-audit-2026-05-26.html</code> § 4 row 3).</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; managed-paths table on <code>docs-table--sticky-head --zebra</code>; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-04-28</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Restructured: fixed broken section markup, added hero, condensed versioning section.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#prereqs">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#docs-fix">What docs-fix does</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#managed">Managed paths</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshoot">Troubleshooting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

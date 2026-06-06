@@ -29,7 +29,7 @@ UML_STYLE_FILE = UML_SRC_DIR / "include" / "style.puml"
 # Committed fingerprint store: skip Kroki when merged PlantUML + output bytes match last run.
 UML_MANIFEST_PATH = UML_SRC_DIR / "input-hashes.json"
 MANIFEST_VERSION = 1
-# Vector output; layout/font size still come from skinparam in services/portal/internal/reference/uml/include/style.puml.
+# Vector output; layout/font size still come from skinparam in services/portal/internal/handbook/uml/include/style.puml.
 UML_OUTPUT_SUFFIX = ".svg"
 KROKI_URL = "https://kroki.io/plantuml/svg"
 NO_COLOR = os.getenv("NO_COLOR", "0") == "1"
@@ -61,7 +61,7 @@ def _step(message: str) -> None:
 def _merge_style(source_path: Path) -> str:
     """Return PlantUML text sent to Kroki: optional shared skin after ``@startuml``.
 
-    Kroki receives a single file; ``services/portal/internal/reference/uml/include/style.puml`` is injected so sources
+    Kroki receives a single file; ``services/portal/internal/handbook/uml/include/style.puml`` is injected so sources
     stay DRY. Use ``!NO_STYLE`` on the line after ``@startuml`` to skip injection.
 
     Args:
@@ -107,7 +107,7 @@ def _source_files() -> list[Path]:
 
 
 def _output_for(source_path: Path) -> Path:
-    """Map a ``.puml`` path to the SVG path under ``services/portal/internal/reference/uml/rendered``.
+    """Map a ``.puml`` path to the SVG path under ``services/portal/internal/handbook/uml/rendered``.
 
     Args:
         source_path: Absolute path to a PlantUML file.
@@ -397,7 +397,7 @@ def watch(interval_sec: float = 1.0) -> None:
     Note:
         Runs until the process is interrupted; performs an initial full render first.
     """
-    _step("Watch mode enabled: monitoring services/portal/internal/reference/uml/**/*.puml")
+    _step("Watch mode enabled: monitoring services/portal/internal/handbook/uml/**/*.puml")
     mtimes: dict[Path, float] = {}
     for src in _source_files():
         mtimes[src] = src.stat().st_mtime
