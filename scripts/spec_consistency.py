@@ -41,6 +41,10 @@ OPENAPI_BASELINE = REPO_ROOT / "services/portal/public/reference/api/openapi-bas
 # the spec is the source of truth and may precede implementation.
 ALLOW_NO_OPENAPI_STATUSES: frozenset[str] = frozenset({"draft", "in-review", "approved"})
 
+# OpenAPI operations tagged with any of these names are infrastructure plumbing
+# (health probes, internal telemetry) and intentionally have no analyst-facing spec page.
+SKIP_OPENAPI_TAGS: frozenset[str] = frozenset({"System"})
+
 
 def _attribute(html: str, attr: str, *, on_tag: str = "body") -> str | None:
     """Read ``attr`` value from the first ``<{on_tag} ...>`` opening tag."""
@@ -75,10 +79,14 @@ def _find_section(html: str, section_id: str) -> str | None:
 _CODE_RE = re.compile(r"\b([A-Z]+_\d{3})\b")
 # Tokens like CONSPECTUS_REVIEW_REVISION_CONFLICT — uppercase + underscores; min 2 segments.
 _KEY_RE = re.compile(r"\b([A-Z][A-Z0-9]+(?:_[A-Z0-9]+){1,})\b")
-# Codes that are part of the schema vocabulary and must not be treated as catalog entries.
-_NON_CODE_TOKENS: frozenset[str] = frozenset(
-    {"COMMON_400", "COMMON_500"}
-)  # placeholder; trimmed in collect_codes
+
+# Catalog rows carrying this marker describe cross-cutting / operator-only conditions
+# (e.g. middleware misconfiguration). Operation pages are not expected to enumerate them
+# in their §12 error table, so the unreferenced-catalog-entry warning is suppressed.
+_OPERATOR_ONLY_ROW_RE = re.compile(
+    r'<tr\b[^>]*\bdata-operator-only\s*=\s*"true"[^>]*>(.*?)</tr>',
+    flags=re.IGNORECASE | re.DOTALL,
+)
 
 
 def _collect_error_tokens(html: str) -> tuple[set[str], set[str]]:
@@ -103,32 +111,47 @@ def _collect_error_tokens(html: str) -> tuple[set[str], set[str]]:
     return codes, keys
 
 
-def _collect_catalog_tokens(html: str) -> tuple[set[str], set[str]]:
-    """Return ``(codes, keys)`` registered in the shared error catalog page."""
+def _collect_catalog_tokens(html: str) -> tuple[set[str], set[str], set[str], set[str]]:
+    """Return ``(codes, keys, operator_only_codes, operator_only_keys)`` from the catalog.
+
+    Catalog rows tagged ``data-operator-only="true"`` describe conditions that no
+    operation page is expected to enumerate (e.g. middleware misconfiguration). Their
+    codes/keys are still registered so other operation pages can reference them, but
+    they are excluded from the unreferenced-entry warning.
+    """
+    operator_only_codes: set[str] = set()
+    operator_only_keys: set[str] = set()
+    for row in _OPERATOR_ONLY_ROW_RE.finditer(html):
+        body = row.group(1)
+        operator_only_codes |= set(_CODE_RE.findall(body))
+        operator_only_keys |= set(_KEY_RE.findall(body))
+    operator_only_keys -= operator_only_codes
+
     codes = set(_CODE_RE.findall(html))
     keys = set(_KEY_RE.findall(html))
     keys -= codes
-    return codes, keys
+    return codes, keys, operator_only_codes, operator_only_keys
 
 
-def _read_openapi_operation_ids(path: Path) -> set[str]:
-    """Read ``operationId`` values declared in the OpenAPI baseline document.
+def _read_openapi_operations(path: Path) -> dict[str, list[str]]:
+    """Read ``operationId`` → ``tags`` mapping from the OpenAPI baseline document.
 
     Args:
         path: Path to ``openapi-baseline.json``.
 
     Returns:
-        Distinct ``operationId`` strings; empty set when the file is missing or unreadable.
+        Mapping from ``operationId`` to its declared tag list (possibly empty);
+        empty dict when the file is missing or unreadable.
     """
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        return set()
+        return {}
     try:
         doc = json.loads(text)
     except json.JSONDecodeError:
-        return set()
-    out: set[str] = set()
+        return {}
+    out: dict[str, list[str]] = {}
     paths = doc.get("paths") if isinstance(doc, dict) else None
     if not isinstance(paths, dict):
         return out
@@ -136,10 +159,16 @@ def _read_openapi_operation_ids(path: Path) -> set[str]:
         if not isinstance(methods, dict):
             continue
         for _method, op in methods.items():
-            if isinstance(op, dict):
-                op_id = op.get("operationId")
-                if isinstance(op_id, str):
-                    out.add(op_id)
+            if not isinstance(op, dict):
+                continue
+            op_id = op.get("operationId")
+            if not isinstance(op_id, str):
+                continue
+            raw_tags = op.get("tags")
+            tags: list[str] = (
+                [t for t in raw_tags if isinstance(t, str)] if isinstance(raw_tags, list) else []
+            )
+            out[op_id] = tags
     return out
 
 
@@ -166,7 +195,8 @@ def _consistency_run(repo_root: Path) -> tuple[list[str], list[str]]:
         return ["spec_consistency: no operation specs found"], []
 
     # Check 1 + 2: operationId mapping.
-    openapi_ids = _read_openapi_operation_ids(OPENAPI_BASELINE)
+    openapi_ops = _read_openapi_operations(OPENAPI_BASELINE)
+    openapi_ids = set(openapi_ops.keys())
     spec_ids: dict[str, list[Path]] = {}
     for path in spec_paths:
         html = path.read_text(encoding="utf-8")
@@ -197,6 +227,9 @@ def _consistency_run(repo_root: Path) -> tuple[list[str], list[str]]:
     declared = set(spec_ids.keys())
     orphan_in_openapi = sorted(openapi_ids - declared)
     for op_id in orphan_in_openapi:
+        tags = openapi_ops.get(op_id, [])
+        if any(tag in SKIP_OPENAPI_TAGS for tag in tags):
+            continue
         warnings.append(f"OpenAPI operationId {op_id!r} has no internal spec page")
 
     # Check 3: error tokens vs catalog.
@@ -207,7 +240,9 @@ def _consistency_run(repo_root: Path) -> tuple[list[str], list[str]]:
         return failures, warnings
 
     catalog_html = ERROR_CATALOG.read_text(encoding="utf-8")
-    catalog_codes, catalog_keys = _collect_catalog_tokens(catalog_html)
+    catalog_codes, catalog_keys, operator_only_codes, operator_only_keys = _collect_catalog_tokens(
+        catalog_html
+    )
 
     seen_codes: set[str] = set()
     seen_keys: set[str] = set()
@@ -225,9 +260,9 @@ def _consistency_run(repo_root: Path) -> tuple[list[str], list[str]]:
                 f"{path.relative_to(repo_root)}: error key {key!r} not in shared error catalog",
             )
 
-    for code in sorted(catalog_codes - seen_codes):
+    for code in sorted(catalog_codes - seen_codes - operator_only_codes):
         warnings.append(f"catalog code {code!r} is not referenced by any operation page")
-    for key in sorted(catalog_keys - seen_keys):
+    for key in sorted(catalog_keys - seen_keys - operator_only_keys):
         warnings.append(f"catalog key {key!r} is not referenced by any operation page")
 
     return failures, warnings
