@@ -46,7 +46,6 @@ REQUIRED_SECTIONS: tuple[str, ...] = (
     "open-questions",
     "out-of-scope",
     "traceability",
-    "changelog",
     "page-history",
 )
 
