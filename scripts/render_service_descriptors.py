@@ -91,6 +91,8 @@ DIATAXIS_SUBDIRS: tuple[tuple[str, str, str], ...] = (
     ("how-to", "How-to", "🛠"),
     ("reference", "Reference", "📖"),
     ("explanation", "Explanation", "💡"),
+    ("runbooks", "Runbooks", "🚨"),
+    ("postmortems", "Postmortems", "📋"),
 )
 
 # Sidebar-nav service labels. Defaults to title-case of the directory name;
@@ -360,11 +362,12 @@ def render_hub_tile(svc: dict) -> str:
     tile_class = f"svc-tile svc-tile--{name.replace('-', '')}"
     spine = _indent(_spine_nav(name), 2)
 
+    icon_line = f"      {icon}\n" if icon else ""
     return (
         f'<article class="{tile_class}" data-tags="{lifecycle}" data-service="{name}">\n'
         f'  <div class="svc-tile__head">\n'
         f'    <span class="lp-pillar__icon" aria-hidden="true">\n'
-        f"      {icon}\n"
+        f"{icon_line}"
         f"    </span>\n"
         f'    <span class="docs-pill docs-pill--{tone}"><span class="docs-pill__dot"></span>{lifecycle}</span>\n'
         f"  </div>\n"

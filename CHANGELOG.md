@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 2026-06-06 — Portal IA Variant C (service-catalog-first) + catalog lens-pages
+
+#### Governance
+
+- **ADR 0032 ratified** (`Proposed → Accepted`, same-day) — service-catalog-first IA modelled on Spotify Backstage. Seven decisions (D1–D7): service is the first-class entity; cross-cutting craft lives in `handbook/`; Diátaxis is a metadata attribute (`data-page-type`), not a folder; role hubs aggregate via tags; one canonical URL per page; the `dev` role token is normalised to `swe`; every page carries a closed `data-*` metadata schema. Three alternatives rejected: Variant A (role-at-spine — sidebar growth ceiling per RFC 0006), Variant B (Diátaxis-at-spine — defers the service-catalog refactor), tag-only retrofit. Eight-wave migration ships in this PR.
+- **ADR 0031 amended** with a path-rename note — every reference to `foundations/reference/<discipline>/` reads as `handbook/<discipline>/` after W1. The D1–D5 canon (Explanation under handbook, 7-lens chip vocabulary, mandatory «What to read next» closer, contract-vs-coverage split, closed lens set) carries over unchanged.
+
+#### Information architecture — 8 waves
+
+- **W1 · `foundations/` → `handbook/` split** (50 file moves). All 24 SA-canon pages, 17 templates, 8 authoring how-tos, and `reader-personas.html` relocated to `handbook/`. 110 inbound files swept. Breadcrumbs rewritten («Internal > Foundations > Reference > SA > X» → «Internal > Handbook > X»).
+- **W1+ · `handbook/sa/` consolidation** (55 file moves). After the initial split SA-content was scattered between `handbook/` root and subfolders; nested everything role-specific under `handbook/sa/` (24 canon pages + `templates/` + `authoring/`) for consistency with `handbook/swe/`, `qa/`, `sre/`. New `handbook/index.html` is a proper handbook-root landing with tiles for SA / SWE / QA / SRE / Manager + topic dirs.
+- **W2 · runbooks & postmortems dispersal**. 10 runbooks moved from `how-to/incidents/runbooks/` to per-service `services/<svc>/runbooks/` (5 service-tied: api×2 + portal×3) and `handbook/sre/runbooks/` (3 cross-service: logging-failing, quality-check-failing, error-budget-exhaustion). 3 postmortems dispersed to `services/{api,portal,datastore}/postmortems/`. 5 new index landings created. Numeric prefixes preserved in H1 titles.
+- **W3 · `explanation/` consolidation + `dev` → `swe` rename**. 14 explanation essays moved to `handbook/{swe,qa,sre}/`. `tutorials/dev/` → `tutorials/swe/`, `team/roles/dev/` → `team/roles/swe/` (33 file rename via `git mv`). 3 new handbook role landings (`swe/index.html`, `qa/index.html`, `sre/index.html`).
+- **W4 · `reference/` top-level → `handbook/`**. 21 cross-cutting reference pages moved: `data/` (6 tables), `qa/` (4 + 5 checklists), `security/threat-model`, `manager/sdlc-raci-matrix`, `uml/` (whole tree), `glossary.html`, `capacity-snapshot.html`. `reference/service/make-commands.html` → `handbook/authoring/make-commands.html`.
+- **W5 · `how-to/` remaining**. 10 procedural pages split: `docs-pipeline.html` → `services/portal/how-to/`, `internal-service-docs-layout.html` → `handbook/authoring/`, `qa/*` → `handbook/qa/`, `service/*` → `handbook/authoring/`. New `services/portal/how-to/index.html` landing.
+- **W6 · metadata sweep** (411 pages). New body attributes per ADR 0032 D7: `data-service` (inferred from path), `data-role` (inferred from path), `data-lifecycle="published"`, `data-updated="2026-06-06"`. Authoring guidance updated; `scripts/sweep_roles.py` added as the path-based inference tool.
+- **W7 · `catalog/` lens-pages** — new generator + new tree:
+  - `scripts/build_catalog.py` (650 lines) — single-pass scanner reads `data-*` from every page body, produces 11 lens-pages: `catalog/by-quadrant/{tutorial,how-to,reference,explanation}.html`, `by-service/{api,portal,datastore,monitoring,ui-kit}.html`, `by-topic/{runbooks,postmortems,tests,on-call}.html`, `recent.html`, `index.html`.
+  - **View switcher** (By group / Table) and **dual filter chips** (Group + Role) on every lens page. Page-local glue script honours URL hash state (`#group=api&role=sre` deep-links to a specific slice; chip-click updates hash).
+  - **Cross-role token** — pages with empty `data-role` get synthetic `data-roles="cross-role"` so they're filterable from the UI.
+  - **`catalog/index.html` hero** matches the canonical `home-hero home-hero--section` pattern (eyebrow + h1 + tagline + tickers); 4 sections: By quadrant · By service · By topic · Recent.
+- **W8 · nav-tree restructure + landing polish**.
+  - Top-level sections collapsed from 9 to 6: `Onboarding · Services · Handbook · Team · Governance · Catalog`. Obsolete Diátaxis-as-folder nodes deleted (Tutorials / How-to / Reference / Explanation).
+  - `Services` subtree now exposes `runbooks/` + `postmortems/` automatically via `render_service_descriptors.py` (added to `DIATAXIS_SUBDIRS` tuple).
+  - `Handbook` subtree expanded to 9 children: SA / SWE / QA / SRE / Data / Security / Manager / UML / Reader personas.
+  - `Catalog` subtree exposes by-quadrant + by-service + by-topic + Recently updated.
+  - Top-level `index.html` Operations row pinned to 3 tiles per row; new dedicated `Catalog` lp-pillar added next to Services.
+
+#### Catalog generator and metadata
+
+- **`scripts/build_catalog.py` new** — autogenerates 11 lens-pages from page metadata; idempotent and run from `make docs-fix`. Includes view switcher and dual group/role filter wiring with URL-hash state.
+- **`scripts/sweep_roles.py` new** — infers `data-role` from path (e.g. `team/roles/sre/*` → `sre`, `handbook/sre/*` → `sre`, `services/<svc>/runbooks/*` → `sre`, `governance/audits/api/*` → `architect swe`). Multi-role permitted (space-separated).
+- **`scripts/render_service_descriptors.py` extended** — `DIATAXIS_SUBDIRS` tuple now includes `runbooks` and `postmortems` so per-service runbook/postmortem folders auto-appear in sidebar without manual nav-tree edits. The sidebar is now self-restoring: new physical file = automatic nav entry on next `make docs-check`.
+- **`services/datastore/catalog-info.yaml` new** — Backstage `apiVersion: backstage.io/v1alpha1, kind: Component` descriptor for the datastore service. Marker block `<!-- catalog:start id="entity-card" -->` added to `services/datastore/index.html` so `render_service_descriptors.py` can replace the entity card region.
+
+#### Documentation craft
+
+- **`handbook/sa/authoring/add-a-page.html` expanded** — new Step 3b «Set the metadata tags (mandatory)» documents the closed sets for all five `data-*` attributes with examples and a concrete SRE-runbook snippet. The Verify section is rewritten as an 11-point pre-merge checklist including catalog regeneration, role pill verification, and a one-liner sanity check (`python3 scripts/build_catalog.py && make docs-fix && make docs-check`).
+- **`onboarding/index.html` extended** — new «Map of the portal — where things live» section with 6 tiles (one per top-level section) and a 6-question choice rule («where does a new page go?») with concrete folder targets. Closes the «I don't know where to put X» loop for new contributors.
+- **`team/people/ivan-boyarkin/blog/*.html` retagged** — two blog posts moved from `data-page-type="explanation"` to `data-page-type="blog"` (outside Diátaxis). Catalog by-quadrant lenses no longer pick them up; they remain in `recent.html`.
+
+#### Cleanup
+
+- **`services/portal/internal/foundations/` deleted** — leftover thin role landings (`reference/{dev,qa,sre}/index.html`) plus the old `foundations/index.html` removed once their content was absorbed by `handbook/`.
+- **`services/portal/internal/reference/` deleted** — top-level Diátaxis quadrant folder dropped after W4 moved its contents to `handbook/`. Last remaining artefact was a stale `reference/uml/input-hashes.json` cache file (live copy already at `handbook/uml/input-hashes.json`).
+- **116 redirect stubs removed** — `<meta http-equiv="refresh">` stubs at old paths cleaned out after the inbound-link sweeps stabilised. External bookmarks pointing at moved URLs will 404 cleanly rather than chaining through stubs.
+
+#### UI fixes (catalog)
+
+- **Pill overflow fix on catalog cards.** Cards in the catalog now use a dedicated `.cat-card` layout: pills row sits on top, title below, body lede last. Replaces the inherited `.docs-card__head` flex-row layout which let long pill chains escape the right edge of narrow cards. CSS: `flex-wrap: wrap` on the chip row, `min-width: 0` + `text-overflow: ellipsis` on individual pills so multi-role / long service names degrade gracefully.
+- **Toolbar filters stacked vertically.** Three filter rows (Group · Role · View) now lay out column-by-column instead of side-by-side; labels gain `min-width: 56px` for visual column alignment.
+- **Sidebar group-header consistency.** `catalog-by-quadrant`, `catalog-by-service`, `catalog-by-topic` nodes now omit `href` so `sidebar.js` renders them as `.docs-sidebar__group` (uppercase mono) instead of `.docs-sidebar__link` (sentence case) — visually uniform with the `Recently updated` leaf below.
+
+#### Type-check
+
+- **`scripts/build_catalog.py` mypy fix** — `quad_counts: dict[str, int] = defaultdict(int)` and `svc_counts: dict[str, int] = defaultdict(int)` annotated explicitly. `defaultdict(int)` alone is opaque to mypy.
+
 ### 2026-05-26 — Make pipeline restored for the UI Kit v3 portal
 
 #### Security
@@ -52,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **924 malformed `<a class="docs-history__author" … data-variant="sm"</a>` tags repaired across 473 pages.** The start-tag `>` had been stripped by a prior buggy script pass, breaking HTML5 parsing. Bodies left empty (the kit's `author-chip.js` injects content on mount).
 - **70+ broken cross-doc anchors unwrapped** (`href="X">text</a>` → `text`) for refs pointing at deleted pages (`internal/explanation/system-design.html`, `internal/sre/{severity,dora}.html`, `internal/governance/rfc/0004-service-catalog.html`, etc.); 23 surgical depth fixes (off-by-one `../`) in `internal/reference/front/{contracts,patterns,screens}/*`; rename `diataxis-v2.html` → `diataxis.html`; dir-rewrite `internal/roles/` → `internal/team/roles/` in UI Kit showcase. `check_asset_refs` now passes across 8515 references.
-- **Page-local `<style>` overlays restored** on 32 pages where the broken `format_docs_html.py` had stripped them on prior runs while the page HTML still referenced the classes (`foundations/index.html`, `onboarding/index.html`, `services/datastore/index.html`, `governance/{adr,audits,rfc}/index.html`, 17 `foundations/reference/sa/*.html`, three radar/landing pages, etc.). Source recovered from `git HEAD`; spliced in immediately after the canonical `entry.css` / `docs.css` `<link>`.
+- **Page-local `<style>` overlays restored** on 32 pages where the broken `format_docs_html.py` had stripped them on prior runs while the page HTML still referenced the classes (`foundations/index.html`, `onboarding/index.html`, `services/datastore/index.html`, `governance/{adr,audits,rfc}/index.html`, 17 `handbook/*.html`, three radar/landing pages, etc.). Source recovered from `git HEAD`; spliced in immediately after the canonical `entry.css` / `docs.css` `<link>`.
 - **A11y heading hierarchy** — ~20 pages had `h1 → h3` or `h2 → h4` skips. Fixes by class:
   - **CTA cards** in `reference/{dev,qa,foundations-reference}/index.html`: `<h3>` → `<h2>` + matching CSS selector update so visual size stays the same.
   - **UI Kit index pages** (`foundations/index.html`, `components/index.html`, `templates/index.html`, `templates/ops-cockpit.html`): top-level `.docs-card__title` `<h3>` → `<h2>`.
@@ -62,7 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **ADR 0022 "Superseded" status pill** was a stray `<h3>` outside the heading hierarchy; converted to `<span class="docs-card__title">`.
   - **`reader-personas.html` / `topology.html` / 2026-05-24 principal-triad-docs audit**: `<h4>` rows under their immediate `<h2>` promoted to `<h3>`.
 - **Illegal `--` inside HTML5 comments stripped** from `ui-kit/pages/templates/ops-cockpit.html` and `governance/audits/index.html` (`<!-- /.cockpit-view--board -->`-style closing markers were causing html5lib parse errors). The JS doesn't depend on them.
-- **Hub slimming:** `reference/dev/index.html` and `reference/qa/index.html` slimmed to hero + radar CTA only (the practice/checklist content now lives on the role radars and per-practice pages). Stale TOC items + unused CSS dropped; both pages mirror each other's shape.
+- **Hub slimming:** `reference/dev/index.html` and `handbook/qa/index.html` slimmed to hero + radar CTA only (the practice/checklist content now lives on the role radars and per-practice pages). Stale TOC items + unused CSS dropped; both pages mirror each other's shape.
 - **Lens-chip "How this page reads" legend → tooltip migration:** the bulky collapsible legend was deleted from 18 handbook pages; lens definitions now live on the chips themselves (auto-attached by the new [`services/frontend/portal/assets_v2/ui-kit/components/lens-chip.js`](services/frontend/portal/assets_v2/ui-kit/components/lens-chip.js), rendered by the shared `tooltip.js` runtime on hover/focus). `ui-kit/components/reading-guide.{js,css}` deleted; entry CSS/JS imports updated.
 - **2 unused CSS var references resolved** — `var(--mono)` → `var(--font-mono)` in `catalog-layout.css`; `var(--font-size-sm)` → `var(--fs-meta)` in `home.css`.
 

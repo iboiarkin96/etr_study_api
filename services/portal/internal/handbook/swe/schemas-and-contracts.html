@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SWE · Schemas &amp; Contracts · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="swe">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">SWE · Schemas &amp; Contracts</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">SWE</span>
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1>Schemas as the public contract</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Why the shape of data at the edge of the system is a promise to every caller —
+          and why every change to that shape has to be reasoned about as a contract
+          change, not as a code change.
+        </p>
+      </header>
+
+      <h2 id="contract-as-boundary">A schema is a boundary, not a data class</h2>
+      <p>Inside the application, a Pydantic model and an ORM entity and a domain dataclass are all just Python objects. From the outside, the request and response schemas are something different in kind: they are the <em>only</em> surface a caller can see. Everything the caller knows about our system — what fields exist, what types they have, what errors mean — comes from those shapes.</p>
+      <p>That changes how a schema must be reasoned about. A refactor inside the service layer can move things around freely; nobody else is looking. A refactor of a schema is a change to a public interface, and every existing caller is, by silent assumption, holding the previous version. The two changes look identical in the diff. They are not the same kind of change.</p>
+
+      <h2 id="why-additive">Why “additive by default” is the rule</h2>
+      <p>The simplest way to keep a contract trustworthy is to forbid the changes that quietly break it. Three categories of change have very different blast radii.</p>
+      <ul>
+        <li><strong>Adding an optional field</strong> is safe: an old client that does not know the field ignores it; a new client that knows it can read it. The contract grows, no caller is forced to change.</li>
+        <li><strong>Renaming or removing a field</strong> is breaking: any client reading the old name now gets nothing. The change must be coordinated, versioned, or staged through a deprecation window.</li>
+        <li><strong>Reinterpreting a field</strong> — same name, new meaning — is the most dangerous: nothing in the schema signals that anything changed, yet callers silently misinterpret responses. This is the failure mode behind the rule that an error <code>code</code> may never be reused for a new meaning.</li>
+      </ul>
+      <p>“Additive by default” is the policy that pushes the safe case to the front. It is not that breaking changes are forbidden — sometimes they are necessary — but that they require a version bump, a migration story, and an ADR. The cost is on the change, not on the callers.</p>
+
+      <h2 id="three-schemas">Three kinds of schema, three reasons they exist</h2>
+      <p>The codebase carries three families of schema, and conflating them is a recurring cause of bugs.</p>
+      <div class="docs-concept-layers" aria-label="Three families of schema">
+        <ol class="docs-concept-layers__stack">
+          <li class="docs-concept-layers__layer" data-tone="accent">
+            <span class="docs-concept-layers__name">Request &amp; response</span>
+            <span class="docs-concept-layers__what">The wire format. Reviewed by every caller; bound to OpenAPI; the most carefully versioned.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="warn">
+            <span class="docs-concept-layers__name">Error envelope</span>
+            <span class="docs-concept-layers__what">A second, parallel contract for the failure path. Its <code>code</code> and <code>key</code> values are part of the public interface.</span>
+          </li>
+          <li class="docs-concept-layers__layer" data-tone="neutral">
+            <span class="docs-concept-layers__name">Internal types</span>
+            <span class="docs-concept-layers__what">Domain dataclasses, ORM entities, intermediate transfer objects. Private; free to change without coordination.</span>
+          </li>
+        </ol>
+      </div>
+      <p>The first two carry the contract obligations. The third does not. The discipline is to keep the boundary between them sharp: a service should not return its ORM entity directly through the router, because the moment it does, every database column becomes part of the public schema.</p>
+
+      <h2 id="error-as-contract">Why errors are a contract, not an afterthought</h2>
+      <p>Clients write code against success responses. They also write code — branchier code — against failures: retries, fallbacks, user-facing messages. An error envelope that changes its <code>code</code> value without notice breaks every one of those branches in a way that is hard to detect, because tests on the client side usually exercise success paths and a small set of expected failures.</p>
+      <p>This is why the error <code>code</code> and <code>key</code> semantics are <em>immutable within a major version</em>: clients are entitled to assume that <code>code: "duplicate_key"</code> means today what it meant yesterday. New error situations get new codes; existing codes do not silently widen. The <a href="../../governance/adr/0003-error-contract-governance.html">error contract governance ADR</a> describes the consequences of getting this wrong.</p>
+
+      <h2 id="idempotency-contract">Idempotency as part of the contract</h2>
+      <p>For write endpoints, the schema is not the whole contract: the rules around <em>retrying</em> a write are too. A client that retries a request after a network blip needs to know whether the second call will create a second resource, return the original result, or fail.</p>
+      <p>Declaring an idempotency contract in the spec turns this from “depends on the implementation” into a property the client can rely on. The contract has three branches that have to be answered together: same key with the same body returns the original result; same key with a different body returns a conflict; missing key when one is required is a validation error. Specifying only the first branch silently leaves the others undefined, and undefined behaviour is the most reliable bug factory there is.</p>
+
+      <h2 id="tradeoffs">Tradeoffs</h2>
+      <p>Treating the contract as an append-only artefact buys consumers stability — and costs the maintainer flexibility every time the truth changes.</p>
+      <div class="docs-card-grid docs-card-grid--two">
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">Existing clients never break silently</h3>
+          <p class="docs-card__body">Additive-only means a field rename is a new version with a sunset window, not a Tuesday accident. Integrators can pin and forget.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">Mistakes live in the contract for a year</h3>
+          <p class="docs-card__body">A poorly named field is locked in for the version's life. We pay for haste up front; consumers pay if we get the name wrong.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="success">
+          <p class="tradeoff__head">Win</p>
+          <h3 class="docs-card__title">CI catches drift before review</h3>
+          <p class="docs-card__body">The baseline diff in <code>make verify</code> turns every accidental contract change into a PR comment, not a production incident.</p>
+        </article>
+        <article class="docs-card docs-card--rail" data-tone="warn">
+          <p class="tradeoff__head">Cost</p>
+          <h3 class="docs-card__title">Intentional changes need an explicit accept step</h3>
+          <p class="docs-card__body">Every legitimate contract change requires <code>make openapi-accept-changes</code> and a written rationale. Friction is the point — and the toll.</p>
+        </article>
+      </div>
+
+      <h2 id="anti-patterns">Common failure modes</h2>
+      <ul>
+        <li><strong>Returning ORM entities directly.</strong> Every column becomes a public field; adding a column is now a contract change.</li>
+        <li><strong>Reusing an error code for a new meaning.</strong> Looks like a one-line change; breaks every client that branches on the code.</li>
+        <li><strong>Examples that drift from schemas.</strong> The schema says one thing, the OpenAPI example says another; clients believe the example. Examples must be generated from or asserted against the schema.</li>
+        <li><strong>Implicit idempotency.</strong> A write that happens to be idempotent in the current implementation, and is documented nowhere. The next refactor breaks every retrying client.</li>
+        <li><strong>Validation rules in two places.</strong> The Pydantic model says “1–200 characters”; the service says “1–500”. Clients see whichever rule fires first; the other one becomes a latent bug.</li>
+      </ul>
+
+      <aside id="next-to-read" class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li>Reference · <a href="../../governance/adr/0003-error-contract-governance.html">ADR 0003 — Error-contract governance</a> — the policy this Explanation cites for «codes don't silently widen».</li>
+          <li>Reference · <a href="../../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007 — OpenAPI governance &amp; usability standard</a> — the policy that holds the OpenAPI baseline to the contract this page describes.</li>
+          <li>How-to · <a href="../../services/api/how-to/add-post-contract.html">Add a POST contract endpoint</a> — production-grade recipe; walks the three-schemas + idempotency contract on a real surface.</li>
+          <li>How-to · <a href="../../services/api/runbooks/openapi-contract-test-failing.html">Runbook 0007 — OpenAPI contract test failing</a> — the on-call response when an additive-only violation lands on a baseline.</li>
+          <li>Explanation · <a href="./business-logic.html">Where business logic lives</a> — sibling explanation for the layering that protects the schema boundary from below.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Diátaxis cleanup: removed file paths, error-shape JSON snippets, and the “how to evolve” step list. Reframed as conceptual rationale — schemas as a boundary, why additive-by-default, three families of schema, errors as contract, idempotency as contract.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-16</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>page-head</code>; right-rail TOC.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-03</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Tightened Overview, Contract rules, and Idempotency contract: replaced “same key + same body → …” arrow rows with full sentences and added articles where missing.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#contract-as-boundary">A schema is a boundary</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why-additive">Why additive by default</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#three-schemas">Three kinds of schema</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#error-as-contract">Errors as contract</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#idempotency-contract">Idempotency as contract</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tradeoffs">Tradeoffs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Failure modes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#next-to-read">What to read next</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

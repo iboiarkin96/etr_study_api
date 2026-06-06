@@ -31,7 +31,7 @@ FROZEN_DOCS_REL_PATHS = {
     Path("internal/team/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
     Path("internal/team/roles/sa/radar.html"),
     Path("internal/team/roles/architect/radar.html"),
-    Path("internal/team/roles/dev/radar.html"),
+    Path("internal/team/roles/swe/radar.html"),
     Path("internal/team/roles/manager/radar.html"),
     Path("internal/team/roles/sre/radar.html"),
     Path("internal/team/roles/qa/radar.html"),
@@ -41,7 +41,7 @@ FROZEN_DOCS_REL_PATHS = {
 # migration. The validator skips them rather than failing CI.
 # Remove an entry once that page has been migrated to the v2 runtime.
 LEGACY_PENDING_MIGRATION = {
-    Path("internal/foundations/reference/sa/templates/component-spec.html"),
+    Path("internal/handbook/sa/templates/component-spec.html"),
     Path("internal/governance/adr/0018-adr-lifecycle-ratification-and-badges.html"),
     Path("internal/governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html"),
     Path("internal/governance/adr/0024-architecture-and-quality-assessment-documents.html"),

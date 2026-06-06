@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Threat model · Security · Reference · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="sre">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Handbook</a></li>
+        <li class="docs-breadcrumbs__item">Security</li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Threat model</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Reference</span>
+          <span class="docs-pill docs-pill--warn">Security</span>
+          <span class="docs-pill docs-pill--neutral">STRIDE</span>
+          <span class="docs-pill docs-pill--neutral">Reviewed: 2026-05-30</span>
+        </div>
+        <h1>Threat model — STRIDE per component</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">The catalogued threats against the three runtime components (integrator, api service, database) and the explicit mitigation status for each. Built on STRIDE: <strong>S</strong>poofing, <strong>T</strong>ampering, <strong>R</strong>epudiation, <strong>I</strong>nformation disclosure, <strong>D</strong>enial of service, <strong>E</strong>levation of privilege. Read with the <a href="../../explanation/architecture-narrative.html">architectural narrative</a> open — the three boxes there are the three columns here.</p>
+      </header>
+
+      <h2 id="scope">Scope &amp; out-of-scope</h2>
+      <p>The model covers the runtime request path described in <a href="../../explanation/architecture-narrative.html#shape">architecture narrative § The shape</a>: <strong>Integrator</strong> (someone else's mobile/web app, talking HTTP) → <strong>api service</strong> (FastAPI on Python 3.11) → <strong>database</strong> (SQLite today, Postgres planned). The docs portal is out of scope here — it is a static site with no PII surface; threats against it are misinformation/defacement, not data theft, and they live in the portal's own threat surface.</p>
+      <p><strong>Status legend.</strong> <span class="docs-pill docs-pill--success">covered</span> — mitigation is in code today and verified. <span class="docs-pill docs-pill--warn">partial</span> — mitigation exists but has known gaps named in this row. <span class="docs-pill docs-pill--danger">open</span> — no mitigation; recorded as a known risk.</p>
+
+      <h2 id="integrator">Component 1 — Integrator (untrusted client)</h2>
+      <p>The integrator is anyone who holds an <code>X-API-Key</code>. The threat surface here is "the client behaves badly", whether intentionally or by misconfiguration. Per <a href="../../governance/adr/0005-api-security-defaults.html">ADR 0005</a> the principle is: trust the API key for tenancy, never trust the body for identity.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Integrator threats">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>STRIDE</th><th>Threat</th><th>Mitigation</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><strong>S</strong>poofing</td><td>Stolen API key replayed by an attacker who is not the integrator.</td><td>API key sent only over TLS (HTTPS enforced at the edge); rotation procedure documented; key hash, not the key, is logged. No second factor today.</td><td><span class="docs-pill docs-pill--warn">partial</span> — no key rotation cadence; no second factor</td></tr>
+            <tr><td><strong>T</strong>ampering</td><td>Body fields modified in transit.</td><td>TLS in transit; HMAC body-signing is not enforced today — the API key is the integrity proof.</td><td><span class="docs-pill docs-pill--warn">partial</span> — TLS only; no app-level body integrity</td></tr>
+            <tr><td><strong>R</strong>epudiation</td><td>Integrator denies having sent a write that succeeded.</td><td>Every write logged with <code>request_id</code>, API-key hash, body hash, and idempotency key; <code>request_done</code> info line carries the full audit triplet.</td><td><span class="docs-pill docs-pill--success">covered</span></td></tr>
+            <tr><td><strong>I</strong>nformation disclosure</td><td>Integrator A reads data owned by integrator B by guessing UUIDs.</td><td>Ownership check at the service layer: cross-tenant access collapses to <code>404</code>, never <code>403</code>, so resource existence is not leaked. Per <a href="../../services/api/reference/_shared/auth.html#why-404">_shared/auth § why-404</a>.</td><td><span class="docs-pill docs-pill--success">covered</span></td></tr>
+            <tr><td><strong>D</strong>enial of service</td><td>Integrator floods the API with requests.</td><td>Per-key sliding-window rate limit (in-process, <code>app/core/security.py</code>); body-size limit (~32 KB on writes) rejects oversize payloads before the handler runs.</td><td><span class="docs-pill docs-pill--warn">partial</span> — single-instance limiter; horizontal scale would need Redis-backed limits</td></tr>
+            <tr><td><strong>E</strong>levation of privilege</td><td>Integrator escalates from tenant access to admin / cross-tenant access.</td><td>No admin endpoints exposed today; no cross-tenant API surface exists. The system has no admin role to escalate <em>to</em>.</td><td><span class="docs-pill docs-pill--success">covered</span> by absence</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="api">Component 2 — api service (FastAPI)</h2>
+      <p>The api service is the only component that holds business logic. The threat surface here is "an attacker reaches code execution in the service", whether through a vulnerable dependency, a bug in our code, or a logic error in a third party. The mitigations cited reference <a href="../../governance/adr/0019-python-dependency-security-pip-audit-and-pinning-policy.html">ADR 0019</a> (dependency pinning &amp; pip-audit) and <a href="../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a> (structured logging).</p>
+      <div class="docs-table-wrap" role="region" aria-label="api service threats">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>STRIDE</th><th>Threat</th><th>Mitigation</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><strong>S</strong>poofing</td><td>Forged <code>X-Request-Id</code> or middleware header to impersonate a previous request.</td><td>Server generates <code>request_id</code> when absent; never trusts client-supplied identity headers. <code>X-Request-Id</code> is correlation only, not identity.</td><td><span class="docs-pill docs-pill--success">covered</span></td></tr>
+            <tr><td><strong>T</strong>ampering</td><td>SQL injection via path / body / query parameters.</td><td>All DB calls go through SQLAlchemy parameterised queries; raw SQL is forbidden by lint convention. Pydantic models validate types before the service layer runs.</td><td><span class="docs-pill docs-pill--success">covered</span></td></tr>
+            <tr><td><strong>R</strong>epudiation</td><td>Server denies a state change it actually made.</td><td>Every successful write writes an <code>idempotency_keys</code> row with the response body — replay-traceable. <code>request_done</code> log line includes the status and elapsed time.</td><td><span class="docs-pill docs-pill--success">covered</span></td></tr>
+            <tr><td><strong>I</strong>nformation disclosure</td><td>Stack traces or DB strings leaked in error responses.</td><td>Global exception handler returns <code>500</code> with no body details; stack trace goes to <code>request_failed</code> log at exception level only. Per <a href="../../services/api/reference/_shared/error-envelope.html">error envelope</a>: forbidden contents include stack traces.</td><td><span class="docs-pill docs-pill--success">covered</span></td></tr>
+            <tr><td><strong>I</strong>nformation disclosure</td><td>PII in logs (full_name, learner-typed paragraph text).</td><td><code>full_name</code> / <code>username</code> classified PII medium per <a href="../../services/api/reference/_shared/field-conventions.html">field conventions</a>; masked at warn level. <code>dense_paragraph</code> &amp; <code>bullets</code> never logged. Idempotency keys hashed before logging.</td><td><span class="docs-pill docs-pill--success">covered</span></td></tr>
+            <tr><td><strong>D</strong>enial of service</td><td>Vulnerable dependency exploited to crash the worker or exhaust memory.</td><td><code>pip-audit</code> runs in CI per <a href="../../governance/adr/0019-python-dependency-security-pip-audit-and-pinning-policy.html">ADR 0019</a>; dependencies pinned; SBOM committed. No mitigation against zero-day exploits between scans.</td><td><span class="docs-pill docs-pill--warn">partial</span> — pinning + scans, no zero-day defence</td></tr>
+            <tr><td><strong>E</strong>levation of privilege</td><td>Domain exception <code>HTTPException</code> raised by service layer is mis-mapped at the edge, leaking a more powerful response status.</td><td>Single global error mapper translates domain exceptions to <code>code</code>/<code>key</code>/<code>message</code> envelope. Service layer never sets HTTP status directly.</td><td><span class="docs-pill docs-pill--warn">partial</span> — pragmatic <code>HTTPException</code> usage today; principled domain-exception layer is named as future work in <a href="../../handbook/swe/business-logic.html#anti-patterns">business-logic § failure modes</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="database">Component 3 — Database (SQLite today, Postgres planned)</h2>
+      <p>The database holds every byte of authoritative state and every authoritative ownership claim. The threat surface here is "an attacker reaches the file or the wire". Today the database is a SQLite file colocated with the service; the planned Postgres swap changes the surface (network protocol, separate auth) but not the catalogued threats.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Database threats">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>STRIDE</th><th>Threat</th><th>Mitigation</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><strong>S</strong>poofing</td><td>Process other than the api service connects to the DB and impersonates it.</td><td>SQLite today: file-system permissions only — anyone with shell access on the host can read the file. Postgres plan: separate connection role with restricted DDL, password from secrets manager.</td><td><span class="docs-pill docs-pill--warn">partial</span> on SQLite (filesystem perms only); covered by the Postgres swap</td></tr>
+            <tr><td><strong>T</strong>ampering</td><td>Direct DB writes that bypass service-layer validation.</td><td>SQLite today: any process with the file can write. Postgres plan: revoke direct write on the app role; all writes must go through ORM. Migrations gated by Alembic.</td><td><span class="docs-pill docs-pill--danger">open</span> on SQLite (no enforcement); planned with Postgres swap</td></tr>
+            <tr><td><strong>R</strong>epudiation</td><td>Application can deny what was committed.</td><td>WAL log on SQLite; Postgres WAL on the planned swap. <code>idempotency_keys</code> table stores the response served; <code>conspectus_events</code> records every state-changing write with diff. See <a href="../../services/api/reference/conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html#side-effects">PATCH conspectus § side-effects</a> for the event-row pattern.</td><td><span class="docs-pill docs-pill--success">covered</span></td></tr>
+            <tr><td><strong>I</strong>nformation disclosure</td><td>Backup files or DB dumps end up in places they shouldn't.</td><td>No backup automation today; manual dumps are excluded from git via <code>.gitignore</code>. Backup discipline is named as a Postgres-swap prerequisite (encrypted backups, retention policy, restore drills).</td><td><span class="docs-pill docs-pill--danger">open</span> — no formal backup policy</td></tr>
+            <tr><td><strong>D</strong>enial of service</td><td>Write-lock contention from concurrent retries saturates the single-writer engine.</td><td>SQLite single-writer behaviour documented as a known capacity ceiling in <a href="../../services/datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">postmortem 2026-04-02</a>; load tests run with client retries disabled to measure raw saturation. Postgres swap removes the single-writer bottleneck.</td><td><span class="docs-pill docs-pill--warn">partial</span> — documented limit, no live alerting on the saturation signal</td></tr>
+            <tr><td><strong>E</strong>levation of privilege</td><td>Service connection used for DDL beyond its scope.</td><td>SQLite today: no role separation. Postgres plan: app role gets DML on owned tables, no DDL; migrations run from a separate role with DDL.</td><td><span class="docs-pill docs-pill--danger">open</span> on SQLite; planned with Postgres swap</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="summary">Status summary</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Status summary">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Component</th><th>Covered</th><th>Partial</th><th>Open</th></tr></thead>
+          <tbody>
+            <tr><td>Integrator</td><td>3</td><td>3</td><td>0</td></tr>
+            <tr><td>api service</td><td>5</td><td>2</td><td>0</td></tr>
+            <tr><td>Database</td><td>1</td><td>2</td><td>3</td></tr>
+            <tr><td><strong>Total (19 rows)</strong></td><td><strong>9</strong></td><td><strong>7</strong></td><td><strong>3</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The three open items are all on the database side and all close with the planned Postgres swap (named in <a href="../../explanation/architecture-narrative.html#next">architecture narrative § What changes next</a>). The seven partials are accepted today; each row names its specific gap so reviewers can decide whether to upgrade or accept.</p>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li><a href="../../explanation/architecture-narrative.html">Architectural narrative</a> — the three components this model is built around.</li>
+          <li><a href="../../governance/adr/0005-api-security-defaults.html">ADR 0005 — API security defaults</a> — the policy this model implements at the integrator boundary.</li>
+          <li><a href="../../services/api/reference/_shared/auth.html">Reference · Auth conventions</a> — header, scopes, 401/404 mapping.</li>
+          <li><a href="../../services/api/runbooks/security-failing.html">Runbook 0006 — API security failing</a> — the response procedure when a security signal fires.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-30</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created as Vol. 2 Phase 2 follow-up (threat model). STRIDE per the three components named in the architectural narrative; 19 catalogued rows; honest covered/partial/open status. Three open items concentrate on the SQLite surface and close with the planned Postgres swap. Reviewers: revisit at every architectural change; named cadence is quarterly otherwise.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scope">Scope</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#integrator">Integrator</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#api">api service</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#database">Database</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#summary">Status summary</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

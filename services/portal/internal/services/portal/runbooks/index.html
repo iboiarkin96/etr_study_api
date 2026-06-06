@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>portal · Runbooks · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-06" data-role="sre">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">portal</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Runbooks</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">How-to</span>
+          <span class="docs-pill docs-pill--info">Build-time service</span>
+          <span class="docs-pill docs-pill--neutral">SRE runbooks</span>
+        </div>
+        <h1>portal · Runbooks</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Operational guidance for the portal service. Because the portal has no runtime application logic, almost
+          every "incident" is a build-time issue — reproducible by running <code>make docs-fix</code> locally.
+          Authoritative procedures live in <a href="../../../how-to/incidents/runbooks/index.html">internal/sre/runbooks/</a> and are
+          indexed below by symptom.
+        </p>
+      </header>
+
+      <h2 id="symptom-runbook-index">Symptom-keyed runbook index</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Symptom</th><th>First action</th></tr></thead>
+          <tbody>
+            <tr><td>"On this page" TOC missing on a doc</td><td><a href="../../../services/portal/runbooks/in-page-toc-missing.html">0010 · in-page TOC missing</a></td></tr>
+            <tr><td>Broken link in the portal</td><td><code>make docs-check</code> reports broken refs; fix the source. Pre-commit catches most cases — see <a href="../../../services/portal/runbooks/pre-commit-failing.html">0004 · pre-commit failing</a>.</td></tr>
+            <tr><td>Diagram (PlantUML SVG) is stale or missing</td><td>Run <code>make docs-fix</code>. If Kroki is unreachable, see <a href="#kroki-unreachable">Kroki unreachable</a> below.</td></tr>
+            <tr><td>Search returns nothing for a known page</td><td>Search index is stale: re-run <code>make docs-fix</code>. KPI policy: <a href="../../../governance/rfc/0002-docs-search-kpi-policy-and-slo.html">RFC 0002</a>.</td></tr>
+            <tr><td>pdoc page missing for a Python module</td><td>Module is not imported by <code>app/</code> root, or docstring fails to parse. Re-run <code>make docs-fix</code>; see <a href="../../../governance/adr/0016-python-docstrings-google-style-and-pdoc.html">ADR 0016</a>.</td></tr>
+            <tr><td>Pre-commit complains about unrendered SVGs</td><td><a href="../../../services/portal/runbooks/pre-commit-failing.html">0004 · pre-commit failing</a> — usually <code>make docs-fix</code> followed by <code>git add</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="kroki-unreachable">Kroki unreachable — partial-render strategy</h2>
+      <p>
+        The render step uses Kroki at <code>https://kroki.io/plantuml/svg</code>. When the host is offline or the
+        network blocks egress (corporate proxy, sandboxed CI), the build fails on first changed PUML.
+      </p>
+      <ol>
+        <li>Confirm: <code>curl -sI https://kroki.io</code>. If TLS fails, the issue is the network, not Kroki.</li>
+        <li>Workaround: commit the PUML sources without the SVGs. Re-run <code>make docs-fix</code> when the network is restored. The fingerprint cache (<code>input-hashes.json</code>) detects changes and regenerates only what needs regeneration.</li>
+        <li>Long-term mitigation: bundle a local <code>plantuml.jar</code> + Java runtime in the dev container, and let <code>scripts/regenerate_docs.py</code> fall back to local rendering. Tracked in <a href="../../../governance/backlog/index.html">backlog</a>.</li>
+      </ol>
+
+      <h2 id="rebuild-locally">Rebuild the portal locally</h2>
+      <pre class="docs-code"><code class="language-bash"># Full rebuild (UML + pdoc + search index)
+make docs-fix
+
+# Verify only — no writes (used by pre-commit / CI)
+make docs-check
+
+# Specific pieces
+.venv/bin/python scripts/regenerate_docs.py --force      # ignore fingerprint cache
+      .venv/bin/python scripts/build_docs_search_index.py     # search index only</code></pre>
+      <p class="small">
+        See <a href="../../../services/portal/how-to/docs-pipeline.html">how-to · docs pipeline</a>
+        for the full <code>make docs-fix</code> / <code>make docs-check</code> workflow.
+      </p>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-17</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Migrated to UI Kit v3: <code>docs-prose</code> + <code>docs-table--zebra --sticky-head</code> + <code>docs-code</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-10</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Filled symptom index, Kroki workaround, local rebuild commands.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-08</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial skeleton stub.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#symptom-runbook-index">Symptom index</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#kroki-unreachable">Kroki unreachable</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rebuild-locally">Rebuild locally</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
