@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How portal search works · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-07" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">How portal search works</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Portal</span>
+          <span class="docs-pill docs-pill--neutral">Explanation</span>
+        </div>
+        <h1>How portal search works</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          You type into the topbar, the right page appears, you click — that is the whole user-visible
+          contract. Underneath sits a static-site search engine that is small enough to ship in the same
+          git tree as the docs, fast enough to answer in one keystroke, and strict enough to keep
+          internal-only pages out of the public portal. This page explains the parts and why they fit
+          together the way they do. The decision record is <a href="../governance/adr/0033-portal-search-engine-pagefind.html">ADR-0033</a>;
+          it supersedes <a href="../governance/adr/0027-client-side-docs-search-index-and-ranking.html">ADR-0027</a>.
+        </p>
+      </header>
+
+      <h2 id="picture">The picture in one paragraph</h2>
+      <p>
+        At build time, every HTML page under <code>services/portal/</code> is fed through a thin
+        Python pre-pass that tags it with <code>visibility</code> (internal or public) and a
+        <code>kind</code> (ADR, runbook, tutorial, practice, …) — then handed to the
+        <a href="https://pagefind.app/">Pagefind</a> indexer. Pagefind emits a sharded, lazily-loadable
+        search bundle. At read time, the topbar input dynamically imports
+        <code>pagefind.js</code> on first focus, the user's keystroke fires a search, the engine
+        downloads only the index shards it needs, and the topbar renders the top 12 results with our
+        badges and excerpts.
+      </p>
+
+      <h2 id="why-pagefind">Why Pagefind, not a hand-written index</h2>
+      <p>
+        The portal shipped its own BM25 implementation for the better part of a year
+        (<a href="../governance/adr/0027-client-side-docs-search-index-and-ranking.html">ADR-0027</a>):
+        a Python builder that walked the HTML tree, a JSON file with inverted postings, and a
+        ranker in <code>search.js</code>. It worked. The reason it had to go was
+        not relevance — it was the maintenance cost of every adjacent concern.
+        Every new content type asked for a new badge rule. Every corpus growth pushed the committed
+        JSON closer to three megabytes, all of which arrived on first paint. Every browser
+        upgrade was a risk surface no one was monitoring.
+      </p>
+      <p>
+        Pagefind solves the same problem the way the rest of the industry has settled on it for
+        static sites: a Rust indexer that reads the rendered HTML directly, a sharded bundle the
+        runtime fetches in pieces, and a BM25-with-stemming ranker we do not own. Cold payload drops
+        from ~2.3 MB to ~92 kB gzipped; per-query cost is around one 30 kB shard plus the small
+        excerpt fragments for the results actually shown. The ranking layer becomes someone
+        else's responsibility, and the responsibility that stays on us — what to index, how to
+        carve internal from public, what to call each result — is the responsibility we are
+        actually good at.
+      </p>
+
+      <h2 id="build">What the build does</h2>
+      <p>
+        The work happens in <code>scripts/build_pagefind_index.py</code> as step
+        <code>[9/9]</code> of <code>make docs-fix</code>. It has two phases.
+      </p>
+      <p>
+        First, every page under <code>services/portal/</code> is mirrored into
+        <code>var/tmp/portal-pagefind-staged/</code>. The mirror is necessary because the indexer
+        wants attributes on the page that the page itself does not have to carry — we annotate
+        <code>&lt;main&gt;</code> with two extra attributes:
+      </p>
+      <ul class="rail-list" data-tone="info">
+        <li><strong><code>data-pagefind-filter="visibility:internal"</code> or <code>visibility:public</code></strong>, derived from the page's path prefix under <code>services/portal/</code>. This is the load-bearing invariant that keeps the public portal from leaking internal-only URLs through search.</li>
+        <li><strong><code>data-pagefind-meta="kind:&lt;taxonomy&gt;"</code></strong>, derived from the same path. ADRs, runbooks, tutorials, templates, practices, explanations, how-tos, references, services, handbook entries, and catalog pages all get a stable label, which the runtime turns into the badge you see on the right side of each result.</li>
+      </ul>
+      <p>
+        Second, the pinned Pagefind binary (<code>pagefind==1.5.2</code> +
+        <code>pagefind_bin_extended==1.5.2</code> via PyPI, so there is no Node toolchain to manage)
+        is run against the staged tree with <code>SOURCE_DATE_EPOCH=0</code>. The result lands in
+        <code>services/frontend/portal/assets/pagefind/</code>. Immediately after, a sibling script
+        <code>scripts/check_pagefind_visibility.py</code> walks the emitted fragments and asserts
+        that no <code>public/</code>-prefixed URL slipped through with <code>visibility:internal</code>
+        and vice versa.
+      </p>
+
+      <h2 id="bundle">What the bundle looks like</h2>
+      <p>
+        The output is not one file but a small directory of small files, content-hashed by
+        Pagefind itself:
+      </p>
+      <table class="docs-table">
+        <thead>
+          <tr><th>File</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>pagefind.js</code></td><td>The runtime module the topbar dynamically imports.</td></tr>
+          <tr><td><code>pagefind-entry.json</code></td><td>Tiny manifest telling the runtime which language-specific shards exist.</td></tr>
+          <tr><td><code>wasm.en.pagefind</code></td><td>The English stemmer / matcher, compiled to WebAssembly.</td></tr>
+          <tr><td><code>*.pf_meta</code></td><td>Per-language metadata block — small, always loaded.</td></tr>
+          <tr><td><code>index/*.pf_index</code></td><td>Sharded inverted index. Only the shard a query needs is fetched.</td></tr>
+          <tr><td><code>fragment/*.pf_fragment</code></td><td>One file per indexed page, gzipped JSON with title, excerpt, URL, filters, and metadata. Fetched lazily, only for the results actually displayed.</td></tr>
+          <tr><td><code>filter/*.pf_filter</code></td><td>Compact lookup of filter buckets (e.g. visibility:public) used by the engine to narrow before scoring.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The bundle is <strong>committed to git</strong> the same way the pdoc API reference is
+        committed: Pagefind embeds per-build hashes in its meta and filter blobs, so two runs of
+        the indexer on the same input do not produce byte-identical output. The committed snapshot
+        is the source of truth, and the <code>docs-check</code> drift gate restores it from
+        <code>HEAD</code> before diffing, exactly as it already does for pdoc. The mechanical
+        reason to commit is not aesthetic preference — it is GitHub Pages, which deploys whatever
+        is in the git tree at deploy time and has no build step of its own.
+      </p>
+
+      <h2 id="runtime">What the runtime does on a keystroke</h2>
+      <p>The topbar input is mounted by <code>services/frontend/portal/assets_v2/ui-kit/components/search.js</code>. Six things happen between the first keystroke and the rendered dropdown:</p>
+      <ol>
+        <li><strong>Auto-inject.</strong> On page load, <code>mountSearch()</code> looks for every <code>.topbar__actions</code> in the DOM and slips a <code>data-component="search"</code> placeholder into each, so authors do not have to add the markup per page.</li>
+        <li><strong>Lazy import.</strong> On first focus of the input, <code>pagefind.js</code> is dynamically imported. Nothing about search costs anything for readers who never click into it.</li>
+        <li><strong>baseUrl resolution.</strong> Pagefind defaults to using its own bundle path as the URL prefix for results. We override it: the current page's <code>pathname</code> is matched for <code>/portal/</code>, and everything up to and including that segment becomes the <code>baseUrl</code>. The same code therefore produces <code>/services/portal/internal/…</code> on the dev server and <code>/&lt;repo&gt;/portal/internal/…</code> on a GitHub Pages project site, without a build-time switch.</li>
+        <li><strong>Visibility filter.</strong> On a page where <code>&lt;html data-portal="public"&gt;</code>, the call to <code>pagefind.search()</code> includes <code>{ filters: { visibility: "public" } }</code>. Internal-portal pages pass no filter and therefore see everything.</li>
+        <li><strong>Top-12.</strong> A 120 ms debounce, top-12 truncation, and a parallel call to <code>result.data()</code> for each fetches the per-result fragment. Fragments include the title, the excerpt with <code>&lt;mark&gt;</code> wrappers around matched terms, and the <code>kind</code> metadata.</li>
+        <li><strong>Render.</strong> Each hit becomes an <code>&lt;a&gt;</code> in the dropdown with the title, the kind badge, the path, and the excerpt. Keyboard navigation (<code>↑</code>, <code>↓</code>, <code>Enter</code>, <code>Esc</code>) is wired directly on the input; the global hotkeys <code>/</code> and <code>⌘K</code> are handled by <code>hotkeys.js</code> and focus the same input.</li>
+      </ol>
+
+      <h2 id="split">The internal/public split</h2>
+      <p>
+        Two facets are doing the load-bearing work here: the build-time
+        <code>data-pagefind-filter</code> attribute and the runtime
+        <code>filters: { visibility: ... }</code> argument. Together they replace the old setup
+        where the build emitted two separate JSON files — an internal index and a strict subset
+        for public — and a pre-commit gate diffed them. The new design is the same invariant
+        expressed in fewer artefacts: one bundle, one indexer pass, one runtime filter
+        depending on which portal asked. The strict-subset invariant is preserved by
+        <code>scripts/check_pagefind_visibility.py</code>, which fails the build if a
+        <code>public/</code> URL ever ends up tagged as internal.
+      </p>
+
+      <h2 id="ghpages">GitHub Pages</h2>
+      <p>
+        GitHub Pages deploys static files from the git tree, with no build step of its own. Our
+        bundle ships with the rest of the portal, so search works on a fresh clone published
+        straight to Pages — provided two small things are also in place:
+      </p>
+      <ul class="rail-list" data-tone="info">
+        <li><strong>A <code>.nojekyll</code> at the publish root</strong>, so Jekyll does not eat files that start with an underscore. Pagefind itself does not use that pattern, but the rule is the same one its docs recommend, and it is cheap.</li>
+        <li><strong>The <code>baseUrl</code> derivation above</strong>, which is what makes the same JavaScript work on <code>https://username.github.io/repo/portal/…</code> without per-environment configuration.</li>
+      </ul>
+      <p>
+        The internal-vs-public split is a search-time concern, not a deployment-time one. A
+        public Pages site still ships the full bundle, including internal-page fragments — and
+        that means it leaks every internal page's title and first excerpt to anyone who reads the
+        raw bundle. If we ever publish the public portal to a truly public GitHub Pages site,
+        the build will need a second mode that emits a public-only bundle. Today the deployment
+        target is private; the split exists so that the public-portal frontend behaves correctly
+        when readers reach it through the internal mirror.
+      </p>
+
+      <h2 id="add">Adding a new page</h2>
+      <p>The flow for an author adding a new page is unchanged from the legacy setup:</p>
+      <ol>
+        <li>Write the page under <code>services/portal/internal/&lt;quadrant&gt;/&lt;slug&gt;.html</code> (or <code>public/</code> for the public portal).</li>
+        <li>Run <code>make docs-fix</code>. The pre-pass picks the page up, infers its visibility from the path, infers its kind from the path's first non-portal segment, and Pagefind re-indexes.</li>
+        <li>Commit the page <em>and</em> the regenerated <code>services/frontend/portal/assets/pagefind/</code> directory. <code>make docs-check</code> in CI will catch a missing or stale bundle.</li>
+      </ol>
+      <p>Search picks the page up automatically. If the badge is wrong, the path probably does not match any rule in <code>scripts/build_pagefind_index.py</code>'s <code>kind_for()</code> — add a rule there.</p>
+
+      <footer class="docs-history" aria-label="History">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-07</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Authored alongside the BL-064 cutover (ADR-0033). Covers build pipeline, runtime, the internal/public split, and GitHub Pages compatibility.</span>
+          </li>
+        </ul>
+      </footer>
+    </article>
+  </main>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

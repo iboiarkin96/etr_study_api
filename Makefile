@@ -470,8 +470,9 @@ docs-fix:
 	@rm -rf services/portal/internal/services/api/code-reference
 	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
 	@$(PYTHON) scripts/normalize_pdoc_output.py
-	@printf "$(ICON_INFO) %s\n" "[9/9] build docs search index"
-	@$(PYTHON) scripts/build_docs_search_index.py
+	@printf "$(ICON_INFO) %s\n" "[9/9] build pagefind index (ADR-0033)"
+	@$(PYTHON) scripts/build_pagefind_index.py
+	@$(PYTHON) scripts/check_pagefind_visibility.py
 	@printf "$(COLOR_GREEN)== DOCS-FIX: SUCCESS ==$(COLOR_RESET)\n"
 
 # Validate docs HTML structure is already normalized (no writes).
@@ -527,10 +528,11 @@ docs-spec-check:
 # Verify docs are already synchronized (no drift allowed).
 # Compare the working tree diff vs HEAD before and after docs-fix. If identical,
 # docs-fix did not change any file—so committed generated artifacts match the pipeline.
-# After ``docs-fix``, restore ``services/portal/internal/services/api/code-reference/`` (pdoc) from ``HEAD`` and rebuild the client search index:
-# pdoc output (HTML + ``search.js``) varies across OS/Python/file order; the committed API ref snapshot
-# is the source of truth for drift. Re-run ``build_docs_search_index.py`` so ``search-index.json`` matches
-# the tree on disk (index was built against the just-generated pdoc before the checkout).
+# After ``docs-fix``:
+#   - Restore ``services/portal/internal/services/api/code-reference/`` (pdoc) from ``HEAD`` (pdoc output
+#     varies across OS/Python/file order; the committed API ref snapshot is the source of truth for drift).
+#   - Restore ``services/frontend/portal/assets/pagefind/`` from ``HEAD`` (Pagefind embeds per-build hashes
+#     in pf_meta / pf_filter; committed bundle is the source of truth for drift — ADR-0033).
 # Remaining drift then reflects UML, sync, repair, format, maintainers, portal data, and hand-authored HTML.
 # Match CI Python (see ``.python-version``) for stable non-pdoc outputs.
 # (Local edits in unrelated paths are preserved as long as docs-fix leaves the tree unchanged.)
@@ -546,7 +548,7 @@ docs-check:
 	git diff HEAD > "$$tmp_before"; \
 	$(MAKE) docs-fix; \
 	git checkout HEAD -- services/portal/internal/services/api/code-reference 2>/dev/null || true; \
-	$(PYTHON) scripts/build_docs_search_index.py; \
+	git checkout HEAD -- services/frontend/portal/assets/pagefind 2>/dev/null || true; \
 	git diff HEAD > "$$tmp_after"; \
 	if cmp -s "$$tmp_before" "$$tmp_after"; then \
 		printf "$(ICON_OK) %s\n" "Docs check passed (no drift)"; \

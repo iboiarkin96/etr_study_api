@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0033 · Portal search engine — Pagefind · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0033</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0033</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li class="is-current">Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li>In progress</li>
+                    <li class="is-current">Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
+        <h1>Portal search engine — migrate to Pagefind (English-only, GitHub-Pages-compatible)</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Replace the in-house BM25 indexer and ranker (ADR-0027) with Pagefind — a maintained static-site search engine. The portal ships a lazily-loaded ~92 kB cold-payload index instead of a 2.3 MB monolithic JSON, keeps the existing UI shell, hotkeys, badges, and internal/public split, and becomes deployable to GitHub Pages without architectural change.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0033</code> — Portal search engine — migrate to Pagefind</dd>
+          <dt>Category</dt>
+          <dd>documentation</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-06-06">2026-06-06</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-06-06">2026-06-06</time></dd>
+          <dt>Supersedes</dt>
+          <dd><a href="0027-client-side-docs-search-index-and-ranking.html">ADR-0027</a> — in-house inverted-index lexical model with field-weighted BM25.</dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p>ADR-0027 introduced a hand-written inverted index (<code>scripts/build_docs_search_index.py</code>, ~340 lines) plus a hand-written BM25 ranker in <code>search.js</code> (~270 lines of ranking logic). It works, but it costs ongoing maintenance — every change to the corpus shape, every new content type, and every browser API drift lands on us. The committed monolithic JSON index has also grown to <strong>2.3 MB</strong> served on every first paint.</p>
+        <p>Three external constraints shape this revisit:</p>
+        <ul>
+          <li>The portal is moving to <strong>English-only</strong> content (separate decision, 2026-06-06). Cyrillic stemming is no longer a constraint on engine choice.</li>
+          <li>We want the portal to be deployable to <strong>GitHub Pages</strong> without server-side search infrastructure.</li>
+          <li>The remaining ranking work that ADR-0027 deferred (telemetry-fed zero-results dashboard, query analytics) is dwarfed by what an off-the-shelf engine already gives us — shipped, tested, and someone else's responsibility.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <p>We migrate portal search to <strong>Pagefind</strong> — a Rust-built static-site search engine maintained by CloudCannon and the Astro team.</p>
+        <ol>
+          <li>Build-time: <code>scripts/build_pagefind_index.py</code> mirrors <code>services/portal/**/*.html</code> into a staged tree, injects <code>data-pagefind-filter="visibility:internal|public"</code> and <code>data-pagefind-meta="kind:..."</code> onto each <code>&lt;main&gt;</code>, then runs the pinned <code>pagefind</code> CLI against the staged tree with <code>SOURCE_DATE_EPOCH=0</code> for reproducibility.</li>
+          <li>Runtime: the existing topbar search component swaps its BM25 inner loop for a thin adapter over <code>pagefind.search(query)</code>. UI shell, hotkeys (<code>/</code>, <code>⌘K</code>, <code>Esc</code>), debounce, badge taxonomy, and <code>&lt;mark&gt;</code> highlighting remain unchanged.</li>
+          <li>Internal/public split moves from two JSON files to a single bundle filtered at query time via Pagefind facets.</li>
+          <li>The built bundle <code>services/frontend/portal/assets/pagefind/</code> <strong>is committed</strong> so GitHub Pages can deploy the portal directly from the git tree. Pagefind embeds per-build hashes in <code>pf_meta</code> / <code>pf_filter</code>, so the bundle is not byte-stable between runs; <code>docs-check</code> handles this the same way it already handles pdoc — restore the committed bundle from <code>HEAD</code> after <code>docs-fix</code>, then diff (the committed snapshot is the source of truth for drift).</li>
+          <li>Visibility invariant is enforced by <code>scripts/check_pagefind_visibility.py</code>, invoked from <code>make docs-fix</code> right after the build — it scans the bundle and asserts every public URL carries <code>visibility:public</code> and every internal URL carries <code>visibility:internal</code>.</li>
+        </ol>
+        <p>Pagefind is pinned via PyPI (<code>pagefind==1.5.2</code> + <code>pagefind_bin_extended==1.5.2</code>) so the bundled binary is reproducible on every Python-aware CI runner without a separate Node/npm step.</p>
+      </section>
+
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li>In scope: all HTML pages under <code>services/portal/</code> (internal + public).</li>
+          <li>In scope: the in-house BM25 builder, ranker, ranking telemetry, and the two-file public/internal split — deprecated and removed by waves W4/W5 (see Migration plan).</li>
+          <li>Out of scope: neural/vector search, server-side analytics dashboards, multilingual morphology (portal is English-only).</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <p>Four alternatives evaluated before adopting Pagefind. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Keep ADR-0027 (in-house BM25)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> zero migration cost, well-understood code, already tuned for our corpus.</p>
+              <p><strong>Why rejected:</strong> the 2.3 MB monolithic JSON is served to every reader on first paint and grows linearly with the corpus. Maintenance falls entirely on us — tokenizer, ranker, prefix expansion, length norm, telemetry. Pagefind ships the same precision behaviour, lazy-loaded in ~92 kB gz cold-payload, and the ranking layer becomes someone else's responsibility.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">MiniSearch / Lunr / FlexSearch (client-side JS libraries)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> mature client-side ranking, no Rust binary in the build pipeline.</p>
+              <p><strong>Why rejected:</strong> they consume a JSON index we still have to author and ship in full to the browser — payload stays in the megabytes, lazy-loading is not part of the model. Lunr is maintenance-mode upstream. Picking any of them keeps us as the owners of build + tokenizer + corpus-specific tuning code.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Algolia DocSearch (SaaS)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> free tier for open-source docs, mature relevance, hosted analytics.</p>
+              <p><strong>Why rejected:</strong> internal pages cannot be crawled by a third party without access-control delegation we do not want to grant. The crawl schedule and ranking are controlled by the vendor. Pagefind keeps the index in the same artefact as the docs and never crosses a vendor boundary.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Orama / Stork</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> Orama is a young JS engine with growing community; Stork is/was Rust-based with similar static-site posture.</p>
+              <p><strong>Why rejected:</strong> Orama still takes a JSON-shaped input — we would author and ship our own builder, so the payload-reduction advantage disappears. Stork has been unmaintained since 2023, which contradicts the entire premise of BL-064.</p>
+            </div>
+          </article>
+        </div>
+        <p><strong>Trade we accept by choosing Pagefind.</strong> We add a pinned Rust binary to the CI dependency surface (delivered via PyPI wheel, so CI install is a single <code>pip install</code>). In return we shed ~600 lines of in-house indexer and ranker code, a 2.3 MB first-paint payload, and the entire maintenance backlog for the search subsystem.</p>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Cold-payload drops from <strong>2.3 MB</strong> to <strong>~92 kB gz</strong> (~25× reduction). Per-query overhead drops to ~30 kB.</li>
+                <li>~600 lines of in-house BM25 / tokenizer code deleted from the long-term maintenance surface.</li>
+                <li>Internal/public split moves from two committed JSON files to a single facet — half the build artefacts, no subset-invariant check needed.</li>
+                <li>The portal becomes statically deployable to GitHub Pages (with <code>.nojekyll</code>) — no architectural change required.</li>
+                <li>Per-result excerpts (<code>data()</code>) lazy-loaded — large pages no longer cost payload until clicked.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <p>Two named tradeoffs. Shape from <a href="../../handbook/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>External engine — ranking is no longer ours to tune.</strong> We gain a maintained BM25 + stemming pipeline shipped, tested, and updated by someone else. We lose the ability to add a custom precision boost the way ADR-0027 did (all-tokens-in-title, exact-phrase, title-prefix). We accept it because the reference-query fixture (≥18/20 top-1, ≥17/20 top-3 superset) shows Pagefind reaches parity, and the engine exposes facets for the few cases where we want categorical narrowing.</li>
+                <li><strong>Pinned Rust binary in the CI dependency surface.</strong> We gain a 0.8 s full-corpus build (vs ~3 s for the legacy Python builder) and lazy-loaded chunks. We lose pure-Python install simplicity — CI now downloads a ~52 MB platform-specific wheel (<code>pagefind_bin_extended</code>). We accept it because the wheel is installed through <code>pip install -r requirements.txt</code> — the same flow we already use for every other binary dependency (mypy, ruff, pdoc).</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+        <h3>Revisit — would we do this again?</h3>
+        <p><strong>Yes — the payload and maintenance numbers alone justify it.</strong> The one refinement we would commit to on day one if starting today: ship the Pagefind <strong>facet UI from the first cutover</strong> instead of treating it as optional W6 polish. The kind/visibility filters land for free once the bundle is in place, and the UX win of «search inside ADRs only» is large enough that we should not gate it behind a second PR cycle.</p>
+      </section>
+
+      <section aria-labelledby="compatibility-h">
+        <h2 id="compatibility-h">Compatibility and migration</h2>
+        <p>Migration runs in six waves (W0–W5) plus optional polish W6, tracked under BL-064:</p>
+        <ul>
+          <li><strong>W0</strong> — Spike on the spike branch <code>spike/bl-064-pagefind</code> ✅ (2026-06-06: 0.82 s build, 92 kB cold-payload, 18/20 reference queries).</li>
+          <li><strong>W1</strong> — This PR. New builder + visibility check + Makefile step + pre-commit hook. Legacy index still generated in parallel. Client unchanged.</li>
+          <li><strong>W2</strong> — Frontend dual-mode behind a feature flag (<code>?engine=pagefind</code>).</li>
+          <li><strong>W3</strong> — UI parity (badges from <code>data-pagefind-meta</code>, snippet highlight mapping, public-portal filter); Playwright eval harness in CI.</li>
+          <li><strong>W4</strong> — Cutover. <code>DEFAULT_ENGINE = "pagefind"</code>. This ADR flips to <code>Accepted</code>. ADR-0027 flips to <code>Superseded by ADR-0033</code> with a link in its header.</li>
+          <li><strong>W5</strong> — Delete the legacy builder, ranker, mocks, and the two JSON indices.</li>
+          <li><strong>W6</strong> (optional) — Facet chips in the search panel.</li>
+        </ul>
+        <p>Rollback strategy: legacy code remains generated and shipped through W4. A single-line revert of <code>DEFAULT_ENGINE</code> returns the portal to the ADR-0027 ranker without a re-deploy of the bundle.</p>
+      </section>
+
+      <section aria-labelledby="implementation-h">
+        <h2 id="implementation-h">Implementation mapping</h2>
+        <ul>
+          <li>Index builder + pre-pass: <code>scripts/build_pagefind_index.py</code></li>
+          <li>Visibility post-build check: <code>scripts/check_pagefind_visibility.py</code> (invoked from <code>make docs-fix</code>)</li>
+          <li>Make step: <code>make docs-fix</code> step <code>[10/10]</code></li>
+          <li>Pinned engine: <code>pagefind==1.5.2</code> + <code>pagefind_bin_extended==1.5.2</code> in <code>requirements.txt</code></li>
+          <li>Artifact (committed; binary in <code>.gitattributes</code>): <code>services/frontend/portal/assets/pagefind/</code> (chunked: <code>pagefind.js</code>, <code>wasm.en.pagefind</code>, <code>fragment/*.pf_fragment</code>, <code>index/*.pf_index</code>, <code>filter/*.pf_filter</code>, <code>*.pf_meta</code>) — rebuilt locally by <code>make docs-fix</code>; <code>docs-check</code> restores the HEAD snapshot before diffing (same pattern as pdoc).</li>
+          <li>Client adapter (W2): <code>services/frontend/portal/assets_v2/ui-kit/components/search-pagefind.js</code></li>
+          <li>Engine selector (W2): <code>services/frontend/portal/assets_v2/ui-kit/components/search-engine.js</code></li>
+          <li>Reference queries: <code>tests/portal_search/reference_queries.yaml</code></li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li>Run <code>make docs-fix</code> and verify both legacy <code>[9/10]</code> and pagefind <code>[10/10]</code> steps succeed.</li>
+          <li>Run <code>make docs-check</code> on a clean checkout — the pagefind bundle must be drift-free (<code>SOURCE_DATE_EPOCH=0</code>).</li>
+          <li>Run <code>scripts/check_pagefind_visibility.py</code> — every public URL must carry <code>visibility:public</code>, every internal URL <code>visibility:internal</code>.</li>
+          <li>Run <code>tests/portal_search/spike_eval.py --bundle services/frontend/portal/assets/pagefind --queries tests/portal_search/reference_queries.yaml</code> — fragment-level smoke must pass.</li>
+          <li>Browser-level evaluation (W3): Playwright-driven <code>scripts/search_eval.py</code> against the 20-query fixture; gate <code>top_1 ≥ 18/20</code>, <code>top_3 superset ≥ 17/20</code>.</li>
+          <li>Manual smoke: <code>/</code>, <code>⌘K</code>, <code>Esc</code>, <code>ArrowUp/Down</code>, <code>Enter</code> on the topbar input.</li>
+        </ul>
+      </section>
+
+      <footer class="docs-history" aria-label="History">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-06</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Same-day <strong>Proposed → Accepted</strong>. W2–W5 collapsed into the W1 PR: new <code>search.js</code> (Pagefind adapter, ~180 lines vs the legacy 419), <code>search-badges.js</code> (extracted taxonomy), legacy <code>scripts/build_docs_search_index.py</code> / <code>check_search_index_subset.py</code> / <code>search-index.json</code> / <code>search-index-public.json</code> / mock fixtures deleted. ADR-0027 marked <code>Superseded by ADR-0033</code>.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-06</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Proposed. W0 spike numbers attached to BL-064; W1 pipeline lands the builder + post-build visibility gate.</span>
+          </li>
+        </ul>
+      </footer>
+    </article>
+  </main>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

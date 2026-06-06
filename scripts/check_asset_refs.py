@@ -35,6 +35,7 @@ EXCLUDE_PARTS = {
     "code-reference",
     "pdoc",
     "notes",
+    "var",
 }
 
 HTML_ATTR_RE = re.compile(
