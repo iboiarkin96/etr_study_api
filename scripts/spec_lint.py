@@ -170,15 +170,25 @@ def _is_section_filled(section_id: str, body: str) -> tuple[bool, str]:
 def _has_example_block(html: str) -> bool:
     """True iff the document contains at least one code block.
 
-    Matches the legacy ``<pre><code>...`` shape AND the UI Kit v2 shape
-    ``<pre class="docs-code" data-lang="…"><span class="docs-code__lang">…</span><code>…``,
-    where one inert ``<span>`` may sit between the ``<pre>`` and ``<code>``.
+    Matches three shapes:
+      1. Legacy ``<pre><code>…</code></pre>``.
+      2. UI Kit v2 ``<pre class="docs-code" data-lang="…"><span …>…</span><code>…``,
+         where one inert ``<span>`` may sit between the ``<pre>`` and ``<code>``.
+      3. UI Kit v3 polished ``<pre class="spec-terminal__body"><span class="ln">…``
+         line-numbered terminal block from <code>api-spec-structure.css</code>.
     """
+    if re.search(
+        r"<pre[^>]*>(?:\s*|\s*<span[^>]*>[^<]*</span>\s*)<code\b",
+        html,
+        flags=re.IGNORECASE | re.DOTALL,
+    ):
+        return True
+    # Polished spec-terminal pattern — line-numbered code body.
     return bool(
         re.search(
-            r"<pre[^>]*>(?:\s*|\s*<span[^>]*>[^<]*</span>\s*)<code\b",
+            r'<pre[^>]*class="[^"]*spec-terminal__body[^"]*"',
             html,
-            flags=re.IGNORECASE | re.DOTALL,
+            flags=re.IGNORECASE,
         )
     )
 
