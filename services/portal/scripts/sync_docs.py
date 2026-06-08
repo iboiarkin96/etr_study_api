@@ -1,3 +1,7 @@
+# check_service_imports: allow
+# This is a build-time docs autogen tool that legitimately introspects the API
+# service (FastAPI route table + stable-error catalog) to keep documentation in
+# sync with code. See _shared/scripts/check_service_imports.py for the policy.
 """Auto-generate documentation sections from code sources.
 
 Reads the Makefile help target and FastAPI app routes, then patches
