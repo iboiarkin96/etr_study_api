@@ -1,0 +1,53 @@
+# Root orchestrator — brings up api + monitoring stack together (ADR 0028 Phase 3).
+#
+# Usage:
+#   docker compose up -d          # api + prometheus + grafana + blackbox
+#   docker compose logs -f api    # tail API container
+#   docker compose down           # stop everything (preserve volumes)
+#   docker compose down -v        # stop + wipe persistent volumes (prom/grafana data)
+#
+# Optional logging stack (heavy — ~2 GiB RAM for ES+Kibana) is separate; bring it up via:
+#   docker compose -f services/monitoring/docker-compose.logging.yml up -d
+#
+# The monitoring services live in services/monitoring/ and use volume paths relative
+# to that directory. We include them rather than copying their definitions so
+# `services/monitoring/docker-compose.observability.yml` remains the single source of
+# truth for the observability stack (it can still be run standalone).
+
+include:
+  - path: services/monitoring/docker-compose.observability.yml
+
+services:
+  api:
+    build:
+      context: ./services/api
+    image: study-app-api:local
+    container_name: study-app-api
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      APP_HOST: 0.0.0.0
+      APP_PORT: "8000"
+      SQLITE_DB_PATH: /data/study_app.db
+      LOG_DIR: /var/log/study-app
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_SERVICE_NAME: study-app-api
+    volumes:
+      # Persistent DB lives under repo-root var/api/ on the host so it survives
+      # `docker compose down`. Mounted at /data in the container; SQLITE_DB_PATH
+      # above points uvicorn/alembic at that location.
+      - ./var/api:/data
+      # Logs land in repo-root logs/ on the host (gitignored) so they are visible
+      # to filebeat when the optional logging stack runs.
+      - ./logs:/var/log/study-app
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    # Prometheus scrapes the API at host.docker.internal:8000 (configured in
+    # services/monitoring/prometheus/prometheus.yml). We don't depends_on
+    # prometheus here because the API can come up before observability.
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/live', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s

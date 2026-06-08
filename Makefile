@@ -208,6 +208,40 @@ run:
 	PYTHONPATH=. $(CURDIR)/$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload --no-access-log
 
 # ──────────────────────────────────────────────
+# Docker Compose orchestration (ADR 0028 Phase 3)
+# ──────────────────────────────────────────────
+# Bring up api + monitoring stack (api built from services/api/Dockerfile).
+stack-up:
+	@printf "$(ICON_STEP) %s\n" "Starting api + monitoring stack…"
+	@docker compose up -d --build
+	@printf "$(ICON_OK) %s\n" "Stack up — api :8000  ·  prom :9090  ·  grafana :3001  ·  blackbox :9115"
+
+# Stop the stack (preserve persistent volumes).
+stack-down:
+	@printf "$(ICON_STEP) %s\n" "Stopping stack…"
+	@docker compose down
+	@printf "$(ICON_OK) %s\n" "Stack down"
+
+# Stop the stack AND wipe prom/grafana persistent volumes. var/api/study_app.db on host is untouched.
+stack-down-volumes:
+	@printf "$(ICON_STEP) %s\n" "Stopping stack and wiping persistent volumes…"
+	@docker compose down -v
+	@printf "$(ICON_OK) %s\n" "Stack down (volumes wiped)"
+
+# Tail logs from all stack services.
+stack-logs:
+	@docker compose logs -f --tail=100
+
+# Bring up the optional logging stack (ES + Kibana + Filebeat). Heavy: ~2 GiB RAM.
+logging-up:
+	@docker compose -f services/monitoring/docker-compose.logging.yml up -d
+	@printf "$(ICON_OK) %s\n" "Logging stack up — ES :9200  ·  Kibana :5601"
+
+# Stop the optional logging stack.
+logging-down:
+	@docker compose -f services/monitoring/docker-compose.logging.yml down
+
+# ──────────────────────────────────────────────
 # Database / Migrations
 # ──────────────────────────────────────────────
 # Apply all Alembic migrations to current database.

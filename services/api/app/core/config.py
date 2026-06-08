@@ -8,7 +8,17 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[4]
+# ROOT is the directory that runtime artefacts (env/, var/, logs/) are anchored at.
+# Two layouts are supported simultaneously:
+#   • Host (post BL-065):  <repo>/services/api/app/core/config.py → parents[4] = <repo>
+#   • Container (Dockerfile): /app/app/core/config.py             → parents[2] = /app
+# When STUDY_APP_ROOT is set in the environment, it wins over the heuristic.
+_explicit_root = os.getenv("STUDY_APP_ROOT", "").strip()
+if _explicit_root:
+    ROOT = Path(_explicit_root)
+else:
+    _here = Path(__file__).resolve()
+    ROOT = _here.parents[4] if len(_here.parents) > 4 else _here.parents[2]
 ENV_DIR = ROOT / "env"
 _ALLOWED_APP_ENVS = {"dev", "qa", "prod"}
 _APP_ENV_ALIASES = {
