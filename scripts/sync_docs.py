@@ -400,7 +400,9 @@ _DIR_COMMENTS: dict[str, str] = {
     "services/monitoring/filebeat": "Filebeat → Elasticsearch (local logging stack)",
     "services/monitoring/grafana": "Dashboards and provisioning",
     "services/monitoring/prometheus": "Scrape config, rules, Blackbox",
-    "scripts": "Dev & CI helper scripts",
+    "scripts": "Service-specific dev & CI helper scripts (portal + monitoring helpers)",
+    "_shared": "Cross-cutting tooling shared across services (governance + LLM + checkers)",
+    "_shared/scripts": "Repo-wide governance/CI scripts (changelog gate, PR body sync, asset/CSS/path checkers, LLM helpers)",
 }
 
 

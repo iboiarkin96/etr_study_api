@@ -25,8 +25,8 @@ import ast
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / "scripts"
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPTS_DIRS = (ROOT / "scripts", ROOT / "_shared" / "scripts")
 
 ANCHOR_NAMES = {"ROOT", "REPO", "BASE", "DOCS", "DOCS_DIR", "DOCS_ROOT", "REPO_ROOT"}
 
@@ -105,7 +105,8 @@ def main() -> int:
     failures: list[str] = []
     checked = 0
 
-    for path in sorted(SCRIPTS.glob("*.py")):
+    py_files = sorted(p for d in SCRIPTS_DIRS for p in d.glob("*.py"))
+    for path in py_files:
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except (OSError, SyntaxError) as exc:

@@ -408,11 +408,11 @@ pre-commit-validate:
 	fi
 	@printf "$(COLOR_CYAN)== PRE-COMMIT-VALIDATE: START ==$(COLOR_RESET)\n"
 	@printf "$(ICON_INFO) %s\n" "[1/4] check_css_vars"
-	@$(PYTHON) scripts/check_css_vars.py
+	@$(PYTHON) _shared/scripts/check_css_vars.py
 	@printf "$(ICON_INFO) %s\n" "[2/4] check_asset_refs"
-	@$(PYTHON) scripts/check_asset_refs.py
+	@$(PYTHON) _shared/scripts/check_asset_refs.py
 	@printf "$(ICON_INFO) %s\n" "[3/4] check_path_literals"
-	@$(PYTHON) scripts/check_path_literals.py
+	@$(PYTHON) _shared/scripts/check_path_literals.py
 	@printf "$(ICON_INFO) %s\n" "[4/4] verify"
 	@$(MAKE) verify
 	@printf "$(COLOR_GREEN)== PRE-COMMIT-VALIDATE: SUCCESS ==$(COLOR_RESET)\n"

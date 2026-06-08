@@ -6,8 +6,8 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE_PATH = ROOT / "ops" / "prometheus" / "prometheus.tpl.yml"
-OUTPUT_PATH = ROOT / "ops" / "prometheus" / "prometheus.yml"
+TEMPLATE_PATH = ROOT / "services" / "monitoring" / "prometheus" / "prometheus.tpl.yml"
+OUTPUT_PATH = ROOT / "services" / "monitoring" / "prometheus" / "prometheus.yml"
 
 
 def main() -> int:

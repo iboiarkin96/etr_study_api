@@ -163,7 +163,7 @@ study_app/
 │       │   └── tutorials/
 │       └── ui-kit/
 │           └── pages/
-└── scripts/  # Dev & CI helper scripts
+└── scripts/  # Service-specific dev & CI helper scripts (portal + monitoring helpers)
 ```
 <!-- END:REPO_LAYOUT -->
 
