@@ -38,6 +38,26 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
+      # Build the Pagefind index on CI rather than committing it (ADR-0033
+      # amendment 2026-06-08). The CLI is not bit-stable across runs even
+      # with SOURCE_DATE_EPOCH=0, so committing the index produced PR churn.
+      # Output lands in services/frontend/portal/assets/pagefind/ — same path
+      # the portal HTML references — and gets bundled into the artifact below.
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - name: Install Pagefind
+        run: |
+          python -m pip install --upgrade pip
+          pip install pagefind==1.5.2 pagefind_bin_extended==1.5.2
+      - name: Build Pagefind index
+        env:
+          SOURCE_DATE_EPOCH: "0"
+        run: |
+          python scripts/build_pagefind_index.py
+          python scripts/check_pagefind_visibility.py
+
       # Stage the artifact. Portal HTML references CSS/JS via relative paths
       # like `../frontend/portal/assets_v2/…` (up to 7 levels deep for pdoc
       # output). Those paths assume the *parent* of services/portal/ is the

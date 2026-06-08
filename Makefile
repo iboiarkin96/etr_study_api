@@ -531,8 +531,9 @@ docs-spec-check:
 # After ``docs-fix``:
 #   - Restore ``services/portal/internal/services/api/code-reference/`` (pdoc) from ``HEAD`` (pdoc output
 #     varies across OS/Python/file order; the committed API ref snapshot is the source of truth for drift).
-#   - Restore ``services/frontend/portal/assets/pagefind/`` from ``HEAD`` (Pagefind embeds per-build hashes
-#     in pf_meta / pf_filter; committed bundle is the source of truth for drift — ADR-0033).
+# The Pagefind tree (``services/frontend/portal/assets/pagefind/``) is .gitignored — it is regenerated
+# on CI before the Pages deploy (see .github/workflows/pages.yml; ADR-0033 amendment 2026-06-08) and is
+# not part of the source tree, so no drift-restore step is needed.
 # Remaining drift then reflects UML, sync, repair, format, maintainers, portal data, and hand-authored HTML.
 # Match CI Python (see ``.python-version``) for stable non-pdoc outputs.
 # (Local edits in unrelated paths are preserved as long as docs-fix leaves the tree unchanged.)
@@ -548,7 +549,6 @@ docs-check:
 	git diff HEAD > "$$tmp_before"; \
 	$(MAKE) docs-fix; \
 	git checkout HEAD -- services/portal/internal/services/api/code-reference 2>/dev/null || true; \
-	git checkout HEAD -- services/frontend/portal/assets/pagefind 2>/dev/null || true; \
 	git diff HEAD > "$$tmp_after"; \
 	if cmp -s "$$tmp_before" "$$tmp_after"; then \
 		printf "$(ICON_OK) %s\n" "Docs check passed (no drift)"; \
