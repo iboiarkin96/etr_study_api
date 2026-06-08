@@ -40,7 +40,7 @@ def _load_current_openapi() -> dict[str, Any]:
         Inserts :data:`ROOT` at the front of ``sys.path`` temporarily.
     """
     _ensure_minimal_env_for_app_import()
-    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "services" / "api"))
     from app.main import app  # noqa: WPS433
 
     return app.openapi()

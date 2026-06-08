@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app import main as app_main
 from app.core.security import InMemoryRateLimiter
+
 from tests.api.v1.user_test_utils import USER_HTTP_BASE_PATH, user_create_body
 
 

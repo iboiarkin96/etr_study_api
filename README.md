@@ -117,34 +117,52 @@ You do **not** need Docker for day-to-day coding: use **`make run`**, tests, and
 <!-- BEGIN:REPO_LAYOUT -->
 ```text
 study_app/
-├── app/  # Application package
-│   ├── api/  # HTTP layer
-│   │   └── v1/  # v1 routers
-│   ├── core/  # Settings, DB session
-│   ├── domain/
-│   ├── errors/
-│   ├── models/  # ORM models
-│   │   ├── core/  # Core domain entities
-│   │   └── reference/  # Reference / lookup entities
-│   ├── openapi/
-│   │   └── examples/
-│   ├── repositories/  # Data-access layer
-│   ├── schemas/  # Pydantic request/response models
-│   ├── services/  # Business logic
-│   └── validation/
-├── alembic/  # Migration environment
-│   └── versions/  # Migration scripts
 ├── services/  # Service-rooted layout per ADR 0028
+│   ├── api/  # Python API service (FastAPI)
+│   │   ├── alembic/  # Migration environment
+│   │   │   └── versions/  # Migration scripts
+│   │   ├── app/  # Application package
+│   │   │   ├── api/  # HTTP layer
+│   │   │   ├── core/  # Settings, DB session
+│   │   │   ├── domain/
+│   │   │   ├── errors/
+│   │   │   ├── models/  # ORM models
+│   │   │   ├── openapi/
+│   │   │   ├── repositories/  # Data-access layer
+│   │   │   ├── schemas/  # Pydantic request/response models
+│   │   │   ├── services/  # Business logic
+│   │   │   └── validation/
+│   │   └── scripts/
 │   ├── frontend/  # Frontend artifacts (portal, future admin / dashboard)
 │   │   └── portal/  # Static documentation portal — public + internal IA
+│   │       ├── assets/
+│   │       ├── assets_v2/
+│   │       └── uml/
 │   ├── monitoring/  # Prometheus, Grafana, Filebeat configs + compose stacks
 │   │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
 │   │   ├── grafana/  # Dashboards and provisioning
+│   │   │   ├── dashboards/
+│   │   │   └── provisioning/
 │   │   └── prometheus/  # Scrape config, rules, Blackbox
+│   │       └── rules/
 │   └── portal/
 │       ├── internal/
+│       │   ├── catalog/
+│       │   ├── explanation/
+│       │   ├── governance/
+│       │   ├── handbook/
+│       │   ├── how-to/
+│       │   ├── onboarding/
+│       │   ├── services/
+│       │   ├── team/
+│       │   └── tutorials/
 │       ├── public/
+│       │   ├── explanation/
+│       │   ├── how-to/
+│       │   ├── reference/
+│       │   └── tutorials/
 │       └── ui-kit/
+│           └── pages/
 └── scripts/  # Dev & CI helper scripts
 ```
 <!-- END:REPO_LAYOUT -->

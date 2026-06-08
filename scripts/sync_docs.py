@@ -181,7 +181,7 @@ def _get_fastapi_routes() -> list[tuple[str, str, str]]:
     Returns:
         Sorted list of ``(HTTP method, path, summary)``; empty if import fails.
     """
-    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "services" / "api"))
     try:
         from app.main import app  # noqa: WPS433
     except Exception as exc:
@@ -228,7 +228,7 @@ def _load_error_catalog() -> tuple[list[tuple[str, str, str]], list[tuple[str, s
         Two sorted lists of tuples ``(code, key, message)``:
         first for ``COMMON_*``, second for ``USER_*``.
     """
-    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "services" / "api"))
     try:
         import app.errors.common as common_module  # noqa: WPS433
         import app.errors.user as user_module  # noqa: WPS433
@@ -262,7 +262,7 @@ def _load_validation_rule_rows() -> list[tuple[str, str, str, str, str]]:
     Returns:
         Sorted list of ``(rule_set, field, pydantic_type, code, key)`` rows.
     """
-    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "services" / "api"))
     try:
         from app.errors.user import (  # noqa: WPS433
             CREATE_USER_VALIDATION_RULES,
@@ -370,23 +370,23 @@ _ARCHITECTURE_ROOT_DIRS = ("app", "alembic", "services", "ops", "scripts")
 # Default depth is 2 (root + one nested level), but some domains are worth 3.
 _MAX_DEPTH_DEFAULT = 2
 _MAX_DEPTH_BY_ROOT = {
-    "app": 3,
-    "services": 3,
+    "services": 4,
 }
 
 _DIR_COMMENTS: dict[str, str] = {
-    "app": "Application package",
-    "app/api": "HTTP layer",
-    "app/api/v1": "v1 routers",
-    "app/core": "Settings, DB session",
-    "app/models": "ORM models",
-    "app/models/core": "Core domain entities",
-    "app/models/reference": "Reference / lookup entities",
-    "app/repositories": "Data-access layer",
-    "app/schemas": "Pydantic request/response models",
-    "app/services": "Business logic",
-    "alembic": "Migration environment",
-    "alembic/versions": "Migration scripts",
+    "services/api": "Python API service (FastAPI)",
+    "services/api/app": "Application package",
+    "services/api/app/api": "HTTP layer",
+    "services/api/app/api/v1": "v1 routers",
+    "services/api/app/core": "Settings, DB session",
+    "services/api/app/models": "ORM models",
+    "services/api/app/models/core": "Core domain entities",
+    "services/api/app/models/reference": "Reference / lookup entities",
+    "services/api/app/repositories": "Data-access layer",
+    "services/api/app/schemas": "Pydantic request/response models",
+    "services/api/app/services": "Business logic",
+    "services/api/alembic": "Migration environment",
+    "services/api/alembic/versions": "Migration scripts",
     "services": "Service-rooted layout per ADR 0028",
     "services/frontend": "Frontend artifacts (portal, future admin / dashboard)",
     "services/frontend/portal": "Static documentation portal — public + internal IA",
@@ -519,8 +519,12 @@ def sync(check: bool = False) -> int:
     )
     if errors_path.exists():
         errors_sections: dict[str, str] = {
-            "ERROR_COMMON_ROWS": _render_error_rows_html(common_errors, "app/errors/common.py"),
-            "ERROR_USER_ROWS": _render_error_rows_html(user_errors, "app/errors/user.py"),
+            "ERROR_COMMON_ROWS": _render_error_rows_html(
+                common_errors, "services/api/app/errors/common.py"
+            ),
+            "ERROR_USER_ROWS": _render_error_rows_html(
+                user_errors, "services/api/app/errors/user.py"
+            ),
             "ERROR_RULE_ROWS": _render_rule_rows_html(rule_rows),
         }
 

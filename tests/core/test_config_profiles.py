@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from app.core.config import _normalize_app_env, get_settings
 
 

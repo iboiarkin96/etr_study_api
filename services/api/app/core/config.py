@@ -8,7 +8,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 ENV_DIR = ROOT / "env"
 _ALLOWED_APP_ENVS = {"dev", "qa", "prod"}
 _APP_ENV_ALIASES = {

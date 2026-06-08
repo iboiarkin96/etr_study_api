@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import time
 
+from app.core.database import SessionLocal
 from fastapi.testclient import TestClient
 from sqlalchemy import text
-
-from app.core.database import SessionLocal
 
 
 def _now_ms() -> int:

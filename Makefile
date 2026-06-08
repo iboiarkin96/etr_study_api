@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check
+.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check clean-cache
 
 # ──────────────────────────────────────────────
 # Help
@@ -88,7 +88,7 @@ help:
 	@echo "  make verify               Run deps-audit + lint-check + type-check + openapi-check + contract-test + test + docs-check + docs-a11y-check"
 	@echo ""
 	@echo "  # Supply chain (ADR 0019)"
-	@echo "  make deps-audit           Scan requirements.txt with pip-audit (OSV); fails on known CVEs"
+	@echo "  make deps-audit           Scan services/api/requirements.txt with pip-audit (OSV); fails on known CVEs"
 	@echo ""
 	@echo "  # Tests"
 	@echo "  make test                 Run full test suite (pytest + coverage per pyproject.toml)"
@@ -113,6 +113,10 @@ help:
 	@echo "  # Deployment"
 	@echo "  make release-check        Run env-check + deps-audit + verify before deploy"
 	@echo "  make release DEPLOY_CMD='…' Run release-check then deploy command"
+	@echo ""
+	@echo "  # Housekeeping"
+	@echo "  make clean-cache          Remove tool caches (__pycache__, .mypy_cache, .ruff_cache,"
+	@echo "                            .pytest_cache, .pip-audit-cache)"
 	@echo ""
 
 setup: venv install
@@ -161,7 +165,7 @@ install:
 	@printf "$(ICON_STEP) %s\n" "Upgrading pip…"
 	@$(PYTHON) -m pip install --upgrade pip -q
 	@printf "$(ICON_STEP) %s\n" "Installing requirements…"
-	@$(PIP) install -r requirements.txt -q
+	@$(PIP) install -r services/api/requirements.txt -q
 	@printf "$(ICON_OK) %s\n" "Dependencies installed"
 
 # Vulnerability scan of the actual venv contents (ADR 0019). Repo-local cache (see .gitignore).
@@ -200,8 +204,8 @@ run:
 	@set -a; . ./$(ENV); set +a; \
 	APP_HOST=$${APP_HOST:-127.0.0.1}; \
 	APP_PORT=$${APP_PORT:-8000}; \
-	$(PYTHON) -m alembic upgrade head && \
-	$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload --no-access-log
+	cd services/api && PYTHONPATH=. $(PYTHON) -m alembic upgrade head && \
+	PYTHONPATH=. $(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload --no-access-log
 
 # ──────────────────────────────────────────────
 # Database / Migrations
@@ -212,7 +216,7 @@ migrate:
 		printf "$(ICON_ERR) %s\n" "$(ENV) not found. Cannot resolve SQLITE_DB_PATH."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Applying migrations…"
-	@$(PYTHON) -m alembic upgrade head && printf "$(ICON_OK) %s\n" "Migrations applied"
+	@cd services/api && PYTHONPATH=. $(PYTHON) -m alembic upgrade head && printf "$(ICON_OK) %s\n" "Migrations applied"
 
 # ──────────────────────────────────────────────
 # Docs
@@ -274,7 +278,7 @@ type-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Running mypy type checks..."
-	@$(PYTHON) -m mypy app tests scripts
+	@PYTHONPATH=services/api $(PYTHON) -m mypy services/api/app tests scripts
 	@printf "$(ICON_OK) %s\n" "Type checks passed"
 	@printf "$(COLOR_GREEN)== TYPE-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
@@ -468,7 +472,7 @@ docs-fix:
 	@$(PYTHON) scripts/ensure_docs_maintainers.py
 	@printf "$(ICON_INFO) %s\n" "[8/9] Python API reference (pdoc)"
 	@rm -rf services/portal/internal/services/api/code-reference
-	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
+	@PYTHONHASHSEED=0 PYTHONPATH=services/api $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
 	@$(PYTHON) scripts/normalize_pdoc_output.py
 	@printf "$(ICON_INFO) %s\n" "[9/9] build pagefind index (ADR-0033)"
 	@$(PYTHON) scripts/build_pagefind_index.py
@@ -597,11 +601,26 @@ env-check:
 	@printf "$(ICON_STEP) %s\n" "Checking environment…"
 	@if [ ! -d ".venv" ]; then printf "  $(ICON_ERR) %s\n" ".venv missing"; else printf "  $(ICON_OK) %s\n" ".venv exists"; fi
 	@if [ ! -f "$(ENV)" ]; then printf "  $(ICON_ERR) %s\n" ".env missing"; else printf "  $(ICON_OK) %s\n" ".env exists"; fi
-	@if [ ! -f "requirements.txt" ]; then printf "  $(ICON_ERR) %s\n" "requirements.txt missing"; else printf "  $(ICON_OK) %s\n" "requirements.txt exists"; fi
+	@if [ ! -f "services/api/requirements.txt" ]; then printf "  $(ICON_ERR) %s\n" "services/api/requirements.txt missing"; else printf "  $(ICON_OK) %s\n" "services/api/requirements.txt exists"; fi
 	@printf "  $(ICON_INFO) APP_ENV=%s\n" "$${APP_ENV:-<not set>}"
 	@printf "  $(ICON_INFO) ENV_FILE=%s\n" "$${ENV_FILE:-<not set>}"
 	@if [ -d ".venv" ] && [ -f "$(ENV)" ]; then \
-		$(PYTHON) -c "from app.core.config import get_settings; s=get_settings(); print('  $(ICON_OK) Config OK - DB:', s.sqlite_db_path)" 2>/dev/null \
+		PYTHONPATH=services/api $(PYTHON) -c "from app.core.config import get_settings; s=get_settings(); print('  $(ICON_OK) Config OK - DB:', s.sqlite_db_path)" 2>/dev/null \
 		|| printf "  $(ICON_ERR) %s\n" "Config load failed (check .env values)"; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Done"
+
+# ──────────────────────────────────────────────
+# Housekeeping
+# ──────────────────────────────────────────────
+# Remove tool caches from the working tree. Safe to run anytime — caches are
+# regenerated on next tool invocation. Skips .venv/ and node_modules/ so we
+# don't blow away installed dependencies.
+clean-cache:
+	@printf "$(COLOR_CYAN)== CLEAN-CACHE: START ==$(COLOR_RESET)\n"
+	@printf "$(ICON_STEP) %s\n" "Removing __pycache__ directories…"
+	@find . -type d -name '__pycache__' -not -path './.venv/*' -not -path './node_modules/*' -prune -exec rm -rf {} +
+	@printf "$(ICON_STEP) %s\n" "Removing tool caches (.mypy_cache, .ruff_cache, .pytest_cache, .pip-audit-cache)…"
+	@rm -rf .mypy_cache .ruff_cache .pytest_cache .pip-audit-cache
+	@printf "$(ICON_OK) %s\n" "Caches cleaned"
+	@printf "$(COLOR_GREEN)== CLEAN-CACHE: SUCCESS ==$(COLOR_RESET)\n"

@@ -31,6 +31,7 @@ os.environ.setdefault("API_BODY_MAX_BYTES", "1048576")
 from app.core.database import SessionLocal, engine
 from app.main import app
 from app.models import Base
+
 from tests.api.v1.user_test_utils import (
     TEST_INVALIDATION_REASON_UUID,
     TEST_SYSTEM_UUID,

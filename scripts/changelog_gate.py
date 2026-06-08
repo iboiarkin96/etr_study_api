@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 
-CODE_PREFIXES = ("app/",)
+CODE_PREFIXES = ("services/api/app/", "services/api/alembic/")
 DOCS_PREFIXES = ("services/portal/public/reference/api/",)
 ROOT_TRIGGER_FILES = frozenset({"README.md"})
 ROOT_CHANGELOG = "CHANGELOG.md"
@@ -126,7 +126,7 @@ def main() -> int:
     for path in missing:
         print(f"  - {path}", file=sys.stderr)
     print(
-        "Rules: app/ and root README.md require CHANGELOG.md; services/portal/openapi/ "
+        "Rules: services/api/ and root README.md require CHANGELOG.md; services/portal/openapi/ "
         f"requires {DOCS_CHANGELOG} (or {ROOT_CHANGELOG}). "
         "You can bypass via [skip changelog] or skip-changelog in PR title "
         "(PR) or commit messages (push).",

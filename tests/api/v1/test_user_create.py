@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from app.main import app
 from fastapi.testclient import TestClient
 
-from app.main import app
 from tests.api.v1.user_test_utils import (
     TEST_INVALIDATION_REASON_UUID,
     TEST_SYSTEM_UUID,
