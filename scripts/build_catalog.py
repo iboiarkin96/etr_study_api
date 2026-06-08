@@ -453,6 +453,7 @@ def write_lens(
         body_rows=body_rows,
     )
     target.parent.mkdir(parents=True, exist_ok=True)
+    html = "\n".join(line.rstrip() for line in html.splitlines()) + "\n"
     target.write_text(html, encoding="utf-8")
 
 
