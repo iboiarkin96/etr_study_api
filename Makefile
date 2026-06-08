@@ -204,8 +204,8 @@ run:
 	@set -a; . ./$(ENV); set +a; \
 	APP_HOST=$${APP_HOST:-127.0.0.1}; \
 	APP_PORT=$${APP_PORT:-8000}; \
-	cd services/api && PYTHONPATH=. $(PYTHON) -m alembic upgrade head && \
-	PYTHONPATH=. $(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload --no-access-log
+	cd services/api && PYTHONPATH=. $(CURDIR)/$(PYTHON) -m alembic upgrade head && \
+	PYTHONPATH=. $(CURDIR)/$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload --no-access-log
 
 # ──────────────────────────────────────────────
 # Database / Migrations
@@ -216,7 +216,7 @@ migrate:
 		printf "$(ICON_ERR) %s\n" "$(ENV) not found. Cannot resolve SQLITE_DB_PATH."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Applying migrations…"
-	@cd services/api && PYTHONPATH=. $(PYTHON) -m alembic upgrade head && printf "$(ICON_OK) %s\n" "Migrations applied"
+	@cd services/api && PYTHONPATH=. $(CURDIR)/$(PYTHON) -m alembic upgrade head && printf "$(ICON_OK) %s\n" "Migrations applied"
 
 # ──────────────────────────────────────────────
 # Docs
