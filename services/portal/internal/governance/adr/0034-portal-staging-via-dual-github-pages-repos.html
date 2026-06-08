@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0034 · Portal staging — separate GitHub Pages repository per environment · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-07" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0034</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0034</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--warn" href="0018-adr-lifecycle-ratification-and-badges.html">Proposed</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li class="is-current">Proposed</li>
+                    <li>Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li class="is-current">Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li class="is-current">Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
+        <h1>Portal staging — separate GitHub Pages repository per environment</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Stand up a pre-release stage for the portal on GitHub Pages without breaking the prod publish pipeline. A single repo cannot host two Pages sites, so we keep <code>&lt;app&gt;</code> as the source of truth and add a thin mirror repo <code>&lt;app&gt;-staging</code> that CI publishes to on every push to the <code>staging</code> branch of <code>&lt;app&gt;</code>. Prod stays on <code>main</code>, staging gets its own URL, own cache, own 404, and rollbacks are a single revert.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0034</code> — Portal staging — separate GitHub Pages repository per environment</dd>
+          <dt>Category</dt>
+          <dd>workflow</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-06-07">2026-06-07</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-06-07">2026-06-07</time></dd>
+          <dt>Related</dt>
+          <dd>
+            <a href="0001-docs-as-code.html">ADR-0001</a> (docs-as-code),
+            <a href="0017-branch-naming-and-repository-workflow.html">ADR-0017</a> (branch naming &amp; trunk flow),
+            <a href="0021-continuous-delivery-github-actions-and-ghcr.html">ADR-0021</a> (CD via GitHub Actions and GHCR).
+          </dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p>The portal is published on GitHub Pages directly from the repository's <code>main</code> branch — ADR-0033 made the build static enough for this to work without server-side infrastructure. The publish pipeline now has one gap: there is no intermediate environment between «works on my laptop with <code>python -m http.server</code>» and «live on the prod URL».</p>
+        <p>That gap matters because the portal has client-side behaviour that a local <code>file://</code> or single-port dev server does not exercise:</p>
+        <ul>
+          <li>Pagefind bundle loading uses fetch relative to the deployed base path; a wrong <code>BASE_URL</code> only manifests under a real Pages domain.</li>
+          <li>The UI Kit v2 web components rely on absolute asset paths declared in <code>nav-tree-internal.json</code>.</li>
+          <li>Theme persistence and breadcrumbs cross-link across many pages — broken relative refs become obvious only on a real navigation graph.</li>
+        </ul>
+        <p>GitHub Pages itself imposes the hard constraint: one repository publishes exactly one site, sourced from one branch. There is no built-in second environment, no per-PR preview, and no first-class staging URL. Any solution has to work around that limit.</p>
+      </section>
+
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <p>We adopt the <strong>dual-repository pattern</strong>: the source repo <code>&lt;app&gt;</code> publishes prod from <code>main</code>; a second public repo <code>&lt;app&gt;-staging</code>, which never holds application source, publishes the staging build from its own <code>main</code> branch, populated only by CI.</p>
+        <ol>
+          <li>Branch model in <code>&lt;app&gt;</code>: <code>feature/*</code> → PR → <code>staging</code> → PR → <code>main</code>. Hotfixes may go straight to <code>main</code>; they are forward-ported to <code>staging</code> in the next merge. Branch naming follows <a href="0017-branch-naming-and-repository-workflow.html">ADR-0017</a>.</li>
+          <li>Push to <code>main</code> triggers <code>.github/workflows/deploy-prod.yml</code> — built with <code>BASE_URL=/&lt;app&gt;/</code>, published via the official <code>actions/upload-pages-artifact</code> + <code>actions/deploy-pages</code> path so nothing extra lands in git.</li>
+          <li>Push to <code>staging</code> triggers <code>.github/workflows/deploy-staging.yml</code> — built with <code>BASE_URL=/&lt;app&gt;-staging/</code>, pushed via <code>peaceiris/actions-gh-pages@v3</code> with <code>external_repository: &lt;owner&gt;/&lt;app&gt;-staging</code>, <code>publish_branch: main</code>, and <code>force_orphan: true</code> so the staging history stays a single commit and the repo does not bloat over time.</li>
+          <li>Cross-repo write authority is held by a GitHub App with <code>contents:write</code> scoped to <code>&lt;app&gt;-staging</code>; the installation token is fetched at workflow time via <code>actions/create-github-app-token</code>. A fine-grained PAT is accepted as a fallback when an App is impractical.</li>
+          <li>Both workflows declare <code>concurrency: { group: pages-deploy-&lt;env&gt;, cancel-in-progress: false }</code> so concurrent pushes serialise per-environment without dropping a build silently.</li>
+          <li>Environment-specific configuration (API URL, feature flags, robots-meta) is supplied through <strong>GitHub Environments</strong> (<code>production</code>, <code>staging</code>) declared on <code>&lt;app&gt;</code>. The prod environment carries a Required reviewer for the deploy job.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li>In scope: one prod environment and one staging environment for the portal published from <code>&lt;app&gt;</code>.</li>
+          <li>In scope: the branch model, CI workflows, cross-repo authentication, and the per-environment <code>BASE_URL</code> contract that the static build must honour.</li>
+          <li>Out of scope: per-PR preview deployments (none of the available Pages mechanisms support it cleanly).</li>
+          <li>Out of scope: password-protected staging — GitHub Pages on a public repo does not authenticate. A <code>noindex</code> meta tag is the only mitigation we ship.</li>
+          <li>Out of scope: multi-environment layering (qa / uat / canary). If a third environment becomes necessary, a successor ADR replaces this one.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered</h2>
+        <p>Four alternatives evaluated before adopting the dual-repository pattern. Each rejected with a rooted reason.</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">No staging — push straight to prod</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> zero infrastructure, zero CI changes, no second token to rotate. The portal is static — «just open the HTML locally» catches most regressions.</p>
+              <p><strong>Why rejected:</strong> Pagefind fetches the bundle relative to the deployed base path; nav-tree links are absolute; theme persistence is cross-page. A class of bugs only appears under a real Pages domain at the right base path, and the prod URL is the wrong place to discover them. Cost of one demo-time regression is larger than the cost of standing up a second Pages site.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Single repo, staging in a <code>/staging/</code> subfolder</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> one repo, one Pages site, no cross-repo token. CI pushes prod build to <code>/</code> and staging build to <code>/staging/</code> using <code>keep_files: true</code>.</p>
+              <p><strong>Why rejected:</strong> shared 404 (prod's <code>404.html</code> serves staging too), shared edge cache (a prod deploy can warm the CDN with assets staging then has to live with), shared CNAME, and a non-trivial race when prod and staging push concurrently to the same publish branch. Cheap to set up, leaky in operation — and the <code>BASE_URL</code> juggling needed to keep two sub-builds asset-correct doubles the surface that can break.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Cloudflare Pages / Netlify / Vercel as the staging host</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> per-branch preview and per-PR preview deployments out of the box, native <code>Production</code> vs <code>Preview</code> env vars, Access-based password protection on free tiers.</p>
+              <p><strong>Why rejected:</strong> introduces a vendor outside the GitHub surface where everything else already lives — CI, registry, governance, audit trail. We would be running two unrelated deploy runtimes (Actions for prod, the vendor for staging) with two cache models and two outage stories. The win on PR previews does not pay for the split until the team is larger than it is. Reconsidered when team or volume grows; a successor ADR is the path.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Per-PR preview via GitHub Pages alone</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> theoretically achievable by publishing each PR into <code>/pr-&lt;n&gt;/</code> inside a single <code>gh-pages</code> branch, with a cleanup hook on PR close.</p>
+              <p><strong>Why rejected:</strong> inherits every problem of the subfolder option (shared 404, cache, CNAME) and adds a cleanup workflow whose failure modes — orphaned previews, accidental deletion of prod, branch-protection conflicts — are harder to recover from than the original problem. GitHub Pages has no first-class preview primitive; faking one inside it is a maintenance trap.</p>
+            </div>
+          </article>
+        </div>
+        <p><strong>Trade we accept by choosing dual repos.</strong> We carry one extra repository and one cross-repo write token. In return we get isolated domains, isolated caches, isolated 404 pages, independent rollback, and a deploy flow that uses no infrastructure outside GitHub.</p>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li>Staging gets its own URL, own edge cache, own <code>404.html</code>, own CNAME — every Pages-specific class of bug surfaces in isolation, not on the prod domain.</li>
+                <li>Promotion is a git operation, not a deploy script: <code>staging</code> → <code>main</code> via PR. Reverting a prod deploy is a single revert on <code>main</code>, then the next CI run heals Pages.</li>
+                <li>Prod publish remains on the official <code>actions/deploy-pages</code> path — no committed build artefact in <code>&lt;app&gt;</code>, no churn in the prod repo's history.</li>
+                <li>No new vendor surface. CI, secrets, audit log, governance all stay inside GitHub.</li>
+                <li><code>BASE_URL</code> contract becomes explicit and tested — the staging deploy fails loudly if asset paths are not parameterised, catching the bug class before prod sees it.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <p>Three named tradeoffs. Shape from <a href="../../handbook/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Cross-repo write authority lives in CI.</strong> We gain a publish path that does not require humans to touch <code>&lt;app&gt;-staging</code>. We lose the «one repo, one trust boundary» story — a leaked CI secret can overwrite the staging site. We accept it because the staging site has no user data, no production credentials, and the secret is scoped to <code>contents:write</code> on one repo only (no organisation-wide write, no workflow rights).</li>
+                <li><strong>No per-PR preview.</strong> We gain a single, predictable staging URL the team can rely on. We lose the ability to compare two unmerged feature branches side-by-side in deployed form. We accept it because team size is small enough that <code>staging</code> serialisation is acceptable; the moment that stops being true, a successor ADR moves staging to a host that has native preview deploys.</li>
+                <li><strong>Public-by-default staging.</strong> We gain free hosting on GitHub Pages. We lose the option to hide pre-release content behind auth — the staging site is reachable by anyone with the URL, and a <code>noindex</code> meta tag is a request, not a control. We accept it because the staging build will not contain secrets and the threat model is «accidental discovery», not «motivated adversary».</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+        <h3>Revisit — what triggers a successor?</h3>
+        <p>This decision should be re-opened when any of the following becomes true: (a) the team grows past the point where one contended staging branch is the bottleneck and per-PR previews start to matter, (b) the portal begins to render content that should not be world-readable in pre-release form, or (c) we want a unified preview/staging story for more than just the portal (e.g. the future public API explorer). All three roads lead away from raw GitHub Pages — Cloudflare Pages and Netlify are the most likely successors.</p>
+      </section>
+
+      <section aria-labelledby="compatibility-h">
+        <h2 id="compatibility-h">Compatibility and migration</h2>
+        <p>Roll-out runs in three waves (W0–W2). Each wave is independently reversible.</p>
+        <ul>
+          <li><strong>W0 — Provisioning.</strong> Create the public repo <code>&lt;owner&gt;/&lt;app&gt;-staging</code> (no source, no LICENSE-only is fine). Enable Pages → Source = <em>Deploy from a branch</em>, branch = <code>main</code>, folder = <code>/ (root)</code>. Create a GitHub App with <code>contents:write</code> scoped to <code>&lt;app&gt;-staging</code>; install it on the owner; store the app ID and private key as <code>STAGING_DEPLOY_APP_ID</code> and <code>STAGING_DEPLOY_APP_KEY</code> in <code>&lt;app&gt;</code>'s Actions secrets. PAT fallback: a fine-grained PAT with the same scope, stored as <code>STAGING_DEPLOY_TOKEN</code>.</li>
+          <li><strong>W1 — Pipelines.</strong> Land <code>.github/workflows/deploy-prod.yml</code> and <code>.github/workflows/deploy-staging.yml</code>. Add a <code>BASE_URL</code> env var to the build configuration (Vite / equivalent) and verify locally that both <code>/&lt;app&gt;/</code> and <code>/&lt;app&gt;-staging/</code> base paths produce a working build. First push to <code>staging</code> publishes the staging site within ~60 s.</li>
+          <li><strong>W2 — Hardening.</strong> Add branch-protection rules to <code>main</code> and <code>staging</code> in <code>&lt;app&gt;</code> (require PR, at least one approving review, status checks green). Declare GitHub Environments <code>production</code> and <code>staging</code> with environment-scoped secrets; add a Required reviewer to the <code>production</code> environment so prod deploys wait for an explicit click. Inject <code>&lt;meta name="robots" content="noindex"&gt;</code> into the staging build at compile time.</li>
+        </ul>
+        <p><strong>Rollback strategy.</strong> Disabling staging is removing <code>deploy-staging.yml</code> and the secrets — the prod path is untouched. Disabling prod-staging coupling is reverting the merge that created the <code>staging</code> branch protections. The <code>&lt;app&gt;-staging</code> repo can be archived without touching <code>&lt;app&gt;</code>.</p>
+      </section>
+
+      <section aria-labelledby="implementation-h">
+        <h2 id="implementation-h">Implementation mapping</h2>
+        <ul>
+          <li>Prod workflow: <code>.github/workflows/deploy-prod.yml</code> — trigger <code>push: branches: [main]</code>; uses <code>actions/upload-pages-artifact</code> + <code>actions/deploy-pages</code>; environment <code>production</code>.</li>
+          <li>Staging workflow: <code>.github/workflows/deploy-staging.yml</code> — trigger <code>push: branches: [staging]</code>; uses <code>peaceiris/actions-gh-pages@v3</code> with <code>external_repository</code> and <code>force_orphan: true</code>; environment <code>staging</code>.</li>
+          <li>Cross-repo token: GitHub App installation token via <code>actions/create-github-app-token</code>; secrets <code>STAGING_DEPLOY_APP_ID</code>, <code>STAGING_DEPLOY_APP_KEY</code> on <code>&lt;app&gt;</code>.</li>
+          <li>Build base-path contract: <code>BASE_URL</code> env var consumed by the static-site bundler (<code>vite.config.ts</code> <code>base: process.env.BASE_URL</code> for the portal build).</li>
+          <li>Branch protections: <code>main</code> and <code>staging</code> require PR + 1 review + status checks; force-push disallowed.</li>
+          <li>Operational procedure: <a href="../../services/portal/how-to/release-to-staging.html">How-to · Release to staging</a>.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li>After W0: visiting <code>https://&lt;owner&gt;.github.io/&lt;app&gt;-staging/</code> serves a placeholder; Pages settings page reports «Your site is live».</li>
+          <li>After W1: a commit on <code>staging</code> updates the staging URL within ~60 s; the prod URL is unchanged; <code>deploy-staging.yml</code> reports a successful push to <code>&lt;app&gt;-staging</code>.</li>
+          <li>After W1: a commit on <code>main</code> updates the prod URL via <code>actions/deploy-pages</code>; the staging URL is unchanged.</li>
+          <li>After W1: two concurrent pushes (one to <code>main</code>, one to <code>staging</code>) both succeed — neither cancels the other.</li>
+          <li>After W2: a force-push to <code>main</code> is rejected by branch protection; a deploy to the <code>production</code> environment pauses until the Required reviewer approves.</li>
+          <li>Asset paths: open the staging URL with the network panel filtered to 404s — zero failed asset loads. Same check on the prod URL.</li>
+        </ul>
+      </section>
+
+      <footer class="docs-history" aria-label="History">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-07</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Proposed. Pre-release stage for the portal on GitHub Pages without giving up the single-repo source-of-truth posture. Dual-repo pattern chosen over subfolder, no-staging, vendor-host, and per-PR-preview alternatives. Roll-out W0–W2 outlined; revisit triggers named.</span>
+          </li>
+        </ul>
+      </footer>
+    </article>
+  </main>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
