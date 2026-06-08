@@ -9,7 +9,7 @@ Markers have the form:
     <!-- END:SECTION_NAME -->
 
 Usage:
-    python scripts/sync_docs.py          # one-shot sync
+    python services/portal/scripts/sync_docs.py          # one-shot sync
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import sys
 from functools import cache
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[3]
 NO_COLOR = os.getenv("NO_COLOR", "0") == "1"
 COLOR_RESET = "" if NO_COLOR else "\033[0m"
 COLOR_GREEN = "" if NO_COLOR else "\033[32m"

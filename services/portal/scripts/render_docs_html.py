@@ -6,7 +6,7 @@ import re
 from html import escape
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[3]
 TARGET_DIRS = (
     "services/portal/internal/governance/adr",
     "services/portal/internal/handbook/developer",

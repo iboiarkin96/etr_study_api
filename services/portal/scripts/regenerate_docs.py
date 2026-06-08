@@ -3,11 +3,11 @@
 Outputs SVG (Kroki ``plantuml/svg``) for crisp scaling in HTML; sources are ``*.puml``.
 
 Usage:
-  python scripts/regenerate_docs.py
-  python scripts/regenerate_docs.py --check
-  python scripts/regenerate_docs.py --watch
-  python scripts/regenerate_docs.py --bootstrap-manifest   # offline: fill input-hashes.json
-  python scripts/regenerate_docs.py --force                 # ignore cache, re-render all
+  python services/portal/scripts/regenerate_docs.py
+  python services/portal/scripts/regenerate_docs.py --check
+  python services/portal/scripts/regenerate_docs.py --watch
+  python services/portal/scripts/regenerate_docs.py --bootstrap-manifest   # offline: fill input-hashes.json
+  python services/portal/scripts/regenerate_docs.py --force                 # ignore cache, re-render all
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 UML_SRC_DIR = PROJECT_ROOT / "services" / "portal" / "internal" / "reference" / "uml"
 UML_OUT_DIR = UML_SRC_DIR / "rendered"
 UML_STYLE_FILE = UML_SRC_DIR / "include" / "style.puml"

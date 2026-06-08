@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 DOCS_ROOT = ROOT / "services" / "portal"
 ASSETS_ROOT = ROOT / "services" / "frontend" / "portal"
 FAVICON_PATH = ASSETS_ROOT / "assets" / "favicon.svg"

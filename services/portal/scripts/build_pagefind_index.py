@@ -25,7 +25,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SOURCE = ROOT / "services/portal"
 STAGED = ROOT / "var/tmp/portal-pagefind-staged"
 OUTPUT = ROOT / "services/frontend/portal/assets/pagefind"

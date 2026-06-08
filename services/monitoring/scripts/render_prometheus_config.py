@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 TEMPLATE_PATH = ROOT / "services" / "monitoring" / "prometheus" / "prometheus.tpl.yml"
 OUTPUT_PATH = ROOT / "services" / "monitoring" / "prometheus" / "prometheus.yml"
 

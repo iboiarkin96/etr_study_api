@@ -12,8 +12,8 @@ Exit codes:
 
 Usage::
 
-    python scripts/spec_lint.py                          # lint every operation spec
-    python scripts/spec_lint.py --paths <file> <file>    # lint a specific list of files
+    python services/portal/scripts/spec_lint.py                          # lint every operation spec
+    python services/portal/scripts/spec_lint.py --paths <file> <file>    # lint a specific list of files
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
 OPERATIONS_GLOB = "services/portal/internal/services/api/reference/*/operations/*.html"
 
 REQUIRED_SECTIONS: tuple[str, ...] = (

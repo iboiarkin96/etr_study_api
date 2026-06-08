@@ -30,7 +30,7 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
 OPERATIONS_GLOB = "services/portal/internal/services/api/reference/*/operations/*.html"
 ERROR_CATALOG = (
     REPO_ROOT / "services/portal/internal/services/api/reference/_shared/error-catalog.html"

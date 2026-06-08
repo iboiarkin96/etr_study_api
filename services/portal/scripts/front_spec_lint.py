@@ -17,8 +17,8 @@ Exit codes:
 
 Usage::
 
-    python scripts/front_spec_lint.py                          # lint every typed front spec
-    python scripts/front_spec_lint.py --paths <file> <file>    # lint a specific list of files
+    python services/portal/scripts/front_spec_lint.py                          # lint every typed front spec
+    python services/portal/scripts/front_spec_lint.py --paths <file> <file>    # lint a specific list of files
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
 FRONT_GLOB = "services/portal/internal/front/**/*.html"
 
 # Required and optional sections per page type. Match the templates in

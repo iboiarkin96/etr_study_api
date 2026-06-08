@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from posixpath import normpath as posix_normpath
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
 INTERNAL = Path("services/portal/internal")
 
 

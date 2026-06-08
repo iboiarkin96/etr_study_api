@@ -21,7 +21,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 SCRIPT = Path(__file__).resolve()
-ROOT = SCRIPT.parent.parent
+ROOT = SCRIPT.parents[3]
 DOCS = ROOT / "services" / "portal"
 GOV = DOCS / "internal" / "governance"
 ADR = GOV / "adr"

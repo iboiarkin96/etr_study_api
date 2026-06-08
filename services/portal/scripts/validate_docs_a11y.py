@@ -8,7 +8,7 @@ from pathlib import Path
 
 import html5lib
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[3]
 DOCS_ROOT = ROOT / "services" / "portal"
 ASSETS_ROOT = ROOT / "services" / "frontend" / "portal"
 

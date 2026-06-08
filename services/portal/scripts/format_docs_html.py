@@ -6,7 +6,7 @@ import os
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[3]
 DOCS_ROOT = ROOT / "services" / "portal"
 ASSETS_ROOT = ROOT / "services" / "frontend" / "portal"
 FROZEN_DOCS_REL_PATHS = {

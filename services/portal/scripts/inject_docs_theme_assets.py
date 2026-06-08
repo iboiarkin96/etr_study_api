@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 DOCS = ROOT / "services" / "frontend" / "portal"
 
 THEME_MARKER = "docs-theme.css"

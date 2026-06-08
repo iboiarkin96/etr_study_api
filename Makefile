@@ -312,31 +312,31 @@ type-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Running mypy type checks..."
-	@PYTHONPATH=services/api $(PYTHON) -m mypy services/api/app tests scripts
+	@PYTHONPATH=services/api $(PYTHON) -m mypy services/api/app tests services/api/scripts services/portal/scripts services/monitoring/scripts _shared/scripts
 	@printf "$(ICON_OK) %s\n" "Type checks passed"
 	@printf "$(COLOR_GREEN)== TYPE-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Lint current spec + compare to baseline for backward-incompatible API changes only
-# (see scripts/openapi_governance.py: run_lint, run_breaking_check).
+# (see services/api/scripts/openapi_governance.py: run_lint, run_breaking_check).
 openapi-check:
 	@printf "$(COLOR_CYAN)== OPENAPI-CHECK: START ==$(COLOR_RESET)\n"
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Running OpenAPI governance checks..."
-	@$(PYTHON) scripts/openapi_governance.py check
+	@$(PYTHON) services/api/scripts/openapi_governance.py check
 	@printf "$(ICON_OK) %s\n" "OpenAPI checks passed"
 	@printf "$(COLOR_GREEN)== OPENAPI-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Full-document equality: app.openapi() must match parsed baseline JSON (any diff fails)
-# (see scripts/openapi_governance.py: run_snapshot_check).
+# (see services/api/scripts/openapi_governance.py: run_snapshot_check).
 contract-test:
 	@printf "$(COLOR_CYAN)== CONTRACT-TEST: START ==$(COLOR_RESET)\n"
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Running OpenAPI snapshot contract test..."
-	@$(PYTHON) scripts/openapi_governance.py contract-test
+	@$(PYTHON) services/api/scripts/openapi_governance.py contract-test
 	@printf "$(ICON_OK) %s\n" "OpenAPI contract-test passed"
 	@printf "$(COLOR_GREEN)== CONTRACT-TEST: SUCCESS ==$(COLOR_RESET)\n"
 
@@ -346,7 +346,7 @@ openapi-accept-changes:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Accepting OpenAPI changes (updating baseline)..."
-	@$(PYTHON) scripts/openapi_governance.py update-baseline
+	@$(PYTHON) services/api/scripts/openapi_governance.py update-baseline
 	@printf "$(ICON_OK) %s\n" "OpenAPI baseline updated"
 
 # Run local auto-fix pipeline.
@@ -486,31 +486,31 @@ docs-fix:
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
-	@if [ ! -f "scripts/regenerate_docs.py" ]; then \
-		printf "$(ICON_ERR) %s\n" "scripts/regenerate_docs.py not found."; exit 1; \
+	@if [ ! -f "services/portal/scripts/regenerate_docs.py" ]; then \
+		printf "$(ICON_ERR) %s\n" "services/portal/scripts/regenerate_docs.py not found."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-FIX: START ==$(COLOR_RESET)\n"
 	@printf "$(ICON_INFO) %s\n" "[1/9] regenerate UML diagrams"
-	@$(PYTHON) scripts/regenerate_docs.py
+	@$(PYTHON) services/portal/scripts/regenerate_docs.py
 	@printf "$(ICON_INFO) %s\n" "[2/9] sync marker-based documentation"
-	@$(PYTHON) scripts/sync_docs.py
+	@$(PYTHON) services/portal/scripts/sync_docs.py
 	@printf "$(ICON_INFO) %s\n" "[3/9] render docs markdown to html companions"
-	@$(PYTHON) scripts/render_docs_html.py
+	@$(PYTHON) services/portal/scripts/render_docs_html.py
 	@printf "$(ICON_INFO) %s\n" "[4/9] repair docs html structure"
-	@$(PYTHON) scripts/repair_docs_html.py
+	@$(PYTHON) services/portal/scripts/repair_docs_html.py
 	@printf "$(ICON_INFO) %s\n" "[5/9] normalize docs html template"
-	@$(PYTHON) scripts/format_docs_html.py
+	@$(PYTHON) services/portal/scripts/format_docs_html.py
 	@printf "$(ICON_INFO) %s\n" "[6/9] render service catalog (YAML → HTML)"
-	@$(PYTHON) scripts/render_service_descriptors.py
+	@$(PYTHON) services/portal/scripts/render_service_descriptors.py
 	@printf "$(ICON_INFO) %s\n" "[7/9] ensure docs body maintainers"
-	@$(PYTHON) scripts/ensure_docs_maintainers.py
+	@$(PYTHON) services/portal/scripts/ensure_docs_maintainers.py
 	@printf "$(ICON_INFO) %s\n" "[8/9] Python API reference (pdoc)"
 	@rm -rf services/portal/internal/services/api/code-reference
 	@PYTHONHASHSEED=0 PYTHONPATH=services/api $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
-	@$(PYTHON) scripts/normalize_pdoc_output.py
+	@$(PYTHON) services/portal/scripts/normalize_pdoc_output.py
 	@printf "$(ICON_INFO) %s\n" "[9/9] build pagefind index (ADR-0033)"
-	@$(PYTHON) scripts/build_pagefind_index.py
-	@$(PYTHON) scripts/check_pagefind_visibility.py
+	@$(PYTHON) services/portal/scripts/build_pagefind_index.py
+	@$(PYTHON) services/portal/scripts/check_pagefind_visibility.py
 	@printf "$(COLOR_GREEN)== DOCS-FIX: SUCCESS ==$(COLOR_RESET)\n"
 
 # Validate docs HTML structure is already normalized (no writes).
@@ -519,7 +519,7 @@ docs-html-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-HTML-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/validate_docs_html.py
+	@$(PYTHON) services/portal/scripts/validate_docs_html.py
 	@printf "$(COLOR_GREEN)== DOCS-HTML-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Baseline docs design checks (page skeleton and card conventions).
@@ -528,7 +528,7 @@ docs-design-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-DESIGN-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/validate_docs_design.py
+	@$(PYTHON) services/portal/scripts/validate_docs_design.py
 	@printf "$(COLOR_GREEN)== DOCS-DESIGN-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Baseline a11y checks for docs HTML (headings, landmarks, contrast, keyboard).
@@ -537,7 +537,7 @@ docs-a11y-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-A11Y-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/validate_docs_a11y.py
+	@$(PYTHON) services/portal/scripts/validate_docs_a11y.py
 	@printf "$(COLOR_GREEN)== DOCS-A11Y-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Smoke-check feedback controls wiring on key pages.
@@ -546,7 +546,7 @@ docs-feedback-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-FEEDBACK-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/validate_docs_feedback.py
+	@$(PYTHON) services/portal/scripts/validate_docs_feedback.py
 	@printf "$(COLOR_GREEN)== DOCS-FEEDBACK-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Lint internal analyst-spec pages (structure + cross-doc consistency).
@@ -558,9 +558,9 @@ docs-spec-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-SPEC-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/spec_lint.py
-	@$(PYTHON) scripts/spec_consistency.py
-	@$(PYTHON) scripts/front_spec_lint.py
+	@$(PYTHON) services/portal/scripts/spec_lint.py
+	@$(PYTHON) services/portal/scripts/spec_consistency.py
+	@$(PYTHON) services/portal/scripts/front_spec_lint.py
 	@printf "$(COLOR_GREEN)== DOCS-SPEC-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Verify docs are already synchronized (no drift allowed).
@@ -614,7 +614,7 @@ catalog-render:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Rendering service descriptors…"
-	@$(PYTHON) scripts/render_service_descriptors.py
+	@$(PYTHON) services/portal/scripts/render_service_descriptors.py
 	@printf "$(ICON_OK) %s\n" "Service descriptors rendered"
 
 # Verify service descriptor HTML is already in sync with catalog-info.yaml.
@@ -624,7 +624,7 @@ catalog-render-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Checking service descriptors are up to date…"
-	@$(PYTHON) scripts/render_service_descriptors.py --check
+	@$(PYTHON) services/portal/scripts/render_service_descriptors.py --check
 	@printf "$(ICON_OK) %s\n" "Service descriptor check passed"
 
 # ──────────────────────────────────────────────

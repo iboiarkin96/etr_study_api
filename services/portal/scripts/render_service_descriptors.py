@@ -24,7 +24,7 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SERVICES_DIR = ROOT / "services/portal/internal/services"
 HUB_HTML = SERVICES_DIR / "index.html"
 NAV_TREE = ROOT / "services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json"

@@ -10,7 +10,7 @@ import argparse
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[3]
 DOCS_ROOT = ROOT / "services" / "portal"
 DEFAULT_MAINTAINER_ID = "16fc8b78537109162984a2fdbef6e142"
 FROZEN_DOCS_REL_PATHS = {

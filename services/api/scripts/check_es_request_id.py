@@ -2,8 +2,8 @@
 """Query local Elasticsearch for study-app logs (debug Kibana / Filebeat without UI).
 
 Usage:
-  python scripts/check_es_request_id.py
-  python scripts/check_es_request_id.py 58c7fb82-6c17-4f6e-b24b-776a06d84334
+  python services/api/scripts/check_es_request_id.py
+  python services/api/scripts/check_es_request_id.py 58c7fb82-6c17-4f6e-b24b-776a06d84334
 
 Env: OBS_ES_HOST (default 127.0.0.1), OBS_ES_PORT (default 9200).
 """

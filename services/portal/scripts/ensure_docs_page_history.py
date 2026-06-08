@@ -3,7 +3,7 @@
 Skips ``services/portal/internal/catalog/api/code-reference/**``, ``services/frontend/portal/assets/**``, and redirect stubs. Skips pages that already have
 ``<section id="page-history">`` or legacy ``Document history`` / ``5-document-history`` (migrate those separately).
 
-Run: ``python scripts/ensure_docs_page_history.py``
+Run: ``python services/portal/scripts/ensure_docs_page_history.py``
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 DOCS = ROOT / "services" / "portal"
 
 MAIN_CLOSE_RE = re.compile(r"^(\s*)</main>\s*$", re.MULTILINE)

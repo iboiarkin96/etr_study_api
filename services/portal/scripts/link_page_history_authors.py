@@ -1,7 +1,7 @@
 """Wrap ``Ivan Boyarkin`` in Page history ``<td>`` cells with a link to the portal profile.
 
 Uses the same relative resolution as ``docs-nav.js`` / ``docs-internal-meta.js``.
-Run: ``python scripts/link_page_history_authors.py``
+Run: ``python services/portal/scripts/link_page_history_authors.py``
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 DOCS = ROOT / "services" / "frontend" / "portal"
 
 PROFILE_PATH = "internal/team/people/ivan-boyarkin/index.html"
