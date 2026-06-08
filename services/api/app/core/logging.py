@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
-from app.core.config import Settings
+from app.core.config import ROOT, Settings
 from app.core.request_context import request_id_var, span_id_var, trace_id_var
 
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -88,7 +88,9 @@ def _resolve_log_path(settings: Settings) -> Path:
     """
     log_dir = Path(settings.log_dir).expanduser()
     if not log_dir.is_absolute():
-        log_dir = Path.cwd() / log_dir
+        # Anchor at the repo root so log files land in /logs regardless of cwd
+        # (make run / alembic / pytest may launch from different directories).
+        log_dir = ROOT / log_dir
     log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir / settings.log_file_name
 

@@ -44,11 +44,16 @@ class DocsSearchTelemetryStore:
         """Initialize store and ensure schema.
 
         Args:
-            db_path: SQLite file path used by the application runtime.
+            db_path: SQLite file path used by the application runtime. Relative
+                paths are anchored at the repo root (same convention as
+                :func:`app.core.config.Settings.sqlite_url` and
+                :func:`app.core.logging._resolve_log_path`).
         """
+        from app.core.config import ROOT  # local import to avoid cycle at module load
+
         path = Path(db_path).expanduser()
         if not path.is_absolute():
-            path = Path.cwd() / path
+            path = ROOT / path
         path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = path
         self._lock = Lock()
