@@ -97,7 +97,7 @@ def main() -> int:
             "  • Time range in Discover: Last 24 hours, timezone UTC vs local.\n"
             "  • Mixed app.log (old text + new JSON): mv logs/app.log logs/app.log.bak && "
             "restart API (LOG_FORMAT=json), then: "
-            "docker compose -f docker-compose.logging.yml restart filebeat\n"
+            "docker compose -f services/monitoring/docker-compose.logging.yml restart filebeat\n"
             "  • docker logs study-app-filebeat — look for parsing errors.\n"
             "---"
         )

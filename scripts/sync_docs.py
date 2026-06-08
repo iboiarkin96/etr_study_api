@@ -396,10 +396,10 @@ _DIR_COMMENTS: dict[str, str] = {
     "services/portal/internal/handbook/uml/include": "Shared PlantUML skin (merged at Kroki render)",
     "services/portal/internal/handbook/uml/sequences": "Sequence diagram sources",
     "services/portal/internal/handbook/uml/rendered": "Rendered SVGs",
-    "ops": "Prometheus, Grafana, Filebeat configs",
-    "ops/filebeat": "Filebeat → Elasticsearch (local logging stack)",
-    "ops/grafana": "Dashboards and provisioning",
-    "ops/prometheus": "Scrape config, rules, Blackbox",
+    "services/monitoring": "Prometheus, Grafana, Filebeat configs + compose stacks",
+    "services/monitoring/filebeat": "Filebeat → Elasticsearch (local logging stack)",
+    "services/monitoring/grafana": "Dashboards and provisioning",
+    "services/monitoring/prometheus": "Scrape config, rules, Blackbox",
     "scripts": "Dev & CI helper scripts",
 }
 
@@ -413,10 +413,7 @@ def _build_tree() -> str:
 
     lines: list[str] = [f"{_REPO_NAME}/"]
 
-    _ROOT_FILE_COMMENTS: tuple[tuple[str, str], ...] = (
-        ("docker-compose.observability.yml", "Prometheus, Grafana, Blackbox"),
-        ("docker-compose.logging.yml", "Optional: Elasticsearch, Kibana, Filebeat"),
-    )
+    _ROOT_FILE_COMMENTS: tuple[tuple[str, str], ...] = ()
     for fname, comment in _ROOT_FILE_COMMENTS:
         if (ROOT / fname).is_file():
             lines.append(f"├── {fname}  # {comment}")
