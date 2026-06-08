@@ -176,32 +176,36 @@ def _role_attr(page: Page) -> str:
 
 
 def _card(page: Page, depth: int, group_attr_value: str | None = None) -> str:
-    """Render one page as a docs-card with pills row on top.
+    """Render one page as a spine-tile.
 
     Layout:
-      [ chip-row: page-type · svc:<n> · role1 · role2 ... ]   ← wraps freely
+      [ head: index-text (page-type · svc · roles)         ]
       [ h3 title                                           ]
       [ body lede                                          ]
+      [ foot: "Open" + arrow                               ]
     """
     prefix = "../" * depth
-    tone = TONE_BY_TYPE.get(page.page_type, "neutral")
-    svc_pill = (
-        f'<span class="docs-pill docs-pill--info">svc:{page.service}</span>'
-        if page.service != "none"
-        else ""
-    )
     group_attr = f' data-group="{group_attr_value}"' if group_attr_value else ""
     role_attr = _role_attr(page)
+    bits = [page.page_type]
+    if page.service != "none":
+        bits.append(f"svc:{page.service}")
+    if page.roles:
+        bits.extend(page.roles)
+    index_text = " · ".join(bits)
     return (
-        f'<a class="docs-card docs-card--rail cat-card" data-tone="{tone}"{group_attr}{role_attr} href="{prefix}{page.rel_path}">'
-        f'<div class="cat-card__chips">'
-        f'<span class="docs-pill docs-pill--{tone}">{page.page_type}</span>'
-        f"{svc_pill}"
-        f"{_role_pills(page.roles)}"
+        f"<li{group_attr}{role_attr}>"
+        f'<a class="spine-tile" data-tone="info" href="{prefix}{page.rel_path}">'
+        f'<div class="spine-tile__head">'
+        f'<span class="spine-tile__index">{index_text}</span>'
         f"</div>"
-        f'<h3 class="cat-card__title">{page.title}</h3>'
-        f'<div class="cat-card__body">{page.lede or "—"}</div>'
-        f"</a>"
+        f'<h3 class="spine-tile__title">{page.title}</h3>'
+        f'<p class="spine-tile__body">{page.lede or "—"}</p>'
+        f'<div class="spine-tile__foot">'
+        f'<span class="spine-tile__cta">Open</span>'
+        f'<span class="spine-tile__arrow" aria-hidden="true">→</span>'
+        f"</div>"
+        f"</a></li>"
     )
 
 
@@ -237,13 +241,6 @@ PAGE_SHELL = """<!doctype html>
     .cat-toolbar {{ display: flex; flex-direction: column; align-items: stretch; gap: var(--space-3); margin: 0 0 var(--space-4); }}
     .cat-toolbar__group {{ display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }}
     .cat-toolbar__label {{ font-family: var(--font-mono); font-size: var(--fs-100); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); min-width: 56px; }}
-
-    /* Catalog card — pills on top, title below; pills wrap freely inside the card. */
-    .cat-card {{ display: flex; flex-direction: column; gap: var(--space-2); align-items: stretch; min-width: 0; }}
-    .cat-card__chips {{ display: flex; flex-wrap: wrap; gap: var(--space-1); min-width: 0; max-width: 100%; }}
-    .cat-card__chips .docs-pill {{ max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-    .cat-card__title {{ margin: 0; font: 600 var(--fs-400, 15px)/1.3 var(--font-sans, inherit); color: var(--text-strong, currentColor); }}
-    .cat-card__body {{ margin: 0; color: var(--muted); font-size: var(--fs-300, 13.5px); line-height: 1.5; }}
     #cat-views[data-view="by-group"] .cat-table-view {{ display: none; }}
     #cat-views[data-view="table"] .cat-by-group {{ display: none; }}
     .cat-empty {{ padding: var(--space-5); text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius-lg); display: none; }}
@@ -456,6 +453,7 @@ def write_lens(
         body_rows=body_rows,
     )
     target.parent.mkdir(parents=True, exist_ok=True)
+    html = "\n".join(line.rstrip() for line in html.splitlines()) + "\n"
     target.write_text(html, encoding="utf-8")
 
 
@@ -464,7 +462,7 @@ def _by_group_section(group_id: str, group_title: str, pages: list[Page], depth:
     return (
         f'<section data-group="{group_id}" aria-labelledby="g-{group_id}-h">\n'
         f'  <h2 id="g-{group_id}-h">{group_title} <span class="docs-pill docs-pill--neutral">{len(pages)}</span></h2>\n'
-        f'  <div class="docs-card-grid">\n          {cards}\n  </div>\n'
+        f'  <ol class="spine-grid" aria-label="{group_title}">\n          {cards}\n  </ol>\n'
         f"</section>"
     )
 
@@ -726,10 +724,9 @@ CATALOG_INDEX_SHELL = """<!doctype html>
           </h1>
           <div id="docs-top-nav"></div>
           <p class="home-hero__tagline">
-            Generated views over every page on this portal. Each page is tagged with
-            <code>data-page-type</code>, <code>data-service</code>, <code>data-role</code>, and
-            <code>data-updated</code> — the lenses below aggregate by tag. Re-built by
-            <code>scripts/build_catalog.py</code> on every <code>make docs-fix</code>.
+            Generated views over every page on this portal — organized by Diátaxis quadrant,
+            by service, by topic, and by edit date. Use these lenses when you can't remember
+            where a page lives.
           </p>
           <div class="home-hero__stats">
             <a class="docs-pill docs-pill--accent" href="#quadrant-h">By quadrant</a>
@@ -751,31 +748,41 @@ CATALOG_INDEX_SHELL = """<!doctype html>
 
       <section aria-labelledby="quadrant-h">
         <h2 id="quadrant-h">By Diátaxis quadrant</h2>
-        <div class="docs-card-grid">
+        <ol class="spine-grid" aria-label="Catalog by quadrant">
           {quad_tiles}
-        </div>
+        </ol>
       </section>
 
       <section aria-labelledby="service-h">
         <h2 id="service-h">By service</h2>
-        <div class="docs-card-grid">
+        <ol class="spine-grid" aria-label="Catalog by service">
           {svc_tiles}
-        </div>
+        </ol>
       </section>
 
       <section aria-labelledby="topic-h">
         <h2 id="topic-h">By topic — operations</h2>
         <p>Cross-cutting operational categories pulled from filename + path patterns.</p>
-        <div class="docs-card-grid">
+        <ol class="spine-grid" aria-label="Catalog by topic">
           {topic_tiles}
-        </div>
+        </ol>
       </section>
 
       <section aria-labelledby="recent-h">
         <h2 id="recent-h">Recent changes</h2>
-        <div class="docs-card-grid">
-          <a class="docs-card docs-card--rail" data-tone="accent" href="recent.html"><div class="docs-card__head"><h3 class="docs-card__title">Recently updated</h3><span class="docs-pill docs-pill--accent">last 50</span></div><div class="docs-card__body">The 50 most recently changed pages on this portal — by <code>data-updated</code>.</div></a>
-        </div>
+        <ol class="spine-grid" aria-label="Catalog by recency">
+          <li><a class="spine-tile" href="recent.html" data-tone="info">
+            <div class="spine-tile__head">
+              <span class="spine-tile__index">Recently updated · last 50</span>
+            </div>
+            <h3 class="spine-tile__title">Recently updated</h3>
+            <p class="spine-tile__body">The 50 most recently edited pages across the portal, sorted by edit date.</p>
+            <div class="spine-tile__foot">
+              <span class="spine-tile__cta">Open recent</span>
+              <span class="spine-tile__arrow" aria-hidden="true">→</span>
+            </div>
+          </a></li>
+        </ol>
       </section>
 
     </article>
@@ -797,13 +804,34 @@ def build_index(pages: list[Page]):
         quad_counts[p.page_type] += 1
         svc_counts[p.service] += 1
 
-    def tile(href, title, count_label, tone, body):
+    def tile(href, title, count_label, body):
         return (
-            f'<a class="docs-card docs-card--rail" data-tone="{tone}" href="{href}">'
-            f'<div class="docs-card__head"><h3 class="docs-card__title">{title}</h3>'
-            f'<span class="docs-pill docs-pill--{tone}">{count_label}</span></div>'
-            f'<div class="docs-card__body">{body}</div></a>'
+            f'<li><a class="spine-tile" href="{href}" data-tone="info">'
+            f'<div class="spine-tile__head">'
+            f'<span class="spine-tile__index">{title} · {count_label}</span>'
+            f"</div>"
+            f'<h3 class="spine-tile__title">{title}</h3>'
+            f'<p class="spine-tile__body">{body}</p>'
+            f'<div class="spine-tile__foot">'
+            f'<span class="spine-tile__cta">Open {title}</span>'
+            f'<span class="spine-tile__arrow" aria-hidden="true">→</span>'
+            f"</div>"
+            f"</a></li>"
         )
+
+    QUAD_BODIES = {
+        "tutorial": "Step-by-step guides that take a reader from zero to a working result. Organized by service.",
+        "how-to": "Practical recipes for accomplishing a specific task. Organized by service.",
+        "reference": "Look-up material — APIs, schemas, definitions, configuration. Organized by service.",
+        "explanation": "Background narratives that explain why things are the way they are. Organized by service.",
+    }
+    SVC_BODIES = {
+        "api": "Endpoint specs, runbooks, tutorials, and architecture for the public HTTP API.",
+        "portal": "Layout, IA, design tokens, and authoring rules for the documentation portal itself.",
+        "datastore": "Database schemas, migrations, query patterns, and connection guides.",
+        "monitoring": "Metrics, dashboards, log pipelines, and alerts for the platform.",
+        "ui-kit": "Reusable components, tokens, and patterns shared across the design system.",
+    }
 
     quad_tiles = "\n          ".join(
         [
@@ -811,14 +839,13 @@ def build_index(pages: list[Page]):
                 f"by-quadrant/{q}.html",
                 lbl,
                 f"{quad_counts.get(q, 0)} pages",
-                tone,
-                f'All pages tagged <code>data-page-type="{q}"</code>, grouped by service.',
+                QUAD_BODIES.get(q, ""),
             )
-            for q, (lbl, tone) in [
-                ("tutorial", ("Tutorials", "info")),
-                ("how-to", ("How-to", "accent")),
-                ("reference", ("Reference", "neutral")),
-                ("explanation", ("Explanation", "warn")),
+            for q, lbl in [
+                ("tutorial", "Tutorials"),
+                ("how-to", "How-to"),
+                ("reference", "Reference"),
+                ("explanation", "Explanation"),
             ]
         ]
     )
@@ -829,8 +856,7 @@ def build_index(pages: list[Page]):
                 f"by-service/{sid}.html",
                 lbl,
                 f"{svc_counts.get(sid, 0)} pages",
-                "info",
-                f'All pages tagged <code>data-service="{sid}"</code>, grouped by quadrant.',
+                SVC_BODIES.get(sid, ""),
             )
             for sid, (lbl, _) in SERVICES_META.items()
         ]
@@ -838,7 +864,7 @@ def build_index(pages: list[Page]):
 
     topic_tiles = "\n          ".join(
         [
-            tile(f"by-topic/{tid}.html", lbl, f"{topic_counts[tid]} pages", "warn", body)
+            tile(f"by-topic/{tid}.html", lbl, f"{topic_counts[tid]} pages", body)
             for tid, (lbl, body, _) in TOPICS_META.items()
         ]
     )

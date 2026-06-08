@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How-to · Release to staging · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-07" data-role="swe">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">portal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Release to staging</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Release</span>
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+          <span class="docs-pill docs-pill--teal">CI</span>
+        </div>
+        <h1>Release to staging</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Promote a feature branch through the <code>staging</code> branch so CI publishes it to the staging Pages site (<code>&lt;owner&gt;.github.io/&lt;app&gt;-staging/</code>). Use this any time you want to validate a change on a real Pages domain before merging to <code>main</code> — the only environment that catches base-path, Pagefind-fetch and cross-page navigation bugs. The deployment topology is fixed by <a href="../../../governance/adr/0034-portal-staging-via-dual-github-pages-repos.html">ADR 0034</a>.</p>
+      </header>
+
+      <h2 id="prereqs">Before you start</h2>
+      <ul>
+        <li>Your change lives on a <code>feature/*</code> branch in <code>&lt;app&gt;</code> and is pushed to the remote. Branch naming per <a href="../../../governance/adr/0017-branch-naming-and-repository-workflow.html">ADR 0017</a>.</li>
+        <li><code>make docs-check</code> is green locally — autogen drift will fail the deploy pipeline the same way it fails the prod one. See <a href="docs-pipeline.html">Run the docs pipeline</a>.</li>
+        <li>You have <code>Write</code> access to <code>&lt;app&gt;</code> and merge rights on the <code>staging</code> branch (branch protection lets approved PRs land but blocks direct pushes).</li>
+        <li>The cross-repo deploy secret is configured. <strong>You do not need to touch it</strong> for a normal release — it is already wired in Actions. If you suspect it is missing or expired, jump to <a href="#troubleshooting">Troubleshooting</a>.</li>
+        <li>You are <em>not</em> editing <code>&lt;app&gt;-staging</code> directly. That repo is CI-owned. The only path that legitimately writes to it is <code>deploy-staging.yml</code>.</li>
+      </ul>
+
+      <h2 id="steps">Steps</h2>
+      <ol>
+        <li><strong>Open a PR from your feature branch to <code>staging</code>.</strong>
+          <pre class="docs-code"><code class="language-bash">gh pr create --base staging --head feature/&lt;your-slug&gt; \
+  --title "&lt;short summary&gt;" \
+          --body "Promotes &lt;feature&gt; to the staging site for validation."</code></pre>
+          Note the base is <code>staging</code>, not <code>main</code>. A PR straight to <code>main</code> bypasses the staging URL entirely — the gate this whole flow exists to provide.
+        </li>
+        <li><strong>Wait for CI on the PR to go green.</strong> Same <code>docs-check</code> gate that protects prod. Address failures on the feature branch — do not merge red.</li>
+        <li><strong>Merge the PR into <code>staging</code>.</strong> Squash or merge-commit; both are accepted. Branch protection requires at least one approving review and all status checks green.</li>
+        <li><strong>Watch <code>deploy-staging.yml</code> run.</strong>
+          <pre class="docs-code"><code class="language-bash">gh run watch --workflow=deploy-staging.yml</code></pre>
+          Pipeline: <code>checkout</code> → <code>build</code> with <code>BASE_URL=/&lt;app&gt;-staging/</code> → <code>peaceiris/actions-gh-pages@v3</code> pushes the build to <code>&lt;app&gt;-staging</code>'s <code>main</code> with <code>force_orphan: true</code>.
+        </li>
+        <li><strong>Validate on the staging URL.</strong> Open <code>https://&lt;owner&gt;.github.io/&lt;app&gt;-staging/</code> within ~60 s of the workflow completing. Use a private window — GitHub Pages caches aggressively and a stale tab will lie to you. Walk the change end-to-end on the real domain.</li>
+        <li><strong>Open the promotion PR <code>staging</code> → <code>main</code>.</strong>
+          <pre class="docs-code"><code class="language-bash">gh pr create --base main --head staging \
+  --title "Release &lt;date or slug&gt;" \
+          --body "Promotes the validated staging set to prod."</code></pre>
+          This is typically a batch promotion (one or more validated feature merges accumulated on <code>staging</code>). Merge after review; the <code>production</code> environment Required reviewer gate fires on the deploy job — <strong>approve the deployment explicitly</strong> in the Actions tab.
+        </li>
+        <li><strong>Confirm prod.</strong> Watch <code>deploy-prod.yml</code>, then load the prod URL in a private window. If prod renders correctly, the release is complete.</li>
+      </ol>
+
+      <h2 id="verify">Verify</h2>
+      <ul>
+        <li>The staging URL serves your change within ~60 s of the merge to <code>staging</code> (Pages CDN propagation window).</li>
+        <li>Network panel on the staging URL shows zero 404s — asset paths resolved correctly under the <code>/&lt;app&gt;-staging/</code> base.</li>
+        <li>Pagefind search loads and returns results on the staging URL (validates the bundle fetched from the right base path).</li>
+        <li><code>deploy-staging.yml</code> reports a successful push to <code>&lt;owner&gt;/&lt;app&gt;-staging</code> with one commit added to its <code>main</code> branch (<code>force_orphan: true</code> keeps the history at depth 1).</li>
+        <li>After the promotion PR merges, the prod URL updates without you touching <code>&lt;app&gt;-staging</code> — the two pipelines are independent.</li>
+        <li>The prod deploy waited for your approval click in the <code>production</code> environment (Actions → Deploy prod → Review deployments).</li>
+      </ul>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>deploy-staging.yml</code> fails at the push step with <code>403 Resource not accessible by integration</code>.</td>
+              <td>GitHub App installation token expired, App uninstalled, or the App secret was rotated.</td>
+              <td>Reissue the App private key, update <code>STAGING_DEPLOY_APP_KEY</code> in <code>&lt;app&gt;</code> → Settings → Secrets → Actions. Re-run the failed workflow.</td>
+            </tr>
+            <tr>
+              <td>Staging URL returns 404 on every page even after a successful deploy.</td>
+              <td>Pages source not set on <code>&lt;app&gt;-staging</code>, or pointing at the wrong branch.</td>
+              <td><code>&lt;app&gt;-staging</code> → Settings → Pages → Source = <em>Deploy from a branch</em>, branch = <code>main</code>, folder = <code>/ (root)</code>. Wait one more minute and reload.</td>
+            </tr>
+            <tr>
+              <td>Page loads but assets (CSS, JS, Pagefind bundle) 404.</td>
+              <td>Build ran with the wrong (or missing) <code>BASE_URL</code> — assets reference <code>/&lt;app&gt;/</code> instead of <code>/&lt;app&gt;-staging/</code>.</td>
+              <td>Check <code>deploy-staging.yml</code> sets <code>BASE_URL=/&lt;app&gt;-staging/</code> in the build env. Re-run the workflow after fixing.</td>
+            </tr>
+            <tr>
+              <td>Staging looks fine in your browser but your reviewer sees old content.</td>
+              <td>CDN/browser cache — Pages serves with long cache headers.</td>
+              <td>Reviewer opens the URL in a private window or appends <code>?v=&lt;timestamp&gt;</code>. Not a deploy problem.</td>
+            </tr>
+            <tr>
+              <td>Two staging deploys ran at the same time and one failed with <code>non-fast-forward</code>.</td>
+              <td>Concurrent merges to <code>staging</code> raced past the workflow's concurrency group.</td>
+              <td>Re-run the failed workflow — the second push will fast-forward over the first. If it recurs, confirm <code>concurrency: { group: pages-deploy-staging, cancel-in-progress: false }</code> is set on the workflow.</td>
+            </tr>
+            <tr>
+              <td>Prod deploy started without your approval.</td>
+              <td>The <code>production</code> environment is missing the Required reviewer protection rule.</td>
+              <td><code>&lt;app&gt;</code> → Settings → Environments → <code>production</code> → Required reviewers → add yourself. Re-test on the next release.</td>
+            </tr>
+            <tr>
+              <td>You urgently need to take staging offline.</td>
+              <td>Demo gone wrong; pre-release content leaked.</td>
+              <td>Push an empty placeholder build to <code>staging</code>, <em>or</em> rename the <code>&lt;app&gt;-staging</code> repo (Pages URL changes; old URL 404s within minutes). Prod is unaffected.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="related">Related</h2>
+      <ul>
+        <li><a href="../../../governance/adr/0034-portal-staging-via-dual-github-pages-repos.html">ADR 0034 · Portal staging via dual Pages repos</a> — the architectural decision behind this procedure, including rejected alternatives and revisit triggers.</li>
+        <li><a href="../../../governance/adr/0017-branch-naming-and-repository-workflow.html">ADR 0017 · Branch naming and repository workflow</a> — branch-naming and trunk-flow conventions referenced above.</li>
+        <li><a href="../../../governance/adr/0021-continuous-delivery-github-actions-and-ghcr.html">ADR 0021 · CD via GitHub Actions and GHCR</a> — the broader CD posture this staging story slots into.</li>
+        <li><a href="docs-pipeline.html">How-to · Run the docs pipeline</a> — local autogen gate that staging deploys also enforce.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-07</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created as the procedural twin of <a href="../../../governance/adr/0034-portal-staging-via-dual-github-pages-repos.html">ADR 0034</a>. Walks the path from <code>feature/*</code> branch through <code>staging</code> merge to prod promotion, with a Troubleshooting matrix for the seven failure modes seen in practice (token, Pages source, base-path, cache, concurrency, env-gate, take-down).</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#prereqs">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting">Troubleshooting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

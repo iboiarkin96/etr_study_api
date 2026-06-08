@@ -1888,6 +1888,65 @@
           "label": "Internal service catalog (target state)"
         }
       ]
+    },
+    {
+      "id": "BL-066",
+      "title": "Portal staging stand on GitHub Pages (dual-repo pattern)",
+      "professions": [
+        "sa",
+        "architect",
+        "dev"
+      ],
+      "group": "devops",
+      "tags": [
+        "feature"
+      ],
+      "sprint": "2026-W23",
+      "status": "in-progress",
+      "priority": "P1",
+      "eta_hours": 6,
+      "owner": "ivan",
+      "blocked_by": null,
+      "updated": "2026-06-07",
+      "summary": "Stand up a pre-release Pages stand for the portal using the dual-repo pattern fixed by ADR 0034: source repo <app> keeps publishing prod from main; a new public mirror repo <app>-staging is CI-populated from the staging branch and gets its own Pages URL, cache, and 404. Procedure for releasing through staging lives at services/portal/how-to/release-to-staging.",
+      "problem": "Today the portal publishes straight from main to GitHub Pages with no intermediate environment. A class of bugs (Pagefind bundle fetch path, UI Kit asset references via nav-tree, cross-page navigation) only manifests under a real Pages domain at the right base path \u2014 and the prod URL is the wrong place to discover them. GitHub Pages caps each repo at one site, so a second environment requires either a subfolder (shared 404/cache/CNAME, race conditions, leaky), a vendor outside GitHub (Cloudflare/Netlify/Vercel \u2014 splits the deploy story, rejected by ADR 0034), or a mirror repo (chosen). The decision is documented; the stand itself is not yet provisioned and the CI workflows are not yet wired.",
+      "actions": [
+        "W0 \u2014 Create the public repo <owner>/<app>-staging; enable Pages \u2192 Source = Deploy from a branch, branch = main, folder = /",
+        "W0 \u2014 Create a GitHub App with contents:write scoped to <app>-staging; install it on the owner; store STAGING_DEPLOY_APP_ID + STAGING_DEPLOY_APP_KEY as Actions secrets on <app> (PAT fallback: STAGING_DEPLOY_TOKEN)",
+        "W1 \u2014 Land .github/workflows/deploy-prod.yml on the official actions/upload-pages-artifact + actions/deploy-pages path",
+        "W1 \u2014 Land .github/workflows/deploy-staging.yml using peaceiris/actions-gh-pages@v3 with external_repository, publish_branch: main, force_orphan: true",
+        "W1 \u2014 Parameterise the portal build via BASE_URL (vite or equivalent); verify both /<app>/ and /<app>-staging/ produce a working build locally",
+        "W2 \u2014 Add branch-protection rules on main and staging in <app> (require PR + 1 review + green status checks; disallow force-push)",
+        "W2 \u2014 Declare GitHub Environments production and staging on <app> with environment-scoped secrets; add a Required reviewer to the production environment",
+        "W2 \u2014 Inject <meta name=\"robots\" content=\"noindex\"> into the staging build at compile time",
+        "Flip ADR 0034 status Proposed \u2192 Accepted with a history row noting W0\u2013W2 implementation; advance the Implementation lifecycle stage In progress \u2192 Done"
+      ],
+      "acceptance": [
+        "After W0: <owner>.github.io/<app>-staging/ serves a placeholder; Pages settings page reports \u00abYour site is live\u00bb",
+        "After W1: a commit on staging updates the staging URL within ~60 s and the prod URL is unchanged; a commit on main updates prod and staging is unchanged",
+        "After W1: two concurrent pushes (one to main, one to staging) both succeed \u2014 neither cancels the other (concurrency: pages-deploy-<env>, cancel-in-progress: false)",
+        "After W1: zero failed asset loads on either URL when filtering the network panel to 404s",
+        "After W2: a force-push to main is rejected by branch protection; a deploy to the production environment pauses until the Required reviewer approves explicitly",
+        "ADR 0034 status pill flips Proposed \u2192 Accepted; index tickers Proposed 4\u21923 / Accepted 29\u219230; lifecycle popover is-current moves to Accepted / Done"
+      ],
+      "links": [
+        {
+          "href": "../../governance/adr/0034-portal-staging-via-dual-github-pages-repos.html",
+          "label": "ADR 0034 \u2014 Portal staging via dual GitHub Pages repos"
+        },
+        {
+          "href": "../../services/portal/how-to/release-to-staging.html",
+          "label": "How-to \u2014 Release to staging (procedural twin)"
+        },
+        {
+          "href": "../../governance/adr/0017-branch-naming-and-repository-workflow.html",
+          "label": "ADR 0017 \u2014 Branch naming and repository workflow"
+        },
+        {
+          "href": "../../governance/adr/0021-continuous-delivery-github-actions-and-ghcr.html",
+          "label": "ADR 0021 \u2014 CD via GitHub Actions and GHCR"
+        }
+      ]
     }
   ]
 }
