@@ -178,13 +178,14 @@ class Settings:
     def sqlite_url(self) -> str:
         """SQLAlchemy connection URL for the configured SQLite file.
 
-        Returns:
-            URL string of the form ``sqlite:///...`` with absolute or cwd-relative path.
+        Relative ``SQLITE_DB_PATH`` values are anchored at the repo root so the
+        DB location is stable regardless of the cwd `make run` / alembic / pytest
+        happen to launch from.
         """
         db_path = Path(self.sqlite_db_path).expanduser()
         if db_path.is_absolute():
             return f"sqlite:///{db_path}"
-        return f"sqlite:///{Path.cwd() / db_path}"
+        return f"sqlite:///{ROOT / db_path}"
 
 
 def get_settings() -> Settings:
