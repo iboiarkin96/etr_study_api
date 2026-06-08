@@ -53,7 +53,7 @@
       <p>The <strong>Product API</strong> squad owns domain invariants (e.g. uniqueness within a tenant, soft-delete semantics); the <strong>Platform</strong> squad owns transport concerns (authn/authz at the edge, rate limits, observability baselines). This split is reflected in error codes and logs, not in duplicated prose on every method page.</p>
 
       <h2 id="tables-touched">Tables touched</h2>
-      <p>Every <code>/api/v1/user</code> operation reads or writes one or more rows in these tables. Column-level details live in <code>app/models/</code> alongside the ORM definitions.</p>
+      <p>Every <code>/api/v1/user</code> operation reads or writes one or more rows in these tables. Column-level details live in <code>services/api/app/models/</code> alongside the ORM definitions.</p>
       <ul>
         <li><code>users</code> — core business table for end-user identity (created / updated / soft-deleted by this resource).</li>
         <li><code>systems</code> — reference table; the FK target for <code>users.system_uuid</code> (read-only from this resource).</li>
@@ -175,7 +175,7 @@ Location: /api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/learner-01
       </ul>
 
       <h2 id="technical-overview">Technical overview</h2>
-      <p>The User feature exposes four operations under the versioned prefix <code>/api/v1</code>: create a user, fetch a user by composite key, full update (<code>PUT</code>), and partial update (<code>PATCH</code>). All traffic is served by the FastAPI app in <code>app/main.py</code>; handlers live in <code>app/api/v1/user.py</code>, domain logic in <code>app/services/user_service.py</code>, and persistence in <code>app/repositories/user_repository.py</code> backed by PostgreSQL.</p>
+      <p>The User feature exposes four operations under the versioned prefix <code>/api/v1</code>: create a user, fetch a user by composite key, full update (<code>PUT</code>), and partial update (<code>PATCH</code>). All traffic is served by the FastAPI app in <code>services/api/app/main.py</code>; handlers live in <code>services/api/app/api/v1/user.py</code>, domain logic in <code>services/api/app/services/user_service.py</code>, and persistence in <code>services/api/app/repositories/user_repository.py</code> backed by PostgreSQL.</p>
       <p>There is <strong>no</strong> Kafka topic, message consumer, or third-party identity SaaS in this code path: integration is synchronous HTTP plus the application database only.</p>
 
       <h2 id="governance">Ownership and change management</h2>
@@ -188,19 +188,19 @@ Location: /api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/learner-01
       </ul>
 
       <h2 id="architecture">Request path and layers</h2>
-      <p>A typical request passes through the middleware stack in <code>app/main.py</code> (order of registration: metrics/latency wrapper, body size limit, API key auth + in-memory rate limit, security headers, request ID context), then the route handler, then:</p>
+      <p>A typical request passes through the middleware stack in <code>services/api/app/main.py</code> (order of registration: metrics/latency wrapper, body size limit, API key auth + in-memory rate limit, security headers, request ID context), then the route handler, then:</p>
       <ol>
-        <li><strong>Router</strong> (<code>app/api/v1/user.py</code>) — parsing, idempotency read/replay or delegate, OpenAPI-declared responses.</li>
-        <li><strong>UserService</strong> (<code>app/services/user_service.py</code>) — business rules, duplicate detection, <code>HTTPException</code> for domain outcomes.</li>
-        <li><strong>UserRepository</strong> (<code>app/repositories/user_repository.py</code>) — SQLAlchemy <code>SELECT</code> / commit+refresh for <code>users</code> table.</li>
-        <li><strong>IdempotencyRepository</strong> (<code>app/repositories/idempotency_repository.py</code>) — read/write <code>idempotency_keys</code> rows for successful writes only.</li>
+        <li><strong>Router</strong> (<code>services/api/app/api/v1/user.py</code>) — parsing, idempotency read/replay or delegate, OpenAPI-declared responses.</li>
+        <li><strong>UserService</strong> (<code>services/api/app/services/user_service.py</code>) — business rules, duplicate detection, <code>HTTPException</code> for domain outcomes.</li>
+        <li><strong>UserRepository</strong> (<code>services/api/app/repositories/user_repository.py</code>) — SQLAlchemy <code>SELECT</code> / commit+refresh for <code>users</code> table.</li>
+        <li><strong>IdempotencyRepository</strong> (<code>services/api/app/repositories/idempotency_repository.py</code>) — read/write <code>idempotency_keys</code> rows for successful writes only.</li>
       </ol>
 
       <h2 id="data-model">Data model and invariants</h2>
       <ul>
         <li><strong>Natural key:</strong> <code>(system_user_id, system_uuid)</code>.</li>
         <li><strong>Primary key:</strong> <code>client_uuid</code> (string UUID) — generated server-side on create.</li>
-        <li><strong>Mutable fields</strong> include profile fields (<code>username</code>, <code>full_name</code>, <code>timezone</code>, invalidation flags, optional <code>system_uuid</code> change on update/patch per schema). Validation of shapes and timezones is at the API schema layer (<code>app/schemas/user.py</code>) before service calls.</li>
+        <li><strong>Mutable fields</strong> include profile fields (<code>username</code>, <code>full_name</code>, <code>timezone</code>, invalidation flags, optional <code>system_uuid</code> change on update/patch per schema). Validation of shapes and timezones is at the API schema layer (<code>services/api/app/schemas/user.py</code>) before service calls.</li>
       </ul>
 
       <h2 id="idempotency">Idempotency</h2>
@@ -246,7 +246,7 @@ Location: /api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/learner-01
             <tr>
               <td><code>422</code></td>
               <td>Validation (<code>error_type</code> / field errors)</td>
-              <td>Pydantic request validation — global handler logs <code>validation_error method=… path=…</code> at <strong>warning</strong> (<code>app/main.py</code>).</td>
+              <td>Pydantic request validation — global handler logs <code>validation_error method=… path=…</code> at <strong>warning</strong> (<code>services/api/app/main.py</code>).</td>
             </tr>
             <tr>
               <td><code>413</code></td>
@@ -261,10 +261,10 @@ Location: /api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/learner-01
           </tbody>
         </table>
       </div>
-      <p>Auth failures (<code>401</code>) and rate limits (<code>429</code>) are produced by security middleware before route execution; see ADR 0005 and <code>app/core/security.py</code>.</p>
+      <p>Auth failures (<code>401</code>) and rate limits (<code>429</code>) are produced by security middleware before route execution; see ADR 0005 and <code>services/api/app/core/security.py</code>.</p>
 
       <h2 id="logging">Logging</h2>
-      <p>Logging is configured in <code>app/core/logging.py</code>: plain text or NDJSON with <code>request_id</code> from <code>X-Request-Id</code> (set in <code>request_context_middleware</code>) per <a href="../../../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.</p>
+      <p>Logging is configured in <code>services/api/app/core/logging.py</code>: plain text or NDJSON with <code>request_id</code> from <code>X-Request-Id</code> (set in <code>request_context_middleware</code>) per <a href="../../../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>.</p>
       <p><strong>Every completed request</strong> emits an info line from the outer HTTP middleware: <code>request_done method=… path=… status=… elapsed_ms=…</code> (path is the request URL path; successful User calls include <code>status=200</code> or <code>201</code> as appropriate).</p>
       <p><strong>User router</strong> (<code>app.api.v1.user</code>) additionally logs:</p>
       <ul>
@@ -275,7 +275,7 @@ Location: /api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/learner-01
       <p><strong>UserService</strong> logs <code>create_user_duplicate</code>, <code>get_user_not_found</code>, <code>patch_user_empty_body</code> at <strong>warning</strong> before raising; <code>create_user_persisted</code> at <strong>info</strong> after insert.</p>
 
       <h2 id="observability">Metrics and tracing hooks</h2>
-      <p>Prometheus metrics (<code>app/core/metrics.py</code>) record:</p>
+      <p>Prometheus metrics (<code>services/api/app/core/metrics.py</code>) record:</p>
       <ul>
         <li><code>http_requests_total</code> and <code>http_request_duration_seconds</code> with labels including <code>path_template</code> from the FastAPI route template (e.g. <code>/api/v1/user/{system_uuid}/{system_user_id}</code>), <code>method</code>, and status.</li>
         <li><code>db_operation_duration_seconds</code> for SQLAlchemy operations (read/write classification from statement text).</li>
@@ -293,7 +293,7 @@ Location: /api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/learner-01
             </tr>
             <tr>
               <td><strong>In-memory rate limiter</strong></td>
-              <td>Per-client sliding window on protected paths (<code>app/core/security.py</code>); not a separate network service.</td>
+              <td>Per-client sliding window on protected paths (<code>services/api/app/core/security.py</code>); not a separate network service.</td>
             </tr>
             <tr>
               <td><strong>Configured API keys</strong></td>

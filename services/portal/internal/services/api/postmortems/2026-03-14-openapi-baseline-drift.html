@@ -64,7 +64,7 @@
       </section>
 
       <h2 id="summary-h">Incident summary</h2>
-      <p>On 2026-03-14, during work on the User profile feature branch (<code>feat/user-profile-display-name</code>), the <code>UserResponse</code> Pydantic model field <code>full_name</code> was renamed to <code>display_name</code> in <code>app/schemas/user.py</code>. The change was semantically reasonable inside the codebase. It was a <em>breaking</em> change on the wire: every integrator's deserialiser would have failed on the next response. The author ran <code>make test</code> locally — all tests green, including the user-resource integration tests, because the tests were updated in the same commit. The CI pipeline ran <code>make verify</code> on the PR, which includes the OpenAPI baseline diff (<code>scripts/openapi_check.py</code>). The diff failed; the PR build went red; the change was reverted to additive (added <code>display_name</code> alongside <code>full_name</code>, with <code>full_name</code> kept and deprecated). Total time from breakage commit to detection: ~14 minutes. No code reached <code>main</code>.</p>
+      <p>On 2026-03-14, during work on the User profile feature branch (<code>feat/user-profile-display-name</code>), the <code>UserResponse</code> Pydantic model field <code>full_name</code> was renamed to <code>display_name</code> in <code>services/api/app/schemas/user.py</code>. The change was semantically reasonable inside the codebase. It was a <em>breaking</em> change on the wire: every integrator's deserialiser would have failed on the next response. The author ran <code>make test</code> locally — all tests green, including the user-resource integration tests, because the tests were updated in the same commit. The CI pipeline ran <code>make verify</code> on the PR, which includes the OpenAPI baseline diff (<code>scripts/openapi_check.py</code>). The diff failed; the PR build went red; the change was reverted to additive (added <code>display_name</code> alongside <code>full_name</code>, with <code>full_name</code> kept and deprecated). Total time from breakage commit to detection: ~14 minutes. No code reached <code>main</code>.</p>
 
       <h2 id="impact-h">Impact</h2>
       <ul>
@@ -80,7 +80,7 @@
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Time</th><th>Actor</th><th>Event</th></tr></thead>
           <tbody>
-            <tr><td><code>10:42</code></td><td>Engineer</td><td>Committed rename of <code>full_name</code> → <code>display_name</code> in <code>app/schemas/user.py</code> and four tests. Locally <code>make test</code> green.</td></tr>
+            <tr><td><code>10:42</code></td><td>Engineer</td><td>Committed rename of <code>full_name</code> → <code>display_name</code> in <code>services/api/app/schemas/user.py</code> and four tests. Locally <code>make test</code> green.</td></tr>
             <tr><td><code>10:43</code></td><td>Engineer</td><td>Pushed branch. PR opened against <code>main</code>.</td></tr>
             <tr><td><code>10:46</code></td><td>CI</td><td><code>make verify</code> stage started. Steps run: deps-audit, lint, types, OpenAPI diff, contract tests, tests, docs-check.</td></tr>
             <tr><td><code>10:50</code></td><td>CI</td><td>OpenAPI diff step failed: <code>UserResponse.full_name: removed</code>; <code>UserResponse.display_name: added</code>. Build went red.</td></tr>
@@ -104,7 +104,7 @@
       <h2 id="resolution-h">Resolution</h2>
       <ul>
         <li><strong>Immediate.</strong> The rename was converted to an additive change: both <code>full_name</code> and <code>display_name</code> are now returned. <code>full_name</code> is documented as deprecated; removal will follow the standard deprecation flow (see <a href="../../../handbook/sa/deprecation.html">deprecation policy</a>).</li>
-        <li><strong>Durable.</strong> A pre-push git hook was added that runs <code>make openapi-check</code> when <code>app/schemas/**/*.py</code> changes (see action items). This moves the signal from CI back to the developer's terminal, where it can be acted on without the round-trip.</li>
+        <li><strong>Durable.</strong> A pre-push git hook was added that runs <code>make openapi-check</code> when <code>services/api/app/schemas/**/*.py</code> changes (see action items). This moves the signal from CI back to the developer's terminal, where it can be acted on without the round-trip.</li>
         <li><strong>No code rollback required.</strong> The break never reached <code>main</code>.</li>
       </ul>
 
@@ -118,7 +118,7 @@
           <thead><tr><th>Item</th><th>Owner</th><th>Target</th><th>Status</th></tr></thead>
           <tbody>
             <tr>
-              <td>Add a <code>pre-push</code> git hook that runs <code>make openapi-check</code> when files under <code>app/schemas/</code> or <code>app/api/</code> change. The hook calls the same script the CI does; failure blocks the push with the runbook URL in the error.</td>
+              <td>Add a <code>pre-push</code> git hook that runs <code>make openapi-check</code> when files under <code>services/api/app/schemas/</code> or <code>services/api/app/api/</code> change. The hook calls the same script the CI does; failure blocks the push with the runbook URL in the error.</td>
               <td>@ivan</td><td>2026-03-21</td><td>Done (commit <code>a47c2e1</code>)</td>
             </tr>
             <tr>
