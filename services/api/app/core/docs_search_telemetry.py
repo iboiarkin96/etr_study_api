@@ -124,6 +124,17 @@ class DocsSearchTelemetryStore:
             )
             conn.commit()
 
+    def clear_all(self) -> None:
+        """Remove every row from ``docs_search_events``. Test-only convenience.
+
+        Use sparingly — this wipes the dedicated telemetry SQLite, not the main
+        application DB. Tests call this for deterministic endpoint assertions
+        instead of bypassing the store with raw SQL on a separate engine.
+        """
+        with self._lock, self._managed_connection() as conn:
+            conn.execute("DELETE FROM docs_search_events")
+            conn.commit()
+
     def insert_event(self, payload: dict[str, Any]) -> None:
         """Persist one telemetry event payload.
 

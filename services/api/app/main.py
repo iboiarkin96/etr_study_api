@@ -92,7 +92,7 @@ metrics = MetricsCollector(
     db_buckets=settings.metrics_buckets_db,
 )
 install_sqlalchemy_metrics(engine=engine, metrics=metrics)
-docs_search_telemetry_store = DocsSearchTelemetryStore(settings.sqlite_db_path)
+docs_search_telemetry_store = DocsSearchTelemetryStore(settings.telemetry_sqlite_db_path)
 
 app.add_middleware(
     CORSMiddleware,
