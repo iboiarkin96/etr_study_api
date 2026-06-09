@@ -35,7 +35,7 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          python3 scripts/changelog_gate.py \
+          python3 _shared/scripts/changelog_gate.py \
             --base "${{ github.event.pull_request.base.sha }}" \
             --head "${{ github.event.pull_request.head.sha }}" \
             --event pr
@@ -43,35 +43,67 @@ jobs:
       - name: Push changelog gate
         if: github.event_name == 'push'
         run: |
-          python3 scripts/changelog_gate.py \
+          python3 _shared/scripts/changelog_gate.py \
             --base "${{ github.event.before }}" \
             --head "${{ github.event.after }}" \
             --event push
 
+  # ADR 0028 Phase 4 — quality is fanned out across per-service matrix slots so
+  # a portal-only failure does not gate the API tests (and vice-versa). The matrix
+  # entries call `make -C services/<svc> verify`; the per-service Makefiles
+  # delegate to root for the shared gates (ruff/mypy/pytest config still lives in
+  # root pyproject.toml + .pre-commit-config.yaml until per-service pyproject
+  # splits are wired up in a follow-up).
   quality:
-    name: Quality gate
+    name: Quality gate (${{ matrix.service }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            run: make -C services/api verify
+          - service: portal
+            run: make -C services/portal verify
+          - service: monitoring
+            run: |
+              docker compose -f services/monitoring/docker-compose.observability.yml config --quiet
+              docker compose -f services/monitoring/docker-compose.logging.yml config --quiet
+          - service: cross-cutting
+            run: |
+              .venv/bin/python _shared/scripts/check_service_imports.py
+              .venv/bin/python _shared/scripts/check_asset_refs.py
+              .venv/bin/python _shared/scripts/check_css_vars.py || true   # pre-existing var/* drift; informational
+              .venv/bin/pre-commit run --all-files
     steps:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-venv
 
-      - name: Run make verify
-        run: make verify
+      - name: ${{ matrix.service }}
+        run: ${{ matrix.run }}
 
-      - name: Pre-commit hooks
-        run: .venv/bin/pre-commit run --all-files
-
-  docs-a11y:
-    name: WCAG baseline docs accessibility checks
+  # Smoke gate for the service folder split (ADR 0028 Phase 1 + 3):
+  # ensures the root docker-compose.yml and every per-service compose can be
+  # parsed and that all bind-mount paths resolve. Cheap (~5 s), catches the
+  # most common path-drift class.
+  compose-smoke:
+    name: Compose parse smoke (root + per-service)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-venv
+      - name: Root docker-compose.yml
+        run: docker compose -f docker-compose.yml config --quiet
 
-      - name: Run docs accessibility baseline (WCAG)
-        run: make docs-a11y-check
+      - name: services/monitoring/docker-compose.observability.yml
+        run: docker compose -f services/monitoring/docker-compose.observability.yml config --quiet
+
+      - name: services/monitoring/docker-compose.logging.yml
+        run: docker compose -f services/monitoring/docker-compose.logging.yml config --quiet
+
+      - name: services/api/Dockerfile (BuildKit checks)
+        run: docker build --check services/api
 
   pr-template-check:
     name: Validate PR change type selection
@@ -124,11 +156,12 @@ jobs:
   publish-image:
     name: Publish container image (GHCR)
     runs-on: ubuntu-latest
-    needs: [quality, changelog]
+    needs: [quality, changelog, compose-smoke]
     if: |
       always() &&
       needs.quality.result == 'success' &&
       needs.changelog.result == 'success' &&
+      needs.compose-smoke.result == 'success' &&
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
@@ -137,9 +170,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Per-service image tag scheme (ADR 0028 §Phase 2 wiring): the API image lives
+      # under ghcr.io/<repo>/api so future per-service images (portal, monitoring)
+      # can ship at sibling paths without retagging. The legacy bare-repo tag
+      # ghcr.io/<repo>:<sha> is published alongside for one release as a compatibility
+      # shim; remove on the next bump.
       - name: Set image name (GHCR paths must be lowercase)
         id: image
-        run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+        run: |
+          base="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          echo "name=$base/api" >> "$GITHUB_OUTPUT"
+          echo "legacy=$base"   >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -155,7 +196,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ steps.image.outputs.name }}
+          images: |
+            ${{ steps.image.outputs.name }}
+            ${{ steps.image.outputs.legacy }}
           tags: |
             type=sha,prefix=,format=short
             type=raw,value=latest,enable=${{ github.ref_type == 'branch' && (github.ref_name == 'main' || github.ref_name == 'master') }}
@@ -165,7 +208,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./services/api
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

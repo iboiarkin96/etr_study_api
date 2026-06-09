@@ -7,6 +7,7 @@ New scenarios: add keys to MIX and SCENARIOS (keys must be globally unique).
 from __future__ import annotations
 
 from app.api.v1.user import USER_HTTP_BASE_PATH
+
 from tools.load_testing.request import BuiltRequest, RunContext
 from tools.load_testing.user_payload import apply_break_field, base_user_create
 

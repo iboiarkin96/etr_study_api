@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from app.api.v1.user import USER_HTTP_BASE_PATH
 from app.openapi.examples.users import SYSTEM_UUID_EXAMPLES
+
 from tools.load_testing.request import BuiltRequest, RunContext
 
 GROUP = "user"

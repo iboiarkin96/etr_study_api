@@ -61,7 +61,7 @@ The main documentation site is **`services/portal/index.html`**.
 
 ## Observability (local)
 
-Stack: **Prometheus**, **Grafana**, **Blackbox exporter** (`docker-compose.observability.yml`). Prometheus scrapes the API at `host.docker.internal:8000` (see `ops/prometheus/prometheus.tpl.yml` → `ops/prometheus/prometheus.yml`).
+Stack: **Prometheus**, **Grafana**, **Blackbox exporter** (`services/monitoring/docker-compose.observability.yml`). Prometheus scrapes the API at `host.docker.internal:8000` (see `services/monitoring/prometheus/prometheus.tpl.yml` → `services/monitoring/prometheus/prometheus.yml`).
 
 ### Default URLs
 
@@ -77,9 +77,9 @@ For docs and smoke checks you can override host/port labels: `OBS_API_*`, `OBS_P
 ### How to run it
 
 1. Start the API: `make run`.
-2. If the API is already running and you need observability, start Docker Compose manually: `docker compose -f docker-compose.observability.yml up -d`.
+2. If the API is already running and you need observability, start Docker Compose manually: `docker compose -f services/monitoring/docker-compose.observability.yml up -d`.
 3. Check `/live`, `/ready`, and `/metrics` (e.g. `curl -s http://127.0.0.1:8000/live`).
-4. When you are done: `docker compose -f docker-compose.observability.yml down`.
+4. When you are done: `docker compose -f services/monitoring/docker-compose.observability.yml down`.
 
 More detail: [Local development](services/portal/internal/handbook/developer/0007-local-development.html). Design notes: [ADR 0009](services/portal/internal/governance/adr/0009-health-readiness-and-observability.html), [ADR 0011](services/portal/internal/governance/adr/0011-slo-sla-error-budget.html).
 
@@ -92,7 +92,7 @@ For **NDJSON** logs and local **search**, set `LOG_FORMAT=json` and `LOG_SERVICE
 | Elasticsearch | [http://127.0.0.1:9200](http://127.0.0.1:9200) | REST API; indices `study-app-logs-*` |
 | Kibana | [http://127.0.0.1:5601](http://127.0.0.1:5601) | Data view: pattern **`*study-app-logs*`** (wildcards on both sides). Not only `study-app-logs-*`, or Discover may miss `.ds-study-app-logs-*` streams |
 
-**Steps:** start `docker-compose.logging.yml` manually (`docker compose -f docker-compose.logging.yml up -d`). Run the API on the host with `LOG_FORMAT=json` writing to `./logs` (mounted read-only into Filebeat). **~2 GiB RAM** helps for ES+Kibana. Stop with `docker compose -f docker-compose.logging.yml down`. Details: [ADR 0023](services/portal/internal/governance/adr/0023-structured-logging-and-local-elasticsearch.html).
+**Steps:** start `services/monitoring/docker-compose.logging.yml` manually (`docker compose -f services/monitoring/docker-compose.logging.yml up -d`). Run the API on the host with `LOG_FORMAT=json` writing to `./logs` (mounted read-only into Filebeat). **~2 GiB RAM** helps for ES+Kibana. Stop with `docker compose -f services/monitoring/docker-compose.logging.yml down`. Details: [ADR 0023](services/portal/internal/governance/adr/0023-structured-logging-and-local-elasticsearch.html).
 
 ### Metrics in Prometheus / Grafana
 
@@ -117,37 +117,54 @@ You do **not** need Docker for day-to-day coding: use **`make run`**, tests, and
 <!-- BEGIN:REPO_LAYOUT -->
 ```text
 study_app/
-├── docker-compose.observability.yml  # Prometheus, Grafana, Blackbox
-├── docker-compose.logging.yml  # Optional: Elasticsearch, Kibana, Filebeat
-├── app/  # Application package
-│   ├── api/  # HTTP layer
-│   │   └── v1/  # v1 routers
-│   ├── core/  # Settings, DB session
-│   ├── domain/
-│   ├── errors/
-│   ├── models/  # ORM models
-│   │   ├── core/  # Core domain entities
-│   │   └── reference/  # Reference / lookup entities
-│   ├── openapi/
-│   │   └── examples/
-│   ├── repositories/  # Data-access layer
-│   ├── schemas/  # Pydantic request/response models
-│   ├── services/  # Business logic
-│   └── validation/
-├── alembic/  # Migration environment
-│   └── versions/  # Migration scripts
-├── services/  # Service-rooted layout per ADR 0028
-│   ├── frontend/  # Frontend artifacts (portal, future admin / dashboard)
-│   │   └── portal/  # Static documentation portal — public + internal IA
-│   └── portal/
-│       ├── internal/
-│       ├── public/
-│       └── ui-kit/
-├── ops/  # Prometheus, Grafana, Filebeat configs
-│   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
-│   ├── grafana/  # Dashboards and provisioning
-│   └── prometheus/  # Scrape config, rules, Blackbox
-└── scripts/  # Dev & CI helper scripts
+└── services/  # Service-rooted layout per ADR 0028
+    ├── api/  # Python API service (FastAPI)
+    │   ├── alembic/  # Migration environment
+    │   │   └── versions/  # Migration scripts
+    │   ├── app/  # Application package
+    │   │   ├── api/  # HTTP layer
+    │   │   ├── core/  # Settings, DB session
+    │   │   ├── domain/
+    │   │   ├── errors/
+    │   │   ├── models/  # ORM models
+    │   │   ├── openapi/
+    │   │   ├── repositories/  # Data-access layer
+    │   │   ├── schemas/  # Pydantic request/response models
+    │   │   ├── services/  # Business logic
+    │   │   └── validation/
+    │   └── scripts/
+    ├── frontend/  # Frontend artifacts (portal, future admin / dashboard)
+    │   └── portal/  # Static documentation portal — public + internal IA
+    │       ├── assets/
+    │       ├── assets_v2/
+    │       └── uml/
+    ├── monitoring/  # Prometheus, Grafana, Filebeat configs + compose stacks
+    │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
+    │   ├── grafana/  # Dashboards and provisioning
+    │   │   ├── dashboards/
+    │   │   └── provisioning/
+    │   ├── prometheus/  # Scrape config, rules, Blackbox
+    │   │   └── rules/
+    │   └── scripts/
+    └── portal/
+        ├── internal/
+        │   ├── catalog/
+        │   ├── explanation/
+        │   ├── governance/
+        │   ├── handbook/
+        │   ├── how-to/
+        │   ├── onboarding/
+        │   ├── services/
+        │   ├── team/
+        │   └── tutorials/
+        ├── public/
+        │   ├── explanation/
+        │   ├── how-to/
+        │   ├── reference/
+        │   └── tutorials/
+        ├── scripts/
+        └── ui-kit/
+            └── pages/
 ```
 <!-- END:REPO_LAYOUT -->
 

@@ -23,7 +23,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check
+.PHONY: help setup dev check ci docs ship venv install deps-audit env-init run migrate format-fix format-check lint-check lint-fix dead-code-check type-check openapi-check contract-test openapi-accept-changes fix verify release-check release pre-commit-install pre-commit-check test test-one env-check docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check clean-cache
 
 # ──────────────────────────────────────────────
 # Help
@@ -88,7 +88,7 @@ help:
 	@echo "  make verify               Run deps-audit + lint-check + type-check + openapi-check + contract-test + test + docs-check + docs-a11y-check"
 	@echo ""
 	@echo "  # Supply chain (ADR 0019)"
-	@echo "  make deps-audit           Scan requirements.txt with pip-audit (OSV); fails on known CVEs"
+	@echo "  make deps-audit           Scan services/api/requirements.txt with pip-audit (OSV); fails on known CVEs"
 	@echo ""
 	@echo "  # Tests"
 	@echo "  make test                 Run full test suite (pytest + coverage per pyproject.toml)"
@@ -113,6 +113,10 @@ help:
 	@echo "  # Deployment"
 	@echo "  make release-check        Run env-check + deps-audit + verify before deploy"
 	@echo "  make release DEPLOY_CMD='…' Run release-check then deploy command"
+	@echo ""
+	@echo "  # Housekeeping"
+	@echo "  make clean-cache          Remove tool caches (__pycache__, .mypy_cache, .ruff_cache,"
+	@echo "                            .pytest_cache, .pip-audit-cache)"
 	@echo ""
 
 setup: venv install
@@ -161,7 +165,7 @@ install:
 	@printf "$(ICON_STEP) %s\n" "Upgrading pip…"
 	@$(PYTHON) -m pip install --upgrade pip -q
 	@printf "$(ICON_STEP) %s\n" "Installing requirements…"
-	@$(PIP) install -r requirements.txt -q
+	@$(PIP) install -r services/api/requirements.txt -q
 	@printf "$(ICON_OK) %s\n" "Dependencies installed"
 
 # Vulnerability scan of the actual venv contents (ADR 0019). Repo-local cache (see .gitignore).
@@ -200,8 +204,42 @@ run:
 	@set -a; . ./$(ENV); set +a; \
 	APP_HOST=$${APP_HOST:-127.0.0.1}; \
 	APP_PORT=$${APP_PORT:-8000}; \
-	$(PYTHON) -m alembic upgrade head && \
-	$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload --no-access-log
+	cd services/api && PYTHONPATH=. $(CURDIR)/$(PYTHON) -m alembic upgrade head && \
+	PYTHONPATH=. $(CURDIR)/$(PYTHON) -m uvicorn app.main:app --host "$$APP_HOST" --port "$$APP_PORT" --reload --no-access-log
+
+# ──────────────────────────────────────────────
+# Docker Compose orchestration (ADR 0028 Phase 3)
+# ──────────────────────────────────────────────
+# Bring up api + monitoring stack (api built from services/api/Dockerfile).
+stack-up:
+	@printf "$(ICON_STEP) %s\n" "Starting api + monitoring stack…"
+	@docker compose up -d --build
+	@printf "$(ICON_OK) %s\n" "Stack up — api :8000  ·  prom :9090  ·  grafana :3001  ·  blackbox :9115"
+
+# Stop the stack (preserve persistent volumes).
+stack-down:
+	@printf "$(ICON_STEP) %s\n" "Stopping stack…"
+	@docker compose down
+	@printf "$(ICON_OK) %s\n" "Stack down"
+
+# Stop the stack AND wipe prom/grafana persistent volumes. var/api/study_app.db on host is untouched.
+stack-down-volumes:
+	@printf "$(ICON_STEP) %s\n" "Stopping stack and wiping persistent volumes…"
+	@docker compose down -v
+	@printf "$(ICON_OK) %s\n" "Stack down (volumes wiped)"
+
+# Tail logs from all stack services.
+stack-logs:
+	@docker compose logs -f --tail=100
+
+# Bring up the optional logging stack (ES + Kibana + Filebeat). Heavy: ~2 GiB RAM.
+logging-up:
+	@docker compose -f services/monitoring/docker-compose.logging.yml up -d
+	@printf "$(ICON_OK) %s\n" "Logging stack up — ES :9200  ·  Kibana :5601"
+
+# Stop the optional logging stack.
+logging-down:
+	@docker compose -f services/monitoring/docker-compose.logging.yml down
 
 # ──────────────────────────────────────────────
 # Database / Migrations
@@ -212,7 +250,7 @@ migrate:
 		printf "$(ICON_ERR) %s\n" "$(ENV) not found. Cannot resolve SQLITE_DB_PATH."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Applying migrations…"
-	@$(PYTHON) -m alembic upgrade head && printf "$(ICON_OK) %s\n" "Migrations applied"
+	@cd services/api && PYTHONPATH=. $(CURDIR)/$(PYTHON) -m alembic upgrade head && printf "$(ICON_OK) %s\n" "Migrations applied"
 
 # ──────────────────────────────────────────────
 # Docs
@@ -274,31 +312,31 @@ type-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Running mypy type checks..."
-	@$(PYTHON) -m mypy app tests scripts
+	@PYTHONPATH=services/api $(PYTHON) -m mypy services/api/app tests services/api/scripts services/portal/scripts services/monitoring/scripts _shared/scripts
 	@printf "$(ICON_OK) %s\n" "Type checks passed"
 	@printf "$(COLOR_GREEN)== TYPE-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Lint current spec + compare to baseline for backward-incompatible API changes only
-# (see scripts/openapi_governance.py: run_lint, run_breaking_check).
+# (see services/api/scripts/openapi_governance.py: run_lint, run_breaking_check).
 openapi-check:
 	@printf "$(COLOR_CYAN)== OPENAPI-CHECK: START ==$(COLOR_RESET)\n"
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Running OpenAPI governance checks..."
-	@$(PYTHON) scripts/openapi_governance.py check
+	@$(PYTHON) services/api/scripts/openapi_governance.py check
 	@printf "$(ICON_OK) %s\n" "OpenAPI checks passed"
 	@printf "$(COLOR_GREEN)== OPENAPI-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Full-document equality: app.openapi() must match parsed baseline JSON (any diff fails)
-# (see scripts/openapi_governance.py: run_snapshot_check).
+# (see services/api/scripts/openapi_governance.py: run_snapshot_check).
 contract-test:
 	@printf "$(COLOR_CYAN)== CONTRACT-TEST: START ==$(COLOR_RESET)\n"
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Running OpenAPI snapshot contract test..."
-	@$(PYTHON) scripts/openapi_governance.py contract-test
+	@$(PYTHON) services/api/scripts/openapi_governance.py contract-test
 	@printf "$(ICON_OK) %s\n" "OpenAPI contract-test passed"
 	@printf "$(COLOR_GREEN)== CONTRACT-TEST: SUCCESS ==$(COLOR_RESET)\n"
 
@@ -308,7 +346,7 @@ openapi-accept-changes:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Accepting OpenAPI changes (updating baseline)..."
-	@$(PYTHON) scripts/openapi_governance.py update-baseline
+	@$(PYTHON) services/api/scripts/openapi_governance.py update-baseline
 	@printf "$(ICON_OK) %s\n" "OpenAPI baseline updated"
 
 # Run local auto-fix pipeline.
@@ -370,11 +408,11 @@ pre-commit-validate:
 	fi
 	@printf "$(COLOR_CYAN)== PRE-COMMIT-VALIDATE: START ==$(COLOR_RESET)\n"
 	@printf "$(ICON_INFO) %s\n" "[1/4] check_css_vars"
-	@$(PYTHON) scripts/check_css_vars.py
+	@$(PYTHON) _shared/scripts/check_css_vars.py
 	@printf "$(ICON_INFO) %s\n" "[2/4] check_asset_refs"
-	@$(PYTHON) scripts/check_asset_refs.py
+	@$(PYTHON) _shared/scripts/check_asset_refs.py
 	@printf "$(ICON_INFO) %s\n" "[3/4] check_path_literals"
-	@$(PYTHON) scripts/check_path_literals.py
+	@$(PYTHON) _shared/scripts/check_path_literals.py
 	@printf "$(ICON_INFO) %s\n" "[4/4] verify"
 	@$(MAKE) verify
 	@printf "$(COLOR_GREEN)== PRE-COMMIT-VALIDATE: SUCCESS ==$(COLOR_RESET)\n"
@@ -448,31 +486,31 @@ docs-fix:
 	@if [ ! -d ".venv" ]; then \
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
-	@if [ ! -f "scripts/regenerate_docs.py" ]; then \
-		printf "$(ICON_ERR) %s\n" "scripts/regenerate_docs.py not found."; exit 1; \
+	@if [ ! -f "services/portal/scripts/regenerate_docs.py" ]; then \
+		printf "$(ICON_ERR) %s\n" "services/portal/scripts/regenerate_docs.py not found."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-FIX: START ==$(COLOR_RESET)\n"
 	@printf "$(ICON_INFO) %s\n" "[1/9] regenerate UML diagrams"
-	@$(PYTHON) scripts/regenerate_docs.py
+	@$(PYTHON) services/portal/scripts/regenerate_docs.py
 	@printf "$(ICON_INFO) %s\n" "[2/9] sync marker-based documentation"
-	@$(PYTHON) scripts/sync_docs.py
+	@$(PYTHON) services/portal/scripts/sync_docs.py
 	@printf "$(ICON_INFO) %s\n" "[3/9] render docs markdown to html companions"
-	@$(PYTHON) scripts/render_docs_html.py
+	@$(PYTHON) services/portal/scripts/render_docs_html.py
 	@printf "$(ICON_INFO) %s\n" "[4/9] repair docs html structure"
-	@$(PYTHON) scripts/repair_docs_html.py
+	@$(PYTHON) services/portal/scripts/repair_docs_html.py
 	@printf "$(ICON_INFO) %s\n" "[5/9] normalize docs html template"
-	@$(PYTHON) scripts/format_docs_html.py
+	@$(PYTHON) services/portal/scripts/format_docs_html.py
 	@printf "$(ICON_INFO) %s\n" "[6/9] render service catalog (YAML → HTML)"
-	@$(PYTHON) scripts/render_service_descriptors.py
+	@$(PYTHON) services/portal/scripts/render_service_descriptors.py
 	@printf "$(ICON_INFO) %s\n" "[7/9] ensure docs body maintainers"
-	@$(PYTHON) scripts/ensure_docs_maintainers.py
+	@$(PYTHON) services/portal/scripts/ensure_docs_maintainers.py
 	@printf "$(ICON_INFO) %s\n" "[8/9] Python API reference (pdoc)"
 	@rm -rf services/portal/internal/services/api/code-reference
-	@PYTHONHASHSEED=0 $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
-	@$(PYTHON) scripts/normalize_pdoc_output.py
+	@PYTHONHASHSEED=0 PYTHONPATH=services/api $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
+	@$(PYTHON) services/portal/scripts/normalize_pdoc_output.py
 	@printf "$(ICON_INFO) %s\n" "[9/9] build pagefind index (ADR-0033)"
-	@$(PYTHON) scripts/build_pagefind_index.py
-	@$(PYTHON) scripts/check_pagefind_visibility.py
+	@$(PYTHON) services/portal/scripts/build_pagefind_index.py
+	@$(PYTHON) services/portal/scripts/check_pagefind_visibility.py
 	@printf "$(COLOR_GREEN)== DOCS-FIX: SUCCESS ==$(COLOR_RESET)\n"
 
 # Validate docs HTML structure is already normalized (no writes).
@@ -481,7 +519,7 @@ docs-html-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-HTML-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/validate_docs_html.py
+	@$(PYTHON) services/portal/scripts/validate_docs_html.py
 	@printf "$(COLOR_GREEN)== DOCS-HTML-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Baseline docs design checks (page skeleton and card conventions).
@@ -490,7 +528,7 @@ docs-design-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-DESIGN-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/validate_docs_design.py
+	@$(PYTHON) services/portal/scripts/validate_docs_design.py
 	@printf "$(COLOR_GREEN)== DOCS-DESIGN-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Baseline a11y checks for docs HTML (headings, landmarks, contrast, keyboard).
@@ -499,7 +537,7 @@ docs-a11y-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-A11Y-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/validate_docs_a11y.py
+	@$(PYTHON) services/portal/scripts/validate_docs_a11y.py
 	@printf "$(COLOR_GREEN)== DOCS-A11Y-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Smoke-check feedback controls wiring on key pages.
@@ -508,7 +546,7 @@ docs-feedback-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-FEEDBACK-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/validate_docs_feedback.py
+	@$(PYTHON) services/portal/scripts/validate_docs_feedback.py
 	@printf "$(COLOR_GREEN)== DOCS-FEEDBACK-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Lint internal analyst-spec pages (structure + cross-doc consistency).
@@ -520,9 +558,9 @@ docs-spec-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-SPEC-CHECK: START ==$(COLOR_RESET)\n"
-	@$(PYTHON) scripts/spec_lint.py
-	@$(PYTHON) scripts/spec_consistency.py
-	@$(PYTHON) scripts/front_spec_lint.py
+	@$(PYTHON) services/portal/scripts/spec_lint.py
+	@$(PYTHON) services/portal/scripts/spec_consistency.py
+	@$(PYTHON) services/portal/scripts/front_spec_lint.py
 	@printf "$(COLOR_GREEN)== DOCS-SPEC-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # Verify docs are already synchronized (no drift allowed).
@@ -576,7 +614,7 @@ catalog-render:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Rendering service descriptors…"
-	@$(PYTHON) scripts/render_service_descriptors.py
+	@$(PYTHON) services/portal/scripts/render_service_descriptors.py
 	@printf "$(ICON_OK) %s\n" "Service descriptors rendered"
 
 # Verify service descriptor HTML is already in sync with catalog-info.yaml.
@@ -586,7 +624,7 @@ catalog-render-check:
 		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' first."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Checking service descriptors are up to date…"
-	@$(PYTHON) scripts/render_service_descriptors.py --check
+	@$(PYTHON) services/portal/scripts/render_service_descriptors.py --check
 	@printf "$(ICON_OK) %s\n" "Service descriptor check passed"
 
 # ──────────────────────────────────────────────
@@ -597,11 +635,26 @@ env-check:
 	@printf "$(ICON_STEP) %s\n" "Checking environment…"
 	@if [ ! -d ".venv" ]; then printf "  $(ICON_ERR) %s\n" ".venv missing"; else printf "  $(ICON_OK) %s\n" ".venv exists"; fi
 	@if [ ! -f "$(ENV)" ]; then printf "  $(ICON_ERR) %s\n" ".env missing"; else printf "  $(ICON_OK) %s\n" ".env exists"; fi
-	@if [ ! -f "requirements.txt" ]; then printf "  $(ICON_ERR) %s\n" "requirements.txt missing"; else printf "  $(ICON_OK) %s\n" "requirements.txt exists"; fi
+	@if [ ! -f "services/api/requirements.txt" ]; then printf "  $(ICON_ERR) %s\n" "services/api/requirements.txt missing"; else printf "  $(ICON_OK) %s\n" "services/api/requirements.txt exists"; fi
 	@printf "  $(ICON_INFO) APP_ENV=%s\n" "$${APP_ENV:-<not set>}"
 	@printf "  $(ICON_INFO) ENV_FILE=%s\n" "$${ENV_FILE:-<not set>}"
 	@if [ -d ".venv" ] && [ -f "$(ENV)" ]; then \
-		$(PYTHON) -c "from app.core.config import get_settings; s=get_settings(); print('  $(ICON_OK) Config OK - DB:', s.sqlite_db_path)" 2>/dev/null \
+		PYTHONPATH=services/api $(PYTHON) -c "from app.core.config import get_settings; s=get_settings(); print('  $(ICON_OK) Config OK - DB:', s.sqlite_db_path)" 2>/dev/null \
 		|| printf "  $(ICON_ERR) %s\n" "Config load failed (check .env values)"; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Done"
+
+# ──────────────────────────────────────────────
+# Housekeeping
+# ──────────────────────────────────────────────
+# Remove tool caches from the working tree. Safe to run anytime — caches are
+# regenerated on next tool invocation. Skips .venv/ and node_modules/ so we
+# don't blow away installed dependencies.
+clean-cache:
+	@printf "$(COLOR_CYAN)== CLEAN-CACHE: START ==$(COLOR_RESET)\n"
+	@printf "$(ICON_STEP) %s\n" "Removing __pycache__ directories…"
+	@find . -type d -name '__pycache__' -not -path './.venv/*' -not -path './node_modules/*' -prune -exec rm -rf {} +
+	@printf "$(ICON_STEP) %s\n" "Removing tool caches (.mypy_cache, .ruff_cache, .pytest_cache, .pip-audit-cache)…"
+	@rm -rf .mypy_cache .ruff_cache .pytest_cache .pip-audit-cache
+	@printf "$(ICON_OK) %s\n" "Caches cleaned"
+	@printf "$(COLOR_GREEN)== CLEAN-CACHE: SUCCESS ==$(COLOR_RESET)\n"
