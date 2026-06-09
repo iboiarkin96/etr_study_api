@@ -143,9 +143,8 @@ study_app/
     │   ├── grafana/  # Dashboards and provisioning
     │   │   ├── dashboards/
     │   │   └── provisioning/
-    │   ├── prometheus/  # Scrape config, rules, Blackbox
-    │   │   └── rules/
-    │   └── scripts/
+    │   └── prometheus/  # Scrape config, rules, Blackbox
+    │       └── rules/
     └── portal/
         ├── internal/
         │   ├── catalog/
@@ -162,7 +161,6 @@ study_app/
         │   ├── how-to/
         │   ├── reference/
         │   └── tutorials/
-        ├── scripts/
         └── ui-kit/
             └── pages/
 ```
