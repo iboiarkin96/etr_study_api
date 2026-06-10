@@ -36,6 +36,10 @@ def main() -> int:
 
     updated = 0
     for html_path in sorted(DOCS_ROOT.rglob("*.html")):
+        # pdoc-generated tree is owned by `python -m pdoc` + normalize_pdoc_output.py;
+        # nothing else writes there.
+        if "code-reference" in html_path.parts:
+            continue
         original = html_path.read_text(encoding="utf-8")
         patched = _inject_favicon(original, html_path)
         if patched != original:

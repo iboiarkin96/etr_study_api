@@ -77,7 +77,13 @@ def main() -> int:
     n = 0
     for path in sorted(DOCS.rglob("*.html")):
         rel = path.relative_to(DOCS).as_posix()
-        if rel.startswith("api/") or rel.startswith("assets/") or rel.startswith("pdoc/"):
+        # pdoc-generated tree is owned by `python -m pdoc` + normalize_pdoc_output.py;
+        # nothing else writes there.
+        if (
+            rel.startswith("api/")
+            or rel.startswith("assets/")
+            or rel.startswith("internal/services/api/code-reference/")
+        ):
             continue
         try:
             if process_file(path):

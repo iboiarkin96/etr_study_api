@@ -62,6 +62,11 @@ def _iter_docs_pages() -> list[Path]:
         rel = path.relative_to(DOCS_ROOT)
         if rel.parts and rel.parts[0] in {"api", "assets", "pdoc"}:
             continue
+        # pdoc-generated tree at internal/services/api/code-reference/ is owned
+        # by `python -m pdoc` + normalize_pdoc_output.py; nothing else writes
+        # there and a11y issues in pdoc HTML can't be hand-fixed.
+        if "code-reference" in rel.parts:
+            continue
         if rel in FROZEN_DOCS_REL_PATHS:
             continue
         if tracked is not None and path not in tracked:
