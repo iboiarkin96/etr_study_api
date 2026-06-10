@@ -1,3 +1,16 @@
+# Pre-commit hooks for the study_app repo.
+#
+# Two sections:
+#   1) external repos (pre-commit-hooks, ruff, mypy) — generic Python + sanity gates;
+#   2) `repo: local` — project-specific hooks that call tools/ scripts.
+#
+# Excludes follow two rules:
+#   • `services/portal/internal/services/api/code-reference/` is pdoc output —
+#     owned by `python -m pdoc` + tools/docs/normalize_pdoc_output.py only.
+#     Nothing else writes there. See ADR 0033 amendment.
+#   • `services/frontend/portal/pagefind/` is the Pagefind search bundle —
+#     CI-built (`make docs-fix [9/9]`), gitignored, never committed.
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -10,6 +23,7 @@ repos:
       - id: trailing-whitespace
         exclude: ^services/portal/internal/services/api/code-reference/
       - id: mixed-line-ending
+        exclude: ^services/portal/internal/services/api/code-reference/
       - id: check-merge-conflict
       - id: detect-private-key
       - id: check-added-large-files
@@ -37,8 +51,16 @@ repos:
         args: [services/api/app, tests, tools]
         pass_filenames: false
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # Project-specific (repo: local) hooks. Each one calls a script under tools/.
+  # ────────────────────────────────────────────────────────────────────────────
   - repo: local
     hooks:
+
+      # Refuses to commit on a feature branch without PR_BODY.md present and
+      # filled in (exactly one of delivery/docs-only/mixed checked, no template
+      # placeholders left). main/master are exempt. Wires the «PR body is the
+      # source of truth» workflow per ADR 0013.
       - id: require-pr-body
         name: require PR body file
         entry: tools/governance/check_pr_body.sh
@@ -46,6 +68,10 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
+
+      # Refuses to stage local CI/runtime artefacts (.coverage, *.db,
+      # PR_BODY.md, changelog-llm-draft.md). Catches accidental `git add .`.
+      # Prints offending paths + the `git restore --staged` hint.
       - id: no-artifact-files
         name: refuse staged CI/runtime artifacts (.coverage, *.db, PR_BODY.md)
         entry: tools/governance/check_no_artifact_files.sh
@@ -53,34 +79,58 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
+
+      # Auto-injects the maintainer chip block (data-maintainer-ids etc.) into
+      # any portal HTML missing it. Idempotent. Skipped on
+      # services/portal/{api,assets}/, services/portal/index.html, and the
+      # pdoc-owned code-reference/ tree.
       - id: docs-maintainers-fix
         name: docs maintainers autofix
         entry: .venv/bin/python tools/docs/ensure_docs_maintainers.py
         language: system
         files: ^services/portal/.*\.html$
         exclude: ^services/portal/(api|assets)/|^services/portal/index\.html$|^services/portal/internal/services/api/code-reference/
+
+      # Design baseline gate — fails if portal pages lose the canonical
+      # skeleton (page-head, lede, breadcrumbs, …) or break the card/grid
+      # conventions documented in handbook/sa/style-guide.html.
       - id: docs-design-maintainers
         name: docs design/maintainers check
         entry: .venv/bin/python tools/docs/validate_docs_design.py
         language: system
         files: ^services/portal/.*\.html$
         exclude: ^services/portal/(api|assets)/|^services/portal/index\.html$|^services/portal/internal/services/api/code-reference/
+
       # audit-front-docs-links retired: services/portal/internal/front/ was
       # absorbed into the Diataxis tree (explanation/, how-to/, reference/,
       # tutorials/) during IA Phase 1. Equivalent link coverage now comes from
       # check-asset-refs below.
+
+      # ADR / RFC cross-ref + anchor validator. Walks
+      # services/portal/internal/governance/(adr|rfc)/*.html, checks every
+      # relative href and anchor resolves on disk / in target file. Catches
+      # renumbered ADRs, stale anchors, broken «see ADR 0028» links.
       - id: check-adr-rfc-links
         name: check ADR/RFC cross-references and anchors
         entry: .venv/bin/python tools/docs/check_adr_rfc_links.py --quiet
         language: system
         files: ^services/portal/internal/governance/(adr|rfc)/.*\.html$
         pass_filenames: false
+
+      # Generalised asset-ref checker for the whole portal — every <link href>,
+      # <script src>, <img src>, <a href> in HTML/CSS resolves. Catches 404s
+      # after file moves (e.g. assets/ → assets_v2/, pagefind/ move). Internal
+      # skip list excludes the pdoc code-reference/ tree.
       - id: check-asset-refs
         name: check broken asset/href references in HTML and CSS
         entry: .venv/bin/python tools/governance/check_asset_refs.py
         language: system
         files: ^services/(portal|frontend/portal)/.*\.(html|css)$
         pass_filenames: false
+
+      # Exactly one <h1> per page rule — search index + a11y both rely on
+      # canonical first heading. Skipped on pdoc tree (pdoc emits its own
+      # heading structure).
       - id: check-h1-structure
         name: check pages have exactly one <h1>
         entry: .venv/bin/python tools/docs/check_h1_structure.py
@@ -88,18 +138,35 @@ repos:
         files: ^services/portal/.*\.html$
         exclude: ^services/portal/internal/services/api/code-reference/
         pass_filenames: false
+
+      # ADR 0028 boundary checker — AST-walks every services/<svc>/**/*.py
+      # and bans cross-service top-level imports. Today `app` is owned by
+      # services/api/; importing it from services/portal/ or
+      # services/monitoring/ fails the hook. Files can opt out with the marker
+      # comment `# check_service_imports: allow` (used by sync_docs.py).
       - id: check-service-imports
         name: forbid cross-service Python imports (ADR 0028)
         entry: .venv/bin/python tools/governance/check_service_imports.py
         language: system
         files: ^services/[^/]+/.*\.py$
         pass_filenames: false
+
+      # Service-catalog drift gate. Whenever a catalog-info.yaml or a generated
+      # services/<svc>/index.html changes, the per-service entity card, hub
+      # tile-grid, lifecycle ticker, and nav-tree subtree are re-rendered from
+      # the YAML; the hook fails non-zero if the on-disk HTML/JSON does not
+      # match. Forces hand-edits of YAML, never of the generated HTML regions.
       - id: catalog-render-check
         name: service catalog YAML → HTML drift check
         entry: .venv/bin/python tools/docs/render_service_descriptors.py --check
         language: system
         files: ^(services/portal/internal/services/[^/]+/catalog-info\.yaml|services/portal/internal/services/[^/]+/index\.html|services/portal/internal/services/index\.html|services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal\.json)$
         pass_filenames: false
+
+      # Push-time PR body sync. On `git push` to a feature branch, picks up
+      # PR_BODY.md and pushes its content to the GitHub PR (via `gh`). Does
+      # not block the push if `gh` can't resolve the PR yet (e.g. first push
+      # on a brand-new branch). Skip with SKIP_PR_SYNC=1 git push.
       - id: sync-pr-body-on-push
         name: sync PR body to GitHub
         entry: tools/governance/sync_pr_body.sh
