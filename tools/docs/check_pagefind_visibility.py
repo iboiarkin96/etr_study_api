@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-BUNDLE = ROOT / "services/frontend/portal/assets/pagefind"
+BUNDLE = ROOT / "services/frontend/portal/pagefind"
 FRAGMENT_PREFIX = b"pagefind_dcd"
 
 

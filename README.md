@@ -63,7 +63,6 @@ study_app/
     │   └── scripts/
     ├── frontend/  # Frontend artifacts (portal, future admin / dashboard)
     │   └── portal/  # Static documentation portal — public + internal IA
-    │       ├── assets/
     │       └── assets_v2/
     ├── monitoring/  # Prometheus, Grafana, Filebeat configs + compose stacks
     │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)

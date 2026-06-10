@@ -9,7 +9,7 @@ Two-step pipeline:
          search results (ADR / Runbook / API / Practice / Template / …).
   2. Invoke the pinned ``pagefind`` CLI (installed via ``pagefind_bin_extended``)
      against the staged tree with ``SOURCE_DATE_EPOCH=0`` for reproducibility,
-     emitting the bundle to ``services/frontend/portal/assets/pagefind/``.
+     emitting the bundle to ``services/frontend/portal/pagefind/``.
 
 Exit code mirrors ``pagefind`` (0 on success).
 
@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "services/portal"
 STAGED = ROOT / "var" / "tmp" / "portal-pagefind-staged"
-OUTPUT = ROOT / "services/frontend/portal/assets/pagefind"
+OUTPUT = ROOT / "services/frontend/portal/pagefind"
 
 MAIN_OPEN_RE = re.compile(rb"<main\b([^>]*)>", re.IGNORECASE)
 

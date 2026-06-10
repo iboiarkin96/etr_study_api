@@ -234,7 +234,7 @@ PAGE_SHELL = """<!doctype html>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="{assets_prefix}frontend/portal/assets/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="{assets_prefix}frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="{assets_prefix}frontend/portal/assets_v2/runtime/internal/entry.css">
   <style>
     /* Catalog lens — view switcher overlay (copies adr-toolbar pattern) */
@@ -692,7 +692,7 @@ CATALOG_INDEX_SHELL = """<!doctype html>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
 <body data-page-type="landing-section" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="">

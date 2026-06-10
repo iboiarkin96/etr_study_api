@@ -569,7 +569,7 @@ docs-spec-check:
 # After ``docs-fix``:
 #   - Restore ``services/portal/internal/services/api/code-reference/`` (pdoc) from ``HEAD`` (pdoc output
 #     varies across OS/Python/file order; the committed API ref snapshot is the source of truth for drift).
-# The Pagefind tree (``services/frontend/portal/assets/pagefind/``) is .gitignored — it is regenerated
+# The Pagefind tree (``services/frontend/portal/pagefind/``) is .gitignored — it is regenerated
 # on CI before the Pages deploy (see .github/workflows/pages.yml; ADR-0033 amendment 2026-06-08) and is
 # not part of the source tree, so no drift-restore step is needed.
 # Remaining drift then reflects UML, sync, repair, format, maintainers, portal data, and hand-authored HTML.

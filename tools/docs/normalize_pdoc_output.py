@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS_API = ROOT / "services" / "portal" / "internal" / "services" / "api" / "code-reference"
-DOCS_ASSETS = ROOT / "services" / "frontend" / "portal" / "assets"
+DOCS_ASSETS = ROOT / "services" / "frontend" / "portal" / "assets_v2"
 FAVICON_NAME = "favicon.svg"
 
 # e.g. ``<function foo at 0x10ab02c40>`` in HTML-escaped form or plain text
