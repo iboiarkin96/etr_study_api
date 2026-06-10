@@ -27,7 +27,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "services/portal"
-STAGED = ROOT / "var/tmp/portal-pagefind-staged"
+STAGED = ROOT / "var" / "tmp" / "portal-pagefind-staged"
 OUTPUT = ROOT / "services/frontend/portal/assets/pagefind"
 
 MAIN_OPEN_RE = re.compile(rb"<main\b([^>]*)>", re.IGNORECASE)

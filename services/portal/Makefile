@@ -2,8 +2,8 @@
 #
 # All targets delegate to the root Makefile because the docs autogen pipeline
 # (pdoc + render_docs_html + format_docs_html + render_service_descriptors +
-# build_pagefind_index) needs `app.*` introspection and lives in
-# services/portal/scripts/. The root Makefile orchestrates the full chain.
+# build_pagefind_index) needs `app.*` introspection and lives under
+# tools/docs/. The root Makefile orchestrates the full chain.
 #
 # Usage:
 #   make -C services/portal docs-fix         # regenerate docs artefacts

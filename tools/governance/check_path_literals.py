@@ -1,11 +1,11 @@
-"""Check that ``Path(...) / "literal"`` chains in ``scripts/*.py`` resolve on disk.
+"""Check that ``Path(...) / "literal"`` chains in ``tools/<bucket>/*.py`` resolve on disk.
 
 The repo has been through several bulk-rename refactors. The recurring failure
 mode is a Python script holding a stale path literal (``ROOT / "services" / "portal" / "assets"``)
 that no longer exists. The script then silently no-ops (or worse, writes to
 the wrong location).
 
-This checker walks the AST of every ``scripts/*.py`` file, finds chains rooted
+This checker walks the AST of every ``tools/<bucket>/*.py`` file, finds chains rooted
 at one of the recognised "anchor" names (``ROOT``, ``REPO``, ``BASE``, ``DOCS``,
 ``DOCS_DIR``, ``DOCS_ROOT``), follows the ``/ "string"`` joins, and reports
 chains where the resolved path does not exist on disk.
@@ -16,7 +16,7 @@ component looks like an explicit output target — i.e. it ends in a known
 generated-artifact basename (e.g. ``search-index.json``,
 ``token-gallery``) — by passing through if the parent directory exists.
 
-Run: ``python scripts/check_path_literals.py`` (exit 1 on any unresolved chain).
+Run: ``python tools/governance/check_path_literals.py`` (exit 1 on any unresolved chain).
 """
 
 from __future__ import annotations

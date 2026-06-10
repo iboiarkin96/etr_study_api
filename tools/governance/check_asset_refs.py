@@ -15,7 +15,7 @@ Out of scope (intentionally skipped):
 * Templated paths containing ``{`` or ``}`` (we treat any ``{`` in the literal
   as a template marker and skip).
 
-Run: ``python scripts/check_asset_refs.py`` (exit 1 on any broken reference).
+Run: ``python tools/governance/check_asset_refs.py`` (exit 1 on any broken reference).
 """
 
 from __future__ import annotations

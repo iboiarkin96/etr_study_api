@@ -107,7 +107,7 @@ You do **not** need Docker for day-to-day coding: use **`make run`**, tests, and
 **Why Docker still matters:** in many deployments the service runs as a **container image**. Building it with `docker build` is the normal packaging step for a release or a registry pull.
 
 - **Prerequisites:** [Docker](https://docs.docker.com/get-docker/) if you build or run the image locally.
-- **Build and run:** `docker build -t study-app-api:local .` builds image `study-app-api:local` (see `Dockerfile`). The container runs `scripts/container_entrypoint.sh` (Alembic, then Uvicorn, no `--reload`). Dependencies match pinned `requirements.txt` from `make install`. Pass configuration with `-e` or your platform’s env mechanism (see `env/example`).
+- **Build and run:** `docker build -t study-app-api:local services/api` builds the API image (see `services/api/Dockerfile`). The container runs `services/api/scripts/container_entrypoint.sh` (Alembic, then Uvicorn, no `--reload`). Dependencies match pinned `services/api/requirements.txt` from `make install`. Pass configuration with `-e` or your platform’s env mechanism (see `env/example`).
 - **Guide:** [Docker image and container](services/portal/internal/handbook/developer/0009-docker-image-and-container.html). **ADRs:** [0015](services/portal/internal/governance/adr/0015-container-image.html) (image), [0021](services/portal/internal/governance/adr/0021-continuous-delivery-github-actions-and-ghcr.html) (CI → GHCR).
 
 ---

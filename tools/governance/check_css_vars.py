@@ -18,7 +18,7 @@ fallback is a deliberate "tunable knob" pattern (parent scope may set
 ``--foo``; otherwise the fallback applies). Only references without a
 fallback are required to resolve to a declaration somewhere.
 
-Run: ``python scripts/check_css_vars.py`` (exit code 1 on any unresolved ref).
+Run: ``python tools/governance/check_css_vars.py`` (exit code 1 on any unresolved ref).
 """
 
 from __future__ import annotations

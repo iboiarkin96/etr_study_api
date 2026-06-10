@@ -3,6 +3,14 @@
 Per-service changelog for the observability stack (Prometheus, Grafana,
 Blackbox-exporter; optional ELK for logs).
 
+## 2026-06-10 — tools/ consolidation
+
+- **Helpers moved to `tools/monitoring/`.** `render_prometheus_config`,
+  `check_observability_links`, `check_logging_links` moved from
+  `services/monitoring/scripts/` into `tools/monitoring/`.
+  `services/monitoring/scripts/` directory removed (was empty after the move).
+  `services/monitoring/Makefile` `render-prometheus` target updated.
+
 ## 2026-06-09 — BL-065 / ADR 0028 Phase 1–4 landed
 
 - **Folder split (Phase 1).** Moved `ops/prometheus/`, `ops/grafana/`,

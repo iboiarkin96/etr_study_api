@@ -9,7 +9,7 @@ Use ``-o FILE`` to save the same text to a file; do not append raw stdout to
 CHANGELOG.md (structure must stay under ``###`` headings you already have).
 See services/portal/internal/governance/adr/0013-changelog-and-release-notes.html.
 
-Uses ``scripts/llm_client.py`` for the API call; see ``env/example``.
+Uses ``tools/governance/llm_client.py`` for the API call; see ``env/example``.
 """
 
 from __future__ import annotations
