@@ -77,7 +77,7 @@ def main() -> int:
     n = 0
     for path in sorted(DOCS.rglob("*.html")):
         rel = path.relative_to(DOCS).as_posix()
-        # pdoc-generated tree is owned by `python -m pdoc` + normalize_pdoc_output.py;
+        # pdoc-generated tree is owned by `python -m pdoc`;
         # nothing else writes there.
         if (
             rel.startswith("api/")

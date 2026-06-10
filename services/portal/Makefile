@@ -78,7 +78,6 @@ docs-fix:
 	@printf "$(ICON_INFO) %s\n" "[8/9] Python API reference (pdoc)"
 	@rm -rf $(REPO_ROOT)/services/portal/internal/services/api/code-reference
 	@cd $(REPO_ROOT) && PYTHONHASHSEED=0 PYTHONPATH=services/api $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/normalize_pdoc_output.py
 	@printf "$(ICON_INFO) %s\n" "[9/9] build pagefind index (ADR-0033)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_pagefind_index.py
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_pagefind_visibility.py

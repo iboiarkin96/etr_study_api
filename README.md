@@ -1,16 +1,16 @@
 # <abbr title="Extract–Transform–Retrieve">ETR</abbr> Study App
 
-A FastAPI service plus a Docs-as-Code portal, laid out as a service-rooted monorepo per [ADR 0028](services/portal/internal/governance/adr/0028-monorepo-with-service-boundaries.html). Every concern that ships independently lives under `services/<svc>/`; cross-cutting helper scripts live under `tools/`.
+A FastAPI service plus a Docs-as-Code portal, laid out as a service-rooted monorepo. Every concern that ships independently lives under `services/<svc>/`; cross-cutting helper scripts live under `tools/`.
 
 ## Where to look
 
-| You want to … | Go to |
-| ------------- | ----- |
-| Run the API locally, build the container image, browse OpenAPI | [`services/api/README.md`](services/api/README.md) |
-| Bring up Prometheus / Grafana / Blackbox, or the optional ES + Kibana logs stack | [`services/monitoring/README.md`](services/monitoring/README.md) |
-| Edit documentation, regenerate the portal, run docs gates | [`services/portal/README.md`](services/portal/README.md) |
-| Understand the UI Kit / Pagefind / favicon layout | [`services/frontend/portal/CHANGELOG.md`](services/frontend/portal/CHANGELOG.md) |
-| Read about architectural decisions | [`services/portal/internal/governance/adr/`](services/portal/internal/governance/adr/index.html) |
+| You want to …                                                                    | Go to                                                                                            |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Run the API locally, build the container image, browse OpenAPI                   | [`services/api/README.md`](services/api/README.md)                                               |
+| Bring up Prometheus / Grafana / Blackbox, or the optional ES + Kibana logs stack | [`services/monitoring/README.md`](services/monitoring/README.md)                                 |
+| Edit documentation, regenerate the portal, run docs gates                        | [`services/portal/README.md`](services/portal/README.md)                                         |
+| Understand the UI Kit / Pagefind / favicon layout                                | [`services/frontend/portal/CHANGELOG.md`](services/frontend/portal/CHANGELOG.md)                 |
+| Read about architectural decisions                                               | [`services/portal/internal/governance/adr/`](services/portal/internal/governance/adr/index.html) |
 
 ## Quick start (API)
 
@@ -26,17 +26,17 @@ make run
 
 ## Local make targets at a glance
 
-The Makefile sits at the repo root and orchestrates the gates that apply across services. Per-service entry points (`make -C services/api …`, `make -C services/monitoring …`, `make -C services/portal …`) wrap the local-iteration commands for that service.
+The Makefile sits at the repo root and orchestrates the gates that apply across services.
 
-| Command | Where it lives | What it does |
-| ------- | -------------- | ------------ |
-| `make fix` | root | format + lint auto-fix + docs autogen |
-| `make check` | root | lint + types + openapi + contract + tests |
-| `make verify` | root | the full pre-push gate |
-| `make stack-up` / `make stack-down` | root → calls `services/monitoring/docker-compose.yml` | api + observability stack |
-| `make -C services/api run` | api | uvicorn dev server |
-| `make -C services/portal docs-fix` | portal | docs autogen pipeline |
-| `make -C services/monitoring up` | monitoring | observability standalone |
+| Command                             | Where it lives                                        | What it does                              |
+| ----------------------------------- | ----------------------------------------------------- | ----------------------------------------- |
+| `make fix`                          | root                                                  | format + lint auto-fix + docs autogen     |
+| `make check`                        | root                                                  | lint + types + openapi + contract + tests |
+| `make verify`                       | root                                                  | the full pre-push gate                    |
+| `make stack-up` / `make stack-down` | root → calls `services/monitoring/docker-compose.yml` | api + observability stack                 |
+| `make -C services/api run`          | api                                                   | uvicorn dev server                        |
+| `make -C services/portal docs-fix`  | portal                                                | docs autogen pipeline                     |
+| `make -C services/monitoring up`    | monitoring                                            | observability standalone                  |
 
 Full inventory: [`internal/handbook/sa/authoring/make-commands-and-workflows.html`](services/portal/internal/handbook/sa/authoring/make-commands-and-workflows.html).
 
@@ -98,8 +98,6 @@ study_app/
 - **Documentation content:** [`services/portal/CHANGELOG.md`](services/portal/CHANGELOG.md).
 - **Frontend kit:** [`services/frontend/portal/CHANGELOG.md`](services/frontend/portal/CHANGELOG.md).
 - **Per-service:** [`services/api/CHANGELOG.md`](services/api/CHANGELOG.md), [`services/monitoring/CHANGELOG.md`](services/monitoring/CHANGELOG.md).
-
-See [ADR 0013](services/portal/internal/governance/adr/0013-changelog-and-release-notes.html) for which kind of change goes where.
 
 ## Contributing
 

@@ -22,7 +22,7 @@
 
 ## Container image
 
-- **Optional for daily work** — features use **`make run`** and tests; Docker is for packaging and “like production” runs. See the root **README** (*Container image*) and [0009-docker-image-and-container.html](services/portal/internal/handbook/developer/0009-docker-image-and-container.html) for `docker build` and `docker run` notes.
+- **Optional for daily work** — features use **`make run`** and tests; Docker is for packaging and “like production” runs. See the root **README** (_Container image_) and [0009-docker-image-and-container.html](services/portal/internal/handbook/developer/0009-docker-image-and-container.html) for `docker build` and `docker run` notes.
 - For **`qa`** / **`prod`**-style runs, supply API keys and stricter settings via environment variables or your deployment platform’s secret mechanism — see **`env/example`** and **`services/api/app/core/config.py`**.
 - **`services/api/scripts/container_entrypoint.sh`** is the container entrypoint logic (migrate + Uvicorn, no `--reload`). The image does not run **`make`**; there is no `.venv` inside the container.
 
@@ -36,7 +36,7 @@
 - PR body automation:
   - Keep a local root file `PR_BODY.md` (gitignored). Template source is `.github/PULL_REQUEST_TEMPLATE.md`.
   - On `pre-commit` (non-`main` / non-`master` branches), hook `tools/governance/check_pr_body.sh` requires `PR_BODY.md` to exist, be non-empty, and have exactly one selected change type (`delivery` / `docs-only` / `mixed`).
-  - The same hook also blocks common template placeholders (`What changed and why?`, ``...``) so a raw template is not committed by mistake.
+  - The same hook also blocks common template placeholders (`What changed and why?`, `...`) so a raw template is not committed by mistake.
   - On `pre-push`, hook `tools/governance/sync_pr_body.sh` attempts to update/create branch PR body from `PR_BODY.md` using GitHub CLI (`gh`) but does not block push on `gh` lookup issues.
   - First-time setup:
     - Install GitHub CLI (`gh`) and verify: `gh --version` (for macOS/Homebrew: `brew install gh`).
@@ -61,5 +61,3 @@
 - Do not add several version sections for the same unreleased work, and do not update the changelog more than once per day.
 - For small or internal-only changes, you can skip the changelog by putting **`[skip changelog]`** or **`skip-changelog`** in the PR title or commit message. Details: [ADR 0013](services/portal/internal/governance/adr/0013-changelog-and-release-notes.html).
 - **LLM draft (optional):** run `python tools/governance/changelog_draft.py` to write `changelog-llm-draft.md` (gitignored), then copy bullets into `CHANGELOG.md` under `[Unreleased]`. Offline preview: `python tools/governance/changelog_draft.py --print-log`. More: [ADR 0013](services/portal/internal/governance/adr/0013-changelog-and-release-notes.html#llm-draft-workflow).
-
-## Further reading

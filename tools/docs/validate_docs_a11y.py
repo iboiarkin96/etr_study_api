@@ -63,7 +63,7 @@ def _iter_docs_pages() -> list[Path]:
         if rel.parts and rel.parts[0] in {"api", "assets", "pdoc"}:
             continue
         # pdoc-generated tree at internal/services/api/code-reference/ is owned
-        # by `python -m pdoc` + normalize_pdoc_output.py; nothing else writes
+        # by `python -m pdoc`; nothing else writes
         # there and a11y issues in pdoc HTML can't be hand-fixed.
         if "code-reference" in rel.parts:
             continue

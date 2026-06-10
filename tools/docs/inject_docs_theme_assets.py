@@ -59,7 +59,7 @@ def main() -> int:
     """
     changed = 0
     for path in sorted(DOCS.rglob("*.html")):
-        # pdoc-generated tree is owned by `python -m pdoc` + normalize_pdoc_output.py;
+        # pdoc-generated tree is owned by `python -m pdoc`;
         # nothing else writes there.
         if "code-reference" in path.parts:
             continue
