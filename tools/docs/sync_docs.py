@@ -144,10 +144,13 @@ def _parse_makefile_help() -> list[tuple[str, str]]:
     entries_by_command: dict[str, str] = {}
     for line in makefile.read_text().splitlines():
         stripped = line.strip()
-        if not stripped.startswith('@echo "  make '):
+        if not stripped.startswith('@echo "'):
             continue
-        # strip @echo " and trailing "
+        # strip the @echo wrapper, then strip any inner indentation. The root
+        # Makefile uses 4-space indent under section headers; tolerate any.
         inner = stripped.removeprefix('@echo "').removesuffix('"').strip()
+        if not inner.startswith("make "):
+            continue
         m = _HELP_LINE_RE.match(inner)
         if m:
             command = m.group(1)
@@ -172,6 +175,36 @@ def _render_makefile_table(entries: list[tuple[str, str]]) -> str:
     for cmd, desc in entries:
         rows.append(f"| `make {cmd}` | {desc} |")
     return "\n".join(rows)
+
+
+def _render_makefile_html_table(entries: list[tuple[str, str]]) -> str:
+    """Render the make-commands inventory as the docs-table HTML used by the portal.
+
+    Mirrors the wrapper / table / thead / tbody shape of the
+    ``make-commands.html`` page so the marker substitution preserves visual style.
+    """
+    import html
+
+    head_indent = "      "  # matches make-commands.html section indent
+    rows = []
+    for cmd, desc in entries:
+        cmd_esc = html.escape(cmd)
+        desc_esc = html.escape(desc)
+        rows.append(
+            f"{head_indent}      <tr><td><code>make {cmd_esc}</code></td><td>{desc_esc}</td></tr>"
+        )
+    body = "\n".join(rows)
+    return (
+        f'{head_indent}<div class="docs-table-wrap">\n'
+        f'{head_indent}  <table class="docs-table docs-table--sticky-head docs-table--zebra">\n'
+        f'{head_indent}    <thead><tr><th scope="col">Command</th>'
+        f'<th scope="col">Purpose</th></tr></thead>\n'
+        f"{head_indent}    <tbody>\n"
+        f"{body}\n"
+        f"{head_indent}    </tbody>\n"
+        f"{head_indent}  </table>\n"
+        f"{head_indent}</div>"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -547,6 +580,39 @@ def sync(check: bool = False) -> int:
                 _ok("services/portal/internal/services/api/reference/errors.html updated")
         else:
             _info("services/portal/internal/services/api/reference/errors.html already up to date")
+
+    # --- services/portal/internal/handbook/sa/authoring/make-commands.html ---
+    make_commands_path = (
+        ROOT
+        / "services"
+        / "portal"
+        / "internal"
+        / "handbook"
+        / "sa"
+        / "authoring"
+        / "make-commands.html"
+    )
+    if make_commands_path.exists() and makefile_entries:
+        sections: dict[str, str] = {
+            "MAKEFILE_COMMANDS": _render_makefile_html_table(makefile_entries),
+        }
+        original = make_commands_path.read_text()
+        updated = _replace_markers(original, sections)
+        if updated != original:
+            stale_files += 1
+            if check:
+                print(
+                    "✗ services/portal/internal/handbook/sa/authoring/make-commands.html "
+                    "is out of sync (run make docs-fix)"
+                )
+            else:
+                make_commands_path.write_text(updated)
+                _ok("services/portal/internal/handbook/sa/authoring/make-commands.html updated")
+        else:
+            _info(
+                "services/portal/internal/handbook/sa/authoring/make-commands.html "
+                "already up to date"
+            )
     return stale_files
 
 
