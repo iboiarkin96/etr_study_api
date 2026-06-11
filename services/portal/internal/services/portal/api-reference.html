@@ -73,16 +73,19 @@
         See <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a> §3.1.
       </p>
 
-      <h2 id="search-index">Search index — JSON contract</h2>
+      <h2 id="search-bundle">Search bundle — Pagefind contract</h2>
       <p>
-        The portal ships a client-side search index at a fixed path. Per
-        <a href="../../governance/adr/0027-client-side-docs-search-index-and-ranking.html">ADR 0027</a>,
-        the format is documented and stable so future tooling can re-rank without rebuilding the source map.
+        The portal ships a Pagefind search bundle at a fixed path. Per
+        <a href="../../governance/adr/0033-portal-search-engine-pagefind.html">ADR 0033</a>
+        (which supersedes ADR 0027), the file layout and search API are owned by Pagefind upstream;
+        what we own is the pre-pass that tags pages and the runtime that calls
+        <code>pagefind.search(query)</code>.
       </p>
       <ul>
-        <li><strong>Path:</strong> <code>/internal/assets/search-index.json</code> (and a public counterpart for <code>/</code>).</li>
-        <li><strong>Schema:</strong> array of <code>{ url, title, headings[], excerpt, audience }</code>. <code>audience</code> = <code>"public"</code> | <code>"internal"</code>.</li>
-        <li><strong>Producer:</strong> <code>scripts/build_docs_search_index.py</code>; runs in <code>make docs-fix</code>.</li>
+        <li><strong>Path:</strong> <code>services/frontend/portal/pagefind/</code> — a chunked directory (<code>pagefind.js</code>, <code>wasm.en.pagefind</code>, <code>fragment/*.pf_fragment</code>, <code>index/*.pf_index</code>, <code>filter/*.pf_filter</code>, <code>*.pf_meta</code>). Lazily loaded by the topbar on first focus. Gitignored — rebuilt on every <code>make docs-fix</code> locally and on every CI Pages deploy.</li>
+        <li><strong>Filters / facets:</strong> <code>visibility</code> = <code>"public"</code> | <code>"internal"</code>; <code>kind</code> = ADR · RFC · runbook · tutorial · how-to · reference · explanation · practice · landing · service. Both injected by the build-time pre-pass.</li>
+        <li><strong>Producer:</strong> <code>tools/docs/build_pagefind_index.py</code> (step [10/10] of <code>make docs-fix</code>); CI: <code>.github/workflows/pages.yml</code>.</li>
+        <li><strong>Visibility gate:</strong> <code>tools/docs/check_pagefind_visibility.py</code> — invoked right after the build; fails the run if any URL carries the wrong <code>visibility</code> tag.</li>
         <li><strong>KPI / SLO:</strong> per <a href="../../governance/rfc/0002-docs-search-kpi-policy-and-slo.html">RFC 0002</a>.</li>
       </ul>
 
