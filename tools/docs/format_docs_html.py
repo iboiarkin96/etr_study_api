@@ -317,10 +317,31 @@ def _normalize_indentation(text: str) -> str:
                 # If the opening <pre> line had inlined content, that first
                 # line sits at column 0 and acts as an indent anchor; pass it
                 # so the dedent can't strip the body's leading whitespace.
-                normalized_lines.extend(
-                    _dedent_pre_block(pre_buffer, anchor_zero=pre_has_inline_first)
-                )
-                normalized_lines.append(pre_base_indent + stripped)
+                #
+                # Mirror the opener's "inlined content on same line" handling
+                # for the closing tag: when text precedes </pre> on the same
+                # line, that text is pre interior — preserve its leading
+                # whitespace verbatim (drop it into the buffer so dedent
+                # treats it consistently with siblings) and re-emit </pre>
+                # on the same line as the last buffer entry, so the
+                # round-trip is idempotent and the shape stays "<text></pre>".
+                # Any trailing markup after </pre> on that line (e.g.
+                # </div>) goes on its own line at pre_base_indent.
+                close_idx = raw_line.find("</pre>")
+                content_before = raw_line[:close_idx]
+                trailing_after = raw_line[close_idx + len("</pre>") :]
+                if content_before.strip():
+                    pre_buffer.append(content_before)
+                    dedented = _dedent_pre_block(pre_buffer, anchor_zero=pre_has_inline_first)
+                    normalized_lines.extend(dedented[:-1])
+                    normalized_lines.append(dedented[-1] + "</pre>")
+                else:
+                    normalized_lines.extend(
+                        _dedent_pre_block(pre_buffer, anchor_zero=pre_has_inline_first)
+                    )
+                    normalized_lines.append(pre_base_indent + "</pre>")
+                if trailing_after.strip():
+                    normalized_lines.append(pre_base_indent + trailing_after.strip())
                 pre_depth = 0
                 pre_base_indent = ""
                 pre_buffer = []
