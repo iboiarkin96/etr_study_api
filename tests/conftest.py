@@ -14,9 +14,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-# Configure test DB before importing app modules.
+# Configure test DBs before importing app modules. The main app and the
+# docs-search telemetry store live in two separate sqlite files in production
+# (env/dev TELEMETRY_SQLITE_DB_PATH=var/tech/telemetry.db); mirror the split
+# in tests so the app's wiring exercises the same code path.
 TEST_DB_PATH = Path(__file__).resolve().parent / "test_app.sqlite3"
+TEST_TELEMETRY_DB_PATH = Path(__file__).resolve().parent / "test_telemetry.sqlite3"
 os.environ["SQLITE_DB_PATH"] = str(TEST_DB_PATH)
+os.environ["TELEMETRY_SQLITE_DB_PATH"] = str(TEST_TELEMETRY_DB_PATH)
 os.environ.setdefault("APP_NAME", "ETR Study App API (tests)")
 os.environ["APP_ENV"] = "qa"
 os.environ.setdefault("APP_HOST", "127.0.0.1")

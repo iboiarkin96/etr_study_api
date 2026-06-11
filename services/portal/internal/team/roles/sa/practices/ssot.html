@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
 <body data-page-type="reference" class="docs-shell pa--gA" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
@@ -142,7 +142,7 @@ if mtime(src) &gt; mtime(derivative):
         <h4>Trade-offs — what this practice costs</h4>
         <ul>
           <li><strong>Build-step latency.</strong> Every derivative pays a CI cost on every edit to its source. For docs this is fine (seconds); for API SDKs it can mean a 5-minute delay before a fix is testable. Budget the build time when you pick what to derive.</li>
-          <li><strong>Generator failure modes.</strong> If <code>build_table_docs.py</code> silently produces an empty file when the source is malformed, the team will trust the empty doc and ship the bug. Loud failures (non-zero exit, banner on the output) are non-negotiable.</li>
+          <li><strong>Generator failure modes.</strong> If <code>render_service_descriptors.py</code> silently produces an empty card region when the YAML is malformed, the team will trust the empty doc and ship the bug. Loud failures (non-zero exit, banner on the output) are non-negotiable.</li>
           <li><strong>Migration cost.</strong> Moving from 'docs in Confluence' to 'docs derived from code' is a quarter of full-time work. Budget it explicitly; do not promise it as a side-effect of another project.</li>
         </ul>
       </div>
@@ -174,13 +174,13 @@ if mtime(src) &gt; mtime(derivative):
 
       <h2 id="example">Worked example</h2>
       <div class="pa-example">
-        <div class="pa-example__head"><span class="pa-example__tag">From source to UI</span><p class="pa-example__title">Database table → catalog page</p></div>
+        <div class="pa-example__head"><span class="pa-example__tag">From source to UI</span><p class="pa-example__title">Service descriptor YAML → entity card + hub tile + sidebar</p></div>
         <div class="pa-example__body">
-          <p><strong>Source.</strong> <code>migrations/20260513_create_sessions.sql</code></p>
-          <p><strong>Build step.</strong> <code>scripts/build_table_docs.py</code> reads the migration, extracts the table name, columns, types, FKs, and the JSON-doc comment block, and writes <code>internal/catalog/api/data/sessions.html</code>.</p>
-          <p><strong>Derivatives.</strong> The catalog page; the ER diagram on the architecture page; the column list in the API reference.</p>
-          <p><strong>References.</strong> Any prose mentioning <em>sessions</em> links to the catalog page; it does not restate the columns.</p>
-          <p>If a developer adds a column without updating the migration's doc-comment, CI fails. They cannot accidentally ship the column without the doc.</p>
+          <p><strong>Source.</strong> <code>services/portal/internal/services/api/catalog-info.yaml</code> — Backstage-shaped descriptor with hand-authored fields (<code>description</code>, <code>tags</code>, <code>links</code>, <code>x-study-app</code> tone/lede/deps).</p>
+          <p><strong>Build step.</strong> <code>tools/docs/render_service_descriptors.py</code> (step [6/10] of <code>make docs-fix</code>) reads every <code>services/portal/internal/services/*/catalog-info.yaml</code>, validates against the schema, and rewrites three derivative surfaces inside <code>&lt;!-- catalog:start --&gt;</code> / <code>&lt;!-- catalog:end --&gt;</code> marker blocks.</p>
+          <p><strong>Derivatives.</strong> The entity card on the per-service <code>index.html</code>; the tile in the catalog hub <code>services/index.html</code>; the <code>services</code> subtree in <code>nav-tree-internal.json</code>. All three regenerate from one YAML.</p>
+          <p><strong>References.</strong> Any prose mentioning the API service links to the entity card; never restates owner / tier / dependencies inline.</p>
+          <p>If a developer hand-edits the rendered HTML inside a marker block, <code>make catalog-render-check</code> in pre-commit fails. They cannot silently fork the descriptor.</p>
         </div>
       </div>
 

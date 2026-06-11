@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
   <style>
     /* Card frame, grid, rail tone — kit (.docs-card, .docs-card-grid,
@@ -83,7 +83,7 @@
             <span class="stack-card__icon" aria-hidden="true">🔎</span>
             <p class="stack-card__tag">Layer 02 · Search</p>
             <h3 class="docs-card__title">Full-text index</h3>
-            <p class="docs-card__body">The reader knows <em>what</em> the answer is about but not where it lives. Search hits a TF-IDF index built from every page on every merge.</p>
+            <p class="docs-card__body">The reader knows <em>what</em> the answer is about but not where it lives. Search hits a Pagefind bundle (BM25 with stemming) rebuilt from every page on every <code>make docs-fix</code> / CI run.</p>
           </article>
 
           <article class="docs-card docs-card--rail" data-tone="teal">
@@ -151,16 +151,18 @@
         <p class="lens-chip-row"><span class="lens-chip" data-lens="rules"><span class="lens-chip__dot"></span>Rules</span></p>
         <div class="numbered-section__head">
           <span class="numbered-section__kicker">03</span>
-          <h2 id="search-h">Search — TF-IDF index, regenerated on merge</h2>
+          <h2 id="search-h">Search — Pagefind bundle, rebuilt on every docs-fix</h2>
         </div>
         <p class="numbered-section__lede">
-          Search hits a static JSON index built from every page. No backend, no per-query LLM call — fast,
-          deterministic, works offline.
+          Search hits a Pagefind bundle (Rust-built static-site index, BM25 with stemming) lazily loaded by the
+          topbar. No backend, no per-query LLM call — fast, deterministic, works offline. Authority:
+          <a href="../../governance/adr/0033-portal-search-engine-pagefind.html">ADR 0033</a>
+          (supersedes the in-house BM25 of ADR 0027).
         </p>
         <ul>
-          <li><strong>Builder.</strong> <code>scripts/build_docs_search_index.py</code> walks every HTML page, strips chrome, computes TF-IDF vectors, and writes two files: <code>search-index.json</code> (internal portal) and <code>search-index-public.json</code> (the subset safe for the public site).</li>
-          <li><strong>Cadence.</strong> Rebuilt on every merge to <code>main</code>. CI gate <code>check_search_index_subset.py</code> verifies the internal/public split is correct — no internal-only page leaks into the public index.</li>
-          <li><strong>Ranking signals.</strong> Standard TF-IDF, weighted by <code>&lt;h1&gt;</code> / <code>&lt;h2&gt;</code> / <code>&lt;code&gt;</code> matches. The page's <code>data-page-type</code> attribute scores Tutorials higher than Reference for «how to» queries.</li>
+          <li><strong>Builder.</strong> <code>tools/docs/build_pagefind_index.py</code> (step [10/10] of <code>make docs-fix</code>) mirrors every HTML page under <code>services/portal/</code> into a staged tree, injects <code>data-pagefind-filter="visibility:internal|public"</code> and <code>data-pagefind-meta="kind:&lt;taxonomy&gt;"</code> onto each <code>&lt;main&gt;</code>, then runs the pinned Pagefind CLI. The bundle lands in <code>services/frontend/portal/pagefind/</code> (gitignored — built on every CI run by <code>.github/workflows/pages.yml</code>).</li>
+          <li><strong>Cadence.</strong> Rebuilt on every <code>make docs-fix</code> locally, and on every Pages deploy in CI. The visibility invariant is asserted by <code>tools/docs/check_pagefind_visibility.py</code> right after the build — a public URL must carry <code>visibility:public</code> and an internal URL <code>visibility:internal</code>; build fails otherwise.</li>
+          <li><strong>Ranking signals.</strong> BM25 with English stemming, owned by Pagefind — we don't tune ranking. What we control: what to index (a Python pre-pass mirror), how to split internal vs public (the filter), and what each result calls itself (the <code>kind</code> meta).</li>
           <li><strong>Indexed-page count.</strong> Surfaced on the portal home as a live counter — readers see at a glance the portal's footprint.</li>
         </ul>
       </section>

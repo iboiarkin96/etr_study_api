@@ -4,6 +4,23 @@ Per-service changelog for the Python FastAPI service. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the root `CHANGELOG.md` keeps
 the cross-cutting headline entries.
 
+## 2026-06-10 — tools/ consolidation + telemetry DB split restored
+
+- **Tooling moved to `tools/api/`.** API-side helpers `openapi_governance` and
+  `check_es_request_id` moved from `services/api/scripts/` into `tools/api/`.
+  `services/api/scripts/` now keeps only `container_entrypoint.sh` (the only
+  artefact that ships inside the container image). See repo-wide tools layout
+  in the root `CHANGELOG.md`.
+- **Telemetry DB lives separately again.** `docs_search_events` data goes back
+  to its own SQLite file at `var/tech/telemetry.db` (was briefly combined into
+  `var/api/study_app.db` during BL-065 cleanup). New env var
+  `TELEMETRY_SQLITE_DB_PATH` (defaults to `var/tech/telemetry.db`); main app
+  DB stays at `SQLITE_DB_PATH=var/api/study_app.db`. Keeps high-volume
+  append-only telemetry traffic off the API's transactional WAL.
+  `DocsSearchTelemetryStore.clear_all()` added for test-only deterministic
+  cleanup (tests previously went through `SessionLocal()` which is bound to
+  the main DB engine).
+
 ## 2026-06-09 — BL-065 / ADR 0028 Phase 1–4 landed
 
 - **Folder split (Phase 1).** Moved `app/`, `alembic/`, `alembic.ini`,

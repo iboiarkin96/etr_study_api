@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
 <body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="architect">
@@ -135,8 +135,8 @@
         <h3>Local checks</h3>
         <ul>
           <li><code>make verify</code> after every phase — green.</li>
-          <li><code>make docs-fix</code> regenerates <code>services/frontend/portal/assets/search-index.json</code>; grep for <code>"audience":"public"</code> and <code>"doc_type":"tutorial"</code> after Phase B.</li>
-          <li><code>scripts/check_adr_rfc_links.py</code> passes after Phase F (script paths updated).</li>
+          <li><code>make docs-fix</code> rebuilds the Pagefind bundle at <code>services/frontend/portal/pagefind/</code>; after Phase B confirm <code>tools/docs/check_pagefind_visibility.py</code> reports zero leaks between <code>visibility:internal</code> and <code>visibility:public</code>, and a manual search for a public-only and internal-only term in the topbar returns the expected scoped results.</li>
+          <li><code>tools/docs/check_adr_rfc_links.py</code> passes after Phase F (script paths updated).</li>
           <li>Manual smoke: <code>python -m http.server</code> from repo root; visit <code>http://localhost:8000/docs/</code> — router renders, both CTAs work.</li>
         </ul>
         <h3>CI / automated checks</h3>
@@ -192,7 +192,7 @@
           <li>Refactor <code>services/portal/index.html</code> into a router (two CTAs: integrator → public, team → internal).</li>
           <li>One-shot script <code>scripts/apply_docs_audience_attribute.py</code> applies <code>data-audience</code> across all existing pages (idempotent).</li>
           <li>Update hard-coded paths: <code>scripts/openapi_governance.py</code>, <code>scripts/spec_consistency.py</code>, <code>scripts/changelog_gate.py</code>, <code>Makefile</code>, <code>.pre-commit-config.yaml</code>.</li>
-          <li>Extend <code>scripts/build_docs_search_index.py</code> to emit <code>audience</code> + <code>doc_type</code>; update search UI with filter pill.</li>
+          <li>Pagefind already emits both filters: <code>data-pagefind-filter="visibility:internal|public"</code> (the audience boundary) and <code>data-pagefind-meta="kind:&lt;taxonomy&gt;"</code> (the doc type — ADR / RFC / runbook / tutorial / how-to / reference / explanation / practice / service / landing). Injected at build time by <code>tools/docs/build_pagefind_index.py</code>; the topbar surfaces them as filter chips.</li>
           <li>Update <code>services/frontend/portal/assets/docs-nav.js</code> for public/internal grouping.</li>
         </ol>
       </section>
@@ -222,7 +222,7 @@
         <ol>
           <li>Create <code>services/portal/internal/handbook/index.html</code>.</li>
           <li>Move <code>services/portal/internal/handbook/developer/</code> → <code>services/portal/internal/handbook/developer/</code>; <code>services/portal/internal/handbook/howto/</code> → <code>services/portal/internal/handbook/howto/</code>; <code>services/portal/internal/handbook/qa/</code> → <code>services/portal/internal/handbook/qa/</code>.</li>
-          <li>Update <code>scripts/sync_docs.py</code> markers, <code>.pre-commit-config.yaml</code>, any nav/portal-data scripts using these prefixes.</li>
+          <li>Update <code>tools/docs/sync_docs.py</code> markers, <code>.pre-commit-config.yaml</code>, any nav/portal-data scripts using these prefixes.</li>
           <li>One-shot <code>scripts/migrate_handbook_paths.py</code> bulk-fixes cross-refs in every HTML page that links into the moved subtrees. Delete after use.</li>
           <li>Update <code>internal-sidebar.js</code> + internal-hub grid.</li>
         </ol>
@@ -233,7 +233,7 @@
         <ol>
           <li>Create <code>services/portal/internal/governance/index.html</code>.</li>
           <li>Move <code>services/portal/internal/governance/adr/</code> → <code>services/portal/internal/governance/adr/</code> (incl. amended ADR 0028); <code>services/portal/internal/governance/rfc/</code> → <code>services/portal/internal/governance/rfc/</code> (incl. this RFC); <code>services/portal/internal/governance/audits/</code> → <code>services/portal/internal/governance/audits/</code>; <code>services/portal/internal/governance/backlog/</code> → <code>services/portal/internal/governance/backlog/</code>.</li>
-          <li>Update <code>scripts/check_adr_rfc_links.py</code> (<code>DOCS / "adr"</code> + <code>DOCS / "rfc"</code> paths); <code>.pre-commit-config.yaml</code> file pattern <code>^services/portal/(adr|rfc)/.*\.html$</code>; any other scripts that hard-code these paths.</li>
+          <li>Update <code>tools/docs/check_adr_rfc_links.py</code> (<code>DOCS / "adr"</code> + <code>DOCS / "rfc"</code> paths); <code>.pre-commit-config.yaml</code> file pattern <code>^services/portal/(adr|rfc)/.*\.html$</code>; any other scripts that hard-code these paths.</li>
           <li>One-shot <code>scripts/migrate_governance_paths.py</code> bulk-fixes every cross-ref to the moved trees (most ADR-to-ADR refs are co-relocated and stay valid; refs from outside the moved trees need rewriting).</li>
           <li>Replace the aspirational paths in the Phase A amendment of ADR 0028 with the actualised paths.</li>
           <li>Update <code>internal-sidebar.js</code> + internal-hub grid.</li>

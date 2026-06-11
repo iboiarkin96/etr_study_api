@@ -131,7 +131,11 @@ class Settings:
         app_env: Deployment profile: ``dev``, ``qa``, or ``prod``.
         app_host: Bind address for the HTTP server.
         app_port: Bind port for the HTTP server.
-        sqlite_db_path: Path to the SQLite database file (relative or absolute).
+        sqlite_db_path: Path to the main application SQLite database file (relative or absolute).
+        telemetry_sqlite_db_path: Path to the dedicated docs-search telemetry SQLite
+            database. Separated from ``sqlite_db_path`` so high-volume append-only event
+            traffic does not contend with transactional API writes on the same WAL.
+            Relative paths are anchored at the repo root (same convention as sqlite_url).
         log_dir: Directory for rotating application log files.
         log_file_name: Log file basename inside ``log_dir``.
         log_level: Root logging level (e.g. ``INFO``, ``DEBUG``).
@@ -161,6 +165,7 @@ class Settings:
     app_host: str
     app_port: int
     sqlite_db_path: str
+    telemetry_sqlite_db_path: str
     log_dir: str
     log_file_name: str
     log_level: str
@@ -212,6 +217,7 @@ def get_settings() -> Settings:
     db_path = os.getenv("SQLITE_DB_PATH", "").strip()
     if not db_path:
         raise ValueError("Missing SQLITE_DB_PATH in environment.")
+    telemetry_db_path = os.getenv("TELEMETRY_SQLITE_DB_PATH", "var/tech/telemetry.db").strip()
 
     def _split_csv(value: str, default: tuple[str, ...]) -> tuple[str, ...]:
         """Parse a comma-separated env value into stripped non-empty parts.
@@ -264,6 +270,7 @@ def get_settings() -> Settings:
         app_host=os.getenv("APP_HOST", "127.0.0.1").strip() or "127.0.0.1",
         app_port=int(os.getenv("APP_PORT", "8000")),
         sqlite_db_path=db_path,
+        telemetry_sqlite_db_path=telemetry_db_path,
         log_dir=os.getenv("LOG_DIR", "logs").strip() or "logs",
         log_file_name=os.getenv("LOG_FILE_NAME", "app.log").strip() or "app.log",
         log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",

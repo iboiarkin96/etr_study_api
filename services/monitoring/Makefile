@@ -43,4 +43,4 @@ logs:
 # Re-render prometheus.tpl.yml → prometheus.yml using current root env values.
 render-prometheus:
 	@$(MAKE) -C $(REPO_ROOT) render-prometheus 2>/dev/null || \
-	  $(REPO_ROOT)/.venv/bin/python $(REPO_ROOT)/scripts/render_prometheus_config.py
+	  $(REPO_ROOT)/.venv/bin/python $(REPO_ROOT)/tools/monitoring/render_prometheus_config.py

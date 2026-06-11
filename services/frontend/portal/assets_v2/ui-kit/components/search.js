@@ -15,7 +15,7 @@ import { resultKind } from "./search-badges.js";
 
 const MAX_RESULTS = 12;
 const DEBOUNCE_MS = 120;
-const BUNDLE_HREF = "/services/frontend/portal/assets/pagefind/pagefind.js";
+const BUNDLE_HREF = "/services/frontend/portal/pagefind/pagefind.js";
 
 const SEARCH_SVG =
   "<svg class='docs-search__icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true' focusable='false'><circle cx='11' cy='11' r='7'/><path d='m21 21-4.3-4.3'/></svg>";
@@ -30,7 +30,7 @@ async function loadPagefind() {
       const pf = await import(/* @vite-ignore */ href);
       // `basePath` controls where the bundle assets (entry/meta/index/fragment)
       // are fetched from — leave it as Pagefind's auto-derived value
-      // (/services/frontend/portal/assets/pagefind/).
+      // (/services/frontend/portal/pagefind/).
       // `baseUrl` is what gets prepended to result URLs at search time. Without
       // it Pagefind reuses basePath, which would point clicks back into
       // assets/ — but our actual pages live at /services/portal/ (or

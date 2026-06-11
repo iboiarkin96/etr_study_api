@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import time
 
-from app.core.database import SessionLocal
+from app.main import docs_search_telemetry_store
 from fastapi.testclient import TestClient
-from sqlalchemy import text
 
 
 def _now_ms() -> int:
@@ -15,10 +14,12 @@ def _now_ms() -> int:
 
 
 def _clean_docs_search_events() -> None:
-    """Delete all telemetry rows for deterministic endpoint assertions."""
-    with SessionLocal() as session:
-        session.execute(text("DELETE FROM docs_search_events"))
-        session.commit()
+    """Delete all telemetry rows for deterministic endpoint assertions.
+
+    Goes through the store (not SessionLocal) because telemetry lives in its
+    own SQLite file (TELEMETRY_SQLITE_DB_PATH), separate from the main app DB.
+    """
+    docs_search_telemetry_store.clear_all()
 
 
 def test_ingest_docs_search_telemetry_accepts_valid_payload(client: TestClient) -> None:
