@@ -14,11 +14,11 @@ The Docs-as-Code content tree. Public Diátaxis-shaped layer at `public/`, inter
 
 ## Quick start
 
-The portal is plain HTML — open `services/portal/index.html` in a browser or serve the tree with any static server:
+The portal is plain HTML — open `services/portal/index.html` in a browser or serve the tree with any static server. Serve from `services/` (not `services/portal/`) so the portal can reach its sibling frontend assets at `../frontend/portal/assets_v2/`:
 
 ```bash
-python3 -m http.server -d services/portal 8080
-# then open http://127.0.0.1:8080
+python3 -m http.server -d services 8080
+# then open http://127.0.0.1:8080/portal/
 ```
 
 Or run the docs-fix pipeline first to regenerate auto-content (pdoc, search index, marker-driven sections):

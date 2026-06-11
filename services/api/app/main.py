@@ -68,10 +68,6 @@ OPENAPI_TAGS = [
 DESCRIPTION = "ETR Study App API. The API is versioned with the code, readable in the browser."
 
 
-SERVERS = [
-    {"url": "http://localhost:8000", "description": "Local development (localhost)"},
-]
-
 app = FastAPI(
     title=settings.app_name,
     version="1.1.1",
@@ -79,7 +75,6 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
     openapi_tags=OPENAPI_TAGS,
-    servers=SERVERS,
 )
 rate_limiter = InMemoryRateLimiter(
     limit=settings.api_rate_limit_requests,
