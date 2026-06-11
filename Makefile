@@ -36,7 +36,7 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
         run migrate test test-one deps-audit \
         openapi-check contract-test openapi-accept-changes build \
         docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check \
-        catalog-render catalog-render-check
+        catalog-render catalog-render-check serve open
 
 # ──────────────────────────────────────────────
 # Help
@@ -101,6 +101,8 @@ help:
 	@echo "    make docs-spec-check        → services/portal/Makefile"
 	@echo "    make catalog-render         → services/portal/Makefile"
 	@echo "    make catalog-render-check   → services/portal/Makefile"
+	@echo "    make serve [PORTAL_PORT=N]  → services/portal/Makefile (static preview)"
+	@echo "    make open  [PORTAL_PORT=N]  → services/portal/Makefile (open in browser)"
 	@echo ""
 
 # ──────────────────────────────────────────────
@@ -317,7 +319,7 @@ test:
 test-one:
 	@$(MAKE) -C services/api test-one path=$(path)
 
-docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check:
+docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check serve open:
 	@$(MAKE) -C services/portal $@
 
 # ──────────────────────────────────────────────

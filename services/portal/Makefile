@@ -34,7 +34,10 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check
+.PHONY: help verify docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check serve open
+
+PORTAL_PORT ?= 8080
+PORTAL_URL  := http://127.0.0.1:$(PORTAL_PORT)/portal/
 
 help:
 	@echo "services/portal — make targets"
@@ -49,6 +52,41 @@ help:
 	@echo "  make catalog-render        Regenerate per-service catalog from catalog-info.yaml"
 	@echo "  make catalog-render-check  Catalog drift gate"
 	@echo "  make verify                docs-check + docs-a11y-check"
+	@echo ""
+	@echo "  make open  [PORTAL_PORT=N] Start static server AND open the portal in the browser (one-shot)"
+	@echo "  make serve [PORTAL_PORT=N] Just start the server (headless / curl / non-default browser)"
+
+# ─────────────────────────────────────────────
+# Local preview — serve the portal + open in browser
+# ─────────────────────────────────────────────
+# The portal HTML lives under services/portal/ but references sibling assets via
+# `../frontend/portal/assets_v2/...`. Server root must be services/ (one level
+# above this Makefile) so those `..` refs resolve inside scope — same geometry
+# the GitHub Pages workflow stages in pages.yml. Browser entry: /portal/.
+serve:
+	@if lsof -nP -iTCP:$(PORTAL_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
+		holder=$$(lsof -nP -iTCP:$(PORTAL_PORT) -sTCP:LISTEN -Fp 2>/dev/null | sed -n 's/^p//p' | head -1); \
+		printf "$(ICON_ERR) %s\n" "Port $(PORTAL_PORT) is busy (PID $$holder)."; \
+		printf "$(ICON_INFO) %s\n" "Free it (kill $$holder) or override: make serve PORTAL_PORT=8081"; \
+		exit 1; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Serving portal at $(PORTAL_URL) (Ctrl+C to stop)"
+	@cd $(REPO_ROOT) && python3 -m http.server -d services $(PORTAL_PORT)
+
+open:
+	@if lsof -nP -iTCP:$(PORTAL_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
+		holder=$$(lsof -nP -iTCP:$(PORTAL_PORT) -sTCP:LISTEN -Fp 2>/dev/null | sed -n 's/^p//p' | head -1); \
+		printf "$(ICON_INFO) %s\n" "Port $(PORTAL_PORT) is already serving (PID $$holder) — skipping start, opening browser only."; \
+		open $(PORTAL_URL) 2>/dev/null || xdg-open $(PORTAL_URL) 2>/dev/null || \
+			printf "$(ICON_ERR) %s %s\n" "Couldn't auto-open browser; visit:" "$(PORTAL_URL)"; \
+		exit 0; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Starting portal at $(PORTAL_URL) (Ctrl+C to stop)"
+	@cd $(REPO_ROOT) && { \
+		( sleep 0.6 && ( open $(PORTAL_URL) 2>/dev/null || xdg-open $(PORTAL_URL) 2>/dev/null || \
+			printf "$(ICON_ERR) %s %s\n" "Couldn't auto-open browser; visit:" "$(PORTAL_URL)" ) ) & \
+		python3 -m http.server -d services $(PORTAL_PORT); \
+	}
 
 # ─────────────────────────────────────────────
 # Docs pipeline
