@@ -5,7 +5,7 @@ repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
 branch="$(git rev-parse --abbrev-ref HEAD)"
-# main/master/staging are long-lived deploy-tracked branches (ADR-0034, BL-066);
+# main/master/staging are long-lived deploy-tracked branches
 # they don't carry a PR body. Detached HEAD too (CI checkout, rebase, bisect).
 if [[ "$branch" == "HEAD" || "$branch" == "main" || "$branch" == "master" || "$branch" == "staging" ]]; then
   exit 0
