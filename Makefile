@@ -36,7 +36,7 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
         run migrate test test-one deps-audit \
         openapi-check contract-test openapi-accept-changes build \
         docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check \
-        catalog-render catalog-render-check serve open
+        catalog-render catalog-render-check serve open sync-staging
 
 # ──────────────────────────────────────────────
 # Help
@@ -103,6 +103,9 @@ help:
 	@echo "    make catalog-render-check   → services/portal/Makefile"
 	@echo "    make serve [PORTAL_PORT=N]  → services/portal/Makefile (static preview)"
 	@echo "    make open  [PORTAL_PORT=N]  → services/portal/Makefile (open in browser)"
+	@echo ""
+	@echo "  Release pipeline (ADR 0034 dual-Pages)"
+	@echo "    make sync-staging           Reset staging branch to origin/main after a promo merge"
 	@echo ""
 
 # ──────────────────────────────────────────────
@@ -321,6 +324,37 @@ test-one:
 
 docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check serve open:
 	@$(MAKE) -C services/portal $@
+
+# ──────────────────────────────────────────────
+# Release pipeline — ADR 0034 dual-Pages
+# ──────────────────────────────────────────────
+# After a `staging → main` PR merges (squash), origin/main has a single new
+# commit and origin/staging still carries the pre-squash history. Left alone,
+# they diverge a little more on every promotion. This target resets the local
+# and remote `staging` to match `origin/main` so the next feature can branch
+# off a clean common ancestor. Safe by construction:
+#   - aborts if the working tree is dirty
+#   - uses --force-with-lease (refuses to overwrite a staging tip we haven't seen)
+#   - returns you to the branch you were on before
+# Procedure / rationale: services/portal/internal/services/portal/how-to/sync-staging-after-prod-merge.html
+sync-staging:
+	@set -e; \
+	current="$$(git rev-parse --abbrev-ref HEAD)"; \
+	if ! git diff --quiet || ! git diff --cached --quiet; then \
+		printf "$(ICON_ERR) %s\n" "Working tree is dirty — commit or stash before syncing staging."; exit 1; \
+	fi; \
+	printf "$(ICON_STEP) %s\n" "Fetching origin…"; \
+	git fetch origin --prune; \
+	printf "$(ICON_STEP) %s\n" "Resetting local staging to origin/main…"; \
+	git switch staging 2>/dev/null || git switch -c staging origin/main; \
+	git reset --hard origin/main; \
+	printf "$(ICON_STEP) %s\n" "Force-with-lease push staging → origin…"; \
+	git push --force-with-lease origin staging; \
+	if [ "$$current" != "staging" ]; then \
+		printf "$(ICON_STEP) %s\n" "Returning to $$current…"; \
+		git switch "$$current"; \
+	fi; \
+	printf "$(ICON_OK) %s\n" "Staging is now at origin/main."
 
 # ──────────────────────────────────────────────
 # Housekeeping
