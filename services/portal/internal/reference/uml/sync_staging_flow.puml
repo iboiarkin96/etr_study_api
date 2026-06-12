@@ -1,0 +1,43 @@
+@startuml
+title Sync staging after a prod merge
+
+actor "Developer" as Dev
+participant "Local git" as Local
+database "origin/main" as Main
+database "origin/staging" as Staging
+
+== Before ==
+
+Dev -> Main: PR staging → main (squash-merge)
+activate Main
+note right of Main
+  main advances to a new
+  squash SHA (say **B**).
+  staging still carries the
+  pre-squash commits a1, a2
+  — same tree as B, but a
+  different parent graph.
+end note
+deactivate Main
+
+== Sync ==
+
+Dev -> Local: make sync-staging
+activate Local
+Local -> Main: git fetch origin --prune
+Local -> Local: git switch staging\ngit reset --hard origin/main
+Local -> Staging: git push --force-with-lease origin staging
+activate Staging
+note right of Staging
+  origin/staging now points
+  at the same SHA as
+  origin/main (**B**).
+end note
+deactivate Staging
+deactivate Local
+
+== After ==
+
+Dev -> Dev: branch next feature/* from a single tip
+
+@enduml

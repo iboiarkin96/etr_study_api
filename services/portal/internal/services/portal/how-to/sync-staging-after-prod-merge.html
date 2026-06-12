@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How-to · Sync staging after a prod merge · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-12" data-role="swe">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">portal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Sync staging after a prod merge</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Release</span>
+          <span class="docs-pill docs-pill--neutral">How-to</span>
+          <span class="docs-pill docs-pill--teal">Git</span>
+        </div>
+        <h1>Sync staging after a prod merge</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Reset the long-lived <code>staging</code> branch to match <code>origin/main</code> after a <code>staging → main</code> PR has squash-merged. Run this once after every promotion to keep <code>staging</code> from drifting from prod, so the next feature branches off a clean common ancestor. The deployment topology that makes this matter is fixed by <a href="../../../governance/adr/0034-portal-staging-via-dual-github-pages-repos.html">ADR 0034</a>; branch naming and trunk-flow conventions live in <a href="../../../governance/adr/0017-branch-naming-and-repository-workflow.html">ADR 0017</a>.</p>
+      </header>
+
+      <h2 id="when">When to run this</h2>
+      <p>Right after a successful <a href="release-to-staging.html">Release to staging</a> cycle ends — i.e. the <code>staging → main</code> promotion PR has merged and <code>deploy-prod.yml</code> has published the new prod build. <strong>Do not</strong> run this in the middle of a release: if there are validated changes on <code>staging</code> that have <em>not</em> yet promoted to <code>main</code>, the reset would throw them away.</p>
+
+      <h2 id="why">Why a sync is needed at all</h2>
+      <p>Squash-merge on the <code>staging → main</code> PR replaces N original commits on <code>staging</code> with a single new commit on <code>main</code> — a different SHA, a different parent graph. After the merge, <code>main</code> has the squashed commit; <code>staging</code> still has the N originals. The two branches now share no recent ancestor even though their trees are identical. Left alone, this divergence accumulates one squash per promotion. A fresh <code>feature/*</code> branched off <code>main</code> would be clean; branched off <code>staging</code> it would carry the leftover unsquashed commits as needless noise on the next PR.</p>
+      <p>Resetting <code>staging</code> to <code>origin/main</code> after each promotion keeps the graph honest: same SHA on both branches, next feature branches off a single tip, and there is exactly one chain of history to read.</p>
+
+      <figure>
+        <img data-component="diagram-lightbox" src="../../../reference/uml/rendered/sync_staging_flow.svg" alt="PlantUML sequence diagram: developer merges PR staging → main (squash), origin/main advances to a new SHA while origin/staging still holds the pre-squash commits; developer runs make sync-staging, which fetches origin, hard-resets local staging to origin/main, and force-with-lease pushes the result so origin/staging points at the same SHA as origin/main." decoding="async" loading="lazy">
+        <figcaption>One end-to-end cycle: the squash creates the divergence, <code>make sync-staging</code> closes it.</figcaption>
+      </figure>
+
+      <h2 id="prereqs">Before you start</h2>
+      <ul>
+        <li>The <code>staging → main</code> PR has merged and <code>deploy-prod.yml</code> has succeeded. Confirm prod URL renders the change in a private window.</li>
+        <li>No validated-but-not-yet-promoted commits remain on <code>staging</code>. If a teammate has merged a feature to <code>staging</code> that has not yet shipped through main, <strong>stop</strong> — resetting would drop their work.</li>
+        <li>Your local working tree is clean (no uncommitted changes, no staged changes). <code>make sync-staging</code> aborts if either is dirty.</li>
+        <li>You have <code>Write</code> access to <code>origin</code> and force-push is permitted on <code>staging</code>. Once <a href="../../../governance/adr/0034-portal-staging-via-dual-github-pages-repos.html#compatibility-h">ADR 0034 W2 hardening</a> lands, the <code>staging</code> branch protection will need <em>Allow force pushes</em> enabled for the admin who runs this — or this how-to is replaced by a merge-commit strategy. Today, no protection exists yet and force-with-lease just works.</li>
+      </ul>
+
+      <h2 id="steps">Steps</h2>
+      <ol>
+        <li><strong>Recommended path — one command.</strong>
+          <pre class="docs-code"><code class="language-bash">make sync-staging</code></pre>
+          The target fetches <code>origin</code>, switches to <code>staging</code>, hard-resets it to <code>origin/main</code>, force-with-lease-pushes the result, and returns you to whichever branch you started on. It refuses to run on a dirty working tree.
+        </li>
+        <li><strong>Manual path — four commands, same effect.</strong> Use when you want to see each step or you are debugging a failure of the target above.
+          <pre class="docs-code"><code class="language-bash">git fetch origin --prune
+git switch staging
+git reset --hard origin/main
+git push --force-with-lease origin staging</code></pre>
+          <code>--force-with-lease</code> (not plain <code>-f</code>) is non-negotiable: it refuses the push if someone else moved <code>staging</code> between your last fetch and now, which is the one case where a plain force-push would silently destroy in-flight work.
+        </li>
+        <li><strong>Confirm the new state.</strong>
+          <pre class="docs-code"><code class="language-bash">git log --oneline origin/staging..origin/main
+git log --oneline origin/main..origin/staging</code></pre>
+          Both should print nothing — i.e. zero commits between the two refs in either direction. That is the definition of «in sync».
+        </li>
+      </ol>
+
+      <h2 id="verify">Verify</h2>
+      <ul>
+        <li><code>git ls-remote origin main staging</code> shows the same SHA for both refs.</li>
+        <li><code>git log --oneline origin/main..origin/staging</code> and the reverse both return nothing.</li>
+        <li>A new <code>feature/*</code> branched from either <code>main</code> or <code>staging</code> produces an identical starting tree and history.</li>
+        <li>No CI fires from the sync push by itself — <code>staging</code> already points at the SHA <code>main</code> just deployed, and <code>deploy-staging.yml</code> only acts on successful <code>CI</code> workflow runs against the <code>staging</code> branch. The reset moves the ref to a SHA whose CI has already completed (it was the main-CI run that promoted prod), so workflow_run does not re-trigger.</li>
+      </ul>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>make sync-staging</code> aborts with «Working tree is dirty».</td>
+              <td>Uncommitted or staged local changes — the target refuses to clobber them with a branch switch + reset.</td>
+              <td>Commit, stash (<code>git stash push -m "wip"</code>), or discard your local edits, then re-run.</td>
+            </tr>
+            <tr>
+              <td><code>git push --force-with-lease</code> rejected with <code>stale info</code>.</td>
+              <td>Someone (or another machine) advanced <code>origin/staging</code> after your last fetch — likely a fresh feature merge.</td>
+              <td><strong>Do not</strong> use <code>-f</code> as an escape hatch. Run <code>git fetch origin</code>, inspect <code>git log origin/main..origin/staging</code> — if those new commits should ship, finish their <code>staging → main</code> PR before syncing. If they should not, hand-resolve with the author before forcing.</td>
+            </tr>
+            <tr>
+              <td>«remote rejected — branch protection rule violated».</td>
+              <td>ADR 0034 W2 landed and the <code>staging</code> branch protection now blocks force-push.</td>
+              <td>Either toggle <em>Allow force pushes</em> for admins on the protection rule and re-run, or switch the team's strategy to merge-commit on <code>staging → main</code> and retire this how-to. The trade-off is recorded in <a href="../../../governance/adr/0034-portal-staging-via-dual-github-pages-repos.html#consequences-h">ADR 0034 § Consequences</a>.</td>
+            </tr>
+            <tr>
+              <td>I synced too early and lost a validated feature that was on <code>staging</code> but not yet on <code>main</code>.</td>
+              <td>The pre-merge prerequisite was skipped — there was an unpromoted commit and the hard-reset dropped it.</td>
+              <td>Recover from the local reflog (<code>git reflog show staging</code> still has the pre-reset SHA), reset <code>staging</code> back to it, force-with-lease push. Then ship the feature properly through a <code>staging → main</code> PR before re-running the sync.</td>
+            </tr>
+            <tr>
+              <td>I ran sync but next <code>make sync-staging</code> still shows the old divergence.</td>
+              <td>The push silently failed — most likely a stale credential or a network blip — and stdout was missed.</td>
+              <td>Run the manual path and read the output of <code>git push --force-with-lease origin staging</code> directly. Fix the credential / network issue and retry.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="related">Related</h2>
+      <ul>
+        <li><a href="release-to-staging.html">How-to · Release to staging</a> — the procedure this one runs after. The two together describe one full cycle from feature branch through prod.</li>
+        <li><a href="../../../governance/adr/0034-portal-staging-via-dual-github-pages-repos.html">ADR 0034 · Portal staging via dual Pages repos</a> — why <code>staging</code> exists as a long-lived branch in the first place, and the W2 hardening that may eventually retire this sync step.</li>
+        <li><a href="../../../governance/adr/0017-branch-naming-and-repository-workflow.html">ADR 0017 · Branch naming and repository workflow</a> — the convention <code>feature/* → staging → main</code> this how-to assumes.</li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-12</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created as the housekeeping counterpart to <a href="release-to-staging.html">Release to staging</a>. Documents the <code>make sync-staging</code> target landed in the root Makefile and the four-command manual path. Names the trade-off the W2 hardening of ADR 0034 will force (allow-force-push on <code>staging</code> vs. switching to merge-commit promotion).</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#when">When to run this</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why">Why a sync is needed</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#prereqs">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting">Troubleshooting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
