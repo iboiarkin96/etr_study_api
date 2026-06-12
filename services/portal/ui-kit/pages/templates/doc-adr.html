@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0042 · Cache hot-path reads with Redis · Study App</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-13" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="#"><span aria-hidden="true">🚀</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="#">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="#">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="#">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0042 · Cache hot-path reads with Redis</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-uikit.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0042</span>
+          <span class="docs-pill docs-pill--neutral">Performance</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="#">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li class="is-current">Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li class="is-current">In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="#">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
+        <h1>ADR 0042: Cache hot-path reads with Redis</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Introduce a Redis cache for the three highest-RPS read endpoints
+          (<code>GET /catalog/items</code>, <code>GET /user/me</code>,
+          <code>GET /search</code>). Targets a 60 % drop in p95 latency on
+          the cached paths under nominal traffic.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0042 — Cache hot-path reads with Redis</code></dd>
+          <dt>Category</dt>
+          <dd>Performance · Infrastructure</dd>
+          <dt>Owner</dt>
+          <dd><a href="#">Ivan Boyarkin</a> (Architect)</dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-06-10">2026-06-10</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-06-13">2026-06-13</time></dd>
+        </dl>
+      </section>
+
+      <h2 id="context-h">Context</h2>
+      <p>
+        Three read endpoints currently serve <strong>~70 %</strong> of total
+        request volume but spend ~85 ms in the database layer at p95 —
+        dominated by joins against the <code>catalog_items</code> and
+        <code>user_profile</code> tables. The traffic is read-heavy
+        (~98 % reads), tolerates seconds-level staleness, and is bounded
+        by a small set of cache keys (under 50 K hot keys at any one time).
+        We're at the latency budget for the public SLO and a planned 3×
+        traffic ramp in Q3 will push us over.
+      </p>
+
+      <h2 id="decision-h">Decision</h2>
+      <p>
+        Stand up a single-shard Redis 7.x deployment behind a read-through
+        cache layer in the API service. Cache TTL is 60 s for catalog reads,
+        15 s for user reads, 5 s for search results. Cache writes happen
+        on-miss only; eviction is LRU.
+      </p>
+
+      <h2 id="scope-h">Scope</h2>
+      <ul>
+        <li><strong>In scope:</strong> three endpoints listed above, the
+          repository-layer cache wrapper, observability counters (hit / miss
+          / latency), the Redis bootstrap in <code>docker-compose.yml</code>.</li>
+          <li><strong>Out of scope:</strong> write-through caching, multi-region
+            replication, cache invalidation on user mutations (covered by ADR 0043),
+            general session storage (different access pattern).</li>
+          </ul>
+
+          <h2 id="alternatives-h">Alternatives considered <span class="docs-pill docs-pill--rose docs-pill--inline">MANDATORY · MIN 2</span></h2>
+          <ol>
+            <li><strong>In-process LRU cache (<code>cachetools</code>)</strong>
+              <ul>
+                <li><strong>Rejected because:</strong> bytes-per-instance scales
+                  with replica count; consistency across replicas is impossible
+                  without a coordination layer we'd have to invent.</li>
+                  <li>Pros considered: zero-ops, sub-ms hit latency, no extra
+                    process.</li>
+                    <li>Cons that decided it: hot key duplicated 6× across replicas
+                      wastes RAM; cold-replica starvation after any deploy.</li>
+                    </ul>
+                  </li>
+                  <li><strong>CDN-level edge cache (CloudFront / Fastly)</strong>
+                    <ul>
+                      <li><strong>Rejected because:</strong> requires Vary headers on
+                        JWT-bearer requests, which fragments the cache by per-user
+                        tokens and erases the hit-rate.</li>
+                        <li>Pros considered: zero RPS on the API for cached objects.</li>
+                        <li>Cons that decided it: cache key explosion + authenticated
+                          requests are 100 % of the hot-path traffic.</li>
+                        </ul>
+                      </li>
+                      <li><strong>Materialised views in PostgreSQL</strong>
+                        <ul>
+                          <li><strong>Rejected because:</strong> refresh latency (30 s+
+                            on each REFRESH) shifts the cost rather than removing it; the
+                            staleness story is worse than Redis TTLs.</li>
+                            <li>Pros considered: no new infrastructure component.</li>
+                            <li>Cons that decided it: refresh contention with write traffic
+                              during peak hours; observability blind-spot during refresh.</li>
+                            </ul>
+                          </li>
+                        </ol>
+
+                        <h2 id="consequences-h">Consequences</h2>
+                        <h3>Positive</h3>
+                        <ul>
+                          <li>p95 latency on the three endpoints drops ~60 % (load-test
+                            projection): 85 ms → 33 ms.</li>
+                            <li>Headroom for the Q3 traffic ramp without horizontal DB scale-out.</li>
+                            <li>Cache-hit ratio is a leading indicator of new query regressions
+                              (becomes a Grafana SLI).</li>
+                            </ul>
+                            <h3>Trade-offs</h3>
+                            <ul>
+                              <li>One new operational surface — Redis HA, backups, failure
+                                scenarios. <a href="#">Runbook 0014 — Redis cache failing</a>
+                                added in the same PR.</li>
+                                <li>Stale-read window of up to 60 s on the catalog endpoint;
+                                  flagged in the public API docs.</li>
+                                  <li>Adds a deployment-order constraint: Redis must be reachable
+                                    before the API container starts accepting traffic.</li>
+                                  </ul>
+
+                                  <h2 id="compatibility-h">Compatibility and migration</h2>
+                                  <ul>
+                                    <li><strong>Backward-compatibility impact:</strong> none —
+                                      consumer-visible API contract unchanged; only latency changes.</li>
+                                      <li><strong>Migration plan:</strong> ship the cache layer behind
+                                        a <code>CACHE_ENABLED</code> feature flag (default off), enable
+                                        for 5 % of traffic for 24 h, observe hit ratio + error rate,
+                                        ramp to 100 % over 48 h.</li>
+                                        <li><strong>Rollback strategy:</strong> flip the feature flag off —
+                                          the wrapper is bypass-able without code rollback. Redis process
+                                          can be stopped independently; the API degrades to direct-DB reads.</li>
+                                        </ul>
+
+                                        <h2 id="implementation-h">Implementation plan</h2>
+                                        <ol>
+                                          <li>Add the cache wrapper to the repository layer
+                                            (<code>services/api/app/cache/redis_cache.py</code>) with a
+                                            contract test verifying TTL behaviour.</li>
+                                            <li>Wire <code>CACHE_ENABLED</code> through the config-profile
+                                              machinery (ADR 0010) — defaults to <code>false</code> in dev /
+                                              qa, gated rollout in prod.</li>
+                                              <li>Add Grafana panels for cache hits / misses / latency to the
+                                                Study App Observability dashboard (per ADR 0009).</li>
+                                                <li>Update the public API documentation with the staleness window.</li>
+                                              </ol>
+
+                                              <h2 id="validation-h">Validation</h2>
+                                              <ul>
+                                                <li><strong>Technical checks:</strong> contract test
+                                                  <code>tests/cache/test_redis_cache.py</code> covers hit / miss /
+                                                  TTL expiry / connection-failure fallback to DB read.</li>
+                                                  <li><strong>Operational checks:</strong>
+                                                    <a href="#">Runbook 0014 — Redis cache failing</a> covers the new
+                                                    failure surface; Grafana dashboard panels flag &lt; 80 % hit ratio.</li>
+                                                    <li><strong>Documentation updates:</strong> README.md (operational
+                                                      deps), <a href="#">api/reference/caching.html</a> (staleness
+                                                      window), public API docs.</li>
+                                                    </ul>
+                                                  </article>
+
+                                                  <footer class="docs-history" aria-label="History">
+                                                    <h2 class="docs-history__title">History</h2>
+                                                    <ul class="docs-history__list">
+                                                      <li class="docs-history__row">
+                                                        <span class="docs-history__date">2026-06-13</span>
+                                                        <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+                                                        <span class="docs-history__note">UI Kit ADR specimen added — concrete-example clone of <a href="../../../internal/handbook/sa/templates/adr.html">handbook/sa/templates/adr.html</a> with a fake but plausible ADR 0042 («Cache hot-path reads with Redis»). Shows the rich status-pill / lifecycle-popover pattern (memory rule <code>feedback_adr_status_pill_tooltip.md</code>), the mandatory ≥ 2 named alternatives section (memory rule <code>feedback_adr_outdated_over_new.md</code>'s ancestor), Consequences split into Positive / Trade-offs, and the validation surface. Sits in the UI Kit Templates section of the kit sidebar.</span>
+                                                      </li>
+                                                    </ul>
+                                                  </footer>
+                                                </main>
+
+                                                <aside class="docs-toc" aria-label="On this page">
+                                                  <p class="docs-toc__title">On this page</p>
+                                                  <ol class="docs-toc__list">
+                                                    <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+                                                    <li class="docs-toc__item"><a class="docs-toc__link" href="#context-h">Context</a></li>
+                                                    <li class="docs-toc__item"><a class="docs-toc__link" href="#decision-h">Decision</a></li>
+                                                    <li class="docs-toc__item"><a class="docs-toc__link" href="#scope-h">Scope</a></li>
+                                                    <li class="docs-toc__item"><a class="docs-toc__link" href="#alternatives-h">Alternatives</a></li>
+                                                    <li class="docs-toc__item"><a class="docs-toc__link" href="#consequences-h">Consequences</a></li>
+                                                    <li class="docs-toc__item"><a class="docs-toc__link" href="#compatibility-h">Compatibility</a></li>
+                                                    <li class="docs-toc__item"><a class="docs-toc__link" href="#implementation-h">Implementation</a></li>
+                                                    <li class="docs-toc__item"><a class="docs-toc__link" href="#validation-h">Validation</a></li>
+                                                  </ol>
+                                                </aside>
+
+                                                <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+                                                <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+                                                <script type="module" src="../../../../frontend/portal/assets_v2/ui-kit/components/template-annotator.js"></script>
+
+                                              </body></html>

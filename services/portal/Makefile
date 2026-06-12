@@ -34,7 +34,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check serve open
+.PHONY: help verify docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update
 
 PORTAL_PORT ?= 8080
 PORTAL_URL  := http://127.0.0.1:$(PORTAL_PORT)/portal/
@@ -49,12 +49,17 @@ help:
 	@echo "  make docs-a11y-check       WCAG baseline accessibility"
 	@echo "  make docs-feedback-check   Page-level feedback smoke"
 	@echo "  make docs-spec-check       Spec consistency + lint"
+	@echo "  make docs-nav-check        Sidebar coverage — fails on pages not in nav-tree-internal.json"
 	@echo "  make catalog-render        Regenerate per-service catalog from catalog-info.yaml"
 	@echo "  make catalog-render-check  Catalog drift gate"
 	@echo "  make verify                docs-check + docs-a11y-check"
 	@echo ""
 	@echo "  make open  [PORTAL_PORT=N] Start static server AND open the portal in the browser (one-shot)"
 	@echo "  make serve [PORTAL_PORT=N] Just start the server (headless / curl / non-default browser)"
+	@echo ""
+	@echo "  make visual-test           Pixel-diff UI Kit templates vs tests/visual/baselines/ (BL-047)"
+	@echo "  make visual-test-update    Refresh those baselines after an intentional UI change"
+	@echo "                             VISUAL_TEST_WORKERS=N to tune Chromium parallelism (default 4)"
 
 # ─────────────────────────────────────────────
 # Local preview — serve the portal + open in browser
@@ -87,6 +92,28 @@ open:
 			printf "$(ICON_ERR) %s %s\n" "Couldn't auto-open browser; visit:" "$(PORTAL_URL)" ) ) & \
 		python3 -m http.server -d services $(PORTAL_PORT); \
 	}
+
+# ─────────────────────────────────────────────
+# Visual regression (BL-047) — UI Kit templates pixel-diff
+# ─────────────────────────────────────────────
+# Driver lives at tools/visual_regression/runner.py; corpus at
+# tests/visual/pages.json (10 templates × 3 frames = 30 PNG baselines).
+# Refresh recipe: tests/visual/README.md.
+visual-test:
+	@if [ ! -d "$(REPO_ROOT)/.venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' from repo root."; exit 1; \
+	fi
+	@printf "$(COLOR_CYAN)== VISUAL-TEST: START ==$(COLOR_RESET)\n"
+	@cd $(REPO_ROOT) && $(PYTHON) -m tools.visual_regression --mode check
+	@printf "$(COLOR_GREEN)== VISUAL-TEST: SUCCESS ==$(COLOR_RESET)\n"
+
+visual-test-update:
+	@if [ ! -d "$(REPO_ROOT)/.venv" ]; then \
+		printf "$(ICON_ERR) %s\n" ".venv not found. Run 'make venv && make install' from repo root."; exit 1; \
+	fi
+	@printf "$(COLOR_CYAN)== VISUAL-TEST-UPDATE: START ==$(COLOR_RESET)\n"
+	@cd $(REPO_ROOT) && $(PYTHON) -m tools.visual_regression --mode update
+	@printf "$(COLOR_GREEN)== VISUAL-TEST-UPDATE: SUCCESS ==$(COLOR_RESET)\n"
 
 # ─────────────────────────────────────────────
 # Docs pipeline
@@ -154,6 +181,11 @@ docs-spec-check:
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/front_spec_lint.py
 	@printf "$(COLOR_GREEN)== DOCS-SPEC-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
+docs-nav-check:
+	@printf "$(COLOR_CYAN)== DOCS-NAV-CHECK: START ==$(COLOR_RESET)\n"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_sidebar_coverage.py
+	@printf "$(COLOR_GREEN)== DOCS-NAV-CHECK: SUCCESS ==$(COLOR_RESET)\n"
+
 # ─────────────────────────────────────────────
 # Drift gate (used by CI + `make verify`)
 # ─────────────────────────────────────────────
@@ -162,6 +194,7 @@ docs-check:
 	@$(MAKE) docs-design-check
 	@$(MAKE) docs-feedback-check
 	@$(MAKE) docs-spec-check
+	@$(MAKE) docs-nav-check
 	@cd $(REPO_ROOT) && tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
 	git diff HEAD > "$$tmp_before"; \
 	$(MAKE) -C services/portal docs-fix; \
@@ -202,4 +235,5 @@ verify:
 	@printf "$(COLOR_CYAN)== PORTAL VERIFY: START ==$(COLOR_RESET)\n"
 	@$(MAKE) docs-check
 	@$(MAKE) docs-a11y-check
+	@$(MAKE) visual-test
 	@printf "$(COLOR_GREEN)== PORTAL VERIFY: SUCCESS ==$(COLOR_RESET)\n"
