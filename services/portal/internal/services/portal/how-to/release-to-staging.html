@@ -65,7 +65,7 @@
         <li><strong>Merge the PR into <code>staging</code>.</strong> Squash or merge-commit; both are accepted. Branch protection requires at least one approving review and all status checks green.</li>
         <li><strong>Watch <code>deploy-staging.yml</code> run.</strong>
           <pre class="docs-code"><code class="language-bash">gh run watch --workflow=deploy-staging.yml</code></pre>
-          Pipeline: <code>checkout</code> → <code>build</code> with <code>BASE_URL=/&lt;app&gt;-staging/</code> → <code>peaceiris/actions-gh-pages@v3</code> pushes the build to <code>&lt;app&gt;-staging</code>'s <code>main</code> with <code>force_orphan: true</code>.
+          Pipeline: <code>checkout</code> → build Pagefind index + stage <code>_site</code> (identical bytes to <code>deploy-prod.yml</code>; project base resolved at runtime by the portal — see ADR-0034 amendment 2026-06-12) → <code>peaceiris/actions-gh-pages@v3</code> pushes the build to <code>&lt;app&gt;-staging</code>'s <code>main</code> with <code>force_orphan: true</code>.
         </li>
         <li><strong>Validate on the staging URL.</strong> Open <code>https://&lt;owner&gt;.github.io/&lt;app&gt;-staging/</code> within ~60 s of the workflow completing. Use a private window — GitHub Pages caches aggressively and a stale tab will lie to you. Walk the change end-to-end on the real domain.</li>
         <li><strong>Open the promotion PR <code>staging</code> → <code>main</code>.</strong>
@@ -104,8 +104,8 @@
             </tr>
             <tr>
               <td>Page loads but assets (CSS, JS, Pagefind bundle) 404.</td>
-              <td>Build ran with the wrong (or missing) <code>BASE_URL</code> — assets reference <code>/&lt;app&gt;/</code> instead of <code>/&lt;app&gt;-staging/</code>.</td>
-              <td>Check <code>deploy-staging.yml</code> sets <code>BASE_URL=/&lt;app&gt;-staging/</code> in the build env. Re-run the workflow after fixing.</td>
+              <td>Runtime project-base resolver in <code>portal-href.js</code> / <code>search.js</code> failed to derive the staging prefix — either the URL doesn't contain <code>/portal/</code> (root index landed somewhere else) or those scripts didn't load.</td>
+              <td>Open DevTools on the staging URL: confirm <code>portal-href.js</code> + <code>search.js</code> loaded; confirm <code>window.location.pathname</code> contains <code>/portal/</code>. Verify the artifact has the root redirect <code>index.html</code> → <code>portal/</code>. Re-run <code>deploy-staging.yml</code> after fixing the underlying script load.</td>
             </tr>
             <tr>
               <td>Staging looks fine in your browser but your reviewer sees old content.</td>

@@ -1,0 +1,102 @@
+# Deploys the static developer portal (services/portal/) to the staging
+# GitHub Pages site by pushing the built artifact into a public mirror repo
+# (iboiarkin96/etr_study_api-staging). The mirror repo's Pages source is
+# legacy "branch /main, folder /" — every CI push lands a single orphan
+# commit (force_orphan: true) so the mirror's git history does not bloat.
+#
+# Why a mirror repo and not /staging/ subfolder or a vendor host:
+# see ADR-0034. Procedure for releasing through staging: see
+# services/portal/how-to/release-to-staging.html.
+#
+# Cross-repo auth: fine-grained PAT (contents:write scoped to
+# etr_study_api-staging only) stored as the STAGING_DEPLOY_TOKEN secret on
+# this repo. PAT chosen over GitHub App per BL-066 W0 fallback path —
+# single secret, no .pem juggling, equivalent scope.
+#
+# Trigger model mirrors deploy-prod.yml: workflow_run on CI success for the
+# `staging` branch. ci.yml must include `staging` in its push.branches list.
+name: Deploy Portal to Pages (staging)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# `pages-deploy-staging` is the exact group name the release-to-staging
+# how-to troubleshooting matrix refers to. `cancel-in-progress: false` —
+# concurrent merges to staging serialise rather than racing; the second
+# push fast-forwards over the first on retry.
+concurrency:
+  group: pages-deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # Same Pagefind step as deploy-prod.yml — index is not committed
+      # (ADR-0033 amendment 2026-06-08); CI rebuilds it before the artifact
+      # is staged.
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - name: Install Pagefind
+        run: |
+          python -m pip install --upgrade pip
+          pip install pagefind==1.5.2 pagefind_bin_extended==1.5.2
+      - name: Build Pagefind index
+        env:
+          SOURCE_DATE_EPOCH: "0"
+        run: |
+          python tools/docs/build_pagefind_index.py
+          python tools/docs/check_pagefind_visibility.py
+
+      # Identical artifact layout to deploy-prod.yml — services/ mirrored as
+      # the webroot so `../[../…]frontend/portal/…` chains in portal HTML
+      # stay inside the project Pages scope. portal-href.js + search.js
+      # resolve the project base from window.location.pathname at runtime,
+      # so the same _site bytes serve both /etr_study_api/ (prod) and
+      # /etr_study_api-staging/ (staging) — no BASE_URL build param needed.
+      # See ADR-0034 amendment 2026-06-12.
+      - name: Stage Pages artifact
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp -a services/portal _site/portal
+          cp -a services/frontend _site/frontend
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en"><head>
+            <meta charset="utf-8">
+            <title>Redirecting…</title>
+            <meta http-equiv="refresh" content="0; url=portal/">
+            <link rel="canonical" href="portal/">
+          </head><body>
+            <p><a href="portal/">Continue to the documentation portal</a></p>
+          </body></html>
+          HTML
+
+      # Cross-repo publish. force_orphan: true keeps the mirror's history
+      # at a single commit so it never accumulates build artefacts.
+      # commit_message helps trace which source SHA produced each deploy.
+      - name: Publish to mirror repo
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          personal_token: ${{ secrets.STAGING_DEPLOY_TOKEN }}
+          external_repository: iboiarkin96/etr_study_api-staging
+          publish_branch: main
+          publish_dir: ./_site
+          force_orphan: true
+          commit_message: |
+            Deploy ${{ github.sha }} from etr_study_api/staging

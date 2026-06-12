@@ -115,9 +115,9 @@
         <p>We adopt the <strong>dual-repository pattern</strong>: the source repo <code>&lt;app&gt;</code> publishes prod from <code>main</code>; a second public repo <code>&lt;app&gt;-staging</code>, which never holds application source, publishes the staging build from its own <code>main</code> branch, populated only by CI.</p>
         <ol>
           <li>Branch model in <code>&lt;app&gt;</code>: <code>feature/*</code> → PR → <code>staging</code> → PR → <code>main</code>. Hotfixes may go straight to <code>main</code>; they are forward-ported to <code>staging</code> in the next merge. Branch naming follows <a href="0017-branch-naming-and-repository-workflow.html">ADR-0017</a>.</li>
-          <li>Push to <code>main</code> triggers <code>.github/workflows/deploy-prod.yml</code> — built with <code>BASE_URL=/&lt;app&gt;/</code>, published via the official <code>actions/upload-pages-artifact</code> + <code>actions/deploy-pages</code> path so nothing extra lands in git.</li>
-          <li>Push to <code>staging</code> triggers <code>.github/workflows/deploy-staging.yml</code> — built with <code>BASE_URL=/&lt;app&gt;-staging/</code>, pushed via <code>peaceiris/actions-gh-pages@v3</code> with <code>external_repository: &lt;owner&gt;/&lt;app&gt;-staging</code>, <code>publish_branch: main</code>, and <code>force_orphan: true</code> so the staging history stays a single commit and the repo does not bloat over time.</li>
-          <li>Cross-repo write authority is held by a GitHub App with <code>contents:write</code> scoped to <code>&lt;app&gt;-staging</code>; the installation token is fetched at workflow time via <code>actions/create-github-app-token</code>. A fine-grained PAT is accepted as a fallback when an App is impractical.</li>
+          <li>Push to <code>main</code> triggers <code>.github/workflows/deploy-prod.yml</code> — published via the official <code>actions/upload-pages-artifact</code> + <code>actions/deploy-pages</code> path so nothing extra lands in git. Project-base resolution is runtime, not build-time — see amendment 2026-06-12.</li>
+          <li>Push to <code>staging</code> triggers <code>.github/workflows/deploy-staging.yml</code> — pushed via <code>peaceiris/actions-gh-pages@v3</code> with <code>external_repository: &lt;owner&gt;/&lt;app&gt;-staging</code>, <code>publish_branch: main</code>, and <code>force_orphan: true</code> so the staging history stays a single commit and the repo does not bloat over time.</li>
+          <li>Cross-repo write authority is held by a fine-grained PAT with <code>contents:write</code> scoped to <code>&lt;app&gt;-staging</code>, stored as the <code>STAGING_DEPLOY_TOKEN</code> secret on <code>&lt;app&gt;</code> (W0, 2026-06-11). A GitHub App with the same scope, fetched via <code>actions/create-github-app-token</code>, remains the documented future option when audit-trail or non-user-bound authority becomes a requirement.</li>
           <li>Both workflows declare <code>concurrency: { group: pages-deploy-&lt;env&gt;, cancel-in-progress: false }</code> so concurrent pushes serialise per-environment without dropping a build silently.</li>
           <li>Environment-specific configuration (API URL, feature flags, robots-meta) is supplied through <strong>GitHub Environments</strong> (<code>production</code>, <code>staging</code>) declared on <code>&lt;app&gt;</code>. The prod environment carries a Required reviewer for the deploy job.</li>
         </ol>
@@ -127,7 +127,7 @@
         <h2 id="scope-h">Scope</h2>
         <ul>
           <li>In scope: one prod environment and one staging environment for the portal published from <code>&lt;app&gt;</code>.</li>
-          <li>In scope: the branch model, CI workflows, cross-repo authentication, and the per-environment <code>BASE_URL</code> contract that the static build must honour.</li>
+          <li>In scope: the branch model, CI workflows, cross-repo authentication, and the project-base contract the static portal honours at runtime (resolved from <code>window.location.pathname</code>; see amendment 2026-06-12).</li>
           <li>Out of scope: per-PR preview deployments (none of the available Pages mechanisms support it cleanly).</li>
           <li>Out of scope: password-protected staging — GitHub Pages on a public repo does not authenticate. A <code>noindex</code> meta tag is the only mitigation we ship.</li>
           <li>Out of scope: multi-environment layering (qa / uat / canary). If a third environment becomes necessary, a successor ADR replaces this one.</li>
@@ -181,7 +181,7 @@
                 <li>Promotion is a git operation, not a deploy script: <code>staging</code> → <code>main</code> via PR. Reverting a prod deploy is a single revert on <code>main</code>, then the next CI run heals Pages.</li>
                 <li>Prod publish remains on the official <code>actions/deploy-pages</code> path — no committed build artefact in <code>&lt;app&gt;</code>, no churn in the prod repo's history.</li>
                 <li>No new vendor surface. CI, secrets, audit log, governance all stay inside GitHub.</li>
-                <li><code>BASE_URL</code> contract becomes explicit and tested — the staging deploy fails loudly if asset paths are not parameterised, catching the bug class before prod sees it.</li>
+                <li>Project-base contract becomes explicit and tested — serving the same <code>_site</code> bytes under a second base path (<code>/&lt;app&gt;-staging/</code> vs <code>/&lt;app&gt;/</code>) exercises the runtime resolver in <code>portal-href.js</code> + <code>search.js</code>, catching base-path regressions before prod sees them.</li>
               </ul>
             </div>
           </article>
@@ -206,7 +206,7 @@
         <p>Roll-out runs in three waves (W0–W2). Each wave is independently reversible.</p>
         <ul>
           <li><strong>W0 — Provisioning.</strong> Create the public repo <code>&lt;owner&gt;/&lt;app&gt;-staging</code> (no source, no LICENSE-only is fine). Enable Pages → Source = <em>Deploy from a branch</em>, branch = <code>main</code>, folder = <code>/ (root)</code>. Create a GitHub App with <code>contents:write</code> scoped to <code>&lt;app&gt;-staging</code>; install it on the owner; store the app ID and private key as <code>STAGING_DEPLOY_APP_ID</code> and <code>STAGING_DEPLOY_APP_KEY</code> in <code>&lt;app&gt;</code>'s Actions secrets. PAT fallback: a fine-grained PAT with the same scope, stored as <code>STAGING_DEPLOY_TOKEN</code>.</li>
-          <li><strong>W1 — Pipelines.</strong> Land <code>.github/workflows/deploy-prod.yml</code> and <code>.github/workflows/deploy-staging.yml</code>. Add a <code>BASE_URL</code> env var to the build configuration (Vite / equivalent) and verify locally that both <code>/&lt;app&gt;/</code> and <code>/&lt;app&gt;-staging/</code> base paths produce a working build. First push to <code>staging</code> publishes the staging site within ~60 s.</li>
+          <li><strong>W1 — Pipelines.</strong> Land <code>.github/workflows/deploy-prod.yml</code> and <code>.github/workflows/deploy-staging.yml</code>. Verify locally that the same <code>_site</code> bytes resolve correctly under both <code>/&lt;app&gt;/</code> and <code>/&lt;app&gt;-staging/</code> base paths — runtime resolver carries the project-base contract, no build-time parameterisation needed (amendment 2026-06-12). First push to <code>staging</code> publishes the staging site within ~60 s.</li>
           <li><strong>W2 — Hardening.</strong> Add branch-protection rules to <code>main</code> and <code>staging</code> in <code>&lt;app&gt;</code> (require PR, at least one approving review, status checks green). Declare GitHub Environments <code>production</code> and <code>staging</code> with environment-scoped secrets; add a Required reviewer to the <code>production</code> environment so prod deploys wait for an explicit click. Inject <code>&lt;meta name="robots" content="noindex"&gt;</code> into the staging build at compile time.</li>
         </ul>
         <p><strong>Rollback strategy.</strong> Disabling staging is removing <code>deploy-staging.yml</code> and the secrets — the prod path is untouched. Disabling prod-staging coupling is reverting the merge that created the <code>staging</code> branch protections. The <code>&lt;app&gt;-staging</code> repo can be archived without touching <code>&lt;app&gt;</code>.</p>
@@ -217,8 +217,8 @@
         <ul>
           <li>Prod workflow: <code>.github/workflows/deploy-prod.yml</code> — trigger <code>push: branches: [main]</code>; uses <code>actions/upload-pages-artifact</code> + <code>actions/deploy-pages</code>; environment <code>production</code>.</li>
           <li>Staging workflow: <code>.github/workflows/deploy-staging.yml</code> — trigger <code>push: branches: [staging]</code>; uses <code>peaceiris/actions-gh-pages@v3</code> with <code>external_repository</code> and <code>force_orphan: true</code>; environment <code>staging</code>.</li>
-          <li>Cross-repo token: GitHub App installation token via <code>actions/create-github-app-token</code>; secrets <code>STAGING_DEPLOY_APP_ID</code>, <code>STAGING_DEPLOY_APP_KEY</code> on <code>&lt;app&gt;</code>.</li>
-          <li>Build base-path contract: <code>BASE_URL</code> env var consumed by the static-site bundler (<code>vite.config.ts</code> <code>base: process.env.BASE_URL</code> for the portal build).</li>
+          <li>Cross-repo token: fine-grained PAT (<code>contents:write</code> on <code>&lt;app&gt;-staging</code>), secret <code>STAGING_DEPLOY_TOKEN</code> on <code>&lt;app&gt;</code>. GitHub App installation tokens via <code>actions/create-github-app-token</code> (secrets <code>STAGING_DEPLOY_APP_ID</code>, <code>STAGING_DEPLOY_APP_KEY</code>) remain a documented future option.</li>
+          <li>Project-base contract: resolved at runtime by <code>services/frontend/portal/assets_v2/ui-kit/components/portal-href.js</code> (HTML/nav hrefs) and <code>services/frontend/portal/assets_v2/ui-kit/components/search.js</code> (Pagefind <code>baseUrl</code>), both reading from <code>window.location.pathname</code>. The static <code>_site</code> artifact is identical for prod and staging.</li>
           <li>Branch protections: <code>main</code> and <code>staging</code> require PR + 1 review + status checks; force-push disallowed.</li>
           <li>Operational procedure: <a href="../../services/portal/how-to/release-to-staging.html">How-to · Release to staging</a>.</li>
         </ul>
@@ -239,6 +239,16 @@
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-12</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note"><strong>Amendment — project-base resolved at runtime, no build-time <code>BASE_URL</code>.</strong> While implementing W1 we found that <code>services/frontend/portal/assets_v2/ui-kit/components/portal-href.js</code> (HTML/nav hrefs) and <code>services/frontend/portal/assets_v2/ui-kit/components/search.js</code> (Pagefind <code>baseUrl</code>) already derive the project base from <code>window.location.pathname</code>. The same <code>_site</code> bytes serve <code>/etr_study_api/</code> and <code>/etr_study_api-staging/</code>; no Vite/bundler base-path env var is needed. Decision section, Scope, Consequences, Compatibility, and Implementation mapping updated; status pill stays <strong>Proposed</strong> (W1 still in flight). Pattern follows the ADR-0033 amendment 2026-06-08.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-11</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note"><strong>W0 — Provisioning complete.</strong> Public mirror repo <a href="https://github.com/iboiarkin96/etr_study_api-staging"><code>iboiarkin96/etr_study_api-staging</code></a> created; Pages enabled (Source = Deploy from a branch, <code>main</code>/<code>/</code>); placeholder serves at <code>https://iboiarkin96.github.io/etr_study_api-staging/</code>. Fine-grained PAT (<code>contents:write</code> scoped to the mirror) stored as <code>STAGING_DEPLOY_TOKEN</code> on <code>etr_study_api</code>. App-token path documented as future option per BL-066 fallback clause.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-06-07</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
