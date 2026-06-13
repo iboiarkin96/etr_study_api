@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="draft" data-updated="2026-06-12" data-role="" data-topic="operating-model">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-12" data-role="" data-topic="operating-model">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -30,28 +30,438 @@
   <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
 
   <main class="container">
-    <article class="docs-prose">
-      <header class="page-head">
-        <p class="home-hero__eyebrow">
-          <span class="docs-pill docs-pill--neutral">Reference</span>
-          <span class="docs-pill docs-pill--warn">Skeleton · C2</span>
-        </p>
-        <h1>Quality gates map</h1>
-        <div id="docs-top-nav"></div>
-        <p class="lede">
-          Every quality gate this portal runs — pre-commit hooks, Make targets, CI workflows,
-          visual-test — with five columns: gate · when it runs · what it checks · how to fix
-          a fail · <strong>what changes must travel with it (coupling)</strong>. The coupling column is
-          the one the system has been missing.
-        </p>
-      </header>
 
-      <section aria-labelledby="status-h">
-        <h2 id="status-h">Status</h2>
-        <aside class="docs-callout docs-callout--info" role="note">
-          <p>This page is a <strong>C2 skeleton</strong> from <a href="../governance/adr/0035-portal-operating-model-as-top-level-section.html">ADR 0035</a>. The full gate inventory and coupling column land in C6. The coupling rules become enforced in C8 via two new pre-commit hooks.</p>
-        </aside>
+    <section class="home-hero home-hero--section">
+      <div class="home-hero__layout">
+        <div class="home-hero__copy">
+          <p class="home-hero__eyebrow">Internal · Operating model · Reference</p>
+          <h1 class="home-hero__title">
+            Every gate, what it checks, how to <span class="home-hero__title-accent">fix a fail</span>, and what travels with it
+          </h1>
+          <div id="docs-top-nav"></div>
+          <p class="home-hero__tagline">
+            One inventory of every quality gate this portal runs — pre-commit hooks, Make
+            targets, CI workflows — with five columns per row: name, when it runs, what it
+            checks, how to fix a fail, and the coupling rule (what other edits must travel
+            with it). The coupling column is the surface this portal was missing.
+          </p>
+          <div class="home-hero__stats">
+            <a class="docs-pill docs-pill--accent" href="#precommit-h">Pre-commit</a>
+            <a class="docs-pill docs-pill--info" href="#make-h">Make targets</a>
+            <a class="docs-pill docs-pill--warn" href="#ci-h">CI workflows</a>
+            <a class="docs-pill docs-pill--success" href="#coupling-h">Coupling rules ↓</a>
+          </div>
+        </div>
+        <dl class="home-hero__tickers home-hero__tickers--2col" aria-label="Gates snapshot">
+          <div class="home-hero__ticker" data-tone="accent"><dt>Pre-commit hooks</dt><dd>20</dd></div>
+          <div class="home-hero__ticker" data-tone="done"><dt>Make targets</dt><dd>9</dd></div>
+          <div class="home-hero__ticker" data-tone="progress"><dt>CI workflows</dt><dd>7</dd></div>
+          <div class="home-hero__ticker" data-tone="todo"><dt>Coupling rules</dt><dd>5</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <article class="docs-prose">
+
+      <section aria-labelledby="why-h">
+        <h2 id="why-h">Why an inventory and not just hook configs</h2>
+        <p>The hooks are defined in three different files — <code>.pre-commit-config.yaml</code>, <code>services/portal/Makefile</code>, <code>.github/workflows/*.yml</code> — and the coupling rules between them live in nobody's head. Pages like the <a href="lifecycle-of-a-change.html">lifecycle of a change</a> tell you <em>when</em> a gate fires; this page tells you <em>what it checks, how to fix a fail, and what other files have to change at the same time</em>.</p>
+        <p>Read the coupling column first. Empty cell (—) means the gate is self-contained: pass it and move on. Populated cell means there is a structural rule a human cannot remember reliably — the gate exists or is being added precisely so CI does the remembering.</p>
       </section>
+
+      <section aria-labelledby="overview-h">
+        <h2 id="overview-h">Three environments where gates run</h2>
+        <ol class="spine-grid" aria-label="Gate environments">
+
+          <li><a class="spine-tile" data-tone="info" href="#precommit-h">
+            <div class="spine-tile__head">
+              <span class="spine-tile__index">A · 20 hooks · pre-commit</span>
+            </div>
+            <h3 class="spine-tile__title">Local — pre-commit</h3>
+            <p class="spine-tile__body">Run at <code>git commit</code> on the staged diff. Defined in <code>.pre-commit-config.yaml</code>. Fail-fast; cheap. Includes generic correctness, Python lint/type, repo-specific docs validators, and (after C8) the two coupling gates.</p>
+            <div class="spine-tile__foot"><span class="spine-tile__cta">Table A</span><span class="spine-tile__arrow" aria-hidden="true">→</span></div>
+          </a></li>
+
+          <li><a class="spine-tile" data-tone="info" href="#make-h">
+            <div class="spine-tile__head">
+              <span class="spine-tile__index">B · 9 targets · Make</span>
+            </div>
+            <h3 class="spine-tile__title">Local + CI — Make targets</h3>
+            <p class="spine-tile__body">Run on demand locally; CI calls the same targets. Defined in <code>services/portal/Makefile</code>. Includes the drift gate (<code>docs-check</code>), the granular per-aspect checks, and the composite <code>verify</code> entrypoint.</p>
+            <div class="spine-tile__foot"><span class="spine-tile__cta">Table B</span><span class="spine-tile__arrow" aria-hidden="true">→</span></div>
+          </a></li>
+
+          <li><a class="spine-tile" data-tone="info" href="#ci-h">
+            <div class="spine-tile__head">
+              <span class="spine-tile__index">C · 7 workflows · CI</span>
+            </div>
+            <h3 class="spine-tile__title">Cloud — GitHub Actions</h3>
+            <p class="spine-tile__body">Run on push, PR, schedule, or manual dispatch. Defined under <code>.github/workflows/</code>. Includes the matrix CI, a11y formal score, dead-code scan, changelog draft, feedback cadence, and the two deploy workflows.</p>
+            <div class="spine-tile__foot"><span class="spine-tile__cta">Table C</span><span class="spine-tile__arrow" aria-hidden="true">→</span></div>
+          </a></li>
+
+        </ol>
+      </section>
+
+      <section aria-labelledby="precommit-h">
+        <h2 id="precommit-h">A · Pre-commit hooks</h2>
+        <p>Twenty hooks across three repos and one local block. Order in the table follows <code>.pre-commit-config.yaml</code>.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Gate</th>
+                <th>When it runs</th>
+                <th>What it checks</th>
+                <th>How to fix a fail</th>
+                <th>Coupling</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>check-yaml</code> · <code>check-json</code> · <code>check-toml</code></td>
+                <td>commit, on staged <code>.yaml</code>/<code>.json</code>/<code>.toml</code></td>
+                <td>File parses cleanly</td>
+                <td>Fix the syntax error the hook prints</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>end-of-file-fixer</code> · <code>trailing-whitespace</code> · <code>mixed-line-ending</code></td>
+                <td>commit, on staged text files</td>
+                <td>Files end with one newline; no trailing whitespace; consistent line endings</td>
+                <td>Auto-fixed; re-stage and re-commit</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>check-merge-conflict</code> · <code>detect-private-key</code> · <code>check-added-large-files</code></td>
+                <td>commit, on every staged file</td>
+                <td>No conflict markers, no obvious secrets, no oversized binaries</td>
+                <td>Remove the offending content; for false-positive large files use <code>.gitignore</code> or an explicit exception</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>ruff-check</code> · <code>ruff-format</code></td>
+                <td>commit, on staged Python</td>
+                <td>Lint (F401 unused imports, RUF100 bad noqa, etc.) + Black-compatible format</td>
+                <td><code>make lint-fix</code> from the repo root, re-stage</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>mypy</code></td>
+                <td>commit, when Python changes anywhere</td>
+                <td>Static types across <code>services/api/app</code>, <code>tests</code>, <code>tools</code></td>
+                <td>Read the inferred type; add an annotation or fix the call</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>require-pr-body</code></td>
+                <td>commit, on any non-<code>main</code>/<code>master</code> branch</td>
+                <td><code>PR_BODY.md</code> exists, non-empty, exactly one of delivery/docs-only/mixed checked, no template placeholders</td>
+                <td>Open <code>PR_BODY.md</code>, fill it in, re-commit</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>no-artifact-files</code></td>
+                <td>commit, every time</td>
+                <td>No staged <code>.coverage</code>, <code>*.db</code>, <code>PR_BODY.md</code>, changelog drafts</td>
+                <td><code>git restore --staged &lt;path&gt;</code> per the hint the hook prints</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>docs-maintainers-fix</code></td>
+                <td>commit, on portal HTML</td>
+                <td>Body has <code>data-maintainer-ids</code>; auto-injects if missing</td>
+                <td>Auto-fixed; re-stage</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>docs-design-maintainers</code></td>
+                <td>commit, on portal HTML</td>
+                <td>v2 skeleton present (page-head, lede, breadcrumbs, sidebar mount, topbar, docs-prose, card conventions)</td>
+                <td>Read <code>handbook/sa/style-guide.html</code> and <code>handbook/sa/page-skeleton.html</code>; restore the missing slot</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>check-adr-rfc-links</code></td>
+                <td>commit, on ADR or RFC HTML</td>
+                <td>Every relative <code>href</code> and anchor inside <code>governance/adr/</code> and <code>rfc/</code> resolves on disk / in the target file</td>
+                <td>Fix the dead link the hook prints (renamed file, stale anchor)</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>check-asset-refs</code></td>
+                <td>commit, on any portal HTML/CSS</td>
+                <td>Every <code>&lt;link href&gt;</code>, <code>&lt;script src&gt;</code>, image, SVG, and CSS asset reference resolves</td>
+                <td>Fix the path; check for typos in <code>../../../</code> climbs</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>check-h1-structure</code></td>
+                <td>commit, on portal HTML</td>
+                <td>Every page has exactly one <code>&lt;h1&gt;</code></td>
+                <td>Demote a stray <code>&lt;h1&gt;</code> to <code>&lt;h2&gt;</code> or merge sections</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>check-service-imports</code></td>
+                <td>commit, on Python under <code>services/&lt;svc&gt;/</code></td>
+                <td>One service does not import another (ADR-0028 boundary)</td>
+                <td>Move the shared code to <code>tools/</code> or copy it; cross-service imports are not allowed</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>catalog-render-check</code></td>
+                <td>commit, on <code>catalog-info.yaml</code> or service catalog HTML</td>
+                <td>Rendered service catalog matches its YAML source</td>
+                <td><code>make -C services/portal catalog-render</code>, re-stage</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>sync-pr-body-on-push</code></td>
+                <td>pre-push, every push</td>
+                <td>(advisory) tries to sync <code>PR_BODY.md</code> to the GitHub PR via <code>gh pr edit</code></td>
+                <td>Does not block push if <code>gh</code> is missing or the PR doesn't exist yet</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>check_template_twins.py</code> <span class="docs-pill docs-pill--info">C8</span></td>
+                <td>commit, when a staged path matches a <code>tpl-sa-*</code> or <code>tpl-ui-kit-*</code> twin in <code>tests/visual/pages.json</code></td>
+                <td>Both halves of the twin pair are staged together</td>
+                <td>Edit the missing twin; if the visual changed intentionally, also <code>make -C services/portal visual-test-update</code> to refresh the baseline</td>
+                <td><strong>Twin coupling</strong> — see <a href="#coupling-h">§ Coupling rules</a></td>
+              </tr>
+              <tr>
+                <td><code>check_meta_changes_logged.py</code> <span class="docs-pill docs-pill--info">C8</span></td>
+                <td>commit, when staged paths touch any meta-surface (Makefile, workflows, hooks, templates, tools/docs, new ADR)</td>
+                <td>The same PR also stages <code>operating-model/whats-new-in-how-we-work.html</code></td>
+                <td>Add a feed entry — four columns (date · what · why · what changes for you); the hook prints a paste-ready template</td>
+                <td><strong>Meta-change coupling</strong> — see <a href="#coupling-h">§ Coupling rules</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="make-h">
+        <h2 id="make-h">B · Make targets</h2>
+        <p>Nine targets under <code>services/portal/Makefile</code>. Composite targets at the bottom; the rest are the granular pieces.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Gate</th>
+                <th>When it runs</th>
+                <th>What it checks</th>
+                <th>How to fix a fail</th>
+                <th>Coupling</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>docs-fix</code></td>
+                <td>On demand. Always before <code>docs-check</code>.</td>
+                <td>Not a gate — <em>regenerates</em>: UML → markers → docs HTML → repair → format → service catalog → maintainers → pdoc → catalog → Pagefind</td>
+                <td>If a step errors, read the script name it printed (<code>tools/docs/&lt;name&gt;.py</code>) and follow its stderr</td>
+                <td>Drift in <code>catalog/</code> or <code>frontend/portal/pagefind/</code> implies a missed <code>docs-fix</code></td>
+              </tr>
+              <tr>
+                <td><code>docs-html-check</code></td>
+                <td>Inside <code>docs-check</code>. On demand alone.</td>
+                <td>Every portal HTML page parses cleanly under <code>html5lib</code></td>
+                <td>Read the parse error line/column; usually an unclosed tag or stray <code>&lt;/wbr&gt;</code></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>docs-design-check</code></td>
+                <td>Inside <code>docs-check</code>. On demand alone.</td>
+                <td>v2 docs skeleton on every page (topbar / sidebar mount / docs-prose / page-head + lede + breadcrumbs)</td>
+                <td>Restore the missing slot; cross-check against the canonical template</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>docs-a11y-check</code></td>
+                <td>Inside <code>verify</code>. On demand alone.</td>
+                <td>WCAG baseline: alt text, landmark roles, focus order, contrast hints</td>
+                <td>Add the missing <code>alt</code> / <code>aria-*</code>; raise contrast on the offending token</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>docs-feedback-check</code></td>
+                <td>Inside <code>docs-check</code>. On demand alone.</td>
+                <td>Page-level feedback wiring is present (issue template, bug-report widget, feedback types vocab)</td>
+                <td>Restore the referenced constant in <code>bug-report.js</code> or the missing template file</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>docs-spec-check</code></td>
+                <td>Inside <code>docs-check</code>. On demand alone.</td>
+                <td>API spec pages lint clean + cross-spec consistency + front spec lint</td>
+                <td>Read <code>spec_lint.py</code> output; fix the missing required field</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>catalog-render-check</code></td>
+                <td>Pre-commit + on demand</td>
+                <td>The rendered service catalog matches <code>catalog-info.yaml</code> per service</td>
+                <td><code>make -C services/portal catalog-render</code></td>
+                <td>Change to <code>catalog-info.yaml</code> ⇒ rendered HTML must match</td>
+              </tr>
+              <tr>
+                <td><code>docs-check</code> <span class="docs-pill docs-pill--warn">drift gate</span></td>
+                <td>Before commit/push; in CI inside <code>verify</code></td>
+                <td>Chains html + design + feedback + spec checks, then runs <code>docs-fix</code> and diffs <code>git diff HEAD</code> before vs after — any drift fails</td>
+                <td>Run <code>docs-fix</code>; <code>git add</code> everything it changed; retry</td>
+                <td>Edit autogen source (markers, <code>catalog-info.yaml</code>, <code>.puml</code>, pdoc-eligible Python) ⇒ <code>docs-fix</code> outputs must be staged</td>
+              </tr>
+              <tr>
+                <td><code>verify</code></td>
+                <td>Before push; CI default entrypoint</td>
+                <td>Composite: <code>docs-check</code> + <code>docs-a11y-check</code></td>
+                <td>Resolve whichever inner target failed and re-run</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="ci-h">
+        <h2 id="ci-h">C · CI workflows</h2>
+        <p>Seven workflows under <code>.github/workflows/</code>. Triggers vary (push, PR, schedule, workflow_run).</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Gate</th>
+                <th>When it runs</th>
+                <th>What it checks</th>
+                <th>How to fix a fail</th>
+                <th>Coupling</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>ci.yml</code></td>
+                <td>push to any branch; PR open/update</td>
+                <td>Runs <code>make verify</code> on a clean clone, across four matrix touchpoints (api / portal / monitoring / cross-cutting)</td>
+                <td>Reproduce locally: <code>make -C services/portal verify</code>; usually a missed <code>docs-fix</code> commit or a Python-version skew</td>
+                <td>Adding a new test under <code>tests/&lt;svc&gt;/</code> ⇒ matrix coverage must include the new path</td>
+              </tr>
+              <tr>
+                <td><code>a11y-formal-checks.yml</code></td>
+                <td>push on default branch</td>
+                <td>Runs axe-core in headless Chrome over the published portal pages and asserts the formal score is unchanged</td>
+                <td>Look at the axe report artefact; fix the highest-severity violation first</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>changelog-draft.yml</code></td>
+                <td>workflow_run after CI passes on PRs</td>
+                <td>(advisory) drafts a <code>changelog-llm-draft.md</code> from the PR diff so authors can paste into <code>CHANGELOG.md</code></td>
+                <td>Not blocking; if the draft is wrong, write the entry by hand</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>dead-code.yml</code></td>
+                <td>weekly schedule</td>
+                <td>Vulture scan for unused Python; reports as an issue artefact</td>
+                <td>Review the report; remove genuine dead code, mark dynamic call-sites with <code>noqa</code></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>docs-feedback-cadence.yml</code></td>
+                <td>weekly schedule</td>
+                <td>Runs <code>docs_feedback_cadence.js</code> against the GitHub Issues feedback label; assembles a digest</td>
+                <td>If the script errors, check the token scope; the digest itself is informational</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>deploy-staging.yml</code></td>
+                <td>push to <code>staging</code></td>
+                <td>Publishes the built portal to the <code>&lt;app&gt;-staging</code> mirror repo via <code>peaceiris/actions-gh-pages</code></td>
+                <td>403 ⇒ rotate <code>STAGING_DEPLOY_TOKEN</code> per ADR-0034 §Implementation mapping</td>
+                <td>Edit <code>deploy-staging.yml</code> ⇒ feed entry on <a href="whats-new-in-how-we-work.html">whats-new</a></td>
+              </tr>
+              <tr>
+                <td><code>deploy-prod.yml</code></td>
+                <td>push to <code>main</code></td>
+                <td>Publishes the built portal to GitHub Pages via <code>actions/upload-pages-artifact</code> + <code>actions/deploy-pages</code></td>
+                <td>Look at the «Deploy to GitHub Pages» step; usually a permission scope on the Pages environment</td>
+                <td>Edit <code>deploy-prod.yml</code> ⇒ feed entry on <a href="whats-new-in-how-we-work.html">whats-new</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="coupling-h">
+        <h2 id="coupling-h">D · Coupling rules</h2>
+        <p>This is the surface this portal was missing. A coupling rule is a structural «edit X ⇒ also edit Y» a single author cannot reliably remember. Each rule has a trigger path, a required co-change, an enforcer, and a state (memory rule or hard gate). When C8 lands, the first two move from memory rule to hard gate; the rest stay as memory rules with a documented home so they are not invisible.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Trigger — when you edit…</th>
+                <th>You must also edit…</th>
+                <th>Why</th>
+                <th>Enforced by</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>handbook/sa/templates/&lt;X&gt;.html</code></td>
+                <td>The UI-kit twin under <code>portal/ui-kit/pages/templates/&lt;Y&gt;.html</code> (pairs in <code>tests/visual/pages.json</code>) <strong>and</strong> the matching visual baseline via <code>make visual-test-update</code> if the visual changed</td>
+                <td>The two pages are pixel-diffed against the same baseline corpus. A one-sided change drifts silently until <code>make visual-test</code> runs</td>
+                <td><code>check_template_twins.py</code> (pre-commit, C8) <span class="docs-pill docs-pill--info">C8</span></td>
+                <td>Memory rule until C8; hard gate after</td>
+              </tr>
+              <tr>
+                <td><code>.pre-commit-config.yaml</code> · <code>.github/workflows/*.yml</code> · <code>services/portal/Makefile</code> · <code>handbook/sa/templates/*.html</code> · new <code>governance/adr/&lt;NNNN&gt;-*.html</code> · <code>tools/docs/*.py</code></td>
+                <td><a href="whats-new-in-how-we-work.html"><code>operating-model/whats-new-in-how-we-work.html</code></a> — one entry, four columns: date · what · why · what changes for you</td>
+                <td>Authors who were not in the PR need to discover the process change without reading commit logs</td>
+                <td><code>check_meta_changes_logged.py</code> (pre-commit, C8) <span class="docs-pill docs-pill--info">C8</span></td>
+                <td>Memory rule until C8; hard gate after</td>
+              </tr>
+              <tr>
+                <td><code>nav-tree-internal.json</code> or any new page under <code>services/portal/internal/</code></td>
+                <td>The matching page on disk for every <code>href</code>; or the nav entry for every page</td>
+                <td>Every internal page is reachable from the sidebar; orphan pages waste content; broken nav links waste reader time</td>
+                <td><code>check_sidebar_coverage.py</code> (where present; tracked as out-of-band in this branch — lands with the staging pipeline)</td>
+                <td>CI gate where available; memory rule otherwise</td>
+              </tr>
+              <tr>
+                <td><code>services/&lt;svc&gt;/catalog-info.yaml</code></td>
+                <td>The rendered service-overview HTML under <code>services/portal/internal/services/&lt;svc&gt;/index.html</code></td>
+                <td>The portal serves the rendered HTML; the YAML is the source of truth. Drift hides config changes from readers</td>
+                <td><code>catalog-render-check</code> (pre-commit + Make + CI)</td>
+                <td>Hard gate</td>
+              </tr>
+              <tr>
+                <td>An autogen <em>source</em> file (markers in <code>*.md</code>, <code>*.puml</code>, pdoc-eligible Python, <code>catalog-info.yaml</code>)</td>
+                <td>Run <code>make -C services/portal docs-fix</code>; stage everything it touches</td>
+                <td><code>docs-check</code>'s drift gate fails the commit otherwise</td>
+                <td><code>docs-check</code> (Make + CI)</td>
+                <td>Hard gate</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="add-h">
+        <h2 id="add-h">Adding a new gate or a new coupling rule</h2>
+        <p>The page is intentionally one place to edit. Steps:</p>
+        <ol class="numbered-step-list">
+          <li><div><strong>Decide where it runs.</strong> Pre-commit if the check is fast and reads the staged diff; Make if it is a recipe an author runs by hand; CI if it requires the cloud (matrix, deploy keys, schedule).</div></li>
+          <li><div><strong>Write the script.</strong> Under <code>tools/&lt;area&gt;/&lt;name&gt;.py</code>. Exit non-zero on failure; print enough context for an author to fix it without opening the source.</div></li>
+          <li><div><strong>Wire it in.</strong> One of: a <code>repo: local</code> hook in <code>.pre-commit-config.yaml</code>; a target in <code>services/portal/Makefile</code> (and into <code>docs-check</code> if it should run in CI's verify chain); a workflow under <code>.github/workflows/</code>.</div></li>
+          <li><div><strong>Add a row to the table above.</strong> Pick the right environment (A / B / C). Five columns.</div></li>
+          <li><div><strong>If it encodes a coupling rule, add a row to table D too.</strong> Trigger path, required co-change, why, enforced by, state.</div></li>
+          <li><div><strong>Add an entry to the <a href="whats-new-in-how-we-work.html">whats-new feed</a>.</strong> Four columns: date · what · why · what changes for you. After C8 lands, the meta-changes gate will refuse the commit otherwise.</div></li>
+        </ol>
+      </section>
+
     </article>
   </main>
 
