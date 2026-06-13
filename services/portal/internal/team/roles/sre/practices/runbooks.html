@@ -234,30 +234,30 @@ is draining &gt; 14× steady state on the 1 h window and &gt; 6× on the 6 h win
 
 1. Confirm user-visible impact:
 
-   ```
-   curl -sS https://grafana.studyapp/api/ds/query \
-     -d '{"q":"sum(rate(http_requests_total{service=\"lessons-api\",code=~\"5..\"}[5m]))"}'
-   ```
+ ```
+ curl -sS https://grafana.studyapp/api/ds/query \
+ -d '{"q":"sum(rate(http_requests_total{service=\"lessons-api\",code=~\"5..\"}[5m]))"}'
+ ```
 
-   Expect: non-zero, trending up. Zero → false positive, page the alert author.
+ Expect: non-zero, trending up. Zero → false positive, page the alert author.
 
 2. Identify the dominant error class:
 
-   ```
-   kubectl -n lessons logs deploy/lessons-api --since=10m \
-     | grep -E "ERROR|FATAL" | sort | uniq -c | sort -rn | head
-   ```
+ ```
+ kubectl -n lessons logs deploy/lessons-api --since=10m \
+ | grep -E "ERROR|FATAL" | sort | uniq -c | sort -rn | head
+ ```
 
-   Expect: one error dominates. If errors are evenly spread, jump to mitigation 2.
+ Expect: one error dominates. If errors are evenly spread, jump to mitigation 2.
 
 3. Check upstream dependency latency:
 
-   ```
-   kubectl -n lessons exec deploy/lessons-api -- curl -sS http://progress-api:8080/healthz/deps
-   ```
+ ```
+ kubectl -n lessons exec deploy/lessons-api -- curl -sS http://progress-api:8080/healthz/deps
+ ```
 
-   Expect: all dependencies report `ok` &lt; 100 ms. A slow `progress-api` is the
-   most common cause and indicates mitigation 2.
+ Expect: all dependencies report `ok` &lt; 100 ms. A slow `progress-api` is the
+ most common cause and indicates mitigation 2.
 
 ## Mitigate
 
@@ -308,7 +308,7 @@ If both mitigations have run and the 5xx rate has not dropped, or if diagnose
 step 3 shows multiple dependencies unhealthy, page the on-call senior at
 `@sre-platform-secondary` in PagerDuty with: (1) link to this alert, (2) output
 of diagnose steps 1-3, (3) which mitigations were attempted and at what time.
-        </code></pre>
+ </code></pre>
         <p><strong>What this runbook does.</strong> It tells the on-call, in order, how to confirm the page is real, which of two known causes they are seeing, and the exact command — with rollback — that fixes each one. The two mitigations are validated in staging quarterly; the rollback for each is a single line; the escalation branch names the next responder and the information to bring rather than vaguely pointing at the team channel. A six-month engineer can run this end-to-end at 3 am without waking the author.</p>
       </div>
     </div>

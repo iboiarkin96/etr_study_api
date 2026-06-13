@@ -36,17 +36,12 @@
       <h1 class="page-hero__h1">Architectural <span class="accent">narrative</span></h1>
       <div id="docs-top-nav"></div>
       <p class="page-hero__lede">
-        The shape of this system in prose: what it is, why it exists, what we deliberately did
-        not build, where the design earns its keep, what it cost us to be that shape, what we
-        have learned from running it, and where we would change it next. The C4 diagrams and
-        ADRs are the receipts — this page is the story they tell together. Read this first;
-        every other path on the portal assumes the model this page builds.
+        The shape of this system told as a story: what it is, why it exists in this shape, what we deliberately did not build, what we gave up to get here, and what we would change next. Read this first — every other page on the portal assumes the model this page builds.
       </p>
       <p class="docs-chip-row">
-        <span class="docs-pill docs-pill--info">~30 min read</span>
-        <span class="docs-pill docs-pill--accent">1 FastAPI service · 1 DB</span>
-        <span class="docs-pill docs-pill--teal">30 ADRs · 4 RFCs · 3 postmortems</span>
-        <span class="docs-pill docs-pill--neutral">SLO 99.5 % · p95 &lt; 400 ms</span>
+        <span class="docs-pill docs-pill--info">About 30 minutes to read</span>
+        <span class="docs-pill docs-pill--accent">One API, one database</span>
+        <span class="docs-pill docs-pill--neutral">Target: 99.5% uptime, under 400 ms response</span>
       </p>
     </header>
 
@@ -77,8 +72,8 @@
       </p>
       <ol class="path-timeline" data-tone="accent">
         <li><div><strong>Start — «this is just a study tool».</strong> A solo project to practise spaced repetition. The first commit was a single-file FastAPI app with three endpoints and an SQLite file. No portal, no ADRs, no contract — just code.</div></li>
-        <li><div><strong>Pivot — «the artefact under review is the portal, not the binary».</strong> The project's purpose changed: the system became the practical work for a Senior Systems Analyst certification. From that point on, every architectural choice had to be defensible in a panel review, not merely shipped. Cost ratio inverted: the spec became heavier than the code (<a href="../governance/adr/0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a>).</div></li>
-        <li><div><strong>Discipline — «contracts are the most expensive thing in the repo».</strong> OpenAPI became a committed artefact that CI diffs against the live app (<a href="../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a>). Idempotency moved from per-route ad-hoc handling to a body-hashed router concern (<a href="../governance/adr/0006-idempotency-write-operations.html">ADR 0006</a>). The four <code>_shared/</code> conventions were extracted so specs link instead of restating.</div></li>
+        <li><div><strong>Pivot — «the artefact under review is the portal, not the binary».</strong> The project's purpose changed: the system became the practical work for a Senior Systems Analyst certification. From that point on, every architectural choice had to be defensible in a panel review, not merely shipped. Cost ratio inverted: the spec became heavier than the code.</div></li>
+        <li><div><strong>Discipline — «contracts are the most expensive thing in the repo».</strong> OpenAPI became a committed artefact that CI diffs against the live app. Idempotency moved from per-route ad-hoc handling to a body-hashed router concern. The four <code>_shared/</code> conventions were extracted so specs link instead of restating.</div></li>
         <li><div><strong>Maturity — «the portal needs a contract too».</strong> Diátaxis adopted as the IA framework (Procida, <em>diataxis.fr</em>). Backstage taxonomy borrowed for the catalog kinds (<a href="../services/portal/reference/catalog.html">Software Catalog page</a>). Eight authoring principles + a substance contract committed; <code>make docs-check</code> wired as the pre-commit gate.</div></li>
         <li><div><strong>Honesty — «runbooks without postmortems are aspirational».</strong> Three real incidents written up end-to-end: OpenAPI baseline drift (2026-03-14), SQLite write-lock burst (2026-04-02), docs-fix search-index drift (2026-05-07). Each one changed at least one runbook or ADR.</div></li>
         <li><div><strong>Now — «posture, not just shape».</strong> The portal is read for posture: tradeoffs, citations, measured numbers, production wisdom. The substance contract (<a href="../handbook/sa/substance-contract.html">five principles</a>) is the working bar. Where the project goes next sits in <a href="#next">§ 09</a>.</div></li>
@@ -101,7 +96,7 @@
         <h2 id="why-h">Why it exists in this shape</h2>
       </div>
       <p>The system is built by one engineer working toward Senior Systems Analyst certification. That constraint is more load-bearing than any technical choice: every architectural decision is made to be defensible in a panel review, not just to ship. The consequence is a documentation discipline that would be excessive for a startup of this scale (a Diátaxis-ordered portal, 30+ ADRs, sectioned API specs, runbooks for every alert) and a runtime that is deliberately the simplest thing that lets those documents tell the truth. The portal is not decoration — it is the artefact under review. The API exists to give the portal something real to describe.</p>
-      <p>Two implications follow. First, the cost ratio is inverted: writing the spec is heavier than writing the code, and that is on purpose (<a href="../governance/adr/0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a>). Second, choices that would otherwise scream "premature" — strict OpenAPI governance, idempotency on every write, structured logs with request IDs from day one — are not premature here. They are the deliverable.</p>
+      <p>Two implications follow. First, the cost ratio is inverted: writing the spec is heavier than writing the code, and that is on purpose. Second, choices that would otherwise scream "premature" — strict OpenAPI governance, idempotency on every write, structured logs with request IDs from day one — are not premature here. They are the deliverable.</p>
     </section>
 
     <section class="numbered-section" id="shape" aria-labelledby="shape-h">
@@ -129,7 +124,7 @@
         <span class="numbered-section__kicker">06</span>
         <h2 id="earns-h">Where the design earns its keep</h2>
       </div>
-      <p>The single highest-leverage decision was treating the OpenAPI baseline as a committed artefact that CI diffs against the live FastAPI app (<a href="../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a>). Every contract drift becomes a PR comment. The second was making idempotency a body-hashed concern at the router layer rather than something the integrator has to think about (<a href="../governance/adr/0006-idempotency-write-operations.html">ADR 0006</a>); replay rules are now uniform across resources and the SQL schema for <code>idempotency_keys</code> is trivial. The third was structured logs with a <code>request_id</code> threaded from middleware (<a href="../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>); a one-shot grep in the portal's local Elasticsearch turns "user reports an error" into "show me the row" in under a minute. None of these are clever. All three pay for themselves on the first incident.</p>
+      <p>The single highest-leverage decision was treating the OpenAPI baseline as a committed artefact that CI diffs against the live FastAPI app. Every contract drift becomes a PR comment. The second was making idempotency a body-hashed concern at the router layer rather than something the integrator has to think about; replay rules are now uniform across resources and the SQL schema for <code>idempotency_keys</code> is trivial. The third was structured logs with a <code>request_id</code> threaded from middleware; a one-shot grep in the portal's local Elasticsearch turns "user reports an error" into "show me the row" in under a minute. None of these are clever. All three pay for themselves on the first incident.</p>
     </section>
 
     <section class="numbered-section" id="tradeoffs" aria-labelledby="tradeoffs-h">
@@ -144,7 +139,7 @@
         <a href="../handbook/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.
       </p>
       <ul class="rail-list" data-tone="rose">
-        <li><strong>Spec-heavier-than-code.</strong> We gain a portal that defends itself in a panel review and a contract that CI can diff. We lose feature velocity — every new endpoint pays a fixed spec-authoring tax of ~3× the code time. We accept it because the deliverable is the portal, not the runtime; the day code velocity matters more than spec velocity, the constraint set has shifted enough to revisit (<a href="../governance/adr/0026-internal-service-documentation-as-source-of-truth.html">ADR 0026</a>).</li>
+        <li><strong>Spec-heavier-than-code.</strong> We gain a portal that defends itself in a panel review and a contract that CI can diff. We lose feature velocity — every new endpoint pays a fixed spec-authoring tax of ~3× the code time. We accept it because the deliverable is the portal, not the runtime; the day code velocity matters more than spec velocity, the constraint set has shifted enough to revisit.</li>
         <li><strong>SQLite-now, Postgres-later.</strong> We gain a zero-friction development database that ships embedded with the binary and never adds an external dependency to <code>make run</code>. We lose write throughput at scale and pay a deferred migration cost we have not yet exercised. We accept it because we are not at scale and the schema + SQLAlchemy code already assume the swap; the cost rises sharply if the migration is delayed past Postgres-required features (concurrent writes, MVCC) — that is the trigger to act, not a date.</li>
         <li><strong>Synchronous-only writes.</strong> We gain end-to-end traceability of every state change inside a single transaction (<code>request_id</code> propagates cleanly; no eventual-consistency surprises). We lose any feature that would otherwise be naturally async (background scoring, batch re-scheduling). We accept it because the loop is short-lived per request and the integrator does not yet ask for async semantics; the day they do, a job table + a poller is the smallest thing that closes the gap — not a broker.</li>
         <li><strong>404-not-403 on cross-tenant access.</strong> We gain a uniform unauthorised-access response that does not leak resource existence to attackers. We lose the ability to distinguish «owned but forbidden» from «does not exist» on the client side (<a href="../services/api/reference/_shared/auth.html">why we return 404, not 403</a>). We accept it because the integrator already knows what it owns; for them the distinction is noise, and for the attacker the noise is the point.</li>
@@ -247,15 +242,15 @@
           </thead>
           <tbody>
             <tr>
-              <td>OpenAPI baseline as a committed artefact diffed in CI (<a href="../governance/adr/0007-openapi-governance-and-usability-standard.html">ADR 0007</a>). Highest-leverage decision we made.</td>
+              <td>OpenAPI baseline as a committed artefact diffed in CI. Highest-leverage decision we made.</td>
               <td>Start with Postgres, not SQLite. The «just use SQLite for now» bet looked free; the postmortem of 2026-04-02 showed it has a measurable ceiling and a deferred-cost penalty.</td>
             </tr>
             <tr>
-              <td>Idempotency at the router (<a href="../governance/adr/0006-idempotency-write-operations.html">ADR 0006</a>). Integrators do not have to think about replays.</td>
+              <td>Idempotency at the router. Integrators do not have to think about replays.</td>
               <td>Wire <code>/metrics</code> to a dashboard from day one, not just expose the endpoint. Metrics nobody graphs are imaginary.</td>
             </tr>
             <tr>
-              <td>Structured logs with <code>request_id</code> threaded from middleware (<a href="../governance/adr/0023-structured-logging-and-local-elasticsearch.html">ADR 0023</a>). Pays back on first incident.</td>
+              <td>Structured logs with <code>request_id</code> threaded from middleware. Pays back on first incident.</td>
               <td>Write a threat model in week 1, even a thin one. Naming adversary tiers (script kiddies vs motivated attacker vs state actor) makes every later security ADR cite something instead of reading as ad-hoc.</td>
             </tr>
             <tr>
@@ -282,8 +277,8 @@
         <li><strong>Diátaxis framework</strong> — Daniele Procida, <em>diataxis.fr</em>. Read the «Map» page first; the 2×2 (theory/practice × acquisition/application) is what every Diátaxis classifier on this portal collapses to.</li>
         <li><strong>SLO model + multi-window burn-rate</strong> — Beyer, Jones, Petoff &amp; Murphy, <em>Site Reliability Workbook</em>, O'Reilly 2018, ch. 5 «Alerting on SLOs», pp. 88-93, table 5-2. Our 1 h / 6 h windows and 14.4 / 6 burn-rate thresholds are taken from that table.</li>
         <li><strong>Backstage software-catalog taxonomy</strong> — backstage.io «Descriptor format» (v1, kind: Component / API / Resource / System / Domain / Group / User / Location). Borrowed verbatim into <a href="../services/portal/reference/catalog.html">the catalog taxonomy</a>; we do not invent kinds.</li>
-        <li><strong>ADR template + lifecycle</strong> — Michael Nygard, «Documenting Architecture Decisions», cognitect.com 2011; supplemented by MADR (<em>adr.github.io</em>). Our ADR header / lifecycle badge model (<a href="../governance/adr/0018-adr-lifecycle-ratification-and-badges.html">ADR 0018</a>) builds on both.</li>
-        <li><strong>C4 model + PlantUML conventions</strong> — Simon Brown, c4model.com. Our diagram convention (<a href="../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>) follows the published L1/L2/L3 stencils with the PlantUML standard library.</li>
+        <li><strong>ADR template + lifecycle</strong> — Michael Nygard, «Documenting Architecture Decisions», cognitect.com 2011; supplemented by MADR (<em>adr.github.io</em>). Our ADR header / lifecycle badge model builds on both.</li>
+        <li><strong>C4 model + PlantUML conventions</strong> — Simon Brown, c4model.com. Our diagram convention follows the published L1/L2/L3 stencils with the PlantUML standard library.</li>
       </ul>
     </section>
 

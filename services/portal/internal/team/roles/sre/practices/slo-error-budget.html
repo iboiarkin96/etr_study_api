@@ -221,40 +221,40 @@
         <p class="pa-example__title">SLO-001 — Lessons API availability (99.9% / 28 d) with multi-burn-rate page</p>
       </div>
       <div class="pa-example__body">
-        <pre><code>slo:           lessons-api-availability
-service:       lessons-api
-owner_team:    sre-platform
+        <pre><code>slo: lessons-api-availability
+service: lessons-api
+owner_team: sre-platform
 sli:
-  type:        request-based
-  good_expr:   |
-    sum(rate(http_requests_total{service="lessons-api",code=~"2..|3.."}[5m]))
-  total_expr:  |
-    sum(rate(http_requests_total{service="lessons-api"}[5m]))
-target:        0.999            # 99.9% good requests
-window:        28d              # rolling
-error_budget:  0.001            # 1 − target
+ type: request-based
+ good_expr: |
+ sum(rate(http_requests_total{service="lessons-api",code=~"2..|3.."}[5m]))
+ total_expr: |
+ sum(rate(http_requests_total{service="lessons-api"}[5m]))
+target: 0.999 # 99.9% good requests
+window: 28d # rolling
+error_budget: 0.001 # 1 − target
 
 recording_rules:
-  - record: job:slo_error_rate:rate1h{service="lessons-api"}
-    expr:   1 − (good_1h / total_1h)
-  - record: job:slo_error_rate:rate6h{service="lessons-api"}
-    expr:   1 − (good_6h / total_6h)
+ - record: job:slo_error_rate:rate1h{service="lessons-api"}
+ expr: 1 − (good_1h / total_1h)
+ - record: job:slo_error_rate:rate6h{service="lessons-api"}
+ expr: 1 − (good_6h / total_6h)
 
 burn_rate_alert:
-  alert:     LessonsApiSLOBurn
-  windows:
-    - { short: 1h, long: 1h, burn: 14.4 }
-    - { short: 6h, long: 6h, burn:  6.0 }
-  for:       5m
-  severity:  page
-  tier:      P1
-  runbook:   https://internal.studyapp/runbooks/lessons-api-slo-burn
+ alert: LessonsApiSLOBurn
+ windows:
+ - { short: 1h, long: 1h, burn: 14.4 }
+ - { short: 6h, long: 6h, burn: 6.0 }
+ for: 5m
+ severity: page
+ tier: P1
+ runbook: https://internal.studyapp/runbooks/lessons-api-slo-burn
 
 policy:
-  pause_risky_deploys_below: 0.20   # 20% budget remaining
-  resume_above:              0.50   # 50% budget remaining
-  review_cadence:            weekly
-        </code></pre>
+ pause_risky_deploys_below: 0.20 # 20% budget remaining
+ resume_above: 0.50 # 50% budget remaining
+ review_cadence: weekly
+ </code></pre>
         <p><strong>What this file does.</strong> It declares one SLO with its SLI expression, target, window, and the two recording rules that make burn-rate calculations cheap. The multi-burn-rate alert is wired directly off those recordings — 1 h × 14.4 and 6 h × 6 in AND, with a 5-minute soak. The policy block is read by CI: when the live budget drops below 20%, deploys flagged as risky (schema migrations, new feature flags) fail their pre-flight check until the budget climbs back above 50%. Dashboard and alert are both generated from this one file; nothing in the system describes the SLO twice.</p>
       </div>
     </div>

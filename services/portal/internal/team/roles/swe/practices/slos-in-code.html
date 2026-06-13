@@ -217,55 +217,55 @@ version: prometheus/v1
 service: lesson-player
 labels: { team: lessons, tier: critical }
 slos:
-  - name: lesson-state-availability
-    objective: 99.9
-    description: "GET /lessons/{id}/state succeeds 99.9% of the time"
-    sli:
-      events:
-        error_query: |
-          sum(rate(http_requests_total{
-            service="lesson-player",
-            endpoint="/lessons/_/state",
-            status_code=~"5.."
-          }[{{.window}}]))
-        total_query: |
-          sum(rate(http_requests_total{
-            service="lesson-player",
-            endpoint="/lessons/_/state"
-          }[{{.window}}]))
-    alerting:
-      name: lesson-state-burning
-      page_alert:   { labels: { severity: pager  } }
-      ticket_alert: { labels: { severity: ticket } }
+ - name: lesson-state-availability
+ objective: 99.9
+ description: "GET /lessons/{id}/state succeeds 99.9% of the time"
+ sli:
+ events:
+ error_query: |
+ sum(rate(http_requests_total{
+ service="lesson-player",
+ endpoint="/lessons/_/state",
+ status_code=~"5.."
+ }[{{.window}}]))
+ total_query: |
+ sum(rate(http_requests_total{
+ service="lesson-player",
+ endpoint="/lessons/_/state"
+ }[{{.window}}]))
+ alerting:
+ name: lesson-state-burning
+ page_alert: { labels: { severity: pager } }
+ ticket_alert: { labels: { severity: ticket } }
 
-  - name: lesson-state-latency
-    objective: 99.0
-    sli:
-      events:
-        error_query: |
-          sum(rate(http_request_duration_seconds_bucket{
-            service="lesson-player",endpoint="/lessons/_/state",le="0.25"
-          }[{{.window}}]))
-        total_query: |
-          sum(rate(http_request_duration_seconds_count{
-            service="lesson-player",endpoint="/lessons/_/state"
-          }[{{.window}}]))
+ - name: lesson-state-latency
+ objective: 99.0
+ sli:
+ events:
+ error_query: |
+ sum(rate(http_request_duration_seconds_bucket{
+ service="lesson-player",endpoint="/lessons/_/state",le="0.25"
+ }[{{.window}}]))
+ total_query: |
+ sum(rate(http_request_duration_seconds_count{
+ service="lesson-player",endpoint="/lessons/_/state"
+ }[{{.window}}]))
 
 # CI step (.github/workflows/slo.yml)
 - name: regenerate Prometheus rules
-  run: sloth generate -i services/lesson-player/slo.yaml -o services/lesson-player/slo.rules.yaml
+ run: sloth generate -i services/lesson-player/slo.yaml -o services/lesson-player/slo.rules.yaml
 - name: drift check
-  run: git diff --exit-code services/lesson-player/slo.rules.yaml
+ run: git diff --exit-code services/lesson-player/slo.rules.yaml
 
 # release gate (.github/workflows/deploy.yml — excerpt)
 - name: SLO release gate
-  run: |
-    BURN=$(curl -s "$PROM/api/v1/query?query=slo:sli_error:ratio_rate1h{slo='lesson-state-availability'}" \
-      | jq -r '.data.result[0].value[1]')
-    if (( $(echo "$BURN &gt; 0.001" | bc -l) )); then
-      echo "fast burn $BURN; blocking deploy"; exit 1
-    fi
-        </code></pre>
+ run: |
+ BURN=$(curl -s "$PROM/api/v1/query?query=slo:sli_error:ratio_rate1h{slo='lesson-state-availability'}" \
+ | jq -r '.data.result[0].value[1]')
+ if (( $(echo "$BURN &gt; 0.001" | bc -l) )); then
+ echo "fast burn $BURN; blocking deploy"; exit 1
+ fi
+ </code></pre>
         <p class="pa-example__note">Two SLOs (availability + latency) declared in YAML; Sloth generates the Prometheus rules + burn-rate alerts; CI fails if the generated file drifts from source; the release gate queries Prometheus and blocks deploy if budget is burning.</p>
       </div>
     </section>

@@ -81,9 +81,9 @@
         <text class="pa-svg-text pa-svg-text--muted" x="595" y="124" text-anchor="middle" font-size="10">runbook · alert</text>
 
         <path d="M125 110 L140 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
-        <path d="M265  98 L280  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M265 98 L280 46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M265 122 L280 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
-        <path d="M445  46 L460  98" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M445 46 L460 98" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M445 174 L460 122" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M545 110 L553 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
       </svg>
@@ -255,76 +255,76 @@
         <pre><code>apiVersion: litmuschaos.io/v1alpha1
 kind: ChaosEngine
 metadata:
-  name:        cha-014-lessons-api-latency
-  namespace:   chaos-staging
-  labels:
-    experiment_id:  CHA-014
-    target_service: lessons-api
-    blast_radius:   "0.01"          # 1% of pod traffic
-    owner:          sre-platform
-    review_by:      "2026-08-22"
+ name: cha-014-lessons-api-latency
+ namespace: chaos-staging
+ labels:
+ experiment_id: CHA-014
+ target_service: lessons-api
+ blast_radius: "0.01" # 1% of pod traffic
+ owner: sre-platform
+ review_by: "2026-08-22"
 spec:
-  appinfo:
-    appns:     lessons
-    applabel:  "app=lessons-api"
-    appkind:   deployment
-  chaosServiceAccount: litmus-admin
-  experiments:
-  - name: pod-network-latency
-    spec:
-      components:
-        env:
-        - name: TARGET_CONTAINER
-          value: "lessons-api"
-        - name: NETWORK_LATENCY      # injected delay
-          value: "200"               # milliseconds
-        - name: TOTAL_CHAOS_DURATION
-          value: "300"               # 5 minutes
-        - name: PODS_AFFECTED_PERC
-          value: "1"                 # 1% of pods
-      probe:
-      - name:        slo-burn-stable
-        type:        promProbe
-        mode:        Continuous
-        runProperties:
-          probeTimeout:  10s
-          interval:      15s
-          retry:         0
-          stopOnFailure: true        # auto-abort
-        promProbe/inputs:
-          endpoint:  http://prometheus.monitoring.svc:9090
-          query:     "job:slo_error_rate:rate5m{service='lessons-api'}"
-          comparator:
-            type:   float
-            value:  "0.02"            # 2× steady-state error
-            criteria: "&lt;"
-      - name:        p99-bounded
-        type:        promProbe
-        mode:        Continuous
-        runProperties:
-          probeTimeout:  10s
-          interval:      15s
-          stopOnFailure: true
-        promProbe/inputs:
-          endpoint:  http://prometheus.monitoring.svc:9090
-          query:     "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service='lessons-api'}[2m])))"
-          comparator:
-            type:   float
-            value:  "0.500"           # 500 ms ceiling
-            criteria: "&lt;"
+ appinfo:
+ appns: lessons
+ applabel: "app=lessons-api"
+ appkind: deployment
+ chaosServiceAccount: litmus-admin
+ experiments:
+ - name: pod-network-latency
+ spec:
+ components:
+ env:
+ - name: TARGET_CONTAINER
+ value: "lessons-api"
+ - name: NETWORK_LATENCY # injected delay
+ value: "200" # milliseconds
+ - name: TOTAL_CHAOS_DURATION
+ value: "300" # 5 minutes
+ - name: PODS_AFFECTED_PERC
+ value: "1" # 1% of pods
+ probe:
+ - name: slo-burn-stable
+ type: promProbe
+ mode: Continuous
+ runProperties:
+ probeTimeout: 10s
+ interval: 15s
+ retry: 0
+ stopOnFailure: true # auto-abort
+ promProbe/inputs:
+ endpoint: http://prometheus.monitoring.svc:9090
+ query: "job:slo_error_rate:rate5m{service='lessons-api'}"
+ comparator:
+ type: float
+ value: "0.02" # 2× steady-state error
+ criteria: "&lt;"
+ - name: p99-bounded
+ type: promProbe
+ mode: Continuous
+ runProperties:
+ probeTimeout: 10s
+ interval: 15s
+ stopOnFailure: true
+ promProbe/inputs:
+ endpoint: http://prometheus.monitoring.svc:9090
+ query: "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service='lessons-api'}[2m])))"
+ comparator:
+ type: float
+ value: "0.500" # 500 ms ceiling
+ criteria: "&lt;"
 hypothesis: |
-  Injecting 200 ms of network latency into 1% of lessons-api pods will:
-  (1) keep p99 below 500 ms — circuit breakers and timeouts absorb the delay;
-  (2) cause the SLO-burn alert to fire within 2 minutes if the injected
-      latency expands beyond the 1% scope (negative control);
-  (3) leave the dashboard visibly annotated by the GameDay marker.
+ Injecting 200 ms of network latency into 1% of lessons-api pods will:
+ (1) keep p99 below 500 ms — circuit breakers and timeouts absorb the delay;
+ (2) cause the SLO-burn alert to fire within 2 minutes if the injected
+ latency expands beyond the 1% scope (negative control);
+ (3) leave the dashboard visibly annotated by the GameDay marker.
 abort_conditions: |
-  - error rate &gt; 2× baseline for 60 s  (auto, via probe)
-  - p99 latency &gt; 500 ms                (auto, via probe)
-  - manual kill via `kubectl delete chaosengine cha-014-lessons-api-latency`
-  - target restore within 60 s after abort
+ - error rate &gt; 2× baseline for 60 s (auto, via probe)
+ - p99 latency &gt; 500 ms (auto, via probe)
+ - manual kill via `kubectl delete chaosengine cha-014-lessons-api-latency`
+ - target restore within 60 s after abort
 runbook_url: https://internal.studyapp/runbooks/lessons-api-chaos-cha-014
-        </code></pre>
+ </code></pre>
         <p><strong>What this experiment does.</strong> It injects 200 ms of network latency into 1% of lessons-api pods for 5 minutes, with two continuous Prometheus probes wired to auto-abort. The hypothesis is two-sided: the system absorbs the latency without breaching p99, <em>and</em> the SLO-burn alert is sensitive enough to notice if the radius accidentally expands. The first staging run last quarter revealed that the alert fired at 4 m 30 s instead of within 2 minutes — the rule's evaluation window was too long. That finding produced ticket SRE-417 (shorten the 1 h window to 30 m for sub-percentage incidents), and CHA-014 is now scheduled for its first production GameDay in three weeks. Without the experiment, the alert gap would have been discovered during a real partial-dependency outage at the worst possible time.</p>
       </div>
     </div>

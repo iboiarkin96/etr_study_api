@@ -220,65 +220,65 @@
         <pre><code>apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: lessons-api
-  namespace: study-app
+ name: lessons-api
+ namespace: study-app
 spec:
-  replicas: 20
-  strategy:
-    canary:
-      canaryService: lessons-api-canary
-      stableService: lessons-api-stable
-      trafficRouting:
-        istio:
-          virtualService: { name: lessons-api }
-      steps:
-        - setWeight: 1
-        - pause: { duration: 5m }
-        - analysis:
-            templates: [{ templateName: slo-burn-and-errors }]
-            args:
-              - { name: service, value: lessons-api }
-              - { name: canary-hash, valueFrom: { podTemplateHashValue: Latest } }
-        - setWeight: 5
-        - pause: { duration: 10m }
-        - analysis:
-            templates: [{ templateName: slo-burn-and-errors }]
-            args: [{ name: service, value: lessons-api }]
-        - setWeight: 25
-        - pause: { duration: 15m }
-        - analysis:
-            templates: [{ templateName: slo-burn-and-errors }]
-            args: [{ name: service, value: lessons-api }]
+ replicas: 20
+ strategy:
+ canary:
+ canaryService: lessons-api-canary
+ stableService: lessons-api-stable
+ trafficRouting:
+ istio:
+ virtualService: { name: lessons-api }
+ steps:
+ - setWeight: 1
+ - pause: { duration: 5m }
+ - analysis:
+ templates: [{ templateName: slo-burn-and-errors }]
+ args:
+ - { name: service, value: lessons-api }
+ - { name: canary-hash, valueFrom: { podTemplateHashValue: Latest } }
+ - setWeight: 5
+ - pause: { duration: 10m }
+ - analysis:
+ templates: [{ templateName: slo-burn-and-errors }]
+ args: [{ name: service, value: lessons-api }]
+ - setWeight: 25
+ - pause: { duration: 15m }
+ - analysis:
+ templates: [{ templateName: slo-burn-and-errors }]
+ args: [{ name: service, value: lessons-api }]
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
-  name: slo-burn-and-errors
+ name: slo-burn-and-errors
 spec:
-  args:
-    - name: service
-  metrics:
-    - name: slo-burn-rate
-      interval:        1m
-      successCondition: result[0] &lt; 1.5
-      failureLimit:    0
-      provider:
-        prometheus:
-          address: http://prometheus.monitoring:9090
-          query: |
-            job:slo_error_rate:rate5m{service="{{args.service}}"}
-              / on() group_left() job:slo_error_rate:steady_state{service="{{args.service}}"}
-    - name: canary-error-rate
-      interval:        1m
-      successCondition: result[0] &lt; 0.02
-      failureLimit:    0
-      provider:
-        prometheus:
-          address: http://prometheus.monitoring:9090
-          query: |
-            sum(rate(http_requests_total{service="{{args.service}}",version="canary",code=~"5.."}[5m]))
-              / sum(rate(http_requests_total{service="{{args.service}}",version="canary"}[5m]))
-        </code></pre>
+ args:
+ - name: service
+ metrics:
+ - name: slo-burn-rate
+ interval: 1m
+ successCondition: result[0] &lt; 1.5
+ failureLimit: 0
+ provider:
+ prometheus:
+ address: http://prometheus.monitoring:9090
+ query: |
+ job:slo_error_rate:rate5m{service="{{args.service}}"}
+ / on() group_left() job:slo_error_rate:steady_state{service="{{args.service}}"}
+ - name: canary-error-rate
+ interval: 1m
+ successCondition: result[0] &lt; 0.02
+ failureLimit: 0
+ provider:
+ prometheus:
+ address: http://prometheus.monitoring:9090
+ query: |
+ sum(rate(http_requests_total{service="{{args.service}}",version="canary",code=~"5.."}[5m]))
+ / sum(rate(http_requests_total{service="{{args.service}}",version="canary"}[5m]))
+ </code></pre>
         <p><strong>What this manifest does.</strong> Argo Rollouts promotes the lessons-api deployment through 1% → 5% → 25% → 100% with a pause and analysis run between each weight. The analysis template runs two Prometheus queries every minute: the SLO burn rate (must stay under 1.5× steady-state) and the canary-only error rate (must stay under 2%). A single failed sample (<code>failureLimit: 0</code>) aborts the rollout and Argo restores the stable ReplicaSet. If both metrics stay green for the pause window, the rollout advances; if either trips, the canary is gone before the on-call's phone vibrates.</p>
       </div>
     </div>

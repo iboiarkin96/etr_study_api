@@ -57,24 +57,24 @@
         <h2 id="wf01-h">Workflow 1 — Learner submits an exercise</h2>
         <p>The hot path. A learner clicks «submit» in the web app and a grade comes back. Touches Identity (session check), Learning (content lookup), Assessment (grading), Progress (mastery update), and Observability (tracing). Synchronous on the response; the mastery update is async.</p>
 
-        <pre class="docs-code"><code>Learner          Web            Identity        Learning        Assessment      Progress
-  |                |               |                |                |                |
-  | submit attempt |               |                |                |                |
-  | ──────────────►|               |                |                |                |
-  |                | verify session|                |                |                |
-  |                | ─────────────►|                |                |                |
-  |                | ◄─────────────|                |                |                |
-  |                | fetch exercise                 |                |                |
-  |                | ──────────────────────────────►|                |                |
-  |                | ◄──────────────────────────────|                |                |
-  |                | POST grade                                      |                |
-  |                | ───────────────────────────────────────────────►|                |
-  |                |               |                |   grade.published (event)       |
-  |                |               |                |                | ──────────────►|
-  |                | ◄───────────────────────────────────────────────|                |
-  | grade visible  |               |                |                |                |
-  | ◄──────────────|               |                |                |                |
-  |                |               |                |                |                | update mastery (async)</code></pre>
+        <pre class="docs-code"><code>Learner Web Identity Learning Assessment Progress
+ | | | | | |
+ | submit attempt | | | | |
+ | ──────────────►| | | | |
+ | | verify session| | | |
+ | | ─────────────►| | | |
+ | | ◄─────────────| | | |
+ | | fetch exercise | | |
+ | | ──────────────────────────────►| | |
+ | | ◄──────────────────────────────| | |
+ | | POST grade | |
+ | | ───────────────────────────────────────────────►| |
+ | | | | grade.published (event) |
+ | | | | | ──────────────►|
+ | | ◄───────────────────────────────────────────────| |
+ | grade visible | | | | |
+ | ◄──────────────| | | | |
+ | | | | | | update mastery (async)</code></pre>
 
         <h3>Steps</h3>
         <ol>
@@ -104,7 +104,7 @@
               <tr><td>3</td><td>Exercise was removed</td><td>Return 410; the client shows a deprecation banner.</td><td>Fail-fast</td></tr>
               <tr><td>5</td><td>Assessment timeout</td><td>Retry once with jitter; if both fail, return 503.</td><td>Retry</td></tr>
               <tr><td>6</td><td>Event bus is down</td><td>Store-and-forward outbox; mastery catches up later.</td><td>Retry</td></tr>
-              <tr><td>7</td><td>Duplicate event</td><td>Idempotent by event ID — duplicates are dropped silently.</td><td>Drop</td></tr>
+              <tr><td>7</td><td>Duplicate event</td><td>Each event has a unique ID; the same event arriving twice is dropped silently.</td><td>Drop</td></tr>
             </tbody>
           </table>
         </div>
@@ -113,24 +113,24 @@
 
       <section aria-labelledby="wf02-h">
         <h2 id="wf02-h">Workflow 2 — Alert turns into an incident</h2>
-        <p>The reliability spine. Starts when an alert fires with a runbook link in its payload and ends when a postmortem is published and attached to the incident record.</p>
+        <p>How the on-call team handles a production problem. The flow starts when an alert fires with a runbook link in its payload and ends when a postmortem is published and attached to the incident record.</p>
 
-        <pre class="docs-code"><code>Prometheus     Alertmanager  PagerDuty     On-call       Runbook       Postmortem
-  |               |              |              |              |              |
-  | rule fires    |              |              |              |              |
-  | ─────────────►|              |              |              |              |
-  |               | route + group|              |              |              |
-  |               | ────────────►|              |              |              |
-  |               |              | page on-call |              |              |
-  |               |              | ────────────►|              |              |
-  |               |              |              | open runbook |              |
-  |               |              |              | ────────────►|              |
-  |               |              |              | execute      |              |
-  |               |              |              | ─────────────|              |
-  |               |              |              | open incident                |
-  |               |              |              | ───────────────────────────►|
-  |               |              |              |              |              | draft + review (48h)
-  |               |              |              |              |              | publish</code></pre>
+        <pre class="docs-code"><code>Prometheus Alertmanager PagerDuty On-call Runbook Postmortem
+ | | | | | |
+ | rule fires | | | | |
+ | ─────────────►| | | | |
+ | | route + group| | | |
+ | | ────────────►| | | |
+ | | | page on-call | | |
+ | | | ────────────►| | |
+ | | | | open runbook | |
+ | | | | ────────────►| |
+ | | | | execute | |
+ | | | | ─────────────| |
+ | | | | open incident |
+ | | | | ───────────────────────────►|
+ | | | | | | draft + review (48h)
+ | | | | | | publish</code></pre>
 
         <h3>Steps</h3>
         <ol>
@@ -148,23 +148,23 @@
 
       <section aria-labelledby="wf03-h">
         <h2 id="wf03-h">Workflow 3 — A page goes live</h2>
-        <p>The same pipeline product code uses. Automated checks run first, then a human review, then a merge that rebuilds the search index. The PR stays fast because the index doesn't rebuild on every CI run.</p>
+        <p>The same pipeline that production code goes through. Automated checks run first, then a human review, then a merge that rebuilds the search index. The PR stays fast because the index doesn't rebuild on every cloud-build run.</p>
 
-        <pre class="docs-code"><code>Author          PR             CI (auto)       Reviewer        Merge job       Portal
-  |                |               |                |                |                |
-  | open PR        |               |                |                |                |
-  | ──────────────►|               |                |                |                |
-  |                | trigger checks|                |                |                |
-  |                | ──────────────►|                |                |                |
-  |                | ◄──────────────|                |                |                |
-  |                | request review                 |                |                |
-  |                | ──────────────────────────────►|                |                |
-  |                | ◄──────────────────────────────|                |                |
-  |                | merge                                          |                |
-  |                | ───────────────────────────────────────────────►|                |
-  |                |               |                |                | regenerate index
-  |                |               |                |                | ──────────────►|
-  |                |               |                |                |                | sidebar refresh</code></pre>
+        <pre class="docs-code"><code>Author PR CI (auto) Reviewer Merge job Portal
+ | | | | | |
+ | open PR | | | | |
+ | ──────────────►| | | | |
+ | | trigger checks| | | |
+ | | ──────────────►| | | |
+ | | ◄──────────────| | | |
+ | | request review | | |
+ | | ──────────────────────────────►| | |
+ | | ◄──────────────────────────────| | |
+ | | merge | |
+ | | ───────────────────────────────────────────────►| |
+ | | | | | regenerate index
+ | | | | | ──────────────►|
+ | | | | | | sidebar refresh</code></pre>
 
         <h3>Steps</h3>
         <ol>
