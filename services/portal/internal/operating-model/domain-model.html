@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Domain model · Operating model · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-13" data-role="" data-topic="operating-model">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Operating model</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Domain model</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+
+    <article class="docs-prose">
+
+      <header class="page-hero page-head">
+        <p class="page-hero__eyebrow">Internal · Operating model · Reference</p>
+        <h1 class="page-hero__h1">Domain model — <span class="accent">six bounded contexts</span></h1>
+        <div id="docs-top-nav"></div>
+        <p class="page-hero__lede">
+          The Study App splits into six bounded contexts, each with one owner, one purpose, and its own vocabulary. Words mean different things across them — the «user» in Identity is not the same as the «user» in Progress, and that's by design, not a mistake. This page lists the six contexts, how they connect, the shared vocabulary, the event shape they use to talk to each other, and the rules we don't break.
+        </p>
+      </header>
+
+      <section aria-labelledby="contexts-h">
+        <h2 id="contexts-h">The six contexts</h2>
+        <p>Each context owns one slice of business meaning, one team, and one source of truth. Same word can mean different things in different contexts — that's the point.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Context</th>
+                <th>What it owns</th>
+                <th>Owner</th>
+                <th>Storage</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Learning</strong></td>
+                <td>Authoring, structure, and delivery of study material. Owns <em>course</em>, <em>module</em>, <em>lesson</em>, <em>exercise</em>.</td>
+                <td>Content guild</td>
+                <td>Relational + object store</td>
+              </tr>
+              <tr>
+                <td><strong>Identity &amp; access</strong></td>
+                <td>Who the actor is and what they're allowed to see. Owns <em>user</em>, <em>session</em>, <em>role</em>, <em>entitlement</em>.</td>
+                <td>Platform team</td>
+                <td>Relational + key-value cache</td>
+              </tr>
+              <tr>
+                <td><strong>Progress</strong></td>
+                <td>Learner state over time — what was attempted, what passed, what is still pending. Owns <em>attempt</em>, <em>mastery</em>, <em>streak</em>.</td>
+                <td>Learning team</td>
+                <td>Append-only log + materialised views</td>
+              </tr>
+              <tr>
+                <td><strong>Assessment</strong></td>
+                <td>Scoring, grading policy, and certificate issuance. Owns <em>rubric</em>, <em>grade</em>, <em>certificate</em>.</td>
+                <td>Learning team</td>
+                <td>Relational; certificates in object store</td>
+              </tr>
+              <tr>
+                <td><strong>Catalog (commerce)</strong></td>
+                <td>What is on offer, at what price, with what entitlements attached. Owns <em>offering</em>, <em>price</em>, <em>promotion</em>.</td>
+                <td>Commerce team</td>
+                <td>Relational + cache</td>
+              </tr>
+              <tr>
+                <td><strong>Observability</strong></td>
+                <td>How the system reports its own state. Owns <em>metric</em>, <em>log</em>, <em>alert</em>, <em>incident</em>, <em>runbook</em>.</td>
+                <td>SRE</td>
+                <td>Time-series + S3 archive</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Reading rule.</strong> «User» in Identity means «account holder»; «user» in Progress means «the learner whose attempts we count». Same word, two definitions, two contexts — no shared schema.</p>
+      </section>
+
+      <section aria-labelledby="map-h">
+        <h2 id="map-h">How they connect</h2>
+        <p>Each row says how one context depends on another and what shape that dependency takes. The pattern names — published language, customer/supplier, anti-corruption layer, conformist, shared kernel — are the standard ways two contexts integrate.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Upstream</th>
+                <th>Downstream</th>
+                <th>Pattern</th>
+                <th>Why this pattern</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Identity</td>
+                <td>Learning · Progress · Assessment · Catalog</td>
+                <td>Published language</td>
+                <td>One canonical session/token shape; every downstream parses it the same way.</td>
+              </tr>
+              <tr>
+                <td>Learning</td>
+                <td>Progress</td>
+                <td>Customer / supplier</td>
+                <td>Progress's schema follows Learning's course/module IDs; Learning publishes changes ahead.</td>
+              </tr>
+              <tr>
+                <td>Assessment</td>
+                <td>Progress</td>
+                <td>Customer / supplier</td>
+                <td>Progress consumes Assessment's grade events; Assessment owns the rubric versioning.</td>
+              </tr>
+              <tr>
+                <td>Catalog (commerce)</td>
+                <td>Identity</td>
+                <td>Anti-corruption layer</td>
+                <td>Catalog talks to a third-party billing vendor; the layer keeps vendor terms out of our domain.</td>
+              </tr>
+              <tr>
+                <td>Catalog (commerce)</td>
+                <td>Learning</td>
+                <td>Conformist</td>
+                <td>Catalog adopts Learning's course entity verbatim — no remapping, simplest integration.</td>
+              </tr>
+              <tr>
+                <td>All contexts</td>
+                <td>Observability</td>
+                <td>Shared kernel</td>
+                <td>Single tracing schema; every team owns a slice of it together.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="lang-h">
+        <h2 id="lang-h">Shared vocabulary</h2>
+        <p>Terms that appear in API contracts, in the UI, and in code. These spellings are exact — no synonyms inside a single context.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Term</th>
+                <th>Meaning</th>
+                <th>Owner</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>course</code></td><td>A bundle of modules sold or assigned as one offering.</td><td>Learning</td></tr>
+              <tr><td><code>module</code></td><td>A chapter inside a course. Owns lessons.</td><td>Learning</td></tr>
+              <tr><td><code>lesson</code></td><td>One unit of study content — text, video, or exercise.</td><td>Learning</td></tr>
+              <tr><td><code>exercise</code></td><td>A graded question or task inside a lesson.</td><td>Learning (graded by Assessment)</td></tr>
+              <tr><td><code>attempt</code></td><td>One submission of an exercise by a learner. Immutable.</td><td>Progress</td></tr>
+              <tr><td><code>mastery</code></td><td>A derived score (0–1) of how well a learner knows a module.</td><td>Progress</td></tr>
+              <tr><td><code>rubric</code></td><td>Versioned grading rules that turn an attempt into a grade.</td><td>Assessment</td></tr>
+              <tr><td><code>grade</code></td><td>The output of applying a rubric to an attempt.</td><td>Assessment</td></tr>
+              <tr><td><code>certificate</code></td><td>Signed credential issued after course completion.</td><td>Assessment</td></tr>
+              <tr><td><code>offering</code></td><td>A course or bundle listed for sale.</td><td>Catalog</td></tr>
+              <tr><td><code>entitlement</code></td><td>A purchased right to access an offering.</td><td>Catalog (consumed by Identity)</td></tr>
+              <tr><td><code>session</code></td><td>An authenticated period bound to a user agent.</td><td>Identity</td></tr>
+              <tr><td><code>role</code></td><td>Coarse-grained authorisation bundle (learner, author, admin).</td><td>Identity</td></tr>
+              <tr><td><code>incident</code></td><td>An open production failure tracked end-to-end with a postmortem.</td><td>Observability</td></tr>
+              <tr><td><code>runbook</code></td><td>The on-call playbook for a specific alert.</td><td>Observability</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="event-h">
+        <h2 id="event-h">How contexts talk to each other</h2>
+        <p>When one context emits a fact for others to consume, it uses this envelope. The envelope itself is shared by every context; the <code>data</code> block is whatever the producer publishes.</p>
+        <pre class="docs-code"><code class="language-yaml">event_id:     "01HVXY7M2K1S8KQKZJ4N5R7T9P"   # ULID, source of truth for dedup
+event_type:   "assessment.grade.published.v1"
+occurred_at:  "2026-05-24T10:14:33Z"
+producer:
+  bounded_context: "assessment"
+  service:         "assessment-api"
+  version:         "1.7.2"
+subject:
+  user_id:    "usr_3K9..."
+  attempt_id: "att_8X1..."
+data:
+  rubric_version: "2026.03"
+  grade:          0.82
+  passed:         true</code></pre>
+      </section>
+
+      <section aria-labelledby="invariants-h">
+        <h2 id="invariants-h">Rules we don't break</h2>
+        <ul>
+          <li><strong>One owner per term.</strong> Every term in the vocabulary belongs to exactly one context. Cross-context use happens through the shared language, not by sharing schemas.</li>
+          <li><strong>No upstream calls downstream.</strong> Identity does not know about Progress; Learning does not know about Catalog. Cycles in the context map are bugs.</li>
+          <li><strong>Events are immutable.</strong> A grade event published yesterday is still true today; corrections are new events, not edits.</li>
+          <li><strong>Rubric versioning is visible.</strong> Every grade carries the rubric version that produced it. Re-grading uses a newer rubric and emits a new event.</li>
+          <li><strong>Anti-corruption layers are explicit.</strong> Vendor terms (billing products, identity providers) never leak past their layer. The mapping code lives in one file per layer.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="worked-h">
+        <h2 id="worked-h">What this looks like for one team</h2>
+        <p>One file a team commits alongside its code. The same five sections as above (contexts, relationships, vocabulary, events, invariants), no sprawling folders.</p>
+        <pre class="docs-code"><code class="language-yaml">version: "2026.05"
+team:    "learning-platform"
+owners:  ["@learning-eng", "@learning-pm"]
+
+contexts:
+  - name: "learning"
+    purpose: "Author and serve courses, modules, lessons, exercises."
+    owns:    [course, module, lesson, exercise]
+    data_store: "postgres"
+  - name: "assessment"
+    purpose: "Apply rubrics to attempts; mint grades and certificates."
+    owns:    [rubric, grade, certificate]
+    data_store: "postgres"
+  - name: "progress"
+    purpose: "Append-only learner history; derive mastery."
+    owns:    [attempt, mastery]
+    data_store: "postgres + materialised views"
+
+relationships:
+  - from: progress
+    to:   assessment
+    pattern: "customer-supplier"
+    note: "Progress sends attempts; Assessment returns grades."
+  - from: assessment
+    to:   learning
+    pattern: "conformist"
+    note: "Assessment grades inherit learning's exercise shape."
+
+language:
+  attempt: "One submission of an exercise. Immutable in Progress."
+  grade:   "Output of applying a rubric to an attempt. Owned by Assessment."
+  mastery: "Derived score (0–1) of how well a learner knows a module."
+
+events:
+  - type:      "assessment.grade.published.v1"
+    producer:  "assessment-api"
+    consumers: ["progress-projector", "notification-fanout"]
+    retention: "180d"
+
+invariants:
+  - "An attempt has exactly one grade."
+  - "A certificate exists only if all required grades are 'passed'."
+  - "Mastery is recomputed from attempts; it is never written directly."</code></pre>
+        <p>A team that opens a new repo copies this file, swaps the names, and is most of the way to a published domain model.</p>
+      </section>
+
+      <section aria-labelledby="trade-h">
+        <h2 id="trade-h">What we gave up to get here</h2>
+        <ul>
+          <li><strong>Six contexts, not three.</strong> Splitting Identity and Catalog from Learning increases integration cost — we took it to keep team ownership clean.</li>
+          <li><strong>Progress as append-only.</strong> Materialised views add latency on schema changes — we took it because audit replay is more valuable than write-path simplicity.</li>
+          <li><strong>Catalog as a conformist to Learning.</strong> Catalog inherits Learning's pace of change — we took it because Catalog is small and the integration is read-mostly.</li>
+          <li><strong>Shared tracing kernel.</strong> Every team has to coordinate on schema edits — we took it because consolidated dashboards beat per-team observability silos.</li>
+        </ul>
+      </section>
+
+    </article>
+  </main>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
