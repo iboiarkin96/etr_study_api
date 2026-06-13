@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-12" data-role="architect">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-13" data-role="architect">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -60,8 +60,8 @@
                   <span class="lifecycle-popover__stage-label">Implementation</span>
                   <ul class="lifecycle-popover__states">
                     <li>Not started</li>
-                    <li class="is-current">In progress</li>
-                    <li>Done</li>
+                    <li>In progress</li>
+                    <li class="is-current">Done</li>
                   </ul>
                 </li>
               </ol>
@@ -72,7 +72,7 @@
         <h1>Portal operating model — top-level section with a self-serve hub</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">
-          The portal now has 34 ADRs, 16 SA templates, 14 authoring how-to's, the Variant C IA from ADR 0032, a multi-stage delivery pipeline (ADR 0034), Pagefind search (ADR 0033), and a dozen pre-commit hooks. The individual artefacts are documented, but there is no single page an author can open to answer «what are the five rules, what's my next step, what gate will check me, what has changed in the process this month, and what edits drag other files along with them?» This ADR introduces a top-level <code>operating-model/</code> section — seven router pages plus three new gates that close two coupling-loops (meta-change ↔ change-log, SA-template ↔ UI-kit twin) — so the day-to-day operating model is a place on the portal, not a memory burden on one author.
+          The portal grew too many moving parts to hold in one head — ADRs, templates, gates, workflows, paired-edit rules. This ADR adds a top-level <code>operating-model/</code> section that gathers the rules in one place, plus two pre-commit checks that turn coupling-discipline from «remember this» into «the check refuses to forget».
         </p>
       </header>
 
@@ -88,87 +88,64 @@
           <dt>Decided on</dt>
           <dd><time datetime="2026-06-12">2026-06-12</time></dd>
           <dt>Last reviewed</dt>
-          <dd><time datetime="2026-06-12">2026-06-12</time></dd>
+          <dd><time datetime="2026-06-13">2026-06-13</time></dd>
           <dt>Related</dt>
           <dd>
-            <a href="0001-docs-as-code.html">ADR-0001</a> (docs-as-code),
             <a href="0018-adr-lifecycle-ratification-and-badges.html">ADR-0018</a> (ADR lifecycle),
             <a href="0026-internal-service-documentation-as-source-of-truth.html">ADR-0026</a> (internal docs as truth),
             <a href="0031-foundations-handbook-canon-explanation-and-lens-chips.html">ADR-0031</a> (handbook canon),
-            <a href="0032-service-catalog-first-ia-variant-c.html">ADR-0032</a> (Variant C IA; this ADR finishes D7 metadata enforcement promised in W6).
+            <a href="0032-service-catalog-first-ia-variant-c.html">ADR-0032</a> (Variant C IA).
           </dd>
         </dl>
       </section>
 
       <section aria-labelledby="context-h">
         <h2 id="context-h">Context</h2>
-        <p>Three things have grown faster than the surface that explains them:</p>
-        <ul>
-          <li><strong>Decision surface.</strong> 34 ADRs and the Variant C IA mean placing a new page requires answering six questions (ADR-0032 D1–D6) before any HTML is written. Those questions are documented across <code>operating-model/information-architecture.html</code>, <code>handbook/sa/diataxis.html</code>, <code>services/portal/reference/document-types.html</code>, and <code>handbook/sa/authoring/internal-service-docs-layout.html</code> — correct individually, but they are not assembled into one Q&amp;A the author can walk.</li>
-          <li><strong>Gate surface.</strong> The portal's quality gates are spread across 9 Make targets (<code>docs-fix</code>, <code>docs-check</code>, <code>docs-html-check</code>, <code>docs-design-check</code>, <code>docs-a11y-check</code>, <code>docs-feedback-check</code>, <code>docs-spec-check</code>, <code>docs-nav-check</code>, <code>visual-test</code>), 12 local pre-commit hooks, and 7 CI workflows. Definition-of-done at <code>handbook/sa/authoring/definition-of-done.html</code> lists checklist items per gate, but there is no inventory you can scan to learn the system itself.</li>
-          <li><strong>Coupling surface.</strong> Some edits silently require edits to other files. The clearest case: an SA template under <code>services/portal/internal/handbook/sa/templates/</code> is paired with its UI-kit twin under <code>services/portal/ui-kit/pages/templates/</code> — both pages are pixel-diffed against the same visual baseline corpus in <code>tests/visual/pages.json</code>. Touching one without the other (or without refreshing the baseline) is a class of bug that is invisible until <code>make visual-test</code> runs, and there is no document that lists the coupling pairs. The same shape applies to meta-changes — a new pre-commit hook, Make target, CI workflow, or template should be announced in a curated «how the process changed this month» log, but there is nowhere to put one and no gate that asks for it.</li>
-        </ul>
-        <p>The micro-documentation is fine. What is missing is the macro: one place where the five operating rules, the routing decision-tree, the lifecycle diagram, the inventory of gates with coupling, and the curated log of meta-changes all live, and a couple of gates that turn the coupling-discipline from «remember this» into «CI refuses to forget».</p>
-        <p>This pattern has names in adjacent teams: GitLab Handbook calls it <em>Way of Working</em>; Stripe and Shopify call it <em>Operating Model</em>; Backstage calls it a <em>TechDocs landing</em>. The shape is consistent — a single self-serve hub that synthesises rather than re-explains.</p>
+        <p>The portal has many pages and many rules, but no single place that joins them. To add a page, an author needs to know where it goes, what labels it must carry, which automated checks will run, and which other files have to change at the same time. Each of those is documented somewhere; together they are not. The result is that the operating model lives in one person's head, and new contributors can't start without asking.</p>
+        <p>The same shape has names in other companies: GitLab calls it «Way of Working», Stripe and Shopify call it «Operating Model», Backstage calls it a «TechDocs landing». What they share is one self-serve hub that synthesises the rules instead of re-explaining them.</p>
       </section>
 
       <section aria-labelledby="decision-h">
         <h2 id="decision-h">Decision</h2>
-        <p>Adopt a top-level <strong>Operating model</strong> section, parallel to <code>onboarding/</code> and <code>handbook/</code>, with nine router pages and three new or extended gates. <em>Ratified with seven pages on 2026-06-12; trimmed to six on 2026-06-13 (glossary retired); expanded to nine the same day to absorb three orphan SA-handbook pages (IA contract, domain model, cross-service workflows). See <a href="#update-2026-06-13">Update — 2026-06-13</a>.</em></p>
+        <p>Adopt a top-level <strong>Operating model</strong> section with ten router pages and two new pre-commit checks. The section is parallel to <code>onboarding/</code> and <code>handbook/</code>, not nested under either.</p>
 
-        <h3>D1 · Top-level placement, not a handbook sub-tree</h3>
-        <p>The section lives at <code>services/portal/internal/operating-model/</code> and is the second top-level node in the sidebar (after <code>onboarding/</code>, before <code>tutorials/</code>). It is <strong>not</strong> nested under <code>handbook/sa/authoring/</code> because the audience is wider than SA-authoring (it covers any author, any role) and the surface is meta (rules of the portal itself, not SA-craft). Hiding it under handbook is the same mistake as hiding <code>onboarding/</code> there — discoverability tanks and the section reads as one more reference page rather than the entry point.</p>
+        <ol>
+          <li><strong>D1 — Top-level placement.</strong> The section lives at <code>services/portal/internal/operating-model/</code>. Not nested under <code>handbook/</code>, because the audience is wider than writers and the surface is meta — rules about the portal itself, not writing craft.</li>
+          <li><strong>D2 — Router, not replacement.</strong> Operating-model pages synthesise and link out. Deep narrative stays in the handbook; this section adds incoming links and the connective tissue.</li>
+          <li><strong>D3 — Ten pages, no more.</strong> Adding an eleventh requires a successor ADR. The page list is below.</li>
+          <li><strong>D4 — Five enforceable rules.</strong> The hub home declares five rules every page must follow (where it goes, what it declares, before-commit checks, copy-from-template, paired edits). Each rule is enforced by an automated check; deviations need a written exception.</li>
+          <li><strong>D5 — Two pre-commit checks close the coupling loops.</strong> <code>check_meta_changes_logged</code> refuses commits to shared surfaces (build commands, workflows, templates, hook scripts, new ADRs) without an entry in the «what's new» feed. <code>check_template_twins</code> refuses one-sided edits to page templates that have a paired design example.</li>
+          <li><strong>D6 — Extend the HTML lint for required labels.</strong> Every page declares six labels on <code>&lt;body&gt;</code>; the lint asserts the three required ones (page-type, service, status) are present and inside the allowed list. Without this, Rule 4 above is convention, not check.</li>
+          <li><strong>D7 — The «what's new» feed is hand-authored.</strong> Each entry answers four questions: when, what changed, why, what changes for the reader. Auto-generation from commits loses the last column, which is the one that actually does work for the reader.</li>
+        </ol>
 
-        <h3>D2 · Router, not replacement</h3>
-        <p>Operating-model pages are <strong>lightweight routers</strong>. They synthesise (5 rules, one Q&amp;A, one lifecycle diagram, one gate inventory, one curated feed) and point at the deep handbook pages for the «why». Theory of Diátaxis stays in <code>handbook/sa/diataxis.html</code>; layout philosophy stays in <code>operating-model/information-architecture.html</code>; document-type contents stay in <code>services/portal/reference/document-types.html</code>; the master five-step workflow stays in <code>handbook/sa/authoring/add-a-page.html</code>. Operating-model adds incoming links; it does <strong>not</strong> rewrite existing handbook content.</p>
-
-        <h3>D3 · Nine pages, no more</h3>
-        <p>The shape is fixed at nine pages. Adding a tenth requires a successor ADR.</p>
+        <h3>D3 — Page list</h3>
         <div class="docs-table-wrap">
           <table class="docs-table docs-table--zebra">
-            <thead><tr><th>Page</th><th><code>data-page-type</code></th><th>Purpose</th></tr></thead>
+            <thead><tr><th>Page</th><th>Kind</th><th>Purpose</th></tr></thead>
             <tbody>
-              <tr><td><code>index.html</code></td><td><code>landing-section</code></td><td>Hub home: 3-minute mental model (one SVG brain + one monorepo map + three paragraphs) + 5 rules + 3 quick-paths + last-10 feed.</td></tr>
-              <tr><td><code>routing-decision-tree.html</code></td><td><code>how-to</code></td><td>6-question Q&amp;A from ADR-0032 D1–D6 with 10 worked examples.</td></tr>
-              <tr><td><code>lifecycle-of-a-change.html</code></td><td><code>explanation</code></td><td>Horizontal SVG timeline of ten stations (idea → ADR/RFC? → template → docs-fix → docs-check → CI → review → merge → staging → prod), colour-coded by environment.</td></tr>
-              <tr><td><code>quality-gates-map.html</code></td><td><code>reference</code></td><td>Full inventory of gates (pre-commit + Make + CI + visual-test) with a <strong>coupling column</strong> that names what changes must travel together.</td></tr>
-              <tr><td><code>page-type-contract.html</code></td><td><code>reference</code></td><td>The D7 metadata schema from ADR-0032 — allowed values, where it is validated, examples.</td></tr>
-              <tr><td><code>whats-new-in-how-we-work.html</code></td><td><code>reference</code></td><td>Curated meta-change log: <em>date · what · why · what changes for the author</em>. Not auto-generated.</td></tr>
+              <tr><td><code>index.html</code></td><td>landing-section</td><td>Hub home: three-minute mental model, five rules, three quick-paths, recent feed entries.</td></tr>
+              <tr><td><code>routing-decision-tree.html</code></td><td>how-to</td><td>Questionnaire that places any new page in the right folder with the right labels.</td></tr>
+              <tr><td><code>lifecycle-of-a-change.html</code></td><td>explanation</td><td>The ten steps every change goes through, from first commit to live page.</td></tr>
+              <tr><td><code>quality-gates-map.html</code></td><td>reference</td><td>Every automated check inventoried: what it does, how to fix a fail, and what travels with it.</td></tr>
+              <tr><td><code>page-type-contract.html</code></td><td>reference</td><td>The six labels every page must declare, with allowed values and ready-to-paste examples.</td></tr>
+              <tr><td><code>information-architecture.html</code></td><td>explanation</td><td>How pages on disk relate to groups in the sidebar — flat folders, grouped sidebar, one source.</td></tr>
+              <tr><td><code>domain-model.html</code></td><td>reference</td><td>Six bounded contexts the product splits into, shared vocabulary, cross-context event shape.</td></tr>
+              <tr><td><code>cross-service-workflows.html</code></td><td>reference</td><td>Three workflows that cross more than one service, each with a diagram and a step list.</td></tr>
+              <tr><td><code>reader-personas.html</code></td><td>explanation</td><td>The four reader personas every page is written for, with anti-patterns and a four-step page journey.</td></tr>
+              <tr><td><code>whats-new-in-how-we-work.html</code></td><td>reference</td><td>Hand-authored log of changes to shared processes, build commands, templates, and workflows.</td></tr>
             </tbody>
           </table>
         </div>
-
-        <h3>D4 · Five prescriptive rules</h3>
-        <p>Operating-model home declares five rules. Each rule is enforceable; deviations require an ADR.</p>
-        <ol>
-          <li><strong>Where a page lives</strong> is determined by <code>data-service</code> (if it is about a service) or <code>data-topic</code> (if it is cross-cutting). Quadrant is metadata (<code>data-page-type</code>), not a folder. → ADR 0032 D1.</li>
-          <li><strong>Every page</strong> declares on <code>&lt;body&gt;</code>: <code>data-page-type</code>, <code>data-service</code>, <code>data-role</code>, <code>data-topic</code>, <code>data-lifecycle</code>, <code>data-updated</code>. Enforced by <code>tools/docs/validate_docs_html.py</code> (this ADR extends it; see D6). → ADR 0032 D7.</li>
-          <li><strong>Before commit</strong> run <code>make -C services/portal docs-fix</code> then <code>make -C services/portal docs-check</code>. If service pages were touched, run <code>make -C services/portal verify</code> on top. Drift = fail.</li>
-          <li><strong>Template → page.</strong> Every new page starts as a copy from <code>handbook/sa/templates/</code>. Structure is not self-expression.</li>
-          <li><strong>Process changes leave a trail.</strong> A new Make target, pre-commit hook, CI workflow, SA template, or operations-class ADR must update <code>operating-model/whats-new-in-how-we-work.html</code> in the same PR (gate D5 below). A change to a SA template must travel with its UI-kit twin per <code>tests/visual/pages.json</code> and a refreshed baseline (gate D5 below).</li>
-        </ol>
-
-        <h3>D5 · Two new pre-commit gates close the coupling loops</h3>
-        <ul>
-          <li><strong><code>tools/docs/check_meta_changes_logged.py</code></strong> (pre-commit). Reads <code>git diff --cached --name-only</code>. If staged paths include <code>.pre-commit-config.yaml</code>, <code>.github/workflows/*.yml</code>, <code>services/portal/Makefile</code>, <code>services/portal/internal/handbook/sa/templates/*.html</code>, <code>services/portal/internal/governance/adr/[0-9]{4}-*.html</code> (new or status-changed), or <code>tools/docs/*.py</code> — then <code>operating-model/whats-new-in-how-we-work.html</code> must also be staged. The hook prints which meta-path triggered and an example block to paste into the feed. Runs as a hard fail; <code>META_LOG_SOFT=1</code> downgrades to a warning for the first week.</li>
-          <li><strong><code>tools/docs/check_template_twins.py</code></strong> (pre-commit). Reads <code>tests/visual/pages.json</code>, builds a map of twin pairs from <code>tpl-sa-*</code> ↔ <code>tpl-ui-kit-*</code> ids. If staged paths touch one side of a pair without the other, the hook fails with the two paths printed and the command <code>make -C services/portal visual-test-update</code> as the remediation hint.</li>
-        </ul>
-        <p>Neither gate is wired into <code>make docs-check</code> — the drift gate already runs over <code>HEAD</code> for orthogonal reasons, and the staged-diff context these hooks need is meaningful only at commit time. Pre-commit is the right surface.</p>
-
-        <h3>D6 · Extend <code>validate_docs_html.py</code> for the D7 metadata schema</h3>
-        <p>ADR-0032 W6 promised that <code>tools/docs/validate_docs_html.py</code> would assert the D7 metadata schema on every page under <code>services/portal/internal/</code> except <code>governance/</code>, <code>onboarding/</code>, autogenerated reference, and <code>code-reference/</code>. That extension is in scope of this ADR — without it, Rule 2 above is convention, not check. The extension preserves the existing <code>FROZEN_DOCS_REL_PATHS</code> and pdoc skip-lists.</p>
-
-        <h3>D7 · The curated feed is curated</h3>
-        <p>The «what's new in how we work» feed is hand-authored, not generated. Each entry answers four columns: date, what changed, why, and what changes for the author. Auto-generating it from commit history (the obvious shortcut) loses the «what changes for the author» column, which is the only column that does work for the reader.</p>
       </section>
 
       <section aria-labelledby="scope-h">
         <h2 id="scope-h">Scope</h2>
         <ul>
-          <li>In scope: the nine pages under <code>services/portal/internal/operating-model/</code>; the two new pre-commit gates; the D7 extension to <code>validate_docs_html.py</code>; the sidebar top-level node in <code>nav-tree-internal.json</code>; one pillar CTA on <code>services/portal/internal/index.html</code>; one callout on <code>services/portal/internal/handbook/sa/authoring/index.html</code>; cross-links from <code>onboarding/glossary.html</code>, <code>handbook/sa/process.html</code>, <code>handbook/sa/authoring/add-a-page.html</code>, <code>handbook/sa/authoring/definition-of-done.html</code>, <code>handbook/sa/authoring/internal-service-docs-layout.html</code>.</li>
-          <li>Out of scope: rewriting any existing handbook page. Operating-model adds incoming links; the handbook content stays where it is.</li>
-          <li>Out of scope: editing <code>services/portal/internal/catalog/index.html</code> — that page is generated by <code>tools/docs/build_catalog.py</code>; any manual edit would be reverted by <code>docs-fix</code> and break <code>docs-check</code>.</li>
-          <li>Out of scope: per-PR or per-branch coupling for runtime behaviour, OpenAPI baseline, or other non-portal artefacts. The coupling map starts with twin templates only and is extended one row at a time when a new pattern earns enforcement.</li>
+          <li><strong>In scope:</strong> the ten pages, the two pre-commit checks, the HTML-lint extension, the sidebar entry, and a few cross-links from related pages (onboarding cold-start, SA process, authoring index).</li>
+          <li><strong>Out of scope:</strong> rewriting existing handbook content. The operating-model section adds incoming links; the handbook stays where it is and keeps its own shape.</li>
+          <li><strong>Out of scope:</strong> editing auto-generated catalog views. Those refresh from page metadata, not by hand.</li>
+          <li><strong>Out of scope:</strong> coupling rules for non-portal artefacts (the API spec, deployment configs, etc.). The coupling map starts with what's enforceable today and grows one row at a time when a new pattern earns enforcement.</li>
         </ul>
       </section>
 
@@ -178,29 +155,19 @@
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Nest the hub under <code>handbook/sa/authoring/</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Why considered:</strong> the authoring how-to's already live there; the new pages «look like» more authoring content; one fewer top-level node in the sidebar.</p>
-              <p><strong>Why rejected:</strong> the audience is wider than SA-authoring — a SWE adding a runbook, a QA adding a checklist, an SRE adding a postmortem all need the routing tree and the gate map too. Discoverability for non-SA roles drops sharply when the section hides behind «SA · Authoring». The hub is the front door, not a sub-page; it deserves the visibility of a top-level node.</p>
+              <p>The audience is wider than writers — engineers adding runbooks, testers adding checklists, SREs adding postmortems all need the routing tree and the gate map too. Hiding the section behind «SA · Authoring» drops discoverability sharply for non-writers. The hub is a front door, not a sub-page.</p>
             </div>
           </article>
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Auto-generate the «what's new» feed from git history</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Why considered:</strong> zero-maintenance, never out of date, no «curator-bottleneck» risk.</p>
-              <p><strong>Why rejected:</strong> a commit log answers «what changed», not «why» or «what changes for the author» — the two columns that make the feed useful. An autogen feed is also a much weaker forcing function for the meta-change gate: the gate's whole job is to make the author write the «why» entry; if the feed populates itself, the gate has nothing to ask for.</p>
+              <p>A commit log answers «what changed». It doesn't answer «why» or «what changes for you» — the two columns that make the feed useful. An autogen feed also weakens the meta-change check, whose whole job is to make the author write that last column.</p>
             </div>
           </article>
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">Replace overlapping handbook pages with the hub</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
             <div class="docs-card__body">
-              <p><strong>Why considered:</strong> the handbook contains process (<code>process.html</code>), document-types, page-skeleton, topology — all topics the hub touches. Merging them looks like deduplication.</p>
-              <p><strong>Why rejected:</strong> the handbook pages are deep narrative; the hub pages are routers. Different audiences (deep-dive vs daily-driver), different shapes (essay vs Q&amp;A/table), different update cadences. Merging collapses both. The router-vs-replacement split (D2) is the cleaner contract — it lets each surface evolve on its own clock.</p>
-            </div>
-          </article>
-          <article class="docs-card" data-tone="warn">
-            <div class="docs-card__head"><h3 class="docs-card__title">Encode the coupling map in CI only (no docs page)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
-            <div class="docs-card__body">
-              <p><strong>Why considered:</strong> hooks alone enforce coupling; the gate map page could be dropped as «just a list the script knows».</p>
-              <p><strong>Why rejected:</strong> the docs page is the place a human goes to understand the system before they trip a hook, not after. Without the page, the hook fail message is the only surface that ever shows the coupling rules — which means coupling becomes visible only on failure. The page is the open contract; the hook is its enforcement; both are needed.</p>
+              <p>The handbook pages are deep narrative; the hub pages are routers. Different audiences, different shapes, different update cadences. Merging them collapses both. The router/deep-dive split is cleaner — each surface can evolve on its own clock.</p>
             </div>
           </article>
         </div>
@@ -208,94 +175,30 @@
 
       <section aria-labelledby="consequences-h">
         <h2 id="consequences-h">Consequences</h2>
-        <div class="docs-card-grid docs-card-grid--stack">
-          <article class="docs-card" data-tone="success">
-            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
-            <div class="docs-card__body">
-              <ul>
-                <li>One entry point for «what are the rules and what is my next step» — measured by the four cold-start questions in §Validation.</li>
-                <li>Coupling-loops (meta-change ↔ feed; SA template ↔ UI-kit twin) become CI-enforced rather than memory-enforced. Adding a future coupling pattern (e.g. <code>nav-tree-internal.json</code> ↔ <code>check_sidebar_coverage</code>) is one row in <code>pages.json</code>/coupling table and one line in the hook.</li>
-                <li>D7 metadata schema becomes a real lint, finishing ADR-0032 W6.</li>
-                <li>Handbook stays clean — operating-model points at it, does not rewrite it. The router/deep-dive split scales as both surfaces grow.</li>
-              </ul>
-            </div>
-          </article>
-          <article class="docs-card" data-tone="warn">
-            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
-            <div class="docs-card__body">
-              <p>Three named tradeoffs. Shape from <a href="../../handbook/sa/tradeoff-disclosure.html">Tradeoff disclosure</a>.</p>
-              <ul class="rail-list" data-tone="rose">
-                <li><strong>A curated feed must be curated.</strong> We gain «what changes for the author» — the column auto-generation cannot produce. We lose the option to ignore the meta-log: the gate refuses commits to meta-paths without it. We accept this because the throughput of meta-changes is low (a handful per month) and the gate's whole point is the forcing function.</li>
-                <li><strong>One more top-level sidebar node.</strong> We gain discoverability for a section that is the front door. We lose vertical sidebar density for users who never need the hub once they have internalised it. We accept this because the section is finite (seven pages, ADR-bound at D3) and onboarding hubs are exactly what top-level nodes are for.</li>
-                <li><strong>Coupling enforcement is local-only.</strong> Pre-commit catches twin-drift and missing-feed at commit time, but a CI matrix on a fresh checkout does not re-run those checks. We accept this because the hook surfaces the failure at the moment the author can fix it cheapest, and the existing PR-review surface is the backstop for anyone who bypassed pre-commit.</li>
-              </ul>
-            </div>
-          </article>
-        </div>
-        <h3>Revisit — what triggers a successor?</h3>
-        <p>Re-open this decision when any of the following becomes true: (a) the section needs an eighth page (ADR-bound at D3), (b) coupling enforcement needs to move into CI for an additional safety reason, (c) a second operating model emerges (e.g. a separate public-portal hub with different rules).</p>
-      </section>
-
-      <section aria-labelledby="compatibility-h">
-        <h2 id="compatibility-h">Compatibility and migration</h2>
-        <p>Roll-out in nine commits (C1–C9). C1 is this ADR. Each commit is independently reviewable; the section ships incrementally.</p>
+        <h3>What we get</h3>
         <ul>
-          <li><strong>C1 — ADR (this commit).</strong> Add this file and update <code>governance/adr/index.html</code> (spine-tile, full-table row, history note, hero counters). No code yet; the section does not exist on disk.</li>
-          <li><strong>C2 — Skeleton.</strong> Seven empty <code>operating-model/*.html</code> with correct metadata and breadcrumbs; add the top-level sidebar node to <code>nav-tree-internal.json</code>. <code>docs-check</code> + <code>docs-nav-check</code> green.</li>
-          <li><strong>C3 — Hub home.</strong> Five rules, three quick-paths, the first five entries of the feed (Playwright visual-test, ADR-0034 staging, scripts → <code>tools/docs/</code>, Pagefind ADR-0033, ADR-0029 Superseded).</li>
-          <li><strong>C4 — Routing decision-tree.</strong> Q&amp;A flow plus PlantUML under <code>handbook/uml/operating-model/routing.puml</code>; ten worked examples.</li>
-          <li><strong>C5 — Lifecycle of a change.</strong> PlantUML activity diagram under <code>handbook/uml/operating-model/lifecycle.puml</code>.</li>
-          <li><strong>C6 — Quality-gates-map + page-type-contract + glossary + full feed.</strong> Coupling column on the gate map.</li>
-          <li><strong>C7 — D7 enforcement.</strong> Extend <code>validate_docs_html.py</code>; fix metadata violations that surface.</li>
-          <li><strong>C8 — Coupling gates.</strong> Land <code>check_meta_changes_logged.py</code> and <code>check_template_twins.py</code>; integrate into <code>.pre-commit-config.yaml</code>; first week shipped with <code>META_LOG_SOFT=1</code>.</li>
-          <li><strong>C9 — Cross-links.</strong> Pillar CTA on <code>internal/index.html</code>; callout on <code>handbook/sa/authoring/index.html</code>; bidirectional links with <code>onboarding/glossary.html</code>, <code>handbook/sa/process.html</code>, <code>handbook/sa/authoring/add-a-page.html</code>, <code>handbook/sa/authoring/definition-of-done.html</code>, <code>handbook/sa/authoring/internal-service-docs-layout.html</code>; README and CHANGELOG updates.</li>
+          <li>One entry point for «what are the rules and what's my next step».</li>
+          <li>Coupling loops (meta-change ↔ feed, template ↔ design example) move from memory rule to automated check. Adding a future coupling pattern is one row in the table and one line in the check.</li>
+          <li>The HTML-lint becomes real, which makes Rule 4 enforced rather than aspirational.</li>
+          <li>The handbook stays clean — the operating-model section points at it, doesn't rewrite it.</li>
         </ul>
-        <p><strong>Rollback strategy.</strong> Removing <code>services/portal/internal/operating-model/</code> and the corresponding sidebar node restores the previous IA. The D6 extension to <code>validate_docs_html.py</code> and the two coupling hooks are independently reversible by reverting their commits. The meta-changes feed itself becomes write-only on rollback — entries documenting the rollback live in the same feed.</p>
+        <h3>What it costs</h3>
+        <ul>
+          <li><strong>The feed has to be written by hand.</strong> The check refuses commits to shared surfaces without a feed entry. We accept this because the throughput is low (a handful per month) and the forcing function is the whole point.</li>
+          <li><strong>One more top-level sidebar node.</strong> Some readers will never need the hub once they know the system. We accept this because onboarding hubs are exactly what top-level nodes are for.</li>
+          <li><strong>Coupling checks run on commit, not in the cloud build.</strong> Pre-commit catches drift at the moment it's cheapest to fix; the existing PR review is the backstop if someone bypassed the local hook.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="implementation-h">
-        <h2 id="implementation-h">Implementation mapping</h2>
-        <div class="docs-table-wrap">
-          <table class="docs-table docs-table--zebra">
-            <thead><tr><th>Artefact</th><th>Path</th><th>Action</th></tr></thead>
-            <tbody>
-              <tr><td>Section root</td><td><code>services/portal/internal/operating-model/</code></td><td>New (C2 skeleton, C3–C6 content).</td></tr>
-              <tr><td>Sidebar entry</td><td><code>services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json</code></td><td>New top-level section (<code>sections[1]</code>) with seven children. Validated by <code>check_sidebar_coverage.py</code>.</td></tr>
-              <tr><td>D7 enforcement</td><td><code>tools/docs/validate_docs_html.py</code></td><td>Extend (C7) to assert <code>data-page-type</code>, <code>data-service</code>, <code>data-lifecycle</code> on every page outside the existing skip-list.</td></tr>
-              <tr><td>Meta-change gate</td><td><code>tools/docs/check_meta_changes_logged.py</code></td><td>New (C8). Pre-commit hook; reads <code>git diff --cached --name-only</code>.</td></tr>
-              <tr><td>Twin gate</td><td><code>tools/docs/check_template_twins.py</code></td><td>New (C8). Pre-commit hook; reads coupling pairs from <code>tests/visual/pages.json</code>.</td></tr>
-              <tr><td>Pre-commit wiring</td><td><code>.pre-commit-config.yaml</code></td><td>Two new <code>repo: local</code> hooks (<code>check-meta-changes-logged</code>, <code>check-template-twins</code>), inserted after <code>catalog-render-check</code> and before <code>sync-pr-body-on-push</code>.</td></tr>
-              <tr><td>Pillar CTA</td><td><code>services/portal/internal/index.html</code></td><td>One <code>.lp-pillar</code> link in <code>lp-pillars-grid</code> pointing at <code>operating-model/index.html</code>. This file is on the skip-list of design/a11y validators, so direct edit is supported.</td></tr>
-              <tr><td>Authoring hub callout</td><td><code>services/portal/internal/handbook/sa/authoring/index.html</code></td><td>One <code>.docs-callout.docs-callout--info</code> above the recipe grid.</td></tr>
-              <tr><td>Diagrams</td><td><code>services/portal/internal/handbook/uml/operating-model/{routing,lifecycle}.puml</code></td><td>Rendered by <code>regenerate_docs.py</code> into <code>handbook/uml/rendered/operating-model__*.svg</code>.</td></tr>
-              <tr><td>Catalog (autogen)</td><td><code>services/portal/internal/catalog/*</code></td><td><strong>Not edited.</strong> Generated by <code>build_catalog.py</code>; new pages flow into the recent-changes view automatically.</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <h2 id="implementation-h">Implementation</h2>
+        <p>Shipped. The ten pages, two pre-commit checks, and the HTML-lint extension are live as of <time datetime="2026-06-13">2026-06-13</time>. Per-page tone, cross-links, and discoverability fixes continue as ongoing work; structural changes to the section would need a successor ADR.</p>
       </section>
 
-      <section aria-labelledby="validation-h">
-        <h2 id="validation-h">Validation</h2>
-        <ul>
-          <li>After C2: <code>make -C services/portal docs-check</code> passes; the new top-level sidebar node renders on every page.</li>
-          <li>After C7: <code>tools/docs/validate_docs_html.py</code> fails on any page missing the D7 attribute set; once metadata is patched, the tool passes again and Rule 2 is enforced rather than aspirational.</li>
-          <li>After C8: a staged change to <code>.pre-commit-config.yaml</code> without an accompanying edit to <code>operating-model/whats-new-in-how-we-work.html</code> is rejected by pre-commit; the rejection message names the meta-path and prints a feed-entry template. A staged change to <code>handbook/sa/templates/runbook.html</code> without <code>portal/ui-kit/pages/templates/ops-runbook.html</code> is rejected with the twin path and the <code>visual-test-update</code> command. <code>pre-commit run --all-files</code> passes on the current tree.</li>
-          <li>Cold-start probe — open <code>operating-model/index.html</code> in a browser without referring to the plan and answer four questions in 60 seconds:
-            <ol>
-              <li>Where does a new page about monitoring-dashboard latency live? Expected: <code>services/portal/internal/services/monitoring/...</code> with <code>data-service="monitoring"</code>, <code>data-page-type="reference"</code>.</li>
-              <li>Which gate fails if <code>data-updated</code> is missing? Expected: <code>docs-html-check</code> via the extended <code>validate_docs_html.py</code>.</li>
-              <li>If I edited <code>templates/runbook.html</code>, what else must change in the same PR? Expected: <code>ui-kit/pages/templates/ops-runbook.html</code> plus baseline refresh via <code>visual-test-update</code>.</li>
-              <li>What has changed in the process in the last two weeks? Expected: visible in the home feed.</li>
-            </ol>
-            If any answer takes longer than 60 seconds, the hub has failed its purpose and the page is iterated.
-          </li>
-        </ul>
-      </section>
-
-      <section aria-labelledby="update-2026-06-13">
-        <h2 id="update-2026-06-13">Update — 2026-06-13</h2>
-        <p>The standalone process-glossary page was retired. D3 now declares <strong>six</strong> pages instead of seven. Each of the twenty-six process terms moved to the page where it is actually used (gate terms on <a href="../../operating-model/quality-gates-map.html">quality-gates-map</a>, coupling terms on its § D table, metadata terms on <a href="../../operating-model/page-type-contract.html">page-type-contract</a>); product / domain terms continue to live at <a href="../../onboarding/glossary.html">onboarding/glossary</a>. The decision itself (top-level Operating-model section) is unchanged; this is a refinement, not a reversal — no successor ADR.</p>
-        <p>Same update added a <strong>3-minute mental model</strong> section to the hub home: one SVG «brain» (Content / Shape / Couplings / Gates) plus one «monorepo map» (four services, root <code>make verify</code>, <code>ci.yml</code> matrix) plus three short paragraphs. The lifecycle page replaced its bulleted ten-station list with a horizontal SVG timeline. Both motivated by the «3-minute pitch» test: if the hub cannot be explained in three minutes, the model is not in the author's head.</p>
+      <section aria-labelledby="updates-h">
+        <h2 id="updates-h">Updates</h2>
+        <p><strong>2026-06-13 — Three refinements in one day.</strong> The page list was first trimmed (the process-glossary was retired into the pages where its terms are actually used), then expanded twice (three orphan handbook pages — the IA contract, the domain model, and cross-service workflows — moved out of <code>handbook/sa/</code> and into the operating-model section, where they belong; a fourth page, reader-personas, moved later the same day for the same reason). D3 went from seven to six to nine to ten pages. The decision itself didn't change — each was a refinement of where the boundary sits, not a reversal.</p>
+        <p>The hub home also gained a «three-minute mental model» section with two diagrams and three short paragraphs, and the lifecycle page replaced its bulleted list with a visual timeline. Both motivated by the same idea: if the hub can't be explained in three minutes, the model isn't in the reader's head.</p>
       </section>
 
       <footer class="docs-history" aria-label="History">
@@ -304,12 +207,17 @@
           <li class="docs-history__row">
             <span class="docs-history__date">2026-06-13</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-            <span class="docs-history__note">Refinement: D3 went from seven pages (initial) to six (glossary retired into its natural homes), then to nine (absorbed three SA-handbook orphans — IA contract, domain model, cross-service workflows — that didn't belong in cross-cutting SA craft). Hub home gained the 3-minute mental model (SVG brain + monorepo map + three paragraphs); lifecycle list became a horizontal SVG timeline. See <a href="#update-2026-06-13">Update — 2026-06-13</a>. Lifecycle popover: Decision <em>Accepted</em>; Documentation <em>Ready</em>; Implementation <em>Shipped</em>.</span>
+            <span class="docs-history__note">Simplified: dropped the nine-commit roll-out plan, the implementation-mapping table, and the validation criteria — all describe implementation that has already shipped. ADR now keeps Context, Decision, Scope, Alternatives, Consequences, and a brief Implementation note. D3 expanded to ten pages (reader-personas moved in from handbook).</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-13</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">D3 went from seven pages (initial) to six (glossary retired), then to nine (three SA-handbook orphans absorbed). Hub gained the three-minute mental model; lifecycle became an SVG timeline.</span>
           </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-06-12</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-            <span class="docs-history__note">Proposed and same-day ratified <strong>Proposed → Accepted</strong>. Top-level <code>operating-model/</code> section (seven pages), two new coupling pre-commit gates (<code>check_meta_changes_logged.py</code>, <code>check_template_twins.py</code>), and the D7 metadata enforcement extension to <code>tools/docs/validate_docs_html.py</code> (closing ADR-0032 W6). Three alternatives rejected: nest under <code>handbook/sa/authoring/</code> (loses discoverability for non-SA roles), auto-generate the meta-change feed (loses the «what changes for the author» column), replace overlapping handbook pages (collapses router-vs-deep-dive split). Roll-out in nine commits C1–C9; this is C1. Lifecycle popover: Decision <em>Accepted</em>; Documentation <em>Ready</em>; Implementation <em>In progress</em> — C2 begins next.</span>
+            <span class="docs-history__note">Proposed and same-day ratified. Top-level <code>operating-model/</code> section, two new pre-commit coupling checks, and the HTML-lint extension for required page labels.</span>
           </li>
         </ul>
       </footer>
