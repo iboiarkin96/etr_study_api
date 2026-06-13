@@ -77,7 +77,7 @@
       <section aria-labelledby="overview-h">
         <h2 id="overview-h">Overview</h2>
         <p>Apply one <strong>retrieve outcome</strong> to a conspectus. The learner has tried to recall the note (cover → rewrite → speak per <a href="../../../../../explanation/methodology.html#retrieve-system">methodology · retrieve</a>) and tags the attempt <code>easy</code> · <code>hard</code> · <code>forgot</code>. The server advances the slot ladder per the active <code>SchedulePolicy</code>, recomputes <code>next_review_at</code>, and writes an immutable review-log row.</p>
-        <p class="docs-prose__meta">This is the reference spec for the analyst-spec template (Phase 2 of the documentation upgrade). Read alongside system design · review suggestion and scheduling logic and <a href="../../../../../handbook/sa/templates/api-spec.html">_shared/spec-template.html</a>.</p>
+        <p class="docs-prose__meta">This is the reference spec for the analyst-spec template (Phase 2 of the documentation upgrade). Read alongside system design · review suggestion and scheduling logic and <a href="../../../../../handbook/sa/templates/api-spec.html">the API spec template</a>.</p>
       </section>
 
       <section data-spec-section="business-context" data-spec-required="true">
@@ -126,7 +126,7 @@
               <tr><td>FR-CONSP-REVIEW-002</td><td>Resolve resource via composite owner key; never leak existence.</td><td>Conspectus is loaded only via <code>(conspectus_uuid, owner_client_uuid)</code> where <code>owner_client_uuid</code> is derived from <code>(system_user_id, system_uuid)</code> in the body. Cross-tenant access returns <code>404 CONS_404</code>, never <code>403</code> — see also §6 Authorization.</td></tr>
               <tr><td>FR-CONSP-REVIEW-003</td><td>Pin transition to the policy version stored on the schedule row.</td><td>Apply the transition deterministically using the <code>(schedule_policy_id, algorithm_version)</code> currently stored on the <code>conspectus_schedules</code> row — <strong>not</strong> the latest published policy version. Guarantees AC-009 (history replayability after policy bumps).</td></tr>
               <tr><td>FR-CONSP-REVIEW-004</td><td>Atomic schedule update + append-only log insert in one transaction.</td><td>In a single DB transaction: (1) <code>UPDATE conspectus_schedules</code> SET <code>slot</code>, <code>slot_d_ladder_index</code>, <code>next_review_at</code>, <code>schedule_revision = current + 1</code>, <code>schedule_updated_at = now()</code>; (2) <code>INSERT INTO conspectus_review_logs</code> with full <code>(schedule_before, schedule_after)</code> JSON snapshots, the resolved <code>algorithm_version</code>, and <code>reviewed_at</code>. No partial state on failure (see §10 side effects).</td></tr>
-              <tr><td>FR-CONSP-REVIEW-005</td><td>Enforce idempotency per shared rules.</td><td>See <a href="../../_shared/idempotency.html">_shared/idempotency.html</a>. Namespace: <code>POST /api/v1/conspectuses/{conspectus_uuid}/actions/review</code> with the concrete UUID. Successful replay within TTL serves the original <code>200</code> body byte-for-byte; no new DB writes.</td></tr>
+              <tr><td>FR-CONSP-REVIEW-005</td><td>Enforce idempotency per shared rules.</td><td>See <a href="../../_shared/idempotency.html">Idempotency</a>. Namespace: <code>POST /api/v1/conspectuses/{conspectus_uuid}/actions/review</code> with the concrete UUID. Successful replay within TTL serves the original <code>200</code> body byte-for-byte; no new DB writes.</td></tr>
               <tr><td>FR-CONSP-REVIEW-006</td><td>Enforce optimistic concurrency on schedule_revision.</td><td>Two layers: if body carries <code>expected_schedule_revision</code> and it differs from the current row revision, return <code>409 CONS_409 CONSPECTUS_REVIEW_REVISION_CONFLICT</code> without writes. If the field is absent, the same conflict is still detected by the conditional <code>UPDATE … WHERE schedule_revision = ?</code> guard and returns the same error. Integrator should re-fetch the conspectus, re-decide, and submit a <strong>new</strong> idempotency key.</td></tr>
               <tr><td>FR-CONSP-REVIEW-007</td><td>Server stamps <code>reviewed_at</code> in UTC.</td><td>Server stamps <code>reviewed_at = now()</code> using DB-server time (avoids Python <code>datetime.utcnow()</code> drift — see §13 edge case). The body MAY carry a client-side <code>reviewed_at</code> for display, but the server ignores it for storage in v1 (see Open question Q1).</td></tr>
               <tr><td>FR-CONSP-REVIEW-008</td><td>Return the full updated <code>ConspectusResponse</code> on success.</td><td>Response body matches the §8 schema, including the <strong>new</strong> <code>slot</code>, <code>slot_d_ladder_index</code>, <code>next_review_at</code>, and <code>schedule_revision</code>. Integrator does not need a follow-up <code>GET</code> to learn the new state.</td></tr>
@@ -156,7 +156,7 @@
 
       <section data-spec-section="authorization" data-spec-required="true">
         <h2 id="authorization"><span class="h2-num">§6</span>Authorization &amp; permissions</h2>
-        <p>Auth scheme: API key in <code>X-API-Key</code> header (per <a href="../../../../../governance/adr/0005-api-security-defaults.html">ADR 0005</a>; see also <a href="../../_shared/auth.html">_shared/auth.html</a>).</p>
+        <p>Auth scheme: API key in <code>X-API-Key</code> header (per <a href="../../../../../governance/adr/0005-api-security-defaults.html">ADR 0005</a>; see also <a href="../../_shared/auth.html">Authentication &amp; authorization</a>).</p>
         <p><strong>Ownership rule:</strong> the user resolved from <code>(system_user_id, system_uuid)</code> in the body must own the conspectus (<code>conspectuses.owner_client_uuid = users.client_uuid</code>). If not, return <code>404 CONS_404</code> — never leak existence to non-owners with a <code>403</code>.</p>
         <p><strong>No additional scope</strong> beyond the default integrator key. No admin override.</p>
       </section>
@@ -326,7 +326,7 @@
 
       <section data-spec-section="idempotency-concurrency" data-spec-required="true">
         <h2 id="idempotency-concurrency"><span class="h2-num">§11</span>Idempotency &amp; concurrency</h2>
-        <p>Global rules: see <a href="../../_shared/idempotency.html">_shared/idempotency.html</a>. Operation-specific:</p>
+        <p>Global rules: see <a href="../../_shared/idempotency.html">Idempotency</a>. Operation-specific:</p>
         <ul>
           <li><strong>Namespace:</strong> <code>endpoint_path = "POST /api/v1/conspectuses/{conspectus_uuid}/actions/review"</code> with the concrete UUID substituted — each conspectus has its own idempotency namespace.</li>
           <li><strong>Key composition:</strong> <code>Idempotency-Key</code> header + SHA-256 of canonical JSON body. Path UUID is already in the namespace, so it does not enter the body hash.</li>
@@ -339,7 +339,7 @@
 
       <section data-spec-section="error-catalog" data-spec-required="true">
         <h2 id="error-catalog"><span class="h2-num">§12</span>Error catalog</h2>
-        <p class="docs-prose__meta">Envelope shape per <a href="../../../../../governance/adr/0003-error-contract-governance.html">ADR 0003</a>: <code>{ code, key, message, source, details? }</code>. Every <code>code/key</code> below must also exist in <a href="../../_shared/error-catalog.html">_shared/error-catalog.html</a> (consistency lint enforces this).</p>
+        <p class="docs-prose__meta">Envelope shape per <a href="../../../../../governance/adr/0003-error-contract-governance.html">ADR 0003</a>: <code>{ code, key, message, source, details? }</code>. Every <code>code/key</code> below must also exist in <a href="../../_shared/error-catalog.html">Error catalog</a> (consistency lint enforces this).</p>
         <div class="docs-table-wrap">
           <table class="docs-table docs-table--zebra docs-table--sticky-head">
             <thead><tr><th>HTTP</th><th>Code</th><th>Key</th><th>When</th><th>Log event (level)</th></tr></thead>
@@ -422,7 +422,7 @@ Content-Type: application/json
 
       <section data-spec-section="observability" data-spec-required="true">
         <h2 id="observability"><span class="h2-num">§14</span>Observability requirements</h2>
-        <p>Conventions: <a href="../../_shared/observability-conventions.html">_shared/observability-conventions.html</a> · ADR 0023 (structured logging).</p>
+        <p>Conventions: <a href="../../_shared/observability-conventions.html">Observability conventions</a> · ADR 0023 (structured logging).</p>
 
         <h3>Log events</h3>
         <div class="docs-table-wrap">
