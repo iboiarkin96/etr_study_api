@@ -79,6 +79,7 @@ study_app/
         │   ├── handbook/
         │   ├── how-to/
         │   ├── onboarding/
+        │   ├── operating-model/
         │   ├── reference/
         │   ├── services/
         │   ├── team/

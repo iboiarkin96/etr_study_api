@@ -196,44 +196,44 @@
         <p class="pa-example__title">Lessons API — bad image v1.42.0 rolled back to v1.41.3 in 4 m 12 s</p>
       </div>
       <div class="pa-example__body">
-        <pre><code># 14:02:11  Synthetic probe + SLO burn alert fire on lessons-api after v1.42.0 rollout
-# 14:02:48  On-call decides rollback (fix-forward MTTR estimate &gt; 10 min)
-# 14:03:02  Freeze new deploys to lessons-api
+        <pre><code># 14:02:11 Synthetic probe + SLO burn alert fire on lessons-api after v1.42.0 rollout
+# 14:02:48 On-call decides rollback (fix-forward MTTR estimate &gt; 10 min)
+# 14:03:02 Freeze new deploys to lessons-api
 $ argocd app set lessons-api --sync-policy none
 $ argocd app actions run lessons-api freeze --kind Rollout
 
-# 14:03:30  Confirm previous green revision
+# 14:03:30 Confirm previous green revision
 $ argocd app history lessons-api | head -5
-ID  DATE                      REVISION   SOURCE
-42  2026-05-24T13:58:11Z      v1.42.0    git@studyapp:lessons-api.git
-41  2026-05-24T11:14:02Z      v1.41.3    git@studyapp:lessons-api.git  (last green)
+ID DATE REVISION SOURCE
+42 2026-05-24T13:58:11Z v1.42.0 git@studyapp:lessons-api.git
+41 2026-05-24T11:14:02Z v1.41.3 git@studyapp:lessons-api.git (last green)
 
-# 14:03:55  Revert to previous image via Argo CD
+# 14:03:55 Revert to previous image via Argo CD
 $ argocd app rollback lessons-api 41
 rollback to revision 41 (v1.41.3) initiated...
 
-# 14:04:20  Break-glass equivalent if Argo CD itself were the suspect:
+# 14:04:20 Break-glass equivalent if Argo CD itself were the suspect:
 # $ kubectl -n lessons rollout undo deployment/lessons-api
 
-# 14:04:48  Verify SLO recovery
+# 14:04:48 Verify SLO recovery
 $ kubectl -n lessons get pods -l app=lessons-api
-NAME                            READY   STATUS    RESTARTS   AGE
-lessons-api-5f8c7d9b4-7q2xk     1/1     Running   0          22s
-lessons-api-5f8c7d9b4-9k4mp     1/1     Running   0          25s
+NAME READY STATUS RESTARTS AGE
+lessons-api-5f8c7d9b4-7q2xk 1/1 Running 0 22s
+lessons-api-5f8c7d9b4-9k4mp 1/1 Running 0 25s
 
 $ promtool query instant http://prometheus 'rate(http_requests_total{service="lessons-api",code=~"5.."}[1m])'
-0.0007  # baseline range 0.0005–0.0010
+0.0007 # baseline range 0.0005–0.0010
 
 $ promtool query instant http://prometheus 'histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{service="lessons-api"}[5m]))'
-0.183   # baseline ~0.170, within 1.2× threshold
+0.183 # baseline ~0.170, within 1.2× threshold
 
-# 14:06:23  Synthetic probe green for 5 consecutive minutes — rollback declared complete
+# 14:06:23 Synthetic probe green for 5 consecutive minutes — rollback declared complete
 
-# 14:06:30  Comms posted (status page + #incidents)
+# 14:06:30 Comms posted (status page + #incidents)
 #status-page: "lessons-api degraded 14:02–14:06 UTC; reverted to v1.41.3; investigating root cause"
-#incidents:   "INC-2871 resolved at 14:06 UTC. Rollback took 4 m 12 s. Postmortem scheduled
-                tomorrow 10:00 UTC. v1.42.0 quarantined pending fix."
-        </code></pre>
+#incidents: "INC-2871 resolved at 14:06 UTC. Rollback took 4 m 12 s. Postmortem scheduled
+ tomorrow 10:00 UTC. v1.42.0 quarantined pending fix."
+ </code></pre>
         <p><strong>What this transcript shows.</strong> The decision happens fast (37 seconds from alert to rollback call), the freeze closes the pipeline before the revert lands, the rollback itself is a single Argo CD command against an explicit previous revision, and verification waits for both the error-rate query and the latency quantile to sit inside baseline before declaring recovery. Comms go out the moment recovery is declared — not at the end of the postmortem — so users and downstream services see a closed status page within minutes. Total measured rollback time: 4 minutes 12 seconds, inside the 5-minute target.</p>
       </div>
     </div>

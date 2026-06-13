@@ -227,31 +227,31 @@ from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 from sentry_sdk.integrations.starlette import StarletteIntegration
 
 def init_sentry(app):
-    sentry_sdk.init(
-        dsn=os.environ["SENTRY_DSN"],
-        environment=os.environ.get("ENV", "dev"),
-        release=os.environ.get("GIT_SHA"),
-        traces_sample_rate=0.1,           # also samples performance
-        send_default_pii=False,           # opt-in PII only
-        ignore_errors=[KeyboardInterrupt],
-        integrations=[StarletteIntegration()],
-    )
-    # deny-list sensitive fields server-side as defence in depth
-    sentry_sdk.set_tag("service", "lesson-player")
+ sentry_sdk.init(
+ dsn=os.environ["SENTRY_DSN"],
+ environment=os.environ.get("ENV", "dev"),
+ release=os.environ.get("GIT_SHA"),
+ traces_sample_rate=0.1, # also samples performance
+ send_default_pii=False, # opt-in PII only
+ ignore_errors=[KeyboardInterrupt],
+ integrations=[StarletteIntegration()],
+ )
+ # deny-list sensitive fields server-side as defence in depth
+ sentry_sdk.set_tag("service", "lesson-player")
 
-    @app.middleware("http")
-    async def attach_user(request, call_next):
-        user = request.state.user if hasattr(request.state, "user") else None
-        if user:
-            sentry_sdk.set_user({
-                "id":       user.id,                # hashed in our SDK config
-                "tenant":   user.tenant_id,
-                "locale":   user.locale,
-            })
-            sentry_sdk.set_tag("flag.partial_credit",
-                               user.flags.get("partial_credit", False))
-        return await call_next(request)
-    return SentryAsgiMiddleware(app)
+ @app.middleware("http")
+ async def attach_user(request, call_next):
+ user = request.state.user if hasattr(request.state, "user") else None
+ if user:
+ sentry_sdk.set_user({
+ "id": user.id, # hashed in our SDK config
+ "tenant": user.tenant_id,
+ "locale": user.locale,
+ })
+ sentry_sdk.set_tag("flag.partial_credit",
+ user.flags.get("partial_credit", False))
+ return await call_next(request)
+ return SentryAsgiMiddleware(app)
 
 # .sentryclirc (excerpt — release tracking from CI)
 [defaults]
@@ -261,13 +261,13 @@ project = lesson-player
 
 # .github/workflows/deploy.yml (excerpt)
 - name: create Sentry release
-  uses: getsentry/action-release@v1
-  env:
-    SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_TOKEN }}
-  with:
-    environment: production
-    set_commits: auto                  # links commits to release
-        </code></pre>
+ uses: getsentry/action-release@v1
+ env:
+ SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_TOKEN }}
+ with:
+ environment: production
+ set_commits: auto # links commits to release
+ </code></pre>
         <p class="pa-example__note">Two-line init, middleware for user context, CI step for release tracking, deny-list for PII. Every captured exception now arrives with the user, tenant, locale, feature flags, and release SHA — actionable from the first occurrence.</p>
       </div>
     </section>

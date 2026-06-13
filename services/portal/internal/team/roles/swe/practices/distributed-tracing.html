@@ -108,7 +108,7 @@
       <p>Distributed tracing models a request as a tree of <em>spans</em>. Each span has a start, an end, a name, and a bag of attributes; spans are linked by parent-child relationships. The whole tree is a <em>trace</em>, identified by a 16-byte trace ID that propagates across services via the W3C <code>traceparent</code> header (or equivalent for Kafka, gRPC, queues).</p>
       <p>OpenTelemetry (OTel) is the universally adopted spec + SDK suite:</p>
       <ul>
-        <li><strong>SDK</strong> per language (Go, Java, Python, Node, .NET, Ruby, Rust, …) creates spans and exports them via the OTLP protocol.</li>
+        <li><strong>SDK</strong> per language (Go, Java, Python, Node.NET, Ruby, Rust, …) creates spans and exports them via the OTLP protocol.</li>
         <li><strong>Auto-instrumentation</strong> packages (HTTP servers, DB clients, HTTP clients) emit spans for the obvious things without code changes.</li>
         <li><strong>Manual spans</strong> wrap business operations — the parts the engineer cares about — and attach domain-specific attributes (user ID, tenant, feature flag).</li>
         <li><strong>OTel Collector</strong> sits between the apps and the backend: batches, samples, enriches, and routes to one or more backends (Honeycomb, Jaeger, Tempo, Datadog, New Relic).</li>
@@ -229,38 +229,38 @@ from opentelemetry.trace import Status, StatusCode
 tracer = trace.get_tracer("pricing")
 
 def trace_business(name: str):
-    """Decorator: wrap a business op in a span + attach kwargs as attributes."""
-    def deco(fn):
-        def wrapped(*args, **kwargs):
-            with tracer.start_as_current_span(name) as span:
-                for k, v in kwargs.items():
-                    if isinstance(v, (str, int, float, bool)):
-                        span.set_attribute(f"app.{k}", v)
-                try:
-                    return fn(*args, **kwargs)
-                except Exception as e:
-                    span.record_exception(e)
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
-                    raise
-        return wrapped
-    return deco
+ """Decorator: wrap a business op in a span + attach kwargs as attributes."""
+ def deco(fn):
+ def wrapped(*args, **kwargs):
+ with tracer.start_as_current_span(name) as span:
+ for k, v in kwargs.items():
+ if isinstance(v, (str, int, float, bool)):
+ span.set_attribute(f"app.{k}", v)
+ try:
+ return fn(*args, **kwargs)
+ except Exception as e:
+ span.record_exception(e)
+ span.set_status(Status(StatusCode.ERROR, str(e)))
+ raise
+ return wrapped
+ return deco
 
 @trace_business("pricing.compute_quote")
 def compute_quote(*, user_id: str, tenant_id: str, items: list, currency: str):
-    span = trace.get_current_span()
-    fx = fx_cache.get(currency)              # auto-instrumented Redis span here
-    span.set_attribute("app.fx_cache_hit", fx is not None)
-    if fx is None:
-        fx = fx_service.fetch(currency)      # auto-instrumented HTTP span here
-        fx_cache.set(currency, fx)
-    return sum(line.amount * fx for line in items)
+ span = trace.get_current_span()
+ fx = fx_cache.get(currency) # auto-instrumented Redis span here
+ span.set_attribute("app.fx_cache_hit", fx is not None)
+ if fx is None:
+ fx = fx_service.fetch(currency) # auto-instrumented HTTP span here
+ fx_cache.set(currency, fx)
+ return sum(line.amount * fx for line in items)
 
 # logging setup (excerpt) — trace_id appears on every log line
 import logging
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 LoggingInstrumentor().instrument(set_logging_format=True)
 # format includes %(otelTraceID)s · click in log UI → jump to trace
-        </code></pre>
+ </code></pre>
         <p class="pa-example__note">One decorator + one logging line. Every call to <code>compute_quote</code> now appears as a named span with user/tenant/currency/cache-hit attributes. The Redis lookup and HTTP fetch beneath it are auto-instrumented children. Trace ID flows into logs; one click from log line to waterfall.</p>
       </div>
     </section>

@@ -8,7 +8,7 @@
 
 REPO_ROOT := $(abspath ..)/..
 
-.PHONY: help up down up-volumes logging-up logging-down logs render-prometheus
+.PHONY: help up down up-volumes logging-up logging-down logs render-prometheus verify
 
 help:
 	@echo "services/monitoring/Makefile — observability stack control"
@@ -44,3 +44,14 @@ logs:
 render-prometheus:
 	@$(MAKE) -C $(REPO_ROOT) render-prometheus 2>/dev/null || \
 	  $(REPO_ROOT)/.venv/bin/python $(REPO_ROOT)/tools/monitoring/render_prometheus_config.py
+
+# verify — smoke-test the observability stack without bringing it up.
+# Parses both compose files (observability + logging) so a broken bind-mount
+# or YAML typo fails fast in CI without needing a Docker daemon spin.
+verify:
+	@printf "\033[36m== MONITORING VERIFY: START ==\033[0m\n"
+	@printf "  i [1/2] docker compose config — observability\n"
+	@docker compose -f docker-compose.observability.yml config --quiet
+	@printf "  i [2/2] docker compose config — logging\n"
+	@docker compose -f docker-compose.logging.yml config --quiet
+	@printf "\033[32m== MONITORING VERIFY: SUCCESS ==\033[0m\n"

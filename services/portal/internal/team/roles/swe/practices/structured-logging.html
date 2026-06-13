@@ -196,30 +196,30 @@ import logging, structlog, os
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
 structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.dict_tracebacks,
-        # OTel adds trace_id/span_id via OTel logging instrumentation
-        structlog.processors.JSONRenderer() if os.getenv("ENV") != "dev"
-            else structlog.dev.ConsoleRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+ processors=[
+ structlog.contextvars.merge_contextvars,
+ structlog.processors.add_log_level,
+ structlog.processors.TimeStamper(fmt="iso"),
+ structlog.processors.StackInfoRenderer(),
+ structlog.processors.dict_tracebacks,
+ # OTel adds trace_id/span_id via OTel logging instrumentation
+ structlog.processors.JSONRenderer() if os.getenv("ENV") != "dev"
+ else structlog.dev.ConsoleRenderer(),
+ ],
+ wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
 )
 log = structlog.get_logger()
 
 # app/middleware.py
 async def context_mw(request, call_next):
-    clear_contextvars()
-    if hasattr(request.state, "user"):
-        bind_contextvars(
-            user_id=request.state.user.id,
-            tenant=request.state.user.tenant_id,
-            build_sha=os.getenv("GIT_SHA"),
-        )
-    return await call_next(request)
+ clear_contextvars()
+ if hasattr(request.state, "user"):
+ bind_contextvars(
+ user_id=request.state.user.id,
+ tenant=request.state.user.tenant_id,
+ build_sha=os.getenv("GIT_SHA"),
+ )
+ return await call_next(request)
 
 # usage at call-sites — verb-shape + discrete fields
 log.info("lesson.completed", lesson_id=lesson.id, score=score.raw, ms=elapsed_ms)
@@ -228,8 +228,8 @@ log.error("payment.charge.failed", order_id=o.id, code=err.code, retry=3)
 
 # .ruff.toml (lint rule excerpt)
 [lint]
-extend-select = ["G"]   # flake8-logging-format; bans f-strings in log calls
-        </code></pre>
+extend-select = ["G"] # flake8-logging-format; bans f-strings in log calls
+ </code></pre>
         <p class="pa-example__note">structlog with JSON in prod + pretty in dev. Middleware binds user/tenant/build on every request. Ruff lint catches f-strings in log calls. trace_id flows in via OTel logging instrumentation.</p>
       </div>
     </section>

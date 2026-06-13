@@ -28,7 +28,7 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 # scripts live under tools/. The delegate targets below forward common verbs to
 # the owning service so habits like `make run` / `make docs-fix` keep working.
 
-.PHONY: help setup dev fix check verify ci docs ship release-check release \
+.PHONY: help setup dev fix check verify verify-all verify-api verify-portal verify-monitoring verify-frontend ci docs ship release-check release \
         venv install env-init env-check clean-cache \
         format-fix format-check lint-check lint-fix dead-code-check type-check \
         pre-commit-install pre-commit-check pre-commit-validate \
@@ -51,9 +51,16 @@ help:
 	@echo "    make dev                    # run local API (delegates → services/api)"
 	@echo "    make fix                    # auto-fix code + docs"
 	@echo "    make check                  # fast checks (lint/types/openapi/contract/tests)"
-	@echo "    make verify                 # full pre-push gate (all service verify slots)"
+	@echo "    make verify-all             # full pre-push gate (cross-cutting + all four services)"
+	@echo "    make verify                 # alias for verify-all (kept for habits / CI)"
 	@echo "    make docs                   # regenerate docs artifacts (delegates → services/portal)"
 	@echo "    make ship                   # full pre-release gate"
+	@echo ""
+	@echo "  Per-service verify (one gate per service in the monorepo)"
+	@echo "    make verify-api             → services/api/verify    (deps-audit · openapi · contract · test)"
+	@echo "    make verify-portal          → services/portal/verify (docs-check drift gate + docs-a11y)"
+	@echo "    make verify-monitoring      → services/monitoring/verify (compose-config smoke for both stacks)"
+	@echo "    make verify-frontend        # no own gate yet — assets consumed and exercised by portal"
 	@echo ""
 	@echo "  Cross-cutting code quality (scans every .py)"
 	@echo "    make format-fix             ruff format ."
@@ -279,17 +286,47 @@ check:
 	@$(MAKE) -C services/api test
 	@printf "$(COLOR_GREEN)== CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
-verify:
-	@printf "$(COLOR_CYAN)== VERIFY: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/4] lint-check"
-	@$(MAKE) lint-check
-	@printf "$(ICON_INFO) %s\n" "[2/4] type-check"
-	@$(MAKE) type-check
-	@printf "$(ICON_INFO) %s\n" "[3/4] api verify"
+# ──────────────────────────────────────────────
+# Per-service verify slots (one named target per service in the monorepo)
+# ──────────────────────────────────────────────
+verify-api:
 	@$(MAKE) -C services/api verify
-	@printf "$(ICON_INFO) %s\n" "[4/4] portal verify"
+
+verify-portal:
 	@$(MAKE) -C services/portal verify
-	@printf "$(COLOR_GREEN)== VERIFY: SUCCESS ==$(COLOR_RESET)\n"
+
+verify-monitoring:
+	@$(MAKE) -C services/monitoring verify
+
+# Frontend (UI Kit v2 assets) has no own runtime / build step today — its
+# content is exercised by services/portal (docs-check + docs-a11y-check render
+# every page). This target exists so the monorepo map and CI matrix can name
+# every service uniformly; if frontend ever grows its own pipeline (visual
+# regression baseline, lint of kit CSS, etc.), wire it here.
+verify-frontend:
+	@printf "$(ICON_INFO) %s\n" "services/frontend has no own gate today — UI Kit v2 is consumed and exercised by services/portal (docs-check)."
+
+# verify-all — full pre-push composite: cross-cutting code quality first, then
+# every service in declared order. Same composition as ci.yml matrix lanes.
+verify-all:
+	@printf "$(COLOR_CYAN)== VERIFY-ALL: START ==$(COLOR_RESET)\n"
+	@printf "$(ICON_INFO) %s\n" "[1/6] lint-check  (cross-cutting)"
+	@$(MAKE) lint-check
+	@printf "$(ICON_INFO) %s\n" "[2/6] type-check  (cross-cutting)"
+	@$(MAKE) type-check
+	@printf "$(ICON_INFO) %s\n" "[3/6] verify-api"
+	@$(MAKE) verify-api
+	@printf "$(ICON_INFO) %s\n" "[4/6] verify-portal"
+	@$(MAKE) verify-portal
+	@printf "$(ICON_INFO) %s\n" "[5/6] verify-monitoring"
+	@$(MAKE) verify-monitoring
+	@printf "$(ICON_INFO) %s\n" "[6/6] verify-frontend"
+	@$(MAKE) verify-frontend
+	@printf "$(COLOR_GREEN)== VERIFY-ALL: SUCCESS ==$(COLOR_RESET)\n"
+
+# verify — backward-compat alias for verify-all (CI workflows and finger
+# memory both call `make verify`; keeping the name avoids breakage).
+verify: verify-all
 
 release-check:
 	@if [ ! -d ".venv" ]; then printf "$(ICON_ERR) %s\n" ".venv not found."; exit 1; fi

@@ -198,69 +198,69 @@
         <p class="pa-example__title">GD-2026-Q2 — Lessons API region failover, scheduled staged injection</p>
       </div>
       <div class="pa-example__body">
-        <pre><code>id:              GD-2026-Q2
-date:            2026-06-18  (Thu)  10:00–12:00 CEST
-environment:     staging-prod-shaped  (NOT prod)
-owning_team:     sre-platform
-facilitator:     external — @marina (data-platform)
-observer:        @ivan (silent during live run)
+        <pre><code>id: GD-2026-Q2
+date: 2026-06-18 (Thu) 10:00–12:00 CEST
+environment: staging-prod-shaped (NOT prod)
+owning_team: sre-platform
+facilitator: external — @marina (data-platform)
+observer: @ivan (silent during live run)
 
 scenario:
-  Primary region eu-west-1 becomes unavailable for the Lessons API.
-  The replica region eu-central-1 must take traffic within RTO 15 min,
-  with data loss bounded by RPO 5 min from the last replicated write.
+ Primary region eu-west-1 becomes unavailable for the Lessons API.
+ The replica region eu-central-1 must take traffic within RTO 15 min,
+ with data loss bounded by RPO 5 min from the last replicated write.
 
 hypothesis:
-  We believe the on-call rotation can detect the region outage within
-  3 minutes (page on SLO burn), execute the regional failover runbook
-  within 12 minutes, and confirm green health checks in eu-central-1
-  inside the 15-minute RTO budget.
+ We believe the on-call rotation can detect the region outage within
+ 3 minutes (page on SLO burn), execute the regional failover runbook
+ within 12 minutes, and confirm green health checks in eu-central-1
+ inside the 15-minute RTO budget.
 
 falsifying conditions:
-  - TTD &gt; 5 min  (alerting is mis-tuned or routes wrongly)
-  - TTR &gt; 20 min (runbook is wrong, missing step, or stale credential)
-  - any step requires unwritten tribal knowledge to complete
+ - TTD &gt; 5 min (alerting is mis-tuned or routes wrongly)
+ - TTR &gt; 20 min (runbook is wrong, missing step, or stale credential)
+ - any step requires unwritten tribal knowledge to complete
 
 success criteria:
-  - TTD ≤ 3 min  ·  TTR ≤ 15 min  ·  data loss ≤ RPO 5 min
-  - customer-comms draft ready inside the time box
-  - at least one runbook gap identified and ticketed
+ - TTD ≤ 3 min · TTR ≤ 15 min · data loss ≤ RPO 5 min
+ - customer-comms draft ready inside the time box
+ - at least one runbook gap identified and ticketed
 
 fault-injection commands:
-  # block the eu-west-1 control plane from the lessons-api cluster
-  kubectl --context staging-eu-west-1 \
-    apply -f scenarios/gd-2026-q2/netpol-blackhole.yaml
-  # simulate the regional load-balancer health-check failure
-  aws --profile staging route53 change-resource-record-sets \
-    --hosted-zone-id ZSTGEXAMPLE \
-    --change-batch file://scenarios/gd-2026-q2/r53-fail-eu-west.json
+ # block the eu-west-1 control plane from the lessons-api cluster
+ kubectl --context staging-eu-west-1 \
+ apply -f scenarios/gd-2026-q2/netpol-blackhole.yaml
+ # simulate the regional load-balancer health-check failure
+ aws --profile staging route53 change-resource-record-sets \
+ --hosted-zone-id ZSTGEXAMPLE \
+ --change-batch file://scenarios/gd-2026-q2/r53-fail-eu-west.json
 
 abort procedure:
-  facilitator runs:  scripts/gd-abort.sh GD-2026-Q2
-  (removes the NetworkPolicy, restores Route53, posts in #game-days)
+ facilitator runs: scripts/gd-abort.sh GD-2026-Q2
+ (removes the NetworkPolicy, restores Route53, posts in #game-days)
 
 roles:
-  IC:          on-call SRE  (live, takes coordination)
-  on-call:     whoever is paged by Alertmanager
-  comms lead:  rotating engineer, drafts status-page entry
-  observer:    @ivan, silent, captures notes in /docs/gd/2026-q2.md
-  facilitator: @marina, drives clock, holds abort handle
+ IC: on-call SRE (live, takes coordination)
+ on-call: whoever is paged by Alertmanager
+ comms lead: rotating engineer, drafts status-page entry
+ observer: @ivan, silent, captures notes in /docs/gd/2026-q2.md
+ facilitator: @marina, drives clock, holds abort handle
 
 timeline:
-  10:00  pre-brief, roles, abort walkthrough
-  10:15  injection T0
-  10:15–11:15  live run + recovery
-  11:15  exercise close, environment restored
-  11:20–12:00  debrief (hot wash) — what worked / didn't / surprised us
+ 10:00 pre-brief, roles, abort walkthrough
+ 10:15 injection T0
+ 10:15–11:15 live run + recovery
+ 11:15 exercise close, environment restored
+ 11:20–12:00 debrief (hot wash) — what worked / didn't / surprised us
 
 debrief agenda:
-  1. metrics readout (TTD, TTR, data-loss bound, page count)
-  2. observer notes — where did the team pause, which decisions skipped
-  3. runbook gaps — concrete edits, owners, dates
-  4. system gaps — tickets on the SRE roadmap, owners, dates
-  5. comms review — would the customer-comms draft have shipped?
-  6. next quarter — what scenario does this exercise suggest?
-        </code></pre>
+ 1. metrics readout (TTD, TTR, data-loss bound, page count)
+ 2. observer notes — where did the team pause, which decisions skipped
+ 3. runbook gaps — concrete edits, owners, dates
+ 4. system gaps — tickets on the SRE roadmap, owners, dates
+ 5. comms review — would the customer-comms draft have shipped?
+ 6. next quarter — what scenario does this exercise suggest?
+ </code></pre>
         <p><strong>What this plan does.</strong> It frames the exercise as an experiment with a stated hypothesis, falsifying conditions, and measurable success criteria. The abort procedure is one command, owned by the facilitator, not the team — so the live run can be stopped fast if anything escapes the blast radius. The debrief agenda is fixed so that the conversation produces concrete runbook edits and roadmap tickets, not generalities. The plan itself becomes an artifact in <code>scenarios/</code>, re-runnable a year later to measure improvement.</p>
       </div>
     </div>

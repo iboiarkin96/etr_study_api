@@ -83,7 +83,7 @@
         <path d="M125 110 L145 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M270 110 L290 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M415 110 L435 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
-        <path d="M575  98 L598  56" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M575 98 L598 56" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M575 122 L598 166" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
       </svg>
       <figcaption class="pa-figure__caption">Deploy starts → readiness probe → smoke tests → 10-minute metrics window vs baseline → promote on pass, rollback on fail. The window converts a manual watch into a structured gate.</figcaption>
@@ -207,69 +207,69 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: lessons-api
+ name: lessons-api
 spec:
-  replicas: 6
-  template:
-    spec:
-      containers:
-        - name: lessons-api
-          image: registry.studyapp/lessons-api:1.42.0
-          ports:
-            - containerPort: 8080
-          startupProbe:
-            httpGet: { path: /healthz/startup, port: 8080 }
-            periodSeconds: 5
-            failureThreshold: 24          # 2 min budget for cold start
-          readinessProbe:
-            httpGet: { path: /healthz/ready, port: 8080 }
-            periodSeconds: 5
-            failureThreshold: 2
-          livenessProbe:
-            httpGet: { path: /healthz/live, port: 8080 }
-            periodSeconds: 10
-            failureThreshold: 3
-          lifecycle:
-            postStart:
-              exec:
-                command: ["/bin/sh", "-c", "/opt/smoke-test.sh"]
+ replicas: 6
+ template:
+ spec:
+ containers:
+ - name: lessons-api
+ image: registry.studyapp/lessons-api:1.42.0
+ ports:
+ - containerPort: 8080
+ startupProbe:
+ httpGet: { path: /healthz/startup, port: 8080 }
+ periodSeconds: 5
+ failureThreshold: 24 # 2 min budget for cold start
+ readinessProbe:
+ httpGet: { path: /healthz/ready, port: 8080 }
+ periodSeconds: 5
+ failureThreshold: 2
+ livenessProbe:
+ httpGet: { path: /healthz/live, port: 8080 }
+ periodSeconds: 10
+ failureThreshold: 3
+ lifecycle:
+ postStart:
+ exec:
+ command: ["/bin/sh", "-c", "/opt/smoke-test.sh"]
 ---
 # services/lessons-api/rollout/analysis-template.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
-  name: lessons-api-gate
+ name: lessons-api-gate
 spec:
-  args:
-    - name: service
-      value: lessons-api
-  metrics:
-    - name: error-rate
-      interval: 60s
-      count: 10                          # 10-minute window
-      successCondition: result[0] &lt;= 1.5 * result[1]
-      failureLimit: 5                    # 5-minute grace
-      provider:
-        prometheus:
-          address: http://prometheus.monitoring:9090
-          query: |
-            (
-              sum(rate(http_requests_total{service="{{args.service}},status=~"5.."}[1m]))
-              / sum(rate(http_requests_total{service="{{args.service}}}[1m]))
-            )
-    - name: p99-latency
-      interval: 60s
-      count: 10
-      successCondition: result[0] &lt;= 1.5 * result[1]
-      failureLimit: 5
-      provider:
-        prometheus:
-          address: http://prometheus.monitoring:9090
-          query: |
-            histogram_quantile(0.99,
-              sum by (le) (rate(http_request_duration_seconds_bucket{service="{{args.service}}"}[1m]))
-            )
-        </code></pre>
+ args:
+ - name: service
+ value: lessons-api
+ metrics:
+ - name: error-rate
+ interval: 60s
+ count: 10 # 10-minute window
+ successCondition: result[0] &lt;= 1.5 * result[1]
+ failureLimit: 5 # 5-minute grace
+ provider:
+ prometheus:
+ address: http://prometheus.monitoring:9090
+ query: |
+ (
+ sum(rate(http_requests_total{service="{{args.service}},status=~"5.."}[1m]))
+ / sum(rate(http_requests_total{service="{{args.service}}}[1m]))
+ )
+ - name: p99-latency
+ interval: 60s
+ count: 10
+ successCondition: result[0] &lt;= 1.5 * result[1]
+ failureLimit: 5
+ provider:
+ prometheus:
+ address: http://prometheus.monitoring:9090
+ query: |
+ histogram_quantile(0.99,
+ sum by (le) (rate(http_request_duration_seconds_bucket{service="{{args.service}}"}[1m]))
+ )
+ </code></pre>
         <p><strong>What this spec does.</strong> Three probes give Kubernetes the right answer to three different questions: <code>startupProbe</code> grants a 2-minute cold-start budget, <code>readinessProbe</code> holds traffic off a pod that is not ready right now, and <code>livenessProbe</code> restarts a wedged container. The <code>postStart</code> hook runs the per-pod smoke test before the pod claims readiness. Argo Rollouts queries the analysis template every 60 seconds for 10 polls — error rate and P99 latency both compared to the pre-deploy baseline at 1.5×. A <code>failureLimit: 5</code> on each metric is the 5-minute grace; once exceeded, the rollout is automatically rolled back and the on-call paged with the analysis run attached. The gate, the deploy, and the smoke test all ship in the same PR — code review covers the failure modes before they reach production.</p>
       </div>
     </div>

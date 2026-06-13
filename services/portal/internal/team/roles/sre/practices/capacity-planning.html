@@ -78,7 +78,7 @@
 
         <path d="M145 110 L165 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M305 110 L325 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
-        <path d="M465  98 L485  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M465 98 L485 46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M465 122 L485 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
       </svg>
       <figcaption class="pa-figure__caption">Forecast → load-test → compute headroom → choose the scaling path. Auto-scale where the system has elastic primitives; schedule manual provisioning where a hard limit (DB pool, third-party quota, reserved capacity) requires lead time.</figcaption>
@@ -225,43 +225,43 @@
         <p class="pa-example__title">Lessons API — Q3 forecast, p99 ≤ 250 ms, 99.9% / 28 d SLO</p>
       </div>
       <div class="pa-example__body">
-        <pre><code>service:            lessons-api
-slo:                availability 99.9% / 28 d   latency p99 ≤ 250 ms
-forecast_window:    2026-07-01 → 2026-09-30  (academic year start)
+        <pre><code>service: lessons-api
+slo: availability 99.9% / 28 d latency p99 ≤ 250 ms
+forecast_window: 2026-07-01 → 2026-09-30 (academic year start)
 
 demand:
-  baseline_peak_rps:        420
-  trend_multiplier:         1.18        # linear regression, 6 mo
-  seasonal_multiplier:      1.35        # September peak vs Aug baseline
-  launch_multiplier:        1.10        # new course pack on 2026-09-05
-  projected_peak_rps:       420 × 1.18 × 1.35 × 1.10 ≈ 736 RPS
+ baseline_peak_rps: 420
+ trend_multiplier: 1.18 # linear regression, 6 mo
+ seasonal_multiplier: 1.35 # September peak vs Aug baseline
+ launch_multiplier: 1.10 # new course pack on 2026-09-05
+ projected_peak_rps: 420 × 1.18 × 1.35 × 1.10 ≈ 736 RPS
 
 littles_law:
-  p99_latency_target_s:     0.250
-  in_flight_at_peak:        736 × 0.250 ≈ 184 concurrent requests
+ p99_latency_target_s: 0.250
+ in_flight_at_peak: 736 × 0.250 ≈ 184 concurrent requests
 
 capacity:
-  current_replicas:         8           # 4 vCPU each
-  measured_knee_per_pod:    ~120 RPS    # from k6 open-model run, 2026-05-20
-  replicas_needed_at_peak:  ceil(736 / 120) = 7   → keep 8 for headroom
-  headroom_pct:             (8×120 − 736) / (8×120) ≈ 23%   ← below 30% target
+ current_replicas: 8 # 4 vCPU each
+ measured_knee_per_pod: ~120 RPS # from k6 open-model run, 2026-05-20
+ replicas_needed_at_peak: ceil(736 / 120) = 7 → keep 8 for headroom
+ headroom_pct: (8×120 − 736) / (8×120) ≈ 23% ← below 30% target
 
 db_connections:
-  pgbouncer_pool_size:      200
-  in_flight_at_peak:        184       → 92% utilisation       ← raise pool to 300
+ pgbouncer_pool_size: 200
+ in_flight_at_peak: 184 → 92% utilisation ← raise pool to 300
 
 third_party:
-  stripe_rps_quota:         300       → forecast 280           ← request raise to 500 (10 d lead)
-  sendgrid_send_rate:       1500/min  → forecast 1100/min      ← within limit
+ stripe_rps_quota: 300 → forecast 280 ← request raise to 500 (10 d lead)
+ sendgrid_send_rate: 1500/min → forecast 1100/min ← within limit
 
 scaling_plan:
-  hpa:                      min=8 max=14   cpu=60%   custom=p99_latency
-  cluster_autoscaler:       node_pool_max  raised to 24 vCPU bound
-  manual_changes:           pgbouncer pool 200 → 300 (PR-4821, owner @ivan, due 2026-06-15)
-                            stripe quota raise (ticket OPS-118, owner @anna, due 2026-06-20)
+ hpa: min=8 max=14 cpu=60% custom=p99_latency
+ cluster_autoscaler: node_pool_max raised to 24 vCPU bound
+ manual_changes: pgbouncer pool 200 → 300 (PR-4821, owner @ivan, due 2026-06-15)
+ stripe quota raise (ticket OPS-118, owner @anna, due 2026-06-20)
 
-review_by:                  2026-09-01     # one month before peak window
-        </code></pre>
+review_by: 2026-09-01 # one month before peak window
+ </code></pre>
         <p><strong>What this worksheet does.</strong> It turns a product calendar entry ("course pack ships in September") into a concrete plan: 736 RPS is the projected peak, 184 concurrent requests is what Little's law says will be in flight at that peak, and the capacity check shows compute is fine but the DB connection pool is the first hard wall to hit. The plan ships two artefacts — a PR raising the pool ceiling and a vendor ticket to raise the Stripe quota — both with owners and dates that land before the load actually arrives. The autoscaler rules are written down so the on-call knows what the system will do during the peak; nothing is left to "we'll figure it out at the time".</p>
       </div>
     </div>

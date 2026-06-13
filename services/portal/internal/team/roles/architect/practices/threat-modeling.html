@@ -293,9 +293,9 @@
         <p class="pa-example__intro">A trimmed threat-model output for the lesson-player. PlantUML DFD + a few representative threats from the STRIDE walkthrough, with CVSS scores and ticket links. Lives at <code>services/lesson-player/threat-model.md</code>.</p>
         <pre class="pa-example__code"><code># Lesson-player · threat model · 2026-05-22
 
-dfd_source: docs/threat/lesson-player.puml  (PlantUML)
-session:    @ivan (arch) · @oleg (owner) · @maria (security) · @anna (data)
-next review: 2026-11-22  (or on major change)
+dfd_source: docs/threat/lesson-player.puml (PlantUML)
+session: @ivan (arch) · @oleg (owner) · @maria (security) · @anna (data)
+next review: 2026-11-22 (or on major change)
 
 ## DFD (PlantUML excerpt)
 
@@ -303,63 +303,63 @@ next review: 2026-11-22  (or on major change)
 actor Learner
 rectangle "Browser (PWA)" as Web
 node "Lesson API" as API
-database "PostgreSQL"   as DB
-queue    "Kafka (MSK)"  as Kafka
-cloud    "Auth0"        as IdP
+database "PostgreSQL" as DB
+queue "Kafka (MSK)" as Kafka
+cloud "Auth0" as IdP
 
-Learner --&gt; Web         : HTTPS
-Web     --&gt; API         : HTTPS + JWT  '-- TRUST BOUNDARY
-API     --&gt; DB          : TLS + IAM
-API     --&gt; Kafka       : mTLS
-API     --&gt; IdP         : OIDC
+Learner --&gt; Web : HTTPS
+Web --&gt; API : HTTPS + JWT '-- TRUST BOUNDARY
+API --&gt; DB : TLS + IAM
+API --&gt; Kafka : mTLS
+API --&gt; IdP : OIDC
 @enduml
 
 ## STRIDE walkthrough (representative findings)
 
-T-01  Spoofing of Lesson API by stolen JWT
-      element: Web → API flow
-      scenario: leaked token replayed from attacker IP
-      controls: short JWT TTL (15 min), IP-binding hint, refresh rotation
-      cvss 3.1: 7.5 (high)
-      mitigation: SEC-114 · short TTL + rotate refresh on every use · @oleg
-      status:    in progress · due 2026-06-05
+T-01 Spoofing of Lesson API by stolen JWT
+ element: Web → API flow
+ scenario: leaked token replayed from attacker IP
+ controls: short JWT TTL (15 min), IP-binding hint, refresh rotation
+ cvss 3.1: 7.5 (high)
+ mitigation: SEC-114 · short TTL + rotate refresh on every use · @oleg
+ status: in progress · due 2026-06-05
 
-T-02  Tampering of lesson-events on the wire
-      element: API → Kafka flow
-      scenario: in-cluster MITM injects fake LessonCompleted events
-      controls: mTLS broker auth, signed event payloads
-      cvss 3.1: 5.9 (medium)
-      mitigation: SEC-115 · enforce mTLS in producer config · @anna
-      status:    in progress · due 2026-06-05
+T-02 Tampering of lesson-events on the wire
+ element: API → Kafka flow
+ scenario: in-cluster MITM injects fake LessonCompleted events
+ controls: mTLS broker auth, signed event payloads
+ cvss 3.1: 5.9 (medium)
+ mitigation: SEC-115 · enforce mTLS in producer config · @anna
+ status: in progress · due 2026-06-05
 
-T-03  Information disclosure via verbose 500 responses
-      element: Lesson API
-      scenario: stack traces leak DB schema + internal paths
-      controls: generic 500 body in prod; details to logs only
-      cvss 3.1: 4.3 (medium)
-      mitigation: SEC-116 · prod error handler audit · @oleg · pre-launch
-      status:    queued
+T-03 Information disclosure via verbose 500 responses
+ element: Lesson API
+ scenario: stack traces leak DB schema + internal paths
+ controls: generic 500 body in prod; details to logs only
+ cvss 3.1: 4.3 (medium)
+ mitigation: SEC-116 · prod error handler audit · @oleg · pre-launch
+ status: queued
 
-T-04  Elevation of privilege via tenant-id substitution
-      element: API authz check
-      scenario: user changes tenant_id in JWT claims → reads other tenant
-      controls: server-side tenant binding from session, not from claim
-      cvss 3.1: 8.8 (high)
-      mitigation: SEC-117 · server-side tenant resolution · @maria
-      status:    in progress · due 2026-06-01
+T-04 Elevation of privilege via tenant-id substitution
+ element: API authz check
+ scenario: user changes tenant_id in JWT claims → reads other tenant
+ controls: server-side tenant binding from session, not from claim
+ cvss 3.1: 8.8 (high)
+ mitigation: SEC-117 · server-side tenant resolution · @maria
+ status: in progress · due 2026-06-01
 
 ## Accepted risks (written, expiring)
 
-A-01  Denial of service from low-rate scripted enumeration of public lesson IDs
-      cvss 3.1: 3.7 (low)
-      rationale: CDN + WAF baseline rate limit covers this; cost of stricter
-                 limit harms legit traffic.
-      accepter: @maria · expires 2027-05-22
+A-01 Denial of service from low-rate scripted enumeration of public lesson IDs
+ cvss 3.1: 3.7 (low)
+ rationale: CDN + WAF baseline rate limit covers this; cost of stricter
+ limit harms legit traffic.
+ accepter: @maria · expires 2027-05-22
 
 ## Launch gate
 All CVSS ≥ 7.0 tickets must be closed and re-verified by @maria
 before lesson-player v2 ships to prod.
-        </code></pre>
+ </code></pre>
         <p class="pa-example__note">Four representative threats spanning four STRIDE letters, every above-threshold threat converted to a SEC-* ticket with owner + due date, one written accepted risk with expiry. The launch gate ties closure of the high-severity tickets to ship — the document doesn't just describe threats; it controls release.</p>
       </div>
     </section>
