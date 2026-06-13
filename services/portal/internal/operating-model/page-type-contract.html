@@ -40,7 +40,7 @@
         <p class="page-hero__lede">
           Source of truth for Rule 2 of the <a href="index.html">operating-model hub</a>. Every page on
           this portal carries six metadata attributes on <code>&lt;body&gt;</code>. The catalog views, the
-          sidebar tags, the freshness audit, and (since C7) the HTML lint all read these. This
+          sidebar tags, the freshness audit, and (since 2026-06-13) the HTML lint all read these. This
           page lists allowed values, where each attribute surfaces, what enforces it, and
           ready-to-paste examples per page type.
         </p>
@@ -49,7 +49,7 @@
       <section aria-labelledby="why-h">
         <h2 id="why-h">Why six attributes</h2>
         <p>Per <a href="../governance/adr/0032-service-catalog-first-ia-variant-c.html">ADR-0032</a> the portal's IA does not <em>nest</em> on three independent axes — Diátaxis quadrant, owning service, audience role. Folders carry the service axis (D1); the other two travel as <code>&lt;body&gt;</code> metadata and surface as lens-views under <code>catalog/by-quadrant/</code> and <code>team/roles/&lt;role&gt;/</code>. Two more attributes — topic and lifecycle — drive the topical lens and the freshness audit. One more — <code>data-updated</code> — feeds the recent-changes view. Six in total. Pick by the <a href="routing-decision-tree.html">routing decision tree</a>; this page is the allowed-values reference.</p>
-        <p>Authors who skip an attribute lose the page from the views that attribute drives. <code>data-page-type</code> missing ⇒ the page silently disappears from every catalog lens (<code>tools/docs/build_catalog.py</code> drops it). Until C7, the silent drop is the only enforcement; after C7 lands, <code>tools/docs/validate_docs_html.py</code> hard-fails the build.</p>
+        <p>Authors who skip an attribute lose the page from the views that attribute drives. <code>data-page-type</code> missing ⇒ the page silently disappears from every catalog lens (<code>tools/docs/build_catalog.py</code> drops it). Since 2026-06-13 the silent drop is also a hard fail at the HTML lint — <code>tools/docs/validate_docs_html.py</code> asserts the three required attributes plus the closed vocabularies.</p>
       </section>
 
       <section aria-labelledby="attrs-h">
@@ -198,7 +198,7 @@
             </tbody>
           </table>
         </div>
-        <p><strong>Default for a new page in the same PR.</strong> Start at <code>draft</code>; flip to <code>published</code> in the commit that lands the real content (see this section's own C1–C9 sequence).</p>
+        <p><strong>Default for a new page in the same PR.</strong> Start at <code>draft</code>; flip to <code>published</code> in the commit that lands the real content.</p>
 
         <h3 id="data-updated"><code>data-updated</code> — recency signal</h3>
         <p><strong>Format.</strong> ISO-8601 date, <code>YYYY-MM-DD</code>. No time component; no timezone.</p>
@@ -208,33 +208,33 @@
 
       <section aria-labelledby="validation-h">
         <h2 id="validation-h">Validation — what enforces each attribute</h2>
-        <p>Two layers today; three after C7.</p>
+        <p>Three enforcement layers per attribute: the HTML lint, the catalog builder, and (for lifecycle / updated) the freshness audit.</p>
         <div class="docs-table-wrap">
           <table class="docs-table docs-table--zebra">
             <thead>
               <tr>
                 <th>Attribute</th>
                 <th>Validated by</th>
-                <th>State today</th>
-                <th>State after C7</th>
+                <th>Before lint (historical)</th>
+                <th>Today</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td><code>data-page-type</code></td>
-                <td><code>build_catalog.py</code> reads it; <code>validate_docs_html.py</code> will assert it</td>
-                <td>silent drop (page disappears from catalog)</td>
+                <td><code>build_catalog.py</code> reads it; <code>validate_docs_html.py</code> asserts it</td>
+                <td>silent drop (page disappeared from catalog)</td>
                 <td>hard fail — value must be in the closed list of six</td>
               </tr>
               <tr>
                 <td><code>data-service</code></td>
-                <td><code>build_catalog.py</code> reads it; <code>validate_docs_html.py</code> will assert it</td>
+                <td><code>build_catalog.py</code> reads it; <code>validate_docs_html.py</code> asserts it</td>
                 <td>silent fallback to <code>none</code> if missing</td>
                 <td>hard fail — value must be in the closed list of six</td>
               </tr>
               <tr>
                 <td><code>data-role</code></td>
-                <td><code>build_catalog.py</code> + <code>validate_docs_html.py</code> (after C7)</td>
+                <td><code>build_catalog.py</code> + <code>validate_docs_html.py</code></td>
                 <td>silent fallback to <code>cross-role</code> if missing</td>
                 <td>hard fail if any token is outside the closed list of six (empty string still legal)</td>
               </tr>
@@ -246,15 +246,15 @@
               </tr>
               <tr>
                 <td><code>data-lifecycle</code></td>
-                <td><code>build_catalog.py</code> + <code>validate_docs_html.py</code> (after C7) + freshness audit</td>
+                <td><code>build_catalog.py</code> + <code>validate_docs_html.py</code> + freshness audit</td>
                 <td>silent fallback to <code>published</code> if missing</td>
                 <td>hard fail — value must be in the closed list of four</td>
               </tr>
               <tr>
                 <td><code>data-updated</code></td>
-                <td>recent-changes view; freshness audit</td>
-                <td>page falls off recent list if missing</td>
-                <td>hard fail if format is not ISO-8601 (after C7)</td>
+                <td>recent-changes view; freshness audit; <code>validate_docs_html.py</code> format check</td>
+                <td>page fell off recent list if missing</td>
+                <td>hard fail if format is not ISO-8601</td>
               </tr>
             </tbody>
           </table>
@@ -329,12 +329,12 @@
 
       <section aria-labelledby="migration-h">
         <h2 id="migration-h">Migration — getting existing pages into compliance</h2>
-        <p>Today many pages have <code>data-page-type</code> and <code>data-service</code> but skip <code>data-topic</code>, set <code>data-lifecycle</code> only sometimes, and have inconsistent <code>data-updated</code>. C7 will fail those pages on lint. The migration path:</p>
+        <p>How the migration to a hard lint went on 2026-06-13:</p>
         <ol class="numbered-step-list">
-          <li><div><strong>Before C7 lands, sweep <code>internal/</code> with a one-shot script.</strong> For each page, fill any missing attribute with the safe default (<code>data-service="none"</code>, <code>data-role=""</code>, <code>data-topic=""</code>, <code>data-lifecycle="published"</code>, <code>data-updated=&lt;file-mtime ISO-date&gt;</code>).</div></li>
-          <li><div><strong>Verify the closed vocabularies.</strong> Any <code>data-page-type</code> value outside the closed list of six fails C7's lint — promote stragglers (the <code>blog</code> page-type appears in <code>build_catalog.py</code> as a known type but is not in the formal ADR-0032 D7 list; either ratify it as a seventh value or migrate blog posts to <code>explanation</code>).</div></li>
-          <li><div><strong>Land the C7 lint.</strong> Extends <code>tools/docs/validate_docs_html.py</code>; ships in the same PR as the sweep so the gate is green from day one.</div></li>
-          <li><div><strong>From C7 onward, the contract is hard.</strong> New pages must pass the lint; the C2 skeletons in this section are already compliant.</div></li>
+          <li><div><strong>Sweep filled defaults across <code>internal/</code>.</strong> Sixteen API-reference pages backfilled with <code>data-service="api"</code>, <code>data-role=""</code>, <code>data-lifecycle="published"</code>, <code>data-updated="2026-06-12"</code>; sixteen <code>team/</code> pages migrated from legacy page-types to canonical ones.</div></li>
+          <li><div><strong>Vocabulary widened pragmatically.</strong> The <code>blog</code> page-type was already in use via <code>build_catalog.py</code>'s <code>TONE_BY_TYPE</code> map; the lint accepts it as a seventh allowed value pending a successor ADR that either ratifies it or migrates blog posts to <code>explanation</code>.</div></li>
+          <li><div><strong>Lint extended.</strong> <code>tools/docs/validate_docs_html.py</code> now asserts the schema on every commit; wired through <code>docs-html-check</code> → <code>docs-check</code> → CI.</div></li>
+          <li><div><strong>The contract is hard.</strong> New pages must pass the lint at <code>docs-html-check</code>; the operating-model section is already compliant.</div></li>
         </ol>
       </section>
 
