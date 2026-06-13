@@ -66,11 +66,11 @@
 
           <li><a class="spine-tile" data-tone="info" href="#make-h">
             <div class="spine-tile__head">
-              <span class="spine-tile__index">B · 9 targets · Make</span>
+              <span class="spine-tile__index">B + B2 · 9 portal + 5 root verify · Make</span>
             </div>
             <h3 class="spine-tile__title">Local + CI — Make targets</h3>
-            <p class="spine-tile__body">Run on demand locally; CI calls the same targets. Defined in <code>services/portal/Makefile</code>. Includes the drift gate (<code>docs-check</code>), the granular per-aspect checks, and the composite <code>verify</code> entrypoint.</p>
-            <div class="spine-tile__foot"><span class="spine-tile__cta">Table B</span><span class="spine-tile__arrow" aria-hidden="true">→</span></div>
+            <p class="spine-tile__body">Run on demand locally; CI calls the same targets. <strong>Table B</strong> — nine portal-internal targets in <code>services/portal/Makefile</code> (drift gate, granular checks, composite <code>verify</code>). <strong>Table B2</strong> — five root-level slots (<code>verify-api</code>, <code>verify-portal</code>, <code>verify-monitoring</code>, <code>verify-frontend</code>, <code>verify-all</code>) — one named gate per service in the monorepo.</p>
+            <div class="spine-tile__foot"><span class="spine-tile__cta">Table B + B2</span><span class="spine-tile__arrow" aria-hidden="true">→</span></div>
           </a></li>
 
           <li><a class="spine-tile" data-tone="info" href="#ci-h">
@@ -225,8 +225,8 @@
       </section>
 
       <section aria-labelledby="make-h">
-        <h2 id="make-h">B · Make targets</h2>
-        <p>Nine targets under <code>services/portal/Makefile</code>. Composite targets at the bottom; the rest are the granular pieces.</p>
+        <h2 id="make-h">B · Make targets — portal/Makefile</h2>
+        <p>Nine targets under <code>services/portal/Makefile</code>. Composite targets at the bottom; the rest are the granular pieces. <strong>For the root-level per-service verify slots (<code>verify-api</code>, <code>verify-portal</code>, <code>verify-monitoring</code>, <code>verify-frontend</code>, <code>verify-all</code>) see <a href="#root-verify-h">§ B2 — Root verify slots</a> below.</strong></p>
         <div class="docs-table-wrap">
           <table class="docs-table docs-table--zebra">
             <thead>
@@ -296,10 +296,72 @@
                 <td>Edit autogen source (markers, <code>catalog-info.yaml</code>, <code>.puml</code>, pdoc-eligible Python) ⇒ <code>docs-fix</code> outputs must be staged</td>
               </tr>
               <tr>
-                <td><code>verify</code></td>
-                <td>Before push; CI default entrypoint</td>
+                <td><code>verify</code> (portal-local)</td>
+                <td>Called by root <code>verify-portal</code></td>
                 <td>Composite: <code>docs-check</code> + <code>docs-a11y-check</code></td>
                 <td>Resolve whichever inner target failed and re-run</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="root-verify-h">
+        <h2 id="root-verify-h">B2 · Root verify slots — one named gate per service</h2>
+        <p>Five composite targets live in the root <code>Makefile</code>. Each one is a thin wrapper that delegates to its service's <code>verify</code> (or, for frontend, prints a no-op note). <strong><code>verify-all</code> chains them in declared order</strong>; <code>verify</code> stays as a backward-compat alias for <code>verify-all</code>. This is the same composition <code>ci.yml</code> runs across its four matrix lanes.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th>Gate</th>
+                <th>When it runs</th>
+                <th>What it checks</th>
+                <th>How to fix a fail</th>
+                <th>Coupling</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>verify-api</code></td>
+                <td>On demand. Inside <code>verify-all</code>.</td>
+                <td>Delegates to <code>services/api/verify</code>: <code>deps-audit</code> · <code>openapi-check</code> · <code>contract-test</code> · <code>test</code></td>
+                <td>Read the failing sub-step; pip-audit prints CVEs, openapi-check prints the schema delta, contract-test prints the snapshot diff, test prints pytest output</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>verify-portal</code></td>
+                <td>On demand. Inside <code>verify-all</code>.</td>
+                <td>Delegates to <code>services/portal/verify</code>: <code>docs-check</code> (drift gate, see Table B above) + <code>docs-a11y-check</code> (WCAG baseline)</td>
+                <td>Run <code>make -C services/portal docs-fix</code>; stage everything it changed; retry</td>
+                <td>Same coupling as <code>docs-check</code> — autogen source edits ⇒ <code>docs-fix</code> outputs must be staged</td>
+              </tr>
+              <tr>
+                <td><code>verify-monitoring</code></td>
+                <td>On demand. Inside <code>verify-all</code>.</td>
+                <td>Delegates to <code>services/monitoring/verify</code>: <code>docker compose config --quiet</code> on both stacks (<code>docker-compose.observability.yml</code> and <code>docker-compose.logging.yml</code>). No Docker daemon needed — parse-only.</td>
+                <td>Read the YAML parse error or the bad bind-mount path the compose binary printed</td>
+                <td>Edit a compose file ⇒ this gate catches typos before they reach the smoke test in CI</td>
+              </tr>
+              <tr>
+                <td><code>verify-frontend</code></td>
+                <td>On demand. Inside <code>verify-all</code>.</td>
+                <td>No-op today — prints a one-line note that the UI Kit v2 assets are consumed and exercised by <code>services/portal</code> (every page renders the kit, so <code>docs-check</code> already covers the kit too)</td>
+                <td>Nothing to fix — the target exists so the monorepo map names every service uniformly</td>
+                <td>If frontend ever grows its own pipeline (visual regression baseline, kit CSS lint), wire it here</td>
+              </tr>
+              <tr>
+                <td><code>verify-all</code> <span class="docs-pill docs-pill--accent">pre-push gate</span></td>
+                <td>Before push; CI default entrypoint</td>
+                <td>Composite in declared order: cross-cutting <code>lint-check</code> + <code>type-check</code>, then <code>verify-api</code>, <code>verify-portal</code>, <code>verify-monitoring</code>, <code>verify-frontend</code>. Same shape as the <code>ci.yml</code> matrix.</td>
+                <td>Resolve whichever inner slot failed (the slot name is printed in the failure header); re-run just that slot to iterate; re-run <code>verify-all</code> to confirm</td>
+                <td>Adding a new service ⇒ add its <code>verify-&lt;svc&gt;</code> slot here and one row to this table</td>
+              </tr>
+              <tr>
+                <td><code>verify</code> (root alias)</td>
+                <td>Backward compat for CI and finger memory</td>
+                <td>Alias for <code>verify-all</code> — same behaviour, same exit code</td>
+                <td>Same as <code>verify-all</code></td>
                 <td>—</td>
               </tr>
             </tbody>
