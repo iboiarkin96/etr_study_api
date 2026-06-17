@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-06" data-role="architect">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-13" data-role="architect">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -53,10 +53,11 @@
           <thead><tr><th>Component</th><th>Used for</th></tr></thead>
           <tbody>
             <tr><td>Python (≥ 3.12)</td><td>Runs <code>tools/docs/regenerate_docs.py</code>, <code>tools/docs/build_pagefind_index.py</code>, pdoc.</td></tr>
-            <tr><td>PlantUML / Kroki (<code>https://kroki.io/plantuml/svg</code>)</td><td>Renders all <code>.puml</code> sources to SVG. Authority: <a href="../../governance/adr/0020-c4-plantuml-diagram-style-and-conventions.html">ADR 0020</a>. Fallback when Kroki is unreachable: <a href="../../team/roles/sre/practices/runbooks.html#kroki-unreachable">portal · Runbooks</a>.</td></tr>
-            <tr><td>pdoc</td><td>Generates the api code reference under <a href="../../catalog/by-quadrant/reference.html">catalog/api/code-reference/</a>. Authority: <a href="../../governance/adr/0016-python-docstrings-google-style-and-pdoc.html">ADR 0016</a>.</td></tr>
+            <tr><td>PlantUML / Kroki (<code>https://kroki.io/plantuml/svg</code>)</td><td>Renders all <code>.puml</code> sources to SVG. Fallback when Kroki is unreachable: <a href="../../team/roles/sre/practices/runbooks.html#kroki-unreachable">portal · Runbooks</a>.</td></tr>
+            <tr><td>pdoc</td><td>Generates the api code reference under <a href="../../catalog/by-quadrant/reference.html">the API code reference</a>.</td></tr>
+            <tr><td>Pagefind (pinned CLI)</td><td>Builds the search index bundle under <code>services/frontend/portal/pagefind/</code>. Invoked by <code>tools/docs/build_pagefind_index.py</code> at step [10/10] of <code>make docs-fix</code>. Bundle owned by Pagefind upstream per <a href="../../governance/adr/0033-portal-search-engine-pagefind.html">ADR 0033</a> (supersedes ADR 0027).</td></tr>
             <tr><td>OpenAPI document (from api)</td><td>Embedded into <code>services/portal/public/reference/api/</code>. Build-time consumer of the <a href="../api/index.html">api</a> service.</td></tr>
-            <tr><td>pre-commit</td><td>Runs <code>tools/docs/regenerate_docs.py --check</code> on every commit; blocks divergence between PUML sources and committed SVGs. Authority: <a href="../../governance/adr/0001-docs-as-code.html">ADR 0001</a>.</td></tr>
+            <tr><td>pre-commit</td><td>Runs <code>tools/docs/regenerate_docs.py --check</code> on every commit; blocks divergence between PUML sources and committed SVGs.</td></tr>
           </tbody>
         </table>
       </div>
@@ -64,7 +65,7 @@
       <h2 id="frontend-assets">In-repo frontend assets — the ui-kit</h2>
       <p>
         The CSS / JS layer lives in the same monorepo and is served by nginx alongside the HTML pages.
-        No install step — pages reference assets via relative paths. The <a href="../ui-kit/index.html">ui-kit</a>
+        No install step — pages reference assets via relative paths. The <a href="../ui-kit/index.html">UI Kit</a>
         service is the <strong>source of truth</strong> for all visual and interactive behaviour of both portals; the
         portal service only references its tokens, components, and runtime bundles.
       </p>
@@ -81,12 +82,12 @@
             <tr>
               <td><code>services/frontend/portal/assets_v2/</code></td>
               <td>Design tokens, component CSS/JS, per-portal runtime bundles, nav-tree mocks.</td>
-              <td><a href="../ui-kit/index.html">ui-kit</a></td>
+              <td><a href="../ui-kit/index.html">UI Kit</a></td>
             </tr>
             <tr>
               <td><code>services/portal/ui-kit/</code></td>
               <td>Live showcase pages (third "portal") covering tokens, components, templates.</td>
-              <td><a href="../../../ui-kit/index.html">/portal/ui-kit/</a></td>
+              <td><a href="../../../ui-kit/index.html">UI Kit</a></td>
             </tr>
             <tr>
               <td><code>services/portal/internal/handbook/uml/</code></td>
@@ -98,11 +99,11 @@
       </div>
       <p class="small">
         Changes to <code>services/frontend/portal/assets_v2/</code> affect both the public and internal portals.
-        Component documentation lives at the live showcase (<a href="../../../ui-kit/index.html">/portal/ui-kit/</a>) — do not copy components locally per
+        Component documentation lives at the live showcase (<a href="../../../ui-kit/index.html">UI Kit</a>) — do not copy components locally per
         <a href="../../governance/rfc/0004-public-vs-internal-documentation-portal-ia.html">RFC 0004</a>.
       </p>
 
-      <h2 id="runtime">Runtime dependency</h2>
+      <h2 id="runtime">Runtime dependencies</h2>
       <div class="docs-table-wrap">
         <table class="docs-table docs-table--zebra docs-table--sticky-head">
           <thead><tr><th>Component</th><th>Role</th></tr></thead>
@@ -110,6 +111,10 @@
             <tr>
               <td>nginx-alpine (or equivalent static server)</td>
               <td>Serves <code>services/portal/{public,internal}/</code> over HTTPS. No application logic, no auth, no state. Per <a href="../../governance/adr/0028-monorepo-with-service-boundaries.html">ADR 0028</a> phase 1.</td>
+            </tr>
+            <tr>
+              <td>Pagefind client bundle</td>
+              <td>Loaded lazily by the topbar search on first focus: <code>pagefind.js</code> + WASM + chunked indexes from <code>services/frontend/portal/pagefind/</code>. Runs entirely in the browser — no search backend. Contract owned by Pagefind upstream per <a href="../../governance/adr/0033-portal-search-engine-pagefind.html">ADR 0033</a>.</td>
             </tr>
           </tbody>
         </table>
@@ -135,6 +140,11 @@
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-13</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Added Pagefind to both lanes: build-time row (pinned CLI invoked by <code>build_pagefind_index.py</code>) and runtime row (lazy-loaded <code>pagefind.js</code> + WASM bundle). Reflects the search-engine switch in <a href="../../governance/adr/0033-portal-search-engine-pagefind.html">ADR 0033</a>.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-05-17</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

@@ -217,61 +217,61 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata: { name: lesson-player }
 spec:
-  replicas: 12
-  strategy:
-    canary:
-      canaryService: lesson-player-canary
-      stableService: lesson-player-stable
-      trafficRouting:
-        istio:
-          virtualService: { name: lesson-player, routes: [primary] }
-      steps:
-        - setWeight: 1
-        - pause: { duration: 10m }
-        - analysis: { templates: [{ templateName: lesson-player-health }] }
-        - setWeight: 5
-        - pause: { duration: 20m }
-        - analysis: { templates: [{ templateName: lesson-player-health }] }
-        - setWeight: 25
-        - pause: { duration: 30m }
-        - analysis: { templates: [{ templateName: lesson-player-health }] }
-        - setWeight: 100
-  selector: { matchLabels: { app: lesson-player } }
-  template:
-    metadata: { labels: { app: lesson-player } }
-    spec: { containers: [{ name: lesson-player, image: studyapp/lesson-player:GIT_SHA }] }
+ replicas: 12
+ strategy:
+ canary:
+ canaryService: lesson-player-canary
+ stableService: lesson-player-stable
+ trafficRouting:
+ istio:
+ virtualService: { name: lesson-player, routes: [primary] }
+ steps:
+ - setWeight: 1
+ - pause: { duration: 10m }
+ - analysis: { templates: [{ templateName: lesson-player-health }] }
+ - setWeight: 5
+ - pause: { duration: 20m }
+ - analysis: { templates: [{ templateName: lesson-player-health }] }
+ - setWeight: 25
+ - pause: { duration: 30m }
+ - analysis: { templates: [{ templateName: lesson-player-health }] }
+ - setWeight: 100
+ selector: { matchLabels: { app: lesson-player } }
+ template:
+ metadata: { labels: { app: lesson-player } }
+ spec: { containers: [{ name: lesson-player, image: studyapp/lesson-player:GIT_SHA }] }
 
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata: { name: lesson-player-health }
 spec:
-  metrics:
-    - name: error-rate
-      successCondition: result &lt; 0.005             # &lt; 0.5% error rate
-      failureLimit: 1
-      provider:
-        prometheus:
-          address: http://prometheus.monitoring:9090
-          query: |
-            sum(rate(http_requests_total{service="lesson-player",
-              version="canary",status_code=~"5.."}[5m]))
-            /
-            sum(rate(http_requests_total{service="lesson-player",
-              version="canary"}[5m]))
-    - name: p99-latency
-      successCondition: result &lt; 0.250              # &lt; 250 ms p99
-      failureLimit: 1
-      provider:
-        prometheus:
-          address: http://prometheus.monitoring:9090
-          query: |
-            histogram_quantile(0.99, sum(rate(
-              http_request_duration_seconds_bucket{
-                service="lesson-player",version="canary"
-              }[5m]
-            )) by (le))
-        </code></pre>
+ metrics:
+ - name: error-rate
+ successCondition: result &lt; 0.005 # &lt; 0.5% error rate
+ failureLimit: 1
+ provider:
+ prometheus:
+ address: http://prometheus.monitoring:9090
+ query: |
+ sum(rate(http_requests_total{service="lesson-player",
+ version="canary",status_code=~"5.."}[5m]))
+ /
+ sum(rate(http_requests_total{service="lesson-player",
+ version="canary"}[5m]))
+ - name: p99-latency
+ successCondition: result &lt; 0.250 # &lt; 250 ms p99
+ failureLimit: 1
+ provider:
+ prometheus:
+ address: http://prometheus.monitoring:9090
+ query: |
+ histogram_quantile(0.99, sum(rate(
+ http_request_duration_seconds_bucket{
+ service="lesson-player",version="canary"
+ }[5m]
+ )) by (le))
+ </code></pre>
         <p class="pa-example__note">One Rollout CRD + one AnalysisTemplate; Argo Rollouts handles the rest. Failure of either metric for one analysis run aborts the rollout and shifts traffic back. Engineers arrive to a rolled-back state; postmortem; fix; redeploy.</p>
       </div>
     </section>

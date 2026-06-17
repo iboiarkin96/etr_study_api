@@ -294,11 +294,11 @@ from typing import Protocol, Optional
 from .models import Lesson, LessonId
 
 class LessonRepository(Protocol):
-    def get(self, id: LessonId) -&gt; Optional[Lesson]: ...
-    def save(self, lesson: Lesson) -&gt; None: ...
+ def get(self, id: LessonId) -&gt; Optional[Lesson]: ...
+ def save(self, lesson: Lesson) -&gt; None: ...
 
 class EventPublisher(Protocol):
-    def publish(self, event: "DomainEvent") -&gt; None: ...
+ def publish(self, event: "DomainEvent") -&gt; None: ...
 
 # domain/lessons/use_cases.py
 from dataclasses import dataclass
@@ -307,44 +307,44 @@ from .models import LessonId, Attempt, LessonCompleted
 
 @dataclass(slots=True)
 class CompleteLesson:
-    repo: LessonRepository
-    events: EventPublisher
+ repo: LessonRepository
+ events: EventPublisher
 
-    def __call__(self, lesson_id: LessonId, attempt: Attempt) -&gt; None:
-        lesson = self.repo.get(lesson_id) or _raise_not_found(lesson_id)
-        lesson.record(attempt)
-        self.repo.save(lesson)
-        self.events.publish(LessonCompleted.from_lesson(lesson))
+ def __call__(self, lesson_id: LessonId, attempt: Attempt) -&gt; None:
+ lesson = self.repo.get(lesson_id) or _raise_not_found(lesson_id)
+ lesson.record(attempt)
+ self.repo.save(lesson)
+ self.events.publish(LessonCompleted.from_lesson(lesson))
 
 # adapters/postgres_lesson_repo.py
 from sqlalchemy.orm import Session
 from domain.lessons.ports import LessonRepository
 from domain.lessons.models import Lesson, LessonId
-from .persistence_models import LessonRow  # ORM model, NOT the domain class
+from .persistence_models import LessonRow # ORM model, NOT the domain class
 
 class PostgresLessonRepository(LessonRepository):
-    def __init__(self, session: Session) -&gt; None:
-        self._session = session
+ def __init__(self, session: Session) -&gt; None:
+ self._session = session
 
-    def get(self, id: LessonId) -&gt; Optional[Lesson]:
-        row = self._session.get(LessonRow, id.value)
-        return _to_domain(row) if row else None
+ def get(self, id: LessonId) -&gt; Optional[Lesson]:
+ row = self._session.get(LessonRow, id.value)
+ return _to_domain(row) if row else None
 
-    def save(self, lesson: Lesson) -&gt; None:
-        self._session.merge(_to_row(lesson))
+ def save(self, lesson: Lesson) -&gt; None:
+ self._session.merge(_to_row(lesson))
 
 # tests/lessons/test_complete_lesson.py
 from domain.lessons.use_cases import CompleteLesson
 from tests.fakes import InMemoryLessonRepository, CapturingEventPublisher
 
 def test_completing_lesson_publishes_event():
-    repo = InMemoryLessonRepository(seed=[lesson_with(id="L-1")])
-    events = CapturingEventPublisher()
+ repo = InMemoryLessonRepository(seed=[lesson_with(id="L-1")])
+ events = CapturingEventPublisher()
 
-    CompleteLesson(repo, events)(LessonId("L-1"), attempt_with(score=0.9))
+ CompleteLesson(repo, events)(LessonId("L-1"), attempt_with(score=0.9))
 
-    assert events.published == ["lesson.LessonCompleted.v1"]
-    assert repo.get(LessonId("L-1")).mastery &gt;= 0.9
+ assert events.published == ["lesson.LessonCompleted.v1"]
+ assert repo.get(LessonId("L-1")).mastery &gt;= 0.9
 
 # app/main.py — the only file that imports both domain and adapters
 from domain.lessons.use_cases import CompleteLesson
@@ -352,10 +352,10 @@ from adapters.postgres_lesson_repo import PostgresLessonRepository
 from adapters.kafka_event_publisher import KafkaEventPublisher
 
 complete_lesson = CompleteLesson(
-    repo=PostgresLessonRepository(session),
-    events=KafkaEventPublisher(producer),
+ repo=PostgresLessonRepository(session),
+ events=KafkaEventPublisher(producer),
 )
-        </code></pre>
+ </code></pre>
         <p class="pa-example__note">Domain knows nothing of SQLAlchemy or Kafka. The use case takes interfaces; the test wires fakes; the composition root wires the real things. Swapping Postgres for DynamoDB requires a new adapter and one line of <code>services/api/app/main.py</code> — zero changes to the domain.</p>
       </div>
     </section>

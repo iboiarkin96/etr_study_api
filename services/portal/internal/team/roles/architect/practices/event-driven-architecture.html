@@ -281,64 +281,64 @@
         <pre class="pa-example__code"><code># asyncapi/lesson.events.yaml
 asyncapi: 2.6.0
 info:
-  title: Lesson events
-  version: 1.0.0
+ title: Lesson events
+ version: 1.0.0
 channels:
-  lesson.events:
-    description: Lesson lifecycle events (past-tense, immutable)
-    subscribe:
-      message:
-        oneOf:
-          - $ref: "#/components/messages/LessonCompleted"
-          - $ref: "#/components/messages/AttemptScored"
+ lesson.events:
+ description: Lesson lifecycle events (past-tense, immutable)
+ subscribe:
+ message:
+ oneOf:
+ - $ref: "#/components/messages/LessonCompleted"
+ - $ref: "#/components/messages/AttemptScored"
 
 components:
-  messages:
-    LessonCompleted:
-      name: LessonCompleted
-      contentType: application/json
-      headers:
-        type: object
-        required: [eventId, eventType, occurredAt, correlationId]
-        properties:
-          eventId:        { type: string, format: uuid }
-          eventType:      { const: "lesson.LessonCompleted.v1" }
-          occurredAt:     { type: string, format: date-time }
-          correlationId:  { type: string, format: uuid }
-      payload:
-        type: object
-        required: [lessonId, userId, score]
-        properties:
-          lessonId: { type: string, format: uuid }
-          userId:   { type: string, format: uuid }
-          score:    { type: number, minimum: 0, maximum: 1 }
-          # NOTE: thin event. Full lesson detail fetched by consumers
-          # from the lesson API using lessonId. Schema-stable forever.
+ messages:
+ LessonCompleted:
+ name: LessonCompleted
+ contentType: application/json
+ headers:
+ type: object
+ required: [eventId, eventType, occurredAt, correlationId]
+ properties:
+ eventId: { type: string, format: uuid }
+ eventType: { const: "lesson.LessonCompleted.v1" }
+ occurredAt: { type: string, format: date-time }
+ correlationId: { type: string, format: uuid }
+ payload:
+ type: object
+ required: [lessonId, userId, score]
+ properties:
+ lessonId: { type: string, format: uuid }
+ userId: { type: string, format: uuid }
+ score: { type: number, minimum: 0, maximum: 1 }
+ # NOTE: thin event. Full lesson detail fetched by consumers
+ # from the lesson API using lessonId. Schema-stable forever.
 
 ---
 -- producer outbox (same transaction as the lesson-completion write):
 
 INSERT INTO lessons (id, user_id, completed_at, score) VALUES (...);
 INSERT INTO outbox (
-  event_id, event_type, occurred_at, correlation_id,
-  payload_json, status
+ event_id, event_type, occurred_at, correlation_id,
+ payload_json, status
 ) VALUES (
-  gen_random_uuid(),
-  'lesson.LessonCompleted.v1',
-  now(),
-  :correlation_id,
-  jsonb_build_object(
-    'lessonId', :lesson_id,
-    'userId',   :user_id,
-    'score',    :score
-  ),
-  'PENDING'
+ gen_random_uuid(),
+ 'lesson.LessonCompleted.v1',
+ now(),
+ :correlation_id,
+ jsonb_build_object(
+ 'lessonId', :lesson_id,
+ 'userId', :user_id,
+ 'score', :score
+ ),
+ 'PENDING'
 );
 
 -- relay process (separate worker):
---   SELECT * FROM outbox WHERE status = 'PENDING' ORDER BY occurred_at;
---   publish to Kafka; UPDATE outbox SET status='PUBLISHED' WHERE id=:id;
-        </code></pre>
+-- SELECT * FROM outbox WHERE status = 'PENDING' ORDER BY occurred_at;
+-- publish to Kafka; UPDATE outbox SET status='PUBLISHED' WHERE id=:id;
+ </code></pre>
         <p class="pa-example__note">The schema is registered before any producer or consumer ships. The outbox row is written in the same transaction as the lesson write — no dual-write window. Three consumer groups subscribe; each dedups on eventId and replays from offset 0 when re-initialised.</p>
       </div>
     </section>

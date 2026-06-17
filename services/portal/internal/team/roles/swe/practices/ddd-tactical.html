@@ -215,66 +215,66 @@ from typing import Protocol
 # --- Value objects (immutable, identity-less) -----------------------
 @dataclass(frozen=True)
 class LessonId:
-    value: str
-    def __post_init__(self):
-        if not self.value.startswith("L-"):
-            raise ValueError("LessonId must start with L-")
+ value: str
+ def __post_init__(self):
+ if not self.value.startswith("L-"):
+ raise ValueError("LessonId must start with L-")
 
 @dataclass(frozen=True)
 class Score:
-    raw: float
-    ceiling: float = 1.0
-    def __post_init__(self):
-        if not 0 &lt;= self.raw &lt;= self.ceiling:
-            raise ValueError("score out of bounds")
-    @property
-    def ratio(self) -&gt; float:
-        return self.raw / self.ceiling
+ raw: float
+ ceiling: float = 1.0
+ def __post_init__(self):
+ if not 0 &lt;= self.raw &lt;= self.ceiling:
+ raise ValueError("score out of bounds")
+ @property
+ def ratio(self) -&gt; float:
+ return self.raw / self.ceiling
 
 # --- Domain event ---------------------------------------------------
 @dataclass(frozen=True)
 class LessonCompleted:
-    lesson_id: LessonId
-    user_id: str
-    score: Score
-    occurred_at: str  # ISO timestamp
+ lesson_id: LessonId
+ user_id: str
+ score: Score
+ occurred_at: str # ISO timestamp
 
 # --- Aggregate root (small: 1 entity + value objects) --------------
 @dataclass
 class Lesson:
-    id: LessonId
-    user_id: str
-    is_completed: bool = False
-    score: Score | None = None
-    _events: list = field(default_factory=list)
+ id: LessonId
+ user_id: str
+ is_completed: bool = False
+ score: Score | None = None
+ _events: list = field(default_factory=list)
 
-    def record_attempt(self, score: Score, at: str) -&gt; None:
-        if self.is_completed:
-            raise ValueError("lesson already completed")
-        self.is_completed = True
-        self.score = score
-        self._events.append(LessonCompleted(self.id, self.user_id, score, at))
+ def record_attempt(self, score: Score, at: str) -&gt; None:
+ if self.is_completed:
+ raise ValueError("lesson already completed")
+ self.is_completed = True
+ self.score = score
+ self._events.append(LessonCompleted(self.id, self.user_id, score, at))
 
-    def pull_events(self) -&gt; list:
-        events, self._events = self._events, []
-        return events
+ def pull_events(self) -&gt; list:
+ events, self._events = self._events, []
+ return events
 
 # --- Repository port (domain types only) ---------------------------
 class LessonRepository(Protocol):
-    def by_id(self, id: LessonId) -&gt; Lesson | None: ...
-    def save(self, lesson: Lesson) -&gt; None: ...  # writes state + events atomically
+ def by_id(self, id: LessonId) -&gt; Lesson | None: ...
+ def save(self, lesson: Lesson) -&gt; None: ... # writes state + events atomically
 
 # --- Application service (thin orchestrator) -----------------------
 def complete_lesson(repo: LessonRepository, publisher, lesson_id: str,
-                    raw_score: float, at: str) -&gt; None:
-    lesson = repo.by_id(LessonId(lesson_id))
-    if lesson is None:
-        raise LookupError("unknown lesson")
-    lesson.record_attempt(Score(raw_score), at)
-    repo.save(lesson)
-    for event in lesson.pull_events():
-        publisher.publish(event)
-        </code></pre>
+ raw_score: float, at: str) -&gt; None:
+ lesson = repo.by_id(LessonId(lesson_id))
+ if lesson is None:
+ raise LookupError("unknown lesson")
+ lesson.record_attempt(Score(raw_score), at)
+ repo.save(lesson)
+ for event in lesson.pull_events():
+ publisher.publish(event)
+ </code></pre>
         <p class="pa-example__note">One small aggregate, two value objects with constructor validation, one domain event, a repository port speaking domain types only, and a thin application service that orchestrates the use case. Tests run with an in-memory <code>LessonRepository</code> fake; the database driver is never imported in the domain module.</p>
       </div>
     </section>
