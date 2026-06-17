@@ -224,92 +224,92 @@
       <div class="pa-example__body">
         <pre><code>name: ci
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+ pull_request:
+ branches: [main]
+ push:
+ branches: [main]
 
 permissions:
-  contents:   read
-  id-token:   write   # OIDC for cosign keyless signing
-  packages:   write   # push to GHCR
+ contents: read
+ id-token: write # OIDC for cosign keyless signing
+ packages: write # push to GHCR
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        suite: [unit, integration]
-        python: ["3.12"]
-    services:
-      postgres:
-        image: postgres:16
-        env: { POSTGRES_PASSWORD: ci }
-        ports: ["5432:5432"]
-        options: --health-cmd pg_isready --health-interval 5s
-      redis:
-        image: redis:7
-        ports: ["6379:6379"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: ${{ matrix.python }}, cache: pip }
-      - run: pip install -r requirements-dev.txt
-      - run: pytest -m "${{ matrix.suite }} and not quarantine" --junitxml=junit.xml
-      - if: always()
-        uses: actions/upload-artifact@v4
-        with: { name: junit-${{ matrix.suite }}, path: junit.xml }
+ test:
+ runs-on: ubuntu-latest
+ strategy:
+ fail-fast: false
+ matrix:
+ suite: [unit, integration]
+ python: ["3.12"]
+ services:
+ postgres:
+ image: postgres:16
+ env: { POSTGRES_PASSWORD: ci }
+ ports: ["5432:5432"]
+ options: --health-cmd pg_isready --health-interval 5s
+ redis:
+ image: redis:7
+ ports: ["6379:6379"]
+ steps:
+ - uses: actions/checkout@v4
+ - uses: actions/setup-python@v5
+ with: { python-version: ${{ matrix.python }}, cache: pip }
+ - run: pip install -r requirements-dev.txt
+ - run: pytest -m "${{ matrix.suite }} and not quarantine" --junitxml=junit.xml
+ - if: always()
+ uses: actions/upload-artifact@v4
+ with: { name: junit-${{ matrix.suite }}, path: junit.xml }
 
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@v0
-        with: { scan-type: fs, severity: HIGH,CRITICAL, exit-code: '1' }
-      - name: Semgrep SAST
-        run: semgrep ci --config auto --error
+ security-scan:
+ runs-on: ubuntu-latest
+ steps:
+ - uses: actions/checkout@v4
+ - name: Trivy filesystem scan
+ uses: aquasecurity/trivy-action@v0
+ with: { scan-type: fs, severity: HIGH,CRITICAL, exit-code: '1' }
+ - name: Semgrep SAST
+ run: semgrep ci --config auto --error
 
-  build-and-sign:
-    needs: [test, security-scan]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' &amp;&amp; github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: sigstore/cosign-installer@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - id: build
-        uses: docker/build-push-action@v6
-        with:
-          push:      true
-          tags:      ghcr.io/${{ github.repository }}:${{ github.sha }}
-          provenance: true       # SLSA build provenance
-          sbom:       true       # SPDX SBOM attached
-      - name: Sign image (keyless, OIDC)
-        run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+ build-and-sign:
+ needs: [test, security-scan]
+ runs-on: ubuntu-latest
+ if: github.event_name == 'push' &amp;&amp; github.ref == 'refs/heads/main'
+ steps:
+ - uses: actions/checkout@v4
+ - uses: sigstore/cosign-installer@v3
+ - uses: docker/setup-buildx-action@v3
+ - uses: docker/login-action@v3
+ with:
+ registry: ghcr.io
+ username: ${{ github.actor }}
+ password: ${{ secrets.GITHUB_TOKEN }}
+ - id: build
+ uses: docker/build-push-action@v6
+ with:
+ push: true
+ tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+ provenance: true # SLSA build provenance
+ sbom: true # SPDX SBOM attached
+ - name: Sign image (keyless, OIDC)
+ run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
 
-  deploy-gate:
-    needs: build-and-sign
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with: { repository: study-app/infra, token: ${{ secrets.INFRA_PAT }} }
-      - name: Verify cosign signature
-        run: cosign verify --certificate-identity-regexp '.*study-app.*' \
-             ghcr.io/study-app/api@${{ needs.build-and-sign.outputs.digest }}
-      - name: Bump image tag for Argo CD
-        run: |
-          yq -i '.spec.template.spec.containers[0].image =
-                 "ghcr.io/study-app/api@${{ needs.build-and-sign.outputs.digest }}"' \
-                 argocd/apps/api/deployment.yaml
-          git commit -am "deploy(api): ${{ github.sha }}" &amp;&amp; git push
-        </code></pre>
+ deploy-gate:
+ needs: build-and-sign
+ runs-on: ubuntu-latest
+ steps:
+ - uses: actions/checkout@v4
+ with: { repository: study-app/infra, token: ${{ secrets.INFRA_PAT }} }
+ - name: Verify cosign signature
+ run: cosign verify --certificate-identity-regexp '.*study-app.*' \
+ ghcr.io/study-app/api@${{ needs.build-and-sign.outputs.digest }}
+ - name: Bump image tag for Argo CD
+ run: |
+ yq -i '.spec.template.spec.containers[0].image =
+ "ghcr.io/study-app/api@${{ needs.build-and-sign.outputs.digest }}"' \
+ argocd/apps/api/deployment.yaml
+ git commit -am "deploy(api): ${{ github.sha }}" &amp;&amp; git push
+ </code></pre>
         <p><strong>What this workflow does.</strong> The PR run does test + security-scan in parallel — both required for merge. The post-merge run additionally builds the image, attaches SLSA provenance and an SBOM, signs the digest with cosign (keyless, via GitHub's OIDC token), and updates the Argo CD repo to point production at the new digest. Argo CD takes it from there: canary slice, soak, promote or roll back. The deploy gate verifies the signature before bumping the tag — an unsigned or untrusted image cannot reach production even if the build job was somehow tricked into pushing one. The matrix split keeps unit and integration parallel so the PR pipeline stays inside the 10-minute budget.</p>
       </div>
     </div>

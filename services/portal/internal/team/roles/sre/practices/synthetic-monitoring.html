@@ -78,7 +78,7 @@
 
         <path d="M145 110 L165 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M310 110 L330 110" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
-        <path d="M470  98 L490  46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
+        <path d="M470 98 L490 46" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
         <path d="M470 122 L490 174" style="stroke:var(--muted);stroke-width:1.5;fill:none" marker-end="url(#arrow)"></path>
       </svg>
       <figcaption class="pa-figure__caption">Scheduled probe → hit a golden user journey URL → assert the response → emit metric/SLI and route the alert. Real users never run this path; the probe does, every minute, from every region.</figcaption>
@@ -231,60 +231,60 @@ import { check, group, sleep } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
 
 export const options = {
-  scenarios: {
-    lesson_render: {
-      executor:    'constant-vus',
-      vus:         1,
-      duration:    '30s',
-      exec:        'lessonRender',
-    },
-  },
-  thresholds: {
-    'checks{journey:lesson_render}':       ['rate&gt;0.99'],
-    'http_req_duration{step:open_lesson}': ['p(95)&lt;1500'],
-  },
-  tags: { journey: 'lesson_render', owner: 'sre-platform', tier: 'P2' },
+ scenarios: {
+ lesson_render: {
+ executor: 'constant-vus',
+ vus: 1,
+ duration: '30s',
+ exec: 'lessonRender',
+ },
+ },
+ thresholds: {
+ 'checks{journey:lesson_render}': ['rate&gt;0.99'],
+ 'http_req_duration{step:open_lesson}': ['p(95)&lt;1500'],
+ },
+ tags: { journey: 'lesson_render', owner: 'sre-platform', tier: 'P2' },
 };
 
 const lessonStepLatency = new Trend('synthetic_step_ms', true);
 const lessonStepSuccess = new Rate('synthetic_step_ok');
 
 export function lessonRender() {
-  const base   = __ENV.BASE_URL || 'https://app.studyapp/';
-  const email  = __ENV.SYN_EMAIL;
-  const token  = __ENV.SYN_TOKEN;
+ const base = __ENV.BASE_URL || 'https://app.studyapp/';
+ const email = __ENV.SYN_EMAIL;
+ const token = __ENV.SYN_TOKEN;
 
-  group('sign_in', () =&gt; {
-    const r = http.post(`${base}api/auth/login`,
-      JSON.stringify({ email, token }),
-      { headers: { 'content-type': 'application/json' }, tags: { step: 'sign_in' } });
-    lessonStepLatency.add(r.timings.duration, { step: 'sign_in' });
-    lessonStepSuccess.add(check(r, { 'signed in':  res =&gt; res.status === 200 }),
-      { step: 'sign_in' });
-  });
+ group('sign_in', () =&gt; {
+ const r = http.post(`${base}api/auth/login`,
+ JSON.stringify({ email, token }),
+ { headers: { 'content-type': 'application/json' }, tags: { step: 'sign_in' } });
+ lessonStepLatency.add(r.timings.duration, { step: 'sign_in' });
+ lessonStepSuccess.add(check(r, { 'signed in': res =&gt; res.status === 200 }),
+ { step: 'sign_in' });
+ });
 
-  group('list_courses', () =&gt; {
-    const r = http.get(`${base}api/courses`, { tags: { step: 'list_courses' } });
-    lessonStepLatency.add(r.timings.duration, { step: 'list_courses' });
-    lessonStepSuccess.add(check(r, {
-      'courses 200':       res =&gt; res.status === 200,
-      'courses non-empty': res =&gt; (res.json('items') || []).length &gt; 0,
-    }), { step: 'list_courses' });
-  });
+ group('list_courses', () =&gt; {
+ const r = http.get(`${base}api/courses`, { tags: { step: 'list_courses' } });
+ lessonStepLatency.add(r.timings.duration, { step: 'list_courses' });
+ lessonStepSuccess.add(check(r, {
+ 'courses 200': res =&gt; res.status === 200,
+ 'courses non-empty': res =&gt; (res.json('items') || []).length &gt; 0,
+ }), { step: 'list_courses' });
+ });
 
-  group('open_lesson', () =&gt; {
-    const r = http.get(`${base}api/lessons/canary-001`, { tags: { step: 'open_lesson' } });
-    lessonStepLatency.add(r.timings.duration, { step: 'open_lesson' });
-    lessonStepSuccess.add(check(r, {
-      'lesson 200':       res =&gt; res.status === 200,
-      'lesson under 1.5s': res =&gt; res.timings.duration &lt; 1500,
-      'lesson has body':  res =&gt; (res.json('content') || '').length &gt; 0,
-    }), { step: 'open_lesson' });
-  });
+ group('open_lesson', () =&gt; {
+ const r = http.get(`${base}api/lessons/canary-001`, { tags: { step: 'open_lesson' } });
+ lessonStepLatency.add(r.timings.duration, { step: 'open_lesson' });
+ lessonStepSuccess.add(check(r, {
+ 'lesson 200': res =&gt; res.status === 200,
+ 'lesson under 1.5s': res =&gt; res.timings.duration &lt; 1500,
+ 'lesson has body': res =&gt; (res.json('content') || '').length &gt; 0,
+ }), { step: 'open_lesson' });
+ });
 
-  sleep(1);
+ sleep(1);
 }
-        </code></pre>
+ </code></pre>
         <p><strong>What this probe does.</strong> Every 60 seconds, from each of us-east, eu-west, and ap-south, k6 runs the three-step journey and emits per-step latency and success metrics tagged with the step name. The <code>thresholds</code> block fails the run if the per-step success rate drops below 99% or the open-lesson p95 exceeds 1.5 s. Alertmanager pages PagerDuty at P2 only after two consecutive failed runs from the same region — a single regional blip clears itself before the page fires. If the probe had been a single <code>GET /healthz</code> instead, the lesson-render outage on 2026-04-12 — which left every health endpoint green while the lesson body returned empty — would have been first reported by a customer in APAC, not by the on-call.</p>
       </div>
     </div>

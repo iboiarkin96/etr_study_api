@@ -214,55 +214,55 @@
         <p class="pa-example__intro">Per-route Lighthouse-CI budget + k6 backend thresholds + bundlesize config. All three enforced as required CI checks.</p>
         <pre class="pa-example__code"><code># perf/lighthouse-budgets.json (per-route)
 [
-  { "path": "/",                 "resourceSizes": [{ "resourceType": "script", "budget": 180 }],
-                                  "timings": [{ "metric": "interactive", "budget": 3000 },
-                                              { "metric": "largest-contentful-paint", "budget": 2500 }] },
-  { "path": "/lessons/*",        "timings": [{ "metric": "largest-contentful-paint", "budget": 3500 }] },
-  { "path": "/billing/*",        "timings": [{ "metric": "largest-contentful-paint", "budget": 3000 }] }
+ { "path": "/", "resourceSizes": [{ "resourceType": "script", "budget": 180 }],
+ "timings": [{ "metric": "interactive", "budget": 3000 },
+ { "metric": "largest-contentful-paint", "budget": 2500 }] },
+ { "path": "/lessons/*", "timings": [{ "metric": "largest-contentful-paint", "budget": 3500 }] },
+ { "path": "/billing/*", "timings": [{ "metric": "largest-contentful-paint", "budget": 3000 }] }
 ]
 
 # perf/lighthouse-ci.yml
 ci:
-  collect:
-    settings:
-      preset: mobile             # 1.6 Mbps · 4x CPU throttle
-      formFactor: mobile
-    numberOfRuns: 5              # median to reduce flakiness
-  assert:
-    budgetsFile: perf/lighthouse-budgets.json
+ collect:
+ settings:
+ preset: mobile # 1.6 Mbps · 4x CPU throttle
+ formFactor: mobile
+ numberOfRuns: 5 # median to reduce flakiness
+ assert:
+ budgetsFile: perf/lighthouse-budgets.json
 
 # perf/k6/lesson-state.js (backend)
 import http from 'k6/http';
 export const options = {
-  thresholds: {
-    'http_req_duration{endpoint:state}': ['p(99)&lt;200', 'p(99.9)&lt;500'],
-    'http_req_failed{endpoint:state}':   ['rate&lt;0.001'],
-  },
-  scenarios: {
-    sustained: { executor: 'constant-arrival-rate', rate: 100, duration: '5m' },
-  },
+ thresholds: {
+ 'http_req_duration{endpoint:state}': ['p(99)&lt;200', 'p(99.9)&lt;500'],
+ 'http_req_failed{endpoint:state}': ['rate&lt;0.001'],
+ },
+ scenarios: {
+ sustained: { executor: 'constant-arrival-rate', rate: 100, duration: '5m' },
+ },
 };
 export default function () {
-  http.get('https://staging/lessons/abc/state', { tags: { endpoint: 'state' } });
+ http.get('https://staging/lessons/abc/state', { tags: { endpoint: 'state' } });
 }
 
 # package.json (bundlesize, frontend)
 "bundlesize": [
-  { "path": "dist/main.*.js",      "maxSize": "200 kB", "compression": "gzip" },
-  { "path": "dist/vendor.*.js",    "maxSize": "350 kB", "compression": "gzip" },
-  { "path": "dist/runtime.*.js",   "maxSize": "20 kB",  "compression": "gzip" }
+ { "path": "dist/main.*.js", "maxSize": "200 kB", "compression": "gzip" },
+ { "path": "dist/vendor.*.js", "maxSize": "350 kB", "compression": "gzip" },
+ { "path": "dist/runtime.*.js", "maxSize": "20 kB", "compression": "gzip" }
 ]
 
 # .github/workflows/perf.yml (excerpt)
 jobs:
-  perf:
-    steps:
-      - uses: treosh/lighthouse-ci-action@v11
-        with: { configPath: perf/lighthouse-ci.yml }
-      - uses: grafana/k6-action@v0.3.1
-        with: { filename: perf/k6/lesson-state.js }
-      - run: npx bundlesize
-        </code></pre>
+ perf:
+ steps:
+ - uses: treosh/lighthouse-ci-action@v11
+ with: { configPath: perf/lighthouse-ci.yml }
+ - uses: grafana/k6-action@v0.3.1
+ with: { filename: perf/k6/lesson-state.js }
+ - run: npx bundlesize
+ </code></pre>
         <p class="pa-example__note">Three tools, three budget files, one perf workflow. Per-route LCP budgets for the frontend; p99 + p99.9 thresholds in k6 for the backend; gzipped-bundle limits per chunk. All three are required checks; merge is blocked on breach.</p>
       </div>
     </section>
