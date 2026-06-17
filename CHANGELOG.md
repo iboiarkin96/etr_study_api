@@ -25,3 +25,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   FastAPI 0.135.3 runs cleanly against starlette 1.3.1 — verified by
   `make -C services/api verify` (deps-audit + openapi + contract + tests
   at 91 % coverage).
+
+### Changed
+
+- **ci:** `changelog` job in `.github/workflows/ci.yml` now runs on PRs into
+  `staging` (and pushes to `staging`), not only into `main`/`master`. Closes
+  the gap where a `services/api/` change could land on staging without a
+  CHANGELOG entry and only surface at the `staging → main` PR.
+
+### Removed
+
+- **operating-model:** retired four sub-pages now subsumed by the rest of the
+  section — `domain-model.html`, `cross-service-workflows.html`,
+  `information-architecture.html`, `whats-new-in-how-we-work.html`. The
+  paired meta-log coupling gate (`check_meta_changes_logged` pre-commit hook
+  + script reference) is disabled.
+
+### Changed
+
+- **operating-model hub** (`services/portal/internal/operating-model/index.html`)
+  trimmed to three sections — Start here (one SVG mental anchor),
+  What to read (four reference pages in author-order), and Starting a new
+  page (single outbound pill to handbook templates). Mixed-genre «five
+  rules» and duplicated Quick answers / tour CTAs removed.
+- **operating-model · quality-gates-map** D-section rebuilt from a
+  five-column table into numbered cards with bullets; meta-log row dropped
+  from Table A and the two feed-coupling cells in Table C blanked.
+- **operating-model · history footers** added to all six remaining
+  sub-pages (canonical `docs-history` block).
+- **services/portal · entity card + dependencies page** updated to show
+  Pagefind as a build-time and runtime dependency (ADR 0033 already
+  switched the search engine; the catalog descriptor hadn't caught up).
