@@ -34,7 +34,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update
+.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update
 
 PORTAL_PORT ?= 8080
 PORTAL_URL  := http://127.0.0.1:$(PORTAL_PORT)/portal/
@@ -52,7 +52,8 @@ help:
 	@echo "  make docs-nav-check        Sidebar coverage — fails on pages not in nav-tree-internal.json"
 	@echo "  make catalog-render        Regenerate per-service catalog from catalog-info.yaml"
 	@echo "  make catalog-render-check  Catalog drift gate"
-	@echo "  make verify                docs-check + docs-a11y-check"
+	@echo "  make verify                docs-check + docs-a11y-check (the CI gate)"
+	@echo "  make verify-local          verify + visual-test (full local gate before push)"
 	@echo ""
 	@echo "  make open  [PORTAL_PORT=N] Start static server AND open the portal in the browser (one-shot)"
 	@echo "  make serve [PORTAL_PORT=N] Just start the server (headless / curl / non-default browser)"
@@ -235,5 +236,19 @@ verify:
 	@printf "$(COLOR_CYAN)== PORTAL VERIFY: START ==$(COLOR_RESET)\n"
 	@$(MAKE) docs-check
 	@$(MAKE) docs-a11y-check
-	@$(MAKE) visual-test
+	@# visual-test is intentionally NOT in the CI verify chain. PNG baselines
+	@# are platform-dependent (font hinting, sub-pixel AA differ between
+	@# macOS Chromium and Linux Chromium on GitHub runners), so a baseline
+	@# baked locally fails on CI even when the UI hasn't changed. For the
+	@# full local gate that does include the visual diff, use `verify-local`.
 	@printf "$(COLOR_GREEN)== PORTAL VERIFY: SUCCESS ==$(COLOR_RESET)\n"
+
+# Full local gate — everything in `verify` plus the platform-dependent
+# visual diff. Use before push when you've touched UI Kit components,
+# tokens, or template structure. Same command CI runs as `verify` plus
+# `visual-test`, so a green `verify-local` implies a green CI verify.
+verify-local:
+	@printf "$(COLOR_CYAN)== PORTAL VERIFY-LOCAL: START ==$(COLOR_RESET)\n"
+	@$(MAKE) verify
+	@$(MAKE) visual-test
+	@printf "$(COLOR_GREEN)== PORTAL VERIFY-LOCAL: SUCCESS ==$(COLOR_RESET)\n"

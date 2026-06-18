@@ -111,38 +111,15 @@ jobs:
       - name: services/api/Dockerfile (BuildKit checks)
         run: docker build --check services/api
 
-  # Pixel-diff the 10 canonical UI Kit templates against committed
-  # baselines under tests/visual/baselines/. Kept out of the `quality` matrix
-  # because it needs a 150 MB Chromium download (cached separately) and runs
-  # only after the cheap gates pass.
-  visual-regression:
-    name: Visual regression (UI Kit templates)
-    runs-on: ubuntu-latest
-    needs: [quality]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-venv
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ hashFiles('services/api/requirements.txt') }}
-
-      - name: Install Chromium
-        run: .venv/bin/playwright install --with-deps chromium
-
-      - name: Pixel-diff vs baselines
-        run: make visual-test
-
-      - name: Upload actuals + diffs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: visual-diffs
-          path: tests/visual/_artifacts/
-          retention-days: 14
+  # NOTE: the visual-regression job intentionally lives only as a local
+  # developer affordance (`make visual-test` / `make visual-test-update` from
+  # repo root). It is NOT wired into CI because PNG baselines bake in the
+  # platform that generated them — sub-pixel AA + font hinting differ
+  # between macOS Chromium (the dev machine) and Linux Chromium (the
+  # GitHub runner), so a baseline that's pixel-perfect locally fails on CI
+  # without any UI change. Re-introducing it requires either baseline
+  # baking on the runner (workflow_dispatch job + commit-back), or
+  # per-platform baselines under tests/visual/baselines/<os>/.
 
   pr-template-check:
     name: Validate PR change type selection
