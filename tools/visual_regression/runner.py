@@ -155,7 +155,19 @@ def _load_pages() -> list[dict]:
         raise SystemExit(f"corpus file missing: {PAGES_JSON}")
     data = json.loads(PAGES_JSON.read_text("utf-8"))
 
-    pages: list[dict] = list(data.get("pages") or [])
+    # Paths in pages.json are repo-relative (services/...) — that's the
+    # canonical format `tools/docs/check_template_twins.py` expects too. The
+    # http.server in this runner is rooted at `services/`, so the URL it sees
+    # has the `services/` prefix already consumed. Strip it once at load time
+    # so the rest of the code can build URLs as `f"{base_url}/{page['path']}"`
+    # without worrying about which consumer wrote the entry.
+    raw_pages = data.get("pages") or []
+    pages: list[dict] = []
+    for p in raw_pages:
+        path = p["path"]
+        if path.startswith("services/"):
+            path = path[len("services/") :]
+        pages.append({**p, "path": path})
     seen: set[str] = {p["id"] for p in pages}
 
     for rule in data.get("rules") or []:
@@ -273,7 +285,14 @@ def _capture(browser, base_url: str, page_id: str, page_path: str, viewport: str
     try:
         context.add_init_script(INIT_SCRIPT_TPL.replace("__THEME__", str(conf["theme"])))
         page = context.new_page()
-        page.goto(url, wait_until="networkidle", timeout=15_000)
+        # `domcontentloaded` is the earliest deterministic point — DOM parsed,
+        # sync scripts ran, but we don't wait on every async asset. `networkidle`
+        # is brittle (any open connection stretches the wait); `load` is
+        # better but still hangs when an async module sits on the network.
+        # The font-ready barrier + rAF tick below are what actually pin the
+        # paintable state for the screenshot, so the goto-wait only has to
+        # get us past first-paint.
+        page.goto(url, wait_until="domcontentloaded", timeout=30_000)
         page.add_style_tag(content=NEUTRALIZE_CSS)
         page.evaluate("document.fonts && document.fonts.ready")
         # Settle one rAF tick so any sync mount work commits before snapshot.

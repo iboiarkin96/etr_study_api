@@ -39,10 +39,21 @@ def portal_server():
 
 @pytest.fixture(scope="session")
 def playwright_ctx():
+    """Yield a long-lived Chromium `Browser` (not the Playwright manager).
+
+    `_capture` expects a Browser — it calls `browser.new_context(...)`.
+    Passing the Playwright manager here raised
+    `AttributeError: 'Playwright' object has no attribute 'new_context'`
+    on every visual test.
+    """
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:
-        yield pw
+        browser = pw.chromium.launch()
+        try:
+            yield browser
+        finally:
+            browser.close()
 
 
 @pytest.mark.parametrize(("page_id", "page_path", "viewport"), _PARAMS)
