@@ -1,0 +1,221 @@
+"""Structural validation: live RFCs match the canon their templates ship.
+
+RFC canon — extracted from `handbook/sa/templates/rfc.html` + the 4 live
+RFCs under `governance/rfc/`:
+
+  - `data-page-type="reference"` everywhere (RFCs are policy/process
+    decision records; templates AND live carry the same quadrant, same
+    rationale as ADRs — the form is documented uniformly across roles).
+  - `<header class="page-head">` with eyebrow + h1 + `<p class="lede">`.
+  - `<dl class="svc-meta">` Metadata block with: RFC · Category · Owner ·
+    Proposed on · Accepted on · Supersedes.
+  - Eight canonical `<h2>` sections in this order:
+      metadata-h → goals-h → background-h → design-h → implementation-h →
+      validation-h → rollout-h → change-management-h
+  - `<footer class="docs-history">` — every RFC records its evolution.
+
+Two templates carry the canon:
+
+  ui-kit/pages/templates/doc-rfc.html
+    Visual specimen — fake-but-plausible RFC 0042 «Per-service runbook
+    canon» with concrete prose in every section.
+
+  handbook/sa/templates/rfc.html
+    Authoring shell — same skeleton with placeholder markers.
+
+Live RFCs: `services/portal/internal/governance/rfc/NNNN-*.html`.
+
+Runs without Playwright or Pillow — pure html5lib. Pair with the visual
+test for the two templates only (live RFC content drift is structural,
+not pixel-level).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import html5lib
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+PORTAL_INTERNAL = REPO_ROOT / "services" / "portal" / "internal"
+RFC_DIR = PORTAL_INTERNAL / "governance" / "rfc"
+
+UI_KIT_RFC = REPO_ROOT / "services" / "portal" / "ui-kit" / "pages" / "templates" / "doc-rfc.html"
+SA_RFC_TEMPLATE = (
+    REPO_ROOT / "services" / "portal" / "internal" / "handbook" / "sa" / "templates" / "rfc.html"
+)
+TEMPLATE_PATHS = [UI_KIT_RFC, SA_RFC_TEMPLATE]
+
+# Canonical section anchors every RFC MUST carry, in order.
+REQUIRED_SECTION_IDS = [
+    "metadata-h",
+    "goals-h",
+    "background-h",
+    "design-h",
+    "implementation-h",
+    "validation-h",
+    "rollout-h",
+    "change-management-h",
+]
+REQUIRED_SECTION_SET = set(REQUIRED_SECTION_IDS)
+
+# Metadata <dl> must surface at minimum these rows so a reader can scan
+# the proposal provenance without parsing the body. Live RFCs may not
+# yet be Accepted, so «Accepted on» and «Supersedes» are checked as
+# optional via the relaxed _METADATA_OPTIONAL set below; the mandatory
+# set is everything else.
+REQUIRED_METADATA_TERMS = {"RFC", "Category", "Owner", "Proposed on"}
+
+
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+
+def _parse(path: Path):
+    return html5lib.parse(path.read_text("utf-8"), namespaceHTMLElements=False)
+
+
+def _live_rfcs() -> list[Path]:
+    """Numbered RFC files (excludes index.html)."""
+    return sorted(p for p in RFC_DIR.glob("[0-9]*.html"))
+
+
+def _body_attr(tree, name: str) -> str | None:
+    for el in tree.iter():
+        if _local_name(el.tag) == "body":
+            return el.get(name)
+    return None
+
+
+def _section_ids(tree) -> set[str]:
+    """All `id` attributes on <h2> elements — the RFC section anchors."""
+    return {el.get("id") for el in tree.iter() if _local_name(el.tag) == "h2" and el.get("id")}
+
+
+def _docs_toc_anchor_order(tree) -> list[str]:
+    order: list[str] = []
+    for el in tree.iter():
+        if _local_name(el.tag) != "aside":
+            continue
+        classes = (el.get("class") or "").split()
+        if "docs-toc" not in classes:
+            continue
+        for a in el.iter():
+            if _local_name(a.tag) == "a" and (href := a.get("href", "")).startswith("#"):
+                order.append(href[1:])
+    return order
+
+
+def _metadata_terms(tree) -> set[str]:
+    for el in tree.iter():
+        if _local_name(el.tag) != "dl":
+            continue
+        classes = (el.get("class") or "").split()
+        if "svc-meta" not in classes:
+            continue
+        return {
+            (dt.text or "").strip() for dt in el.iter() if _local_name(dt.tag) == "dt" and dt.text
+        }
+    return set()
+
+
+def _has_docs_history_footer(tree) -> bool:
+    for el in tree.iter():
+        if _local_name(el.tag) != "footer":
+            continue
+        classes = (el.get("class") or "").split()
+        if "docs-history" in classes:
+            return True
+    return False
+
+
+# ─── Corpus discovery ────────────────────────────────────────────────────
+_LIVE_RFCS = _live_rfcs()
+_ALL = [*TEMPLATE_PATHS, *_LIVE_RFCS]
+_IDS = ["template:ui-kit-doc-rfc", "template:sa-rfc"] + [
+    str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_RFCS
+]
+
+
+# ─── Sanity ──────────────────────────────────────────────────────────────
+def test_corpus_is_nonempty() -> None:
+    assert _LIVE_RFCS, (
+        "No numbered RFC files found under governance/rfc/. Adjust _live_rfcs() if the IA moved."
+    )
+
+
+# ─── 0) Templates agree with each other ──────────────────────────────────
+def test_templates_agree_on_canonical_sections() -> None:
+    """Both RFC templates must declare the same canonical anchors. Catches
+    «UI Kit specimen updated, SA authoring shell forgotten» drift."""
+    per_template = {p: _section_ids(_parse(p)) & REQUIRED_SECTION_SET for p in TEMPLATE_PATHS}
+    union = set().union(*per_template.values())
+    drift = {
+        p.relative_to(REPO_ROOT): sorted(union - ids)
+        for p, ids in per_template.items()
+        if union - ids
+    }
+    assert not drift, (
+        "Templates disagree on canonical sections:\n  "
+        + "\n  ".join(f"{p} missing: {ms}" for p, ms in drift.items())
+        + "\nReconcile so both templates carry the same canon."
+    )
+
+
+# ─── 1) Every RFC (templates + live) carries the canonical sections ──────
+@pytest.mark.parametrize(("path",), [(p,) for p in _ALL], ids=_IDS)
+def test_has_canonical_sections(path: Path) -> None:
+    ids = _section_ids(_parse(path))
+    missing = REQUIRED_SECTION_SET - ids
+    assert not missing, (
+        f"{path.relative_to(REPO_ROOT)} is missing canonical sections: "
+        f"{sorted(missing)}. Present: {sorted(ids)}"
+    )
+
+
+# ─── 2) data-page-type="reference" everywhere ────────────────────────────
+# RFCs document a policy/process form at every level (template AND live).
+# Unlike runbooks/tutorials where templates differ from live, here the
+# quadrant is uniform.
+@pytest.mark.parametrize(("path",), [(p,) for p in _ALL], ids=_IDS)
+def test_body_data_page_type_is_reference(path: Path) -> None:
+    actual = _body_attr(_parse(path), "data-page-type")
+    assert actual == "reference", (
+        f"{path.relative_to(REPO_ROOT)} has data-page-type={actual!r}; "
+        "RFCs are Diátaxis Reference at every level."
+    )
+
+
+# ─── 3) Metadata <dl> surfaces the canonical labels ──────────────────────
+@pytest.mark.parametrize(("path",), [(p,) for p in _ALL], ids=_IDS)
+def test_metadata_dl_surfaces_required_terms(path: Path) -> None:
+    terms = _metadata_terms(_parse(path))
+    missing = REQUIRED_METADATA_TERMS - terms
+    assert not missing, (
+        f"{path.relative_to(REPO_ROOT)} <dl.svc-meta> is missing: "
+        f"{sorted(missing)}. Present: {sorted(terms)}"
+    )
+
+
+# ─── 4) docs-history footer present ──────────────────────────────────────
+@pytest.mark.parametrize(("path",), [(p,) for p in _ALL], ids=_IDS)
+def test_has_docs_history_footer(path: Path) -> None:
+    assert _has_docs_history_footer(_parse(path)), (
+        f'{path.relative_to(REPO_ROOT)} is missing <footer class="docs-history">. '
+        "Every RFC records its evolution in a page-history block."
+    )
+
+
+# ─── 5) docs-toc walks the canonical reading order ───────────────────────
+@pytest.mark.parametrize(("path",), [(p,) for p in _ALL], ids=_IDS)
+def test_docs_toc_walks_canonical_order(path: Path) -> None:
+    toc = _docs_toc_anchor_order(_parse(path))
+    if not toc:
+        pytest.skip("page does not ship an on-this-page TOC (mobile-only?)")
+    canon_seen = [a for a in toc if a in REQUIRED_SECTION_IDS]
+    expected = [a for a in REQUIRED_SECTION_IDS if a in canon_seen]
+    assert canon_seen == expected, (
+        f"{path.relative_to(REPO_ROOT)} docs-toc walks canonical anchors in "
+        f"the wrong order:\n  got:      {canon_seen}\n  expected: {expected}"
+    )

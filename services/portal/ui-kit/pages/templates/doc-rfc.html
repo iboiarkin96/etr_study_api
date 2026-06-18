@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RFC 0042 · Per-service runbook canon · Study App</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="portal" data-lifecycle="published" data-updated="2026-06-18" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="#"><span aria-hidden="true">🚀</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="#">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="#">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="#">RFC</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0042 · Per-service runbook canon</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-uikit.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">RFC · 0042</span>
+          <span class="docs-pill docs-pill--neutral">Process · Documentation</span>
+          <a class="docs-pill docs-pill--success" href="#">Accepted</a>
+        </div>
+        <h1>RFC 0042: Per-service runbook canon — one section order across all services</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Pin every runbook in the portal to the same section order — Symptom, First action, Triage, Recovery, Exit criteria, Escalation, Follow-up — and enforce that order with a structural canon test in CI. Today the order drifts between services (Recovery and Triage swap places, some pages have no Exit criteria at all), and an on-call engineer paying the cost of remembering which service uses which order.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>RFC</dt>
+          <dd><code>0042 — Per-service runbook canon</code></dd>
+          <dt>Category</dt>
+          <dd>Process · Documentation</dd>
+          <dt>Owner</dt>
+          <dd><a href="#">Ivan Boyarkin</a> (Architect)</dd>
+          <dt>Proposed on</dt>
+          <dd><time datetime="2026-06-15">2026-06-15</time></dd>
+          <dt>Accepted on</dt>
+          <dd><time datetime="2026-06-18">2026-06-18</time></dd>
+          <dt>Supersedes</dt>
+          <dd>—</dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="goals-h">
+        <h2 id="goals-h">Goals</h2>
+        <ul>
+          <li><strong>One reading order, every runbook.</strong> An on-call engineer who has used a runbook in one service can use one in another service without re-learning the layout.</li>
+          <li><strong>Drift caught at commit time.</strong> A structural canon test refuses commits that introduce a runbook with sections out of order, or missing one of the seven canonical sections.</li>
+          <li><strong>No bespoke content surgery.</strong> Existing runbooks reach canon through a one-time fix-up sweep; from there forward the gate prevents regression.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="background-h">
+        <h2 id="background-h">Background</h2>
+        <p>
+          We have ~25 runbooks across <code>services/api/runbooks/</code>, <code>services/portal/runbooks/</code>, <code>services/monitoring/runbooks/</code>, and <code>handbook/sre/runbooks/</code>. A scan of section IDs in commit <code>9d3a</code> found three distinct orderings: <em>Symptom → Triage → Recovery</em> (api, 9 pages), <em>Symptom → Recovery → Triage</em> (sre, 6 pages), and a free-form layout (portal, 4 pages). Three more (monitoring) have no «Exit criteria» section at all — recovery just ends and the page assumes you know when to declare the incident closed.
+        </p>
+        <p>
+          The cost is real but distributed: every postmortem from the last two quarters mentions at least once «I went to the runbook and couldn't find the rollback step» or «the runbook ended without telling me when to declare clear». A canon is the cheapest possible fix.
+        </p>
+      </section>
+
+      <section aria-labelledby="design-h">
+        <h2 id="design-h">Detailed design</h2>
+        <p>The seven canonical sections, in order:</p>
+        <ol>
+          <li><strong>Symptom.</strong> What the on-call engineer is seeing. One paragraph, no diagnosis.</li>
+          <li><strong>First action.</strong> The single thing to do in the first 60 seconds. Mitigation, not investigation.</li>
+          <li><strong>Triage.</strong> Three to five diagnostic queries / dashboards / log filters that narrow the cause.</li>
+          <li><strong>Recovery.</strong> The step-by-step actions to restore service. Numbered list. Each step has an expected outcome.</li>
+          <li><strong>Exit criteria.</strong> How the engineer knows the incident is over. Concrete signals — not «things look fine».</li>
+          <li><strong>Escalation.</strong> Who to page if Recovery stalls, and at what time threshold.</li>
+          <li><strong>Follow-up.</strong> Postmortem owner, ticket to file, runbook-edit owner if a gap was found during the response.</li>
+        </ol>
+        <p>
+          Each section maps to an <code>&lt;h2 id="…-h"&gt;</code> with a fixed id token: <code>symptom-h</code>, <code>first-action-h</code>, <code>triage-h</code>, <code>recovery-h</code>, <code>exit-h</code>, <code>escalation-h</code>, <code>follow-up-h</code>. The canon test walks every runbook under the four runbook roots, asserts each id is present, in order. Templates for new runbooks ship with all seven sections pre-stubbed.
+        </p>
+      </section>
+
+      <section aria-labelledby="implementation-h">
+        <h2 id="implementation-h">Implementation</h2>
+        <ol>
+          <li><strong>Phase 1 — canon test.</strong> Add <code>tests/visual/test_runbook_canon.py</code> (already shipped under BL-047) — extended to enforce the seven-section order across the four runbook roots. Failing the test does not block CI yet (marked <code>xfail</code>).</li>
+          <li><strong>Phase 2 — fix-up sweep.</strong> One PR per service folder: reorder sections, add missing «Exit criteria» where absent, normalise heading IDs. Each PR includes the canon test going <code>xfail</code> → <code>pass</code> for that service.</li>
+          <li><strong>Phase 3 — hard gate.</strong> Remove the <code>xfail</code> markers; canon test becomes a required CI gate. New runbooks must start from the template.</li>
+          <li><strong>Phase 4 — template lockdown.</strong> Add <code>handbook/sa/templates/runbook.html</code> and the UI Kit twin <code>doc-runbook.html</code> to the BL-047 visual corpus so template structure is itself contract-tested.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li><strong>Mechanical.</strong> <code>make -C services/api verify</code> runs the canon test against all four runbook roots; passes on a clean tree, fails on any reordering or missing section.</li>
+          <li><strong>Empirical.</strong> Pick three on-call engineers who have not seen this RFC. Ask each to find «how to confirm the incident is over» on a runbook outside their own service. Stopwatch from page-open to correct-section-found. Target: under 10 seconds for all three. Today: 30–60 seconds with two of three giving up before finding it.</li>
+          <li><strong>Postmortem signal.</strong> No postmortem in the next two quarters mentions «could not find the rollback / exit step» as a contributing factor. (Current baseline: 3 of last 5 postmortems do.)</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="rollout-h">
+        <h2 id="rollout-h">Roll-out</h2>
+        <ul>
+          <li><strong>Week 1</strong> — Phase 1 lands. Canon test on <code>xfail</code>, drift visible but non-blocking. Announce in the change feed.</li>
+          <li><strong>Weeks 2–3</strong> — Phase 2 sweep. One PR per service: api, portal, monitoring, sre-handbook. Reviewer per PR is the service owner. Expected drift: ~25 pages touched.</li>
+          <li><strong>Week 4</strong> — Phase 3 hard gate. Remove <code>xfail</code> markers. Watch CI for one week — any genuine regressions go back through Phase 2.</li>
+          <li><strong>Week 5</strong> — Phase 4 template lockdown. Visual corpus expands with the runbook pair.</li>
+          <li><strong>Rollback strategy.</strong> Reverting the canon test removes the gate without touching content. The fix-up commits are independent — each can be reverted in isolation if its service team objects to the result.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="change-management-h">
+        <h2 id="change-management-h">Change management</h2>
+        <ul>
+          <li><strong>Adding a new section to the canon.</strong> Open a new RFC superseding this one. The canon set is small precisely because adding to it is expensive — every existing runbook needs the new section, or the gate has to xfail the absences.</li>
+          <li><strong>Service-specific extensions.</strong> A service may add extra <code>&lt;h2&gt;</code> sections after Follow-up (typical: service-specific runbook patterns, links to service playbooks). The canon test ignores anything beyond the seven required ids; only their presence and order is enforced.</li>
+          <li><strong>Deprecating a runbook.</strong> Move it to <code>archive/runbooks/</code> with a lifecycle pill set to <code>retired</code>. Archived runbooks are excluded from the canon test scope.</li>
+        </ul>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-18</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">UI Kit RFC specimen added — fake-but-plausible RFC 0042 («Per-service runbook canon»). Mirrors the canonical eight sections shared by the live RFC corpus (<code>metadata-h</code>, <code>goals-h</code>, <code>background-h</code>, <code>design-h</code>, <code>implementation-h</code>, <code>validation-h</code>, <code>rollout-h</code>, <code>change-management-h</code>). Twinned with <code>handbook/sa/templates/rfc.html</code> via the new pair in <code>tests/visual/pages.json</code>; structural canon enforced by <code>tests/visual/test_rfc_canon.py</code> (BL-047, wave A).</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#goals-h">Goals</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#background-h">Background</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#design-h">Detailed design</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#implementation-h">Implementation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#validation-h">Validation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rollout-h">Roll-out</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#change-management-h">Change management</a></li>
+    </ol>
+  </aside>
+
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+  <script type="module" src="../../../../frontend/portal/assets_v2/ui-kit/components/template-annotator.js"></script>
+
+</body></html>
