@@ -525,6 +525,33 @@ def run(
 
     `workers` — number of parallel Chromium browsers (each in its own thread).
     """
+    # Graceful skip when the Chromium browser binary is missing — covers two
+    # cases: a fresh local clone where the dev hasn't run `playwright install`
+    # yet, and the per-service CI matrix slot for `portal` which only
+    # installs Python deps (the heavy binary is cached in the dedicated
+    # `visual-regression` job). Either way, exit 0 with a clear message
+    # instead of crashing the wider `make verify` chain. The dedicated job
+    # is what actually pins the visual contract.
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as pw:
+            exe = pw.chromium.executable_path
+            if not exe or not Path(exe).exists():
+                print(
+                    "visual-test: SKIP — Chromium binary missing. "
+                    "Run `playwright install chromium` to enable visual regression.",
+                    file=sys.stderr,
+                )
+                return 0
+    except Exception as exc:
+        print(
+            f"visual-test: SKIP — could not start Playwright ({exc}). "
+            "Run `playwright install chromium` to enable visual regression.",
+            file=sys.stderr,
+        )
+        return 0
+
     pages = _load_pages()
     if only:
         pages = [p for p in pages if only in p["id"] or only in p["path"]]
