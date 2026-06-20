@@ -29,22 +29,17 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PORTAL_INTERNAL = REPO_ROOT / "services" / "portal" / "internal"
 
-# Two templates carry the runbook canon — they must agree with each other
-# and every live runbook must conform to them:
-#
-#   ui-kit/pages/templates/ops-runbook.html
-#     Visual specimen. Lives in the UI Kit gallery. Tone: "this is how
-#     a runbook should look in the v2 kit style". Visited by designers.
+# One template carries the runbook canon — every live runbook must conform
+# to it:
 #
 #   handbook/sa/templates/runbook.html
-#     Authoring template. Lives next to the other SA templates (adr,
-#     api-spec, postmortem, …). Authors clone this when they need to
-#     write a new runbook. Tone: "fill in the placeholders". Visited
-#     by SREs / SWEs at incident-write time.
-#
-# Drift between them = drift in the canon — surface it loudly.
+#     Authoring template AND visual specimen. Lives next to the other SA
+#     templates (adr, api-spec, postmortem, …). Authors clone this when
+#     they need to write a new runbook; the `template-annotator.js`
+#     toggle in the topbar exposes the design canon for designers.
+#     Until 2026-06-19 a second twin lived under ui-kit/pages/templates/
+#     — retired so there is one source of truth.
 TEMPLATE_PATHS = [
-    REPO_ROOT / "services" / "portal" / "ui-kit" / "pages" / "templates" / "ops-runbook.html",
     REPO_ROOT
     / "services"
     / "portal"
@@ -232,28 +227,23 @@ def test_live_runbook_section_set_matches_template(
 
 # ─── 3) data-page-type on <body> — SPLIT BY ROLE ──────────────────────────
 #
-#   UI Kit specimen + live runbooks: the actual Diátaxis quadrant they BE,
-#                                    which for runbooks is "how-to".
-#   SA authoring template:           "reference" — it documents the form,
-#                                    sits in the handbook reference quadrant.
+#   Live runbooks:         the actual Diátaxis quadrant they BE — "how-to".
+#   SA authoring template: "reference" — it documents the form, sits in the
+#                          handbook reference quadrant.
 #
 # Two separate tests so failures are localised.
 
-_UI_KIT_TEMPLATE = TEMPLATE_PATHS[0]
-_SA_TEMPLATE = TEMPLATE_PATHS[1]
-_HOWTO_PAGES = [_UI_KIT_TEMPLATE, *_LIVE_RUNBOOKS]
-_HOWTO_IDS = ["template:ui-kit-ops-runbook"] + [
-    str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_RUNBOOKS
-]
+_SA_TEMPLATE = TEMPLATE_PATHS[0]
+_LIVE_IDS = [str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_RUNBOOKS]
 
 
-@pytest.mark.parametrize(("path",), [(p,) for p in _HOWTO_PAGES], ids=_HOWTO_IDS)
-def test_ui_kit_specimen_and_live_data_page_type_is_howto(path: Path) -> None:
+@pytest.mark.parametrize(("path",), [(p,) for p in _LIVE_RUNBOOKS], ids=_LIVE_IDS)
+def test_live_data_page_type_is_howto(path: Path) -> None:
     actual = _body_attr(_parse(path), "data-page-type")
     assert actual == "how-to", (
         f"{path.relative_to(REPO_ROOT)} has data-page-type={actual!r}; "
-        "the UI Kit specimen and live runbooks declare the actual Diátaxis "
-        "quadrant they live in — `how-to` for runbooks."
+        "live runbooks declare the actual Diátaxis quadrant they live in — "
+        "`how-to` for runbooks."
     )
 
 

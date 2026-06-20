@@ -17,8 +17,6 @@ ADRs under `governance/adr/`:
   - `<footer class="docs-history">` — every ADR carries page history.
 
 Two templates carry the canon:
-
-  ui-kit/pages/templates/doc-adr.html
     Visual specimen — a fake but plausible ADR 0042 «Cache hot-path reads
     with Redis» with concrete prose in every section.
 
@@ -44,11 +42,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PORTAL_INTERNAL = REPO_ROOT / "services" / "portal" / "internal"
 ADR_DIR = PORTAL_INTERNAL / "governance" / "adr"
 
-UI_KIT_ADR = REPO_ROOT / "services" / "portal" / "ui-kit" / "pages" / "templates" / "doc-adr.html"
 SA_ADR_TEMPLATE = (
     REPO_ROOT / "services" / "portal" / "internal" / "handbook" / "sa" / "templates" / "adr.html"
 )
-TEMPLATE_PATHS = [UI_KIT_ADR, SA_ADR_TEMPLATE]
+TEMPLATE_PATHS = [SA_ADR_TEMPLATE]
 
 # Canonical section anchors every ADR MUST carry, in order.
 REQUIRED_SECTION_IDS = [
@@ -134,9 +131,7 @@ def _has_docs_history_footer(tree) -> bool:
 # ─── Corpus discovery ────────────────────────────────────────────────────
 _LIVE_ADRS = _live_adrs()
 _ALL = [*TEMPLATE_PATHS, *_LIVE_ADRS]
-_IDS = ["template:ui-kit-doc-adr", "template:sa-adr"] + [
-    str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_ADRS
-]
+_IDS = ["template:sa-adr"] + [str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_ADRS]
 
 
 # ─── Sanity ──────────────────────────────────────────────────────────────

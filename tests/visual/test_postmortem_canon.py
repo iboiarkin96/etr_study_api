@@ -16,8 +16,6 @@ Postmortem canon — extracted from `handbook/sa/templates/postmortem.html`
     evolution (corrections, late-discovered impact, action-item updates).
 
 Two templates carry the canon:
-
-  ui-kit/pages/templates/doc-postmortem.html
     Visual specimen — fake-but-plausible 2026-06-14 incident
     («API connection-pool exhaustion») with concrete prose in every
     section.
@@ -44,9 +42,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PORTAL_INTERNAL = REPO_ROOT / "services" / "portal" / "internal"
 SERVICES_DIR = PORTAL_INTERNAL / "services"
 
-UI_KIT_POSTMORTEM = (
-    REPO_ROOT / "services" / "portal" / "ui-kit" / "pages" / "templates" / "doc-postmortem.html"
-)
 SA_POSTMORTEM_TEMPLATE = (
     REPO_ROOT
     / "services"
@@ -57,7 +52,7 @@ SA_POSTMORTEM_TEMPLATE = (
     / "templates"
     / "postmortem.html"
 )
-TEMPLATE_PATHS = [UI_KIT_POSTMORTEM, SA_POSTMORTEM_TEMPLATE]
+TEMPLATE_PATHS = [SA_POSTMORTEM_TEMPLATE]
 
 # Canonical section anchors every postmortem MUST carry, in order.
 REQUIRED_SECTION_IDS = [
@@ -150,7 +145,7 @@ def _has_docs_history_footer(tree) -> bool:
 # ─── Corpus discovery ────────────────────────────────────────────────────
 _LIVE_POSTMORTEMS = _live_postmortems()
 _ALL = [*TEMPLATE_PATHS, *_LIVE_POSTMORTEMS]
-_IDS = ["template:ui-kit-doc-postmortem", "template:sa-postmortem"] + [
+_IDS = ["template:sa-postmortem"] + [
     str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_POSTMORTEMS
 ]
 

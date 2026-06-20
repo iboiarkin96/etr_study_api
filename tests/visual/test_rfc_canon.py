@@ -15,8 +15,6 @@ RFCs under `governance/rfc/`:
   - `<footer class="docs-history">` — every RFC records its evolution.
 
 Two templates carry the canon:
-
-  ui-kit/pages/templates/doc-rfc.html
     Visual specimen — fake-but-plausible RFC 0042 «Per-service runbook
     canon» with concrete prose in every section.
 
@@ -41,11 +39,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PORTAL_INTERNAL = REPO_ROOT / "services" / "portal" / "internal"
 RFC_DIR = PORTAL_INTERNAL / "governance" / "rfc"
 
-UI_KIT_RFC = REPO_ROOT / "services" / "portal" / "ui-kit" / "pages" / "templates" / "doc-rfc.html"
 SA_RFC_TEMPLATE = (
     REPO_ROOT / "services" / "portal" / "internal" / "handbook" / "sa" / "templates" / "rfc.html"
 )
-TEMPLATE_PATHS = [UI_KIT_RFC, SA_RFC_TEMPLATE]
+TEMPLATE_PATHS = [SA_RFC_TEMPLATE]
 
 # Canonical section anchors every RFC MUST carry, in order.
 REQUIRED_SECTION_IDS = [
@@ -133,9 +130,7 @@ def _has_docs_history_footer(tree) -> bool:
 # ─── Corpus discovery ────────────────────────────────────────────────────
 _LIVE_RFCS = _live_rfcs()
 _ALL = [*TEMPLATE_PATHS, *_LIVE_RFCS]
-_IDS = ["template:ui-kit-doc-rfc", "template:sa-rfc"] + [
-    str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_RFCS
-]
+_IDS = ["template:sa-rfc"] + [str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_RFCS]
 
 
 # ─── Sanity ──────────────────────────────────────────────────────────────

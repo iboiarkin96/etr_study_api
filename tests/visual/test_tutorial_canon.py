@@ -41,9 +41,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PORTAL_INTERNAL = REPO_ROOT / "services" / "portal" / "internal"
 
-UI_KIT_TUTORIAL = (
-    REPO_ROOT / "services" / "portal" / "ui-kit" / "pages" / "templates" / "doc-tutorial.html"
-)
 SA_TUTORIAL_TEMPLATE = (
     REPO_ROOT
     / "services"
@@ -114,13 +111,12 @@ def _gradient_aside_title(tree) -> str | None:
 
 
 # ─── Corpus discovery ────────────────────────────────────────────────────
-TEMPLATE_PATHS = [UI_KIT_TUTORIAL, SA_TUTORIAL_TEMPLATE]
+TEMPLATE_PATHS = [SA_TUTORIAL_TEMPLATE]
 _LIVE_TUTORIALS = _live_tutorials()
 _CANON_PAGES = [*TEMPLATE_PATHS, *_LIVE_TUTORIALS]
-_CANON_IDS = [
-    "template:ui-kit-doc-tutorial",
-    "template:sa-tutorial",
-] + [str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_TUTORIALS]
+_CANON_IDS = ["template:sa-tutorial"] + [
+    str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_TUTORIALS
+]
 
 
 # ─── Sanity ──────────────────────────────────────────────────────────────
@@ -133,26 +129,22 @@ def test_corpus_is_nonempty() -> None:
 
 # ─── 1) data-page-type — SPLIT BY ROLE ───────────────────────────────────
 #
-#   UI Kit specimen + live tutorials: actual Diátaxis quadrant they BE
-#                                     — for tutorials that is "tutorial".
-#   SA authoring template:            "reference" — handbook authoring shell
-#                                     that documents the form.
+#   Live tutorials:        actual Diátaxis quadrant they BE — "tutorial".
+#   SA authoring template: "reference" — handbook authoring shell that
+#                          documents the form.
 #
 # Two separate tests so failures are localised.
 
-_TUTORIAL_PAGES = [UI_KIT_TUTORIAL, *_LIVE_TUTORIALS]
-_TUTORIAL_IDS = ["template:ui-kit-doc-tutorial"] + [
-    str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_TUTORIALS
-]
+_LIVE_IDS = [str(p.relative_to(PORTAL_INTERNAL.parent)) for p in _LIVE_TUTORIALS]
 
 
-@pytest.mark.parametrize(("path",), [(p,) for p in _TUTORIAL_PAGES], ids=_TUTORIAL_IDS)
-def test_ui_kit_specimen_and_live_data_page_type_is_tutorial(path: Path) -> None:
+@pytest.mark.parametrize(("path",), [(p,) for p in _LIVE_TUTORIALS], ids=_LIVE_IDS)
+def test_live_data_page_type_is_tutorial(path: Path) -> None:
     actual = _body_attr(_parse(path), "data-page-type")
     assert actual == "tutorial", (
         f"{path.relative_to(REPO_ROOT)} has data-page-type={actual!r}; "
-        "the UI Kit specimen and live tutorials declare the actual Diátaxis "
-        "quadrant they live in — `tutorial` for tutorials."
+        "live tutorials declare the actual Diátaxis quadrant they live in "
+        "— `tutorial` for tutorials."
     )
 
 
