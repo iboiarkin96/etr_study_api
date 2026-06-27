@@ -43,7 +43,7 @@
         <p class="lede">How to verify any HTTP operation under <code>/api/v1/…</code> against its internal specification. The playbook is the procedure; the line-by-line outcomes go in <a href="../../../handbook/qa/checklists/api-endpoint-acceptance.html">the API endpoint acceptance checklist</a>.</p>
       </header>
 
-      <h2 id="orientation">Where to find the contract for an endpoint</h2>
+      <h2 id="before-h">Where to find the contract for an endpoint</h2>
       <p>Each operation has three artefacts you must keep in sync while testing:</p>
       <ol>
         <li>The internal specification page — <code>services/portal/internal/api/&lt;resource&gt;/operations/&lt;method&gt;-…html</code>. The <em>oracle</em> for behavior.</li>
@@ -62,7 +62,10 @@
         <li>If anything fails, file a defect using <a href="../../../handbook/sa/templates/bug-report.html">bug template</a>.</li>
       </ol>
 
-      <h2 id="contract">Verify the contract (schema)</h2>
+      <h2 id="steps-h">Steps</h2>
+      <p>Work through these in order. Each sub-section is one aspect to test; combined they cover the contract surface end-to-end.</p>
+
+      <h3 id="contract">Verify the contract (schema)</h3>
       <ul>
         <li>Path, method, version segment match the spec exactly.</li>
         <li>Request body schema matches — required, types, formats, enum values, length limits.</li>
@@ -71,7 +74,7 @@
         <li>Field conventions — UUIDs, timestamps in UTC ISO-8601, snake_case keys, enum values lowercase. See <a href="../reference/_shared/field-conventions.html">field conventions</a>.</li>
       </ul>
 
-      <h2 id="happy-path">Happy path</h2>
+      <h3 id="happy-path">Happy path</h3>
       <ul>
         <li>Smallest valid body produces success status and well-formed response.</li>
         <li>All optional fields, when supplied, round-trip and appear in the response unchanged.</li>
@@ -79,7 +82,7 @@
         <li>Mutations are visible on a follow-up GET (read-after-write).</li>
       </ul>
 
-      <h2 id="error-paths">Error paths — what every operation must do correctly</h2>
+      <h3 id="error-paths">Error paths — what every operation must do correctly</h3>
       <p>Every error response must conform to the <a href="../reference/_shared/error-envelope.html">error envelope</a> and the specific <code>code</code> must exist in the <a href="../reference/_shared/error-catalog.html">error catalog</a>.</p>
       <div class="docs-table-wrap">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
@@ -97,14 +100,14 @@
         </table>
       </div>
 
-      <h2 id="auth">Authentication and authorization</h2>
+      <h3 id="auth">Authentication and authorization</h3>
       <ul>
         <li>Confirm the operation requires the auth class declared by the spec (see <a href="../reference/_shared/auth.html">auth</a>).</li>
         <li>No token → 401. Wrong scope/role → 403. Valid token → 2xx.</li>
         <li>Token in wrong scheme (<code>Basic</code> vs <code>Bearer</code>) → 401, not 500.</li>
       </ul>
 
-      <h2 id="idempotency">Idempotency (write operations)</h2>
+      <h3 id="idempotency">Idempotency (write operations)</h3>
       <ul>
         <li>Send the same request twice with the same <code>Idempotency-Key</code> within the window — second call returns the same response without creating a duplicate.</li>
         <li>Send same key with a <em>different</em> body — 409.</li>
@@ -112,7 +115,7 @@
         <li>See <a href="../reference/_shared/idempotency.html">idempotency</a> for the policy.</li>
       </ul>
 
-      <h2 id="observability">Observability</h2>
+      <h3 id="observability">Observability</h3>
       <ul>
         <li>Every response carries <code>X-Request-ID</code> (UUID).</li>
         <li>Search the structured log for that <code>X-Request-ID</code>; one record per request, with <code>method</code>, <code>path</code>, <code>status</code>, <code>latency_ms</code>.</li>
@@ -120,7 +123,7 @@
         <li>Health and readiness endpoints respond appropriately while load is in flight.</li>
       </ul>
 
-      <h2 id="evidence">Evidence to capture</h2>
+      <h3 id="evidence">Evidence to capture</h3>
       <ul>
         <li>Full request and response (including headers) for one of each: success, validation error, auth error.</li>
         <li>The <code>X-Request-ID</code> values used.</li>
@@ -128,7 +131,7 @@
         <li>Screenshot of Swagger UI with the operation expanded (verifies user-visible doc shape).</li>
       </ul>
 
-      <h2 id="examples">cURL examples to copy</h2>
+      <h3 id="examples">cURL examples to copy</h3>
       <pre class="docs-code"><code class="language-bash"># Happy path: POST with idempotency key
 curl -sS -X POST "$BASE/api/v1/conspectuses" \
 -H "Authorization: Bearer $TOKEN" \
@@ -163,7 +166,7 @@ curl -sS -X POST "$BASE/api/v1/conspectuses" \
  done</code></pre>
       <p>Set <code>BASE</code> and <code>TOKEN</code> in your shell. Keep captures in a folder named after the ticket — paste them into the defect or sign-off note as evidence.</p>
 
-      <h2 id="verify">Verify</h2>
+      <h2 id="verify-h">Verify</h2>
       <ul>
         <li>Every row of the <a href="../../../handbook/qa/checklists/api-endpoint-acceptance.html">API endpoint acceptance checklist</a> recorded as PASS / FAIL — no row left as «?».</li>
         <li>Happy path returns the documented 2xx status, schema, and headers; auth-required endpoints reject anonymous calls with the documented 401/403 envelope.</li>
@@ -173,7 +176,7 @@ curl -sS -X POST "$BASE/api/v1/conspectuses" \
         <li>Findings filed against the team backlog with severity per the API acceptance rubric.</li>
       </ul>
 
-      <h2 id="troubleshoot">Troubleshooting</h2>
+      <h2 id="troubleshooting-h">Troubleshooting</h2>
       <ul class="rail-list" data-tone="rose">
         <li><strong>«401 Unauthorized» on a request you expected to succeed.</strong> The token is missing, expired, or stripped by an intermediate proxy. Confirm <code>echo $TOKEN | wc -c</code> is non-zero and the header reached the server (server log should echo «authorization» presence, never the value).</li>
         <li><strong>Idempotency replay produces a duplicate row instead of returning the cached response.</strong> The idempotency key store didn't see the first request, or the key was generated per-request. Verify <code>KEY="tc-replay-$(date +%s)"</code> stays constant across both <code>curl</code> calls in the loop.</li>
@@ -181,15 +184,6 @@ curl -sS -X POST "$BASE/api/v1/conspectuses" \
         <li><strong>Response shape diverges from Swagger UI / OpenAPI baseline.</strong> The endpoint shipped without the contract test catching it. Run <code>make contract-test</code> locally; if it now fails, follow <a href="../../../services/api/runbooks/openapi-contract-test-failing.html">Runbook 0007</a>.</li>
       </ul>
 
-      <aside id="related" class="docs-card docs-card--gradient docs-card--mt-6">
-        <h3 class="docs-card__title">Related</h3>
-        <ul>
-          <li>Reference · <a href="../../../handbook/qa/checklists/api-endpoint-acceptance.html">API endpoint acceptance checklist</a> — the canonical row-by-row list this playbook walks.</li>
-          <li>Tutorial · <a href="../../../tutorials/qa/your-first-api-checklist-run.html">Your first API checklist run</a> — first-time walkthrough on one endpoint.</li>
-          <li>Explanation · <a href="../../../handbook/swe/schemas-and-contracts.html">Schemas as the public contract</a> — why these tests guard what they guard.</li>
-          <li>How-to · <a href="../../../services/api/runbooks/openapi-contract-test-failing.html">Runbook 0007 — OpenAPI contract test failing</a> — what to do when the gate the verify-step relies on breaks.</li>
-        </ul>
-      </aside>
     </article>
 
     <footer class="docs-history" aria-label="History">
@@ -212,7 +206,7 @@ curl -sS -X POST "$BASE/api/v1/conspectuses" \
   <aside class="docs-toc" aria-label="On this page">
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#orientation">Orientation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#before-h">Orientation</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#workflow">Workflow</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#contract">Contract</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#happy-path">Happy path</a></li>
@@ -222,9 +216,8 @@ curl -sS -X POST "$BASE/api/v1/conspectuses" \
       <li class="docs-toc__item"><a class="docs-toc__link" href="#observability">Observability</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#evidence">Evidence</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#examples">cURL examples</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshoot">Troubleshooting</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify-h">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting-h">Troubleshooting</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>

@@ -49,7 +49,7 @@
         <li>Load runs are <strong>not</strong> a substitute for unit tests, and they <strong>mutate state</strong>: user-create scenarios write to the database, so run them only against local or non-production environments.</li>
       </ul>
 
-      <h2 id="setup">Environment setup</h2>
+      <h2 id="before-h">Environment setup</h2>
       <ol>
         <li>Virtualenv: <code>make venv &amp;&amp; make install</code> (or equivalent).</li>
         <li><code>.env</code> from <code>env/example</code> (<code>make env-init</code>), with valid <code>APP_HOST</code> and <code>APP_PORT</code>.</li>
@@ -57,12 +57,15 @@
         <li>For GET-by-id scenarios (optional <code>scenarios/user/get.py</code>), set <code>ROTATE_SYSTEM_USER_IDS</code> to real <code>system_user_id</code> values and adjust <code>SHARE_OF_GROUP</code> between <code>user/create.py</code> and <code>user/get.py</code> so they sum to <code>1.0</code> per user group.</li>
       </ol>
 
-      <h2 id="simulate-500">Simulating HTTP 500 (local and non-prod only)</h2>
+      <h2 id="steps-h">Steps</h2>
+      <p>Simulate failures, start the server, run the generator, inspect the output. The sub-sections below are the recipe in order.</p>
+
+      <h3 id="simulate-500">Simulating HTTP 500 (local and non-prod only)</h3>
       <p>Normal routes rarely return a steady stream of 500s. To emit 5xx from the <strong>same</strong> API process, so <code>http_requests_total</code> counts them, set the following in <code>.env</code>:</p>
       <pre class="docs-code"><code class="language-bash">LOADTEST_HTTP_500=true</code></pre>
       <p>After restarting the app, only the internal route <code>GET /__loadtest/http500</code> is available (hidden from OpenAPI). Do not enable this flag in production.</p>
 
-      <h2 id="start-api">Starting the API</h2>
+      <h3 id="start-api">Starting the API</h3>
       <p>From the repository root (adjust the path):</p>
       <pre class="docs-code"><code class="language-bash">cd /path/to/study_app
 source .venv/bin/activate
@@ -70,7 +73,7 @@ source .venv/bin/activate
       <p>If you also want Grafana and Prometheus locally, run <code>docker compose -f services/monitoring/docker-compose.observability.yml up -d</code> in another terminal while <code>make run</code> keeps the API in the first. Details: Local development.</p>
       <p>In a <strong>second</strong> terminal, run the traffic generator (see below).</p>
 
-      <h2 id="generator">Generator configuration (Python)</h2>
+      <h3 id="generator">Generator configuration (Python)</h3>
       <p>Scenarios live under <code>tools/load_testing/scenarios/</code>. See <code>tools/load_testing/README.html</code> for the full contract (with diagrams). Summary:</p>
       <ul>
         <li><code>scenarios/weights.py</code> — <code>GROUP_WEIGHTS</code> (e.g. <code>user</code>, <code>observability_5xx</code>).</li>
@@ -79,7 +82,7 @@ source .venv/bin/activate
         <li>HTTP 500 without touching the DB: small share via <code>scenarios/observability/http500.py</code> and <code>LOADTEST_HTTP_500=true</code>.</li>
       </ul>
 
-      <h2 id="commands">Commands</h2>
+      <h3 id="commands">Commands</h3>
       <p>Plan only (no network):</p>
       <pre class="docs-code"><code class="language-bash">python -m tools.load_testing.runner --dry-run</code></pre>
       <p>Full run (default 100 requests; set <code>LOAD_TEST_BASE_URL</code> / <code>LOAD_TEST_API_KEY</code> if needed):</p>
@@ -87,7 +90,7 @@ source .venv/bin/activate
       <p>Optional delay between requests:</p>
       <pre class="docs-code"><code class="language-bash">python -m tools.load_testing.runner --total-requests 200 --delay-ms 50</code></pre>
 
-      <h2 id="layout">Layout</h2>
+      <h3 id="layout">Layout</h3>
       <pre class="docs-code"><code class="language-text">tools/load_testing/
 runner.py
 README.html
@@ -98,10 +101,10 @@ user/get.py # optional; set ROTATE_SYSTEM_USER_IDS
 observability/http500.py
  conspectus/README.txt</code></pre>
 
-      <h2 id="observability">Observability</h2>
+      <h3 id="observability">Observability</h3>
       <p>Start the stack before or alongside the API (<code>docker compose -f services/monitoring/docker-compose.observability.yml up -d</code>). After the traffic run, open Grafana (port from <code>.env</code>, default 3001) and the Study App Observability dashboard; in Prometheus, <code>/alerts</code> when SLO rules are configured.</p>
 
-      <h2 id="verify">Verify</h2>
+      <h2 id="verify-h">Verify</h2>
       <ul>
         <li>Generator run completes without uncaught exception; the runner's summary line shows the total request count and the per-scenario breakdown.</li>
         <li>Prometheus shows scrape target <code>UP</code> for the API for the entire run window; no gap in the latency / RPS / 5xx panels on Grafana.</li>
@@ -111,7 +114,7 @@ observability/http500.py
         <li>Report or session note attached to the team backlog with traffic shape, observed SLIs, and any defects opened.</li>
       </ul>
 
-      <h2 id="troubleshoot">Troubleshooting</h2>
+      <h2 id="troubleshooting-h">Troubleshooting</h2>
       <ul class="rail-list" data-tone="rose">
         <li><strong>Connection refused.</strong> The API isn't running or the <code>base_url</code> is wrong. Start the API with <code>make run-loadtest-api</code> (which sets the high-limit env vars) and double-check the generator's <code>base_url</code>.</li>
         <li><strong>Script errors on «#».</strong> A comment was passed as an argument. Re-run without a trailing <code># …</code>; the runner doesn't strip shell comments.</li>
@@ -119,15 +122,6 @@ observability/http500.py
         <li><strong>429 Too Many Requests.</strong> Lower the intensity through <code>--delay-ms</code>, or raise the dev rate limit (<code>API_RATE_LIMIT_REQUESTS_LOADTEST</code>) and restart the API.</li>
       </ul>
 
-      <aside id="related" class="docs-card docs-card--gradient docs-card--mt-6">
-        <h3 class="docs-card__title">Related</h3>
-        <ul>
-          <li>Tutorial · <a href="../../../tutorials/sre/your-first-capacity-drill.html">Your first capacity drill</a> — first-time walkthrough on this load-testing surface.</li>
-          <li>Reference · <a href="../../../governance/adr/0012-testing-strategy-and-load-testing.html">ADR 0012 — Testing strategy &amp; load testing</a> — the policy this how-to runs against.</li>
-          <li>Explanation · <a href="../../../handbook/sre/slos.html">SLOs</a> — what the load-test results actually inform.</li>
-          <li>How-to · <a href="../../../handbook/sre/runbooks/error-budget-exhaustion.html">Runbook 0009 — Error-budget exhaustion</a> — what fires if a load test exposes a real burn.</li>
-        </ul>
-      </aside>
     </article>
 
     <footer class="docs-history" aria-label="History">
@@ -151,16 +145,15 @@ observability/http500.py
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
       <li class="docs-toc__item"><a class="docs-toc__link" href="#why">Why load traffic</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#setup">Environment setup</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#before-h">Environment setup</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#simulate-500">Simulating HTTP 500</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#start-api">Starting the API</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#generator">Generator config</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#commands">Commands</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#layout">Layout</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#observability">Observability</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshoot">Troubleshooting</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#related">Related</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify-h">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting-h">Troubleshooting</a></li>
     </ol>
   </aside>
   <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
