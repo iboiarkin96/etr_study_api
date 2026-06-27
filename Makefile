@@ -35,8 +35,9 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
         stack-up stack-down stack-down-volumes stack-logs logging-up logging-down \
         run migrate test test-one deps-audit \
         openapi-check contract-test openapi-accept-changes build \
-        docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check \
-        catalog-render catalog-render-check serve open sync-staging
+        docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check \
+        catalog-render catalog-render-check serve open sync-staging \
+        visual-test visual-test-update
 
 # ──────────────────────────────────────────────
 # Help
@@ -106,10 +107,13 @@ help:
 	@echo "    make docs-a11y-check        → services/portal/Makefile"
 	@echo "    make docs-feedback-check    → services/portal/Makefile"
 	@echo "    make docs-spec-check        → services/portal/Makefile"
+	@echo "    make docs-nav-check         → services/portal/Makefile (sidebar coverage)"
 	@echo "    make catalog-render         → services/portal/Makefile"
 	@echo "    make catalog-render-check   → services/portal/Makefile"
 	@echo "    make serve [PORTAL_PORT=N]  → services/portal/Makefile (static preview)"
 	@echo "    make open  [PORTAL_PORT=N]  → services/portal/Makefile (open in browser)"
+	@echo "    make visual-test            → services/portal/Makefile (UI Kit pixel-diff, BL-047)"
+	@echo "    make visual-test-update     → services/portal/Makefile (refresh visual baselines)"
 	@echo ""
 	@echo "  Release pipeline (ADR 0034 dual-Pages)"
 	@echo "    make sync-staging           Reset staging branch to origin/main after a promo merge"
@@ -359,7 +363,7 @@ test:
 test-one:
 	@$(MAKE) -C services/api test-one path=$(path)
 
-docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check catalog-render catalog-render-check serve open:
+docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update:
 	@$(MAKE) -C services/portal $@
 
 # ──────────────────────────────────────────────

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capacity snapshot · Reference · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-12" data-role="">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">api</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Capacity snapshot</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Reference</span>
+          <span class="docs-pill docs-pill--warn">Capacity</span>
+          <span class="docs-pill docs-pill--neutral">Snapshot 2026-05</span>
+        </div>
+        <h1>Capacity snapshot</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">What the system can actually do, with the numbers that back the claim and the saturation signal that proves it. Every row says where the measurement came from, when it was taken, and what the ceiling is. Honest "not measured" rather than aspirational targets — a capacity number without a saturation signal is a guess.</p>
+      </header>
+
+      <h2 id="rules">Rules for this page</h2>
+      <ul>
+        <li><strong>Every number cites its source.</strong> Either a postmortem (real-world measurement), a load-test run (controlled), or "not measured" (honest gap).</li>
+        <li><strong>Every number cites its saturation signal.</strong> The signal is what tells you the number is real — without it, the number is folklore.</li>
+        <li><strong>Targets are separate from measurements.</strong> Where we know what we want but have not measured it, the cell says <em>target</em> not <em>measured</em>.</li>
+        <li><strong>Updated every quarter.</strong> Or after any architectural change (storage swap, new endpoint family, new dependency). Last-updated below.</li>
+      </ul>
+
+      <h2 id="overall">Overall service capacity</h2>
+      <p>The api service runs as a single Uvicorn process today. SQLite is the storage backend; the planned swap to Postgres changes the write-side ceiling (single-writer constraint goes away) but not the read-side.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Service capacity">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Signal</th><th>Measured number</th><th>Saturation signal</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Sustained write RPS (single endpoint, single instance)</td>
+              <td><strong>~50 RPS</strong> (clean), ~95 RPS with brief contention</td>
+              <td><code>SQLITE_BUSY</code> rate on <code>OperationalError</code> log + <code>db_operation_duration_seconds</code> P99 climbing past ~200 ms</td>
+              <td><a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">Postmortem 2026-04-02</a></td>
+            </tr>
+            <tr>
+              <td>Sustained read RPS (single endpoint, single instance)</td>
+              <td><em>not measured</em> (target ≥ 200 RPS)</td>
+              <td>—</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>P99 latency, write happy path</td>
+              <td><strong>~60 ms</strong> at baseline; ~250 ms under load</td>
+              <td><code>http_request_duration_seconds</code> P99 bucket</td>
+              <td><a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">Postmortem 2026-04-02</a></td>
+            </tr>
+            <tr>
+              <td>P99 latency, read happy path</td>
+              <td><em>not measured</em> (target ≤ 100 ms)</td>
+              <td>—</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>Max body size accepted</td>
+              <td><strong>32 KB</strong> (write), 4 KB (user create)</td>
+              <td>middleware returns <code>413 SECURITY_REQUEST_BODY_TOO_LARGE</code></td>
+              <td><code>services/api/app/core/security.py</code></td>
+            </tr>
+            <tr>
+              <td>Per-key rate limit</td>
+              <td><strong>inherits global limit</strong> (sliding window, in-process)</td>
+              <td>middleware returns <code>429 SECURITY_RATE_LIMIT_EXCEEDED</code></td>
+              <td><a href="../../../governance/adr/0005-api-security-defaults.html">ADR 0005</a></td>
+            </tr>
+            <tr>
+              <td>Cold-start time (process up → first <code>200</code>)</td>
+              <td><em>not measured</em> (target ≤ 5 s)</td>
+              <td>—</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="per-endpoint">Per-endpoint budgets</h2>
+      <p>Where the per-operation spec declares an NFR latency, the spec's number is the budget. Rows below cite the spec; cells with no spec NFR show "inherited from overall".</p>
+      <div class="docs-table-wrap" role="region" aria-label="Per-endpoint budgets">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Endpoint</th><th>NFR latency (P95 / P99)</th><th>NFR throughput</th><th>Spec</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>POST /api/v1/user</code></td>
+              <td>P95 ≤ 250 ms, P99 not declared</td>
+              <td>inherits global limit</td>
+              <td><a href="user/operations/post-api-v1-user.html#non-functional-requirements">spec §5</a></td>
+            </tr>
+            <tr>
+              <td><code>PATCH /api/v1/conspectuses/{uuid}</code></td>
+              <td>P95 ≤ 250 ms, P99 ≤ 600 ms</td>
+              <td>inherits global limit</td>
+              <td><a href="conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html#non-functional-requirements">spec §5</a></td>
+            </tr>
+            <tr>
+              <td>All other endpoints</td>
+              <td>inherited from overall</td>
+              <td>inherited from overall</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="storage">Storage ceiling</h2>
+      <p>SQLite has a single-writer constraint: at any moment exactly one process holds the write lock, and concurrent writers serialise on it. This is acceptable at the current scale; it is the reason a retry storm crashed the write path during the <a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">2026-04-02 load test</a> and the reason Postgres is named as the planned swap.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Storage ceiling">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Backend</th><th>Write ceiling</th><th>Read ceiling</th><th>Concurrency model</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>SQLite (today)</td>
+              <td>~50 sustained write RPS against a single hot row; higher against distinct rows</td>
+              <td><em>not measured</em>, expected ~1000+ RPS in WAL mode</td>
+              <td>single writer, many readers</td>
+            </tr>
+            <tr>
+              <td>Postgres (planned)</td>
+              <td>row-level locks; ceiling moves to connection pool size and DB CPU</td>
+              <td>same as today, plus replica fan-out when added</td>
+              <td>row-level locks; multi-writer</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="dependencies">Dependency budgets</h2>
+      <div class="docs-table-wrap" role="region" aria-label="Dependency budgets">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Dependency</th><th>Budget</th><th>What happens when it's spent</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Idempotency replay window</td>
+              <td>24 hours from <code>created_at</code></td>
+              <td>Row eligible for deletion by cleanup job; new request treated as fresh write</td>
+            </tr>
+            <tr>
+              <td><code>idempotency_keys</code> table size</td>
+              <td>linearly with write volume × 24 h</td>
+              <td>Cleanup job removes expired rows; no quota today</td>
+            </tr>
+            <tr>
+              <td>Connection pool (SQLAlchemy)</td>
+              <td><em>not declared</em> — default pool size of 5</td>
+              <td>Requests queue on <code>pool.timeout</code>; observed during 2026-04-02 incident</td>
+            </tr>
+            <tr>
+              <td>Disk space (DB file + WAL)</td>
+              <td><em>not monitored</em> today</td>
+              <td>Write failures, surfaced as <code>500</code> with disk errors in logs</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="what-changes-the-numbers">What changes these numbers</h2>
+      <ul>
+        <li><strong>Storage swap to Postgres.</strong> The single-writer ceiling disappears; the new ceiling is connection-pool × DB CPU. The read-side stays the same. Postmortem 2026-04-02 will become historical.</li>
+        <li><strong>Horizontal scale of the api process.</strong> Multi-instance deployment requires moving the rate limiter out of process (currently in <code>services/api/app/core/security.py</code>); see <a href="../../../explanation/architecture-narrative.html#not-built">architectural narrative § what we deliberately did not build</a>.</li>
+        <li><strong>A new endpoint family that does heavy reads.</strong> Adds a new row here, with its own NFR latency in the spec. Default to "inherited" until measured.</li>
+        <li><strong>Observability pipeline goes live.</strong> Today the metrics that would prove these numbers are scraped but not dashboarded. The 2026-04-02 postmortem named this as a gap; until it closes, "we know what to measure" is not the same as "we are measuring".</li>
+      </ul>
+
+      <h2 id="anti-patterns">Forbidden patterns</h2>
+      <ul>
+        <li><strong>Publishing a capacity number without a saturation signal.</strong> The number is unfalsifiable without the signal. Don't.</li>
+        <li><strong>"It scales horizontally" without naming the bottleneck.</strong> Every system scales horizontally until the bottleneck reveals itself. Name the bottleneck or write "not measured".</li>
+        <li><strong>Targets dressed up as measurements.</strong> If you have not run the load test, the cell says <em>target</em> and links nothing. If you have, it says <em>measured</em> and links to the postmortem or run.</li>
+        <li><strong>Snapshot drift.</strong> A capacity page that hasn't been touched in a year is folklore again. Quarterly review or after architectural change, no exceptions.</li>
+      </ul>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li><a href="../../../explanation/architecture-narrative.html">Architectural narrative</a> — the shape these numbers describe.</li>
+          <li><a href="../../../handbook/sre/slos.html">SLOs</a> — when these numbers convert into customer-visible commitments.</li>
+          <li><a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">Postmortem 2026-04-02</a> — empirical input for the write-side ceiling.</li>
+          <li><a href="../how-to/api-load-testing.html">How-to · API load testing</a> — procedure for re-measuring these numbers.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-12</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Moved from <code>handbook/capacity-snapshot.html</code> to <code>services/api/reference/capacity-snapshot.html</code>. The page is API-specific (single-instance Uvicorn, SQLite write-side ceiling); per-service Reference is its honest IA home. <code>data-service</code> set to <code>api</code>; breadcrumb updated; inbound links rewritten.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-05-30</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created as Vol. 2 Phase 2 follow-up (capacity snapshot). All measured numbers cite source + saturation signal; unmeasured rows say so explicitly. Major input: postmortem 2026-04-02 for the SQLite write-side ceiling. Next review trigger: storage swap, new endpoint family, or quarterly cadence — whichever lands first.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rules">Rules</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#overall">Overall service</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#per-endpoint">Per-endpoint</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#storage">Storage ceiling</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#dependencies">Dependency budgets</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#what-changes-the-numbers">What changes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Forbidden patterns</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
