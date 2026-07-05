@@ -29,6 +29,10 @@ FROZEN_DOCS_REL_PATHS = {
     Path("internal/index.html"),
     Path("internal/team/people/ivan-boyarkin/sa-growth.html"),
     Path("internal/team/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
+    # Swagger UI preview — embedded viewer with its own CDN-loaded shell;
+    # the contrast/focus contract belongs to Swagger UI, not to us.
+    Path("internal/services/api/openapi/test/preview.html"),
+    Path("internal/services/api/openapi/etr_study_app/preview.html"),
 }
 
 

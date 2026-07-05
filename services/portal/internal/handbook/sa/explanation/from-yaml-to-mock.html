@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>From YAML to a live mock · Explanation · SA · Documentation handbook</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-07-04" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Handbook</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">From YAML to a live mock</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Explanation</span>
+          <span class="docs-pill docs-pill--info">SA · Foundations</span>
+          <span class="docs-pill docs-pill--neutral">API tooling</span>
+        </div>
+        <h1>From YAML to a live mock</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Everything that happens between «I saved <code>createCourse.yaml</code>» and «Swagger UI shows the new
+          endpoint, and the mock returns 201 with my payload». Five layers, four processes, two <code>make</code>
+          commands. No magic — plain Python plus one HTML viewer. Written for SAs who write the contract but
+          hand the runtime to someone else.
+        </p>
+        <div class="docs-chip-row docs-chip-row--mt-3">
+          <span class="docs-chip">🎯 For systems analysts</span>
+          <span class="docs-chip">🐍 Python-only stack</span>
+          <span class="docs-chip">⏱ 12–15 min read</span>
+          <span class="docs-chip">📎 Pairs with <a href="../reference/api-first-toolchain.html">toolchain reference</a></span>
+        </div>
+      </header>
+
+      <h2 id="overview">Big picture in 15 seconds</h2>
+      <p>
+        Your job as a systems analyst is <strong>only one step out of five</strong>. The other four are
+        automation. The whole design answers one question: how do we make sure the contract (the API shape)
+        is written <em>before</em> the backend code, and every tool (UI, mock, tests) reads exactly that
+        contract?
+      </p>
+
+      <div class="docs-card-grid">
+        <article class="docs-card" data-tone="warn">
+          <div class="docs-card__head">
+            <h3 class="docs-card__title">🖊️ You write</h3>
+          </div>
+          <div class="docs-card__body">
+            <p>YAML fragments — one file per HTTP operation.</p>
+            <p><code>openapi/test/fragments/</code></p>
+          </div>
+        </article>
+        <article class="docs-card" data-tone="success">
+          <div class="docs-card__head">
+            <h3 class="docs-card__title">🔍 Validator</h3>
+          </div>
+          <div class="docs-card__body">
+            <p>Python script — checks each YAML, resolves <code>$ref</code>s, merges everything.</p>
+            <p><code>tools/governance/validate_openapi.py</code></p>
+          </div>
+        </article>
+        <article class="docs-card" data-tone="info">
+          <div class="docs-card__head">
+            <h3 class="docs-card__title">📦 Build outputs</h3>
+          </div>
+          <div class="docs-card__body">
+            <p>Auto-generated JSON — the merged spec and the operation index.</p>
+            <p><code>merged-spec.json</code> · <code>fragments-index.json</code></p>
+          </div>
+        </article>
+        <article class="docs-card" data-tone="teal">
+          <div class="docs-card__head">
+            <h3 class="docs-card__title">🎭 🌐 Mock &amp; Swagger UI</h3>
+          </div>
+          <div class="docs-card__body">
+            <p>Two consumers of the merged spec — one for HTTP, one for browser preview.</p>
+            <p><code>:8001+ mocks</code> · <code>:8080 portal</code></p>
+          </div>
+        </article>
+      </div>
+
+      <p><strong>Two commands drive it all:</strong></p>
+      <pre class="docs-codeblock"><code>make -C services/portal doc-api-swagger-check-all   # regen the build outputs
+make api-mock                                        # start the mock (auto-reload ON)</code></pre>
+
+      <p><strong>The key idea.</strong> You edit only the yaml files. Everything else is either auto-generated or launched by a command. If something didn't show up in Swagger UI — either the validator didn't run (step 2) or the mock didn't re-read (step 4).</p>
+
+      <h2 id="you-write">1 · What YOU write (source of truth)</h2>
+      <p>You author <strong>YAML fragments</strong> — one file per HTTP operation. Every fragment is a self-contained OpenAPI 3.1 document that describes a single endpoint: path, method, parameters, request body, all possible responses.</p>
+
+      <h3 id="file-layout">File layout under your control</h3>
+      <pre class="docs-codeblock"><code>services/portal/internal/services/api/openapi/test/
+├── fragments/
+│   ├── course/
+│   │   ├── createCourse.yaml       # ← one file = one operation
+│   │   ├── getCourse.yaml
+│   │   ├── error-400/bad-request.yaml     # ← per-resource reusable 400
+│   │   └── error-409/name-conflict.yaml
+│   └── user/
+│       ├── getUser.yaml
+│       └── updateUser.yaml
+├── _shared/                     # ← cross-resource reusables
+│   ├── headers/IdempotencyKey.yaml
+│   ├── schemas/ErrorBody.yaml
+│   └── responses/Error400.yaml
+├── merged-spec.json         # ← auto-generated (don't touch)
+├── fragments-index.json     # ← auto-generated (don't touch)
+└── preview.html             # ← ready-made viewer (don't touch)</code></pre>
+
+      <h3 id="reuse-tiers">Three tiers of reuse</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Tier</th><th>Lives at</th><th>When to use</th></tr></thead>
+          <tbody>
+            <tr><td><strong>A · Cross-resource</strong></td><td><code>_shared/</code></td><td>Identical across every resource — error envelope, Idempotency-Key header.</td></tr>
+            <tr><td><strong>B · Per-resource</strong></td><td><code>{resource}/error-NNN/*.yaml</code></td><td>All operations of one resource share the same 4xx (e.g. «course name already exists»).</td></tr>
+            <tr><td><strong>C · Inline</strong></td><td>Inside the fragment itself</td><td>The response is unique to this one operation.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="fragment-anatomy">What a real fragment looks like</h3>
+      <pre class="docs-codeblock"><code>openapi: 3.1.0
+info:
+  title: Study App API
+  version: v1
+paths:
+  /api/v1/courses:
+    post:
+      operationId: createCourse
+      summary: Create a new course.
+      parameters:
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCourseRequest" }
+      responses:
+        "201": { ... }
+        "400": { $ref: "./error-400/bad-request.yaml" }
+        "409": { $ref: "./error-409/name-conflict.yaml" }
+components:
+  schemas:
+    CreateCourseRequest:
+      type: object
+      required: [name, length]
+      properties:
+        name:   { type: string, minLength: 1, maxLength: 80 }
+        length: { type: integer, minimum: 1, maximum: 1000 }</code></pre>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-3">
+        <h3 class="docs-card__title">Every schema constraint is 3 things at once</h3>
+        <p>A line like <code>maxLength: 80</code> in a fragment produces:</p>
+        <ol>
+          <li>Documentation in Swagger UI (the user sees the requirement)</li>
+          <li>Runtime validation in the mock (400 if the payload violates it)</li>
+          <li>A future contract for the real FastAPI handler (via the parity gate)</li>
+        </ol>
+        <p>You write it once, it works in all three places. That's the SA leverage of API-first.</p>
+      </aside>
+
+      <h2 id="validator">2 · Validator — turns YAML into a single spec</h2>
+      <p><strong>Triggered by:</strong> <code>make -C services/portal doc-api-swagger-check-all</code>, or automatically by uvicorn on every YAML save (auto-reload). The tool is <code>tools/governance/validate_openapi.py</code>.</p>
+
+      <h3 id="validator-steps">What the validator does per run</h3>
+      <ol>
+        <li><strong>Walks every YAML</strong> under <code>openapi/test/fragments/**/*.yaml</code>.</li>
+        <li><strong>Validates each file as OpenAPI 3.1</strong> using the <code>openapi_spec_validator</code> library. Partials (files without a top-level <code>openapi:</code> key, e.g. <code>error-400/bad-request.yaml</code>) are marked as «partial» and validated transitively through their parents.</li>
+        <li><strong>Resolves every $ref</strong> — file paths relative to the fragment (<code>../../_shared/schemas/ErrorBody.yaml</code>) and local pointers (<code>#/components/…</code>). If a ref is unresolvable, it prints the exact broken path.</li>
+        <li><strong>Assembles the merged spec</strong> — inlines each fragment's path items under one <code>paths:</code> object, prefixing local component names with the <code>operationId</code> to avoid collisions (so <code>Course</code> from createCourse doesn't clash with <code>Course</code> from getCourse). Downgrades to <strong>3.0.3</strong> for Connexion compatibility only (Connexion 3.x cannot read 3.1).</li>
+        <li><strong>Writes two files</strong>:
+          <ul>
+            <li><code>fragments-index.json</code> — list of operations, consumed by the preview's spec picker.</li>
+            <li><code>merged-spec.json</code> — the full OpenAPI document, consumed by the mock and Swagger UI.</li>
+          </ul>
+        </li>
+      </ol>
+
+      <aside class="docs-card" data-tone="warn">
+        <div class="docs-card__head"><h3 class="docs-card__title">⚠️ Classic mistake #1 — wrong number of <code>../</code> in <code>$ref</code></h3></div>
+        <div class="docs-card__body">
+          <p>Count directory levels from the fragment file up to <code>openapi/test/</code>, then add <code>_shared/…</code>:</p>
+          <ul>
+            <li>Fragment at <code>fragments/course/createCourse.yaml</code> is 2 levels deep → <code>../../_shared/…</code></li>
+            <li>Partial at <code>fragments/course/error-400/bad-request.yaml</code> is 3 levels deep → <code>../../../_shared/…</code></li>
+          </ul>
+          <p>The validator's error message is precise: it prints the resolved absolute path so you can see where it looked.</p>
+        </div>
+      </aside>
+
+      <h2 id="build-outputs">3 · Build outputs — what the validator writes to disk</h2>
+      <p>Two JSON files and one HTML page live inside <code>openapi/test/</code>. The validator creates them. The mock and Swagger UI read them. Your job here is just to look and understand.</p>
+
+      <div class="docs-card-grid docs-card-grid--stack">
+        <article class="docs-card" data-tone="info">
+          <div class="docs-card__head"><h3 class="docs-card__title"><code>fragments-index.json</code></h3></div>
+          <div class="docs-card__body">
+            <p>List of every discovered operation. Consumed by the preview page's spec picker.</p>
+            <pre class="docs-codeblock"><code>{
+  "count": 4,
+  "items": [
+    {
+      "spec": "fragments/course/createCourse.yaml",
+      "method": "POST",
+      "path": "/api/v1/courses",
+      "operationId": "createCourse",
+      "summary": "Create a new course."
+    },
+    ...
+  ]
+}</code></pre>
+          </div>
+        </article>
+        <article class="docs-card" data-tone="info">
+          <div class="docs-card__head"><h3 class="docs-card__title"><code>merged-spec.json</code></h3></div>
+          <div class="docs-card__body">
+            <p>A single OpenAPI document combining every fragment. This is what the mock and Swagger UI read.</p>
+            <pre class="docs-codeblock"><code>{
+  "openapi": "3.0.3",
+  "info": { ... },
+  "servers": [
+    { "url": "http://127.0.0.1:8001" }
+  ],
+  "paths": {
+    "/api/v1/courses": { "post": { ... } },
+    "/api/v1/courses/test": { "get": { ... } },
+    ...
+  },
+  "components": { ... }
+}</code></pre>
+          </div>
+        </article>
+      </div>
+
+      <p><strong>The key field is <code>servers</code>.</strong> Each canon's merged spec ships its own <code>servers[0].url</code> — <code>http://127.0.0.1:8001</code> for <code>test</code>, <code>http://127.0.0.1:8002</code> for <code>etr_study_app</code>, and so on. That's why the Swagger UI «Try it out» button fires requests at the right mock and not at the portal (which is on 8080 and would return 501).</p>
+
+      <h2 id="mock">4 · Mock server — answers requests «for real»</h2>
+      <p><strong>Started by:</strong> <code>make api-mock</code> (leave it running in its own terminal). One command fans out one Connexion + Flask process per canon under <code>openapi/*/fragments/</code>; <code>Ctrl-C</code> stops them all.<br>
+        <strong>Stack:</strong> Connexion (spec-driven routing) + Flask + Uvicorn (ASGI). Pure Python, lives in <code>.venv</code>.</p>
+
+        <h3 id="mock-boot">What the mock does at startup</h3>
+        <ol>
+          <li>Reads <code>merged-spec.json</code>.</li>
+          <li>For each <code>path + method</code> under <code>paths:</code>, registers a route (my custom resolver wires in the handler).</li>
+          <li>Builds an index — per operation: request schema and all documented examples grouped by status code.</li>
+          <li>Listens on its own port: <code>test</code> → 8001, product canons → 8002, 8003, … in alphabetical order.</li>
+          <li>Ships a built-in Swagger UI at <code>http://127.0.0.1:{PORT}/ui/</code> (no portal needed).</li>
+          <li>Root URL <code>http://127.0.0.1:{PORT}/</code> returns <strong>404 by design</strong> — nothing is documented at <code>/</code>, only under paths declared in the spec.</li>
+        </ol>
+
+        <h3 id="mock-request">What the mock does per request</h3>
+        <ol>
+          <li><strong>Routing</strong> — Connexion matches URL + method to a spec operation.</li>
+          <li><strong>Input validation</strong> (jsonschema, Draft 2020-12): headers, query params, body — all checked against the spec's schemas. Anything invalid → 400 in our <code>ErrorBody</code> envelope.</li>
+          <li><strong>Response resolution</strong> — my resolver picks a documented example: normally the first 2xx, but a <code>Prefer:</code> header can steer the choice.</li>
+          <li><strong>Dynamic overlay</strong> — fields from <code>request.body</code> / <code>request.args</code> are layered on top of the example. What you sent shows up in the response.</li>
+          <li><strong>JSON response.</strong></li>
+        </ol>
+
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="teal">
+            <div class="docs-card__head"><h3 class="docs-card__title">Example 1 · Regular POST</h3></div>
+            <div class="docs-card__body">
+              <pre class="docs-codeblock"><code>curl -X POST :8001/api/v1/courses \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: 8f5a2c19-3b4e-…' \
+  -d '{"name":"Advanced","length":16}'
+
+→ 201
+{
+  "name": "Advanced",   ← from your payload
+  "length": 16          ← from your payload
+}</code></pre>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="teal">
+            <div class="docs-card__head"><h3 class="docs-card__title">Example 2 · Prefer: error scenario</h3></div>
+            <div class="docs-card__body">
+              <pre class="docs-codeblock"><code>curl -X POST :8001/api/v1/courses \
+  -H 'Prefer: code=409, example=name_already_exists' \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: 8f5a2c19-3b4e-…' \
+  -d '{"name":"X","length":5}'
+
+→ 409
+{
+  "code": "course_name_already_exists",
+  "message": "A course named '…' already exists."
+}</code></pre>
+            </div>
+          </article>
+        </div>
+
+        <aside class="docs-card docs-card--gradient docs-card--mt-3">
+          <h3 class="docs-card__title">✨ About dynamic overlay</h3>
+          <p>The mock overwrites <em>only</em> keys that already exist in the example. If your <code>request.body</code> contains a field that isn't in the example, the mock ignores it (never invents response fields the schema doesn't document). To disable overlay: <code>Prefer: dynamic=off</code>.</p>
+        </aside>
+
+        <h2 id="swagger">5 · Swagger UI — human-readable view of the contract</h2>
+        <p><strong>Started by:</strong> <code>make -C services/portal serve</code> (plain <code>python -m http.server</code>).<br>
+          <strong>URL:</strong> <code>http://127.0.0.1:8080/portal/internal/services/api/openapi/test/preview.html</code></p>
+
+          <h3 id="swagger-flow">What happens when you open preview.html</h3>
+          <ol>
+            <li>Browser fetches the static HTML from the portal (<code>:8080</code>).</li>
+            <li>The HTML pulls Swagger UI 5 from a CDN (unpkg).</li>
+            <li>JS fetches <code>merged-spec.json</code> by default (or a specific fragment YAML if the URL has <code>?spec=…</code>).</li>
+            <li>Swagger UI renders every operation, schema, example, and request/response example dropdowns.</li>
+            <li>When you hit <strong>«Try it out» → «Execute»</strong>, JS composes the body from the form and sends it to the URL from the spec's <code>servers:</code> block — that's <code>:8001</code>, the mock.</li>
+          </ol>
+
+          <aside class="docs-card" data-tone="danger">
+            <div class="docs-card__head"><h3 class="docs-card__title">🔥 Failed to fetch / CORS? ERR_CONNECTION_REFUSED?</h3></div>
+            <div class="docs-card__body">
+              <p>Not CORS — the mock for that canon isn't responding on that port. One-line check for a specific port:</p>
+              <pre class="docs-codeblock"><code>curl -s http://127.0.0.1:8002/openapi.json | head -1</code></pre>
+              <p>Got <code>{</code> — the mock is alive. Empty — you need <code>make api-mock</code> in a fresh terminal (it fans out and starts every canon at once).</p>
+              <p>Full port audit: <code>lsof -nP -iTCP:8001 -iTCP:8002 -iTCP:8080 -sTCP:LISTEN</code>.</p>
+            </div>
+          </aside>
+
+          <h2 id="request-flow">6 · How ONE request travels through the whole system</h2>
+          <p>The full trace: you clicked «Try it out» in Swagger UI on <code>POST /api/v1/courses</code> with <code>{"name": "Advanced", "length": 16}</code>. What happens in 200ms?</p>
+
+          <ol>
+            <li><strong>Browser composes fetch</strong> — Swagger UI read <code>servers[0].url = http://127.0.0.1:8001</code> from the spec and knows where to send.</li>
+            <li><strong>HTTP POST to :8001</strong> with body + headers. Cross-origin from 8080 to 8001 works because the mock sets <code>allow_origins=["*"]</code>.</li>
+            <li><strong>Uvicorn (ASGI server)</strong> accepts the connection, hands the scope to Connexion.</li>
+            <li><strong>Connexion routing</strong> — matches the URL to operation <code>createCourse</code>.</li>
+            <li><strong>Connexion validation</strong>:
+              <ul>
+                <li>Validates <code>Idempotency-Key</code> header against IdempotencyKey.yaml schema.</li>
+                <li>Validates body against <code>CreateCourseRequest</code> schema.</li>
+                <li>Anything invalid → raises <code>BadRequestProblem</code>.</li>
+              </ul>
+            </li>
+            <li><strong>My handler runs</strong> only if validation passed. Reads the <code>Prefer:</code> header, picks status + example.</li>
+            <li><strong>Dynamic overlay</strong>: <code>request.get_json()</code> is layered onto the example → final dict.</li>
+            <li><strong>Return</strong> — Flask serialises to JSON, Uvicorn sends 201 + body.</li>
+            <li><strong>Browser</strong> receives the response, Swagger UI renders it in the «Response body» panel. You see your <code>name</code> and <code>length</code>.</li>
+          </ol>
+
+          <aside class="docs-card" data-tone="info">
+            <div class="docs-card__head"><h3 class="docs-card__title">🕰 Differential</h3></div>
+            <div class="docs-card__body">
+              <p>If validation fails at step 5 → steps 6-8 don't execute. Instead my <code>_bad_request_to_error_body</code> handler runs, which repacks the error into our <code>ErrorBody</code> envelope: <code>{"code": "validation_error", "message": "…"}</code>.</p>
+            </div>
+          </aside>
+
+          <h2 id="reload">7 · Auto-reload — why YAML edits appear on their own</h2>
+          <p>The mock uses <code>uvicorn --reload</code> combined with the <code>watchfiles</code> library, which watches files and restarts the process on change.</p>
+
+          <ol>
+            <li><strong>You save</strong> <code>createCourse.yaml</code> in your editor.</li>
+            <li><strong>watchfiles detects</strong> the change (~1s). It watches:
+              <ul>
+                <li><code>tools/api/*.py</code></li>
+                <li><code>services/portal/internal/services/api/openapi/test/fragments/**/*.yaml</code></li>
+              </ul>
+              But <em>not</em> <code>merged-spec.json</code> or <code>fragments-index.json</code> — otherwise there'd be an infinite loop.
+            </li>
+            <li><strong>Uvicorn kills the old child</strong>, spawns a new one.</li>
+            <li><strong>The <code>mock_server.py</code> module is re-imported</strong>. At module level: <code>app = create_app()</code>.</li>
+            <li><strong><code>create_app()</code> → <code>refresh_spec()</code></strong> — dynamically loads <code>validate_openapi.py</code>, calls <code>regenerate_index()</code> and <code>regenerate_merged_spec()</code>. The refreshed files are written to disk.</li>
+            <li><strong><code>build_app()</code></strong> builds a new Connexion app from the fresh <code>merged-spec.json</code>.</li>
+            <li><strong>Mock listens on :8001 again.</strong> Refresh the browser tab on preview.html and you see the new spec.</li>
+          </ol>
+
+          <aside class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">🎉 Total: 2–3 seconds from Ctrl-S to a new response</h3></div>
+            <div class="docs-card__body">
+              <p>No manual <code>make</code> commands between iterations.</p>
+            </div>
+          </aside>
+
+          <aside class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">⚠️ Fail-soft behaviour</h3></div>
+            <div class="docs-card__body">
+              <p>If you save a YAML with a syntax error — the validator crashes during regen, the mock logs a warning, and continues serving the <em>old</em> <code>merged-spec.json</code>. You never end up with a dead mock because of a typo.</p>
+            </div>
+          </aside>
+
+          <h2 id="validation-where">8 · Where validation actually lives</h2>
+          <p>A common confusion: «validation from Connexion», «validation from the validator», «schema validation». There are in fact <strong>two distinct places</strong> where things get checked:</p>
+
+          <div class="docs-table-wrap">
+            <table class="docs-table docs-table--zebra">
+              <thead><tr><th>When</th><th>Who</th><th>What it checks</th><th>On failure</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>At <code>make doc-api-swagger-check</code> / on auto-reload</td>
+                  <td><code>openapi_spec_validator</code> (Python package)</td>
+                  <td>That your YAML is itself valid OpenAPI 3.1 — correct keys, types, all <code>$ref</code>s resolve.</td>
+                  <td>Validator prints ❌ in the terminal; merged-spec is NOT updated.</td>
+                </tr>
+                <tr>
+                  <td>On every HTTP request to the mock</td>
+                  <td>Connexion + jsonschema (inside the mock)</td>
+                  <td>That <code>request.body</code>, <code>request.headers</code>, <code>request.query</code> conform to schemas from the spec.</td>
+                  <td>400 + ErrorBody envelope, handler does not run.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 id="validation-catalog">Full catalogue of what gets validated at HTTP</h3>
+          <div class="docs-table-wrap">
+            <table class="docs-table docs-table--zebra">
+              <thead><tr><th>What's wrong</th><th>Response (HTTP 400)</th></tr></thead>
+              <tbody>
+                <tr><td>Malformed JSON (missing closing <code>}</code>)</td><td><code>"Expecting ',' delimiter: line 3 column 15"</code></td></tr>
+                <tr><td>Required field missing</td><td><code>"'length' is a required property"</code></td></tr>
+                <tr><td>Wrong type (string instead of int)</td><td><code>"'' is not of type 'integer' - 'length'"</code></td></tr>
+                <tr><td>Number out of range (<code>maximum</code>)</td><td><code>"9999 is greater than the maximum of 1000 - 'length'"</code></td></tr>
+                <tr><td>String too long (<code>maxLength</code>)</td><td><code>"'xxx…' is too long - 'name'"</code></td></tr>
+                <tr><td>String empty (<code>minLength: 1</code>)</td><td><code>"'' should be non-empty - 'name'"</code></td></tr>
+                <tr><td>Wrong format (<code>format: email</code>)</td><td><code>"'not-an-email' is not a 'email'"</code></td></tr>
+                <tr><td>Regex (<code>pattern</code>) doesn't match</td><td><code>"'…' does not match pattern"</code></td></tr>
+                <tr><td>Invalid header (<code>Idempotency-Key</code>)</td><td><code>"'k7' is too short — minLength: 8"</code></td></tr>
+                <tr><td>Required query param missing</td><td><code>"Missing query parameter 'name'"</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="file-map">File map — who writes what, who reads what</h2>
+          <div class="docs-table-wrap">
+            <table class="docs-table docs-table--zebra">
+              <thead><tr><th>File / directory</th><th>Written by</th><th>Read by</th></tr></thead>
+              <tbody>
+                <tr><td><code>openapi/test/fragments/**/*.yaml</code></td><td>🖊️ You</td><td>Validator</td></tr>
+                <tr><td><code>openapi/test/_shared/**/*.yaml</code></td><td>🖊️ You (rarely)</td><td>Via <code>$ref</code> from fragments</td></tr>
+                <tr><td><code>openapi/test/fragments-index.json</code></td><td>🔍 Validator</td><td>Swagger UI (dropdown)</td></tr>
+                <tr><td><code>openapi/test/merged-spec.json</code></td><td>🔍 Validator</td><td>Mock + Swagger UI</td></tr>
+                <tr><td><code>openapi/test/preview.html</code></td><td>SWE (once)</td><td>Browser</td></tr>
+                <tr><td><code>tools/governance/validate_openapi.py</code></td><td>SWE (once)</td><td>make + auto-reload</td></tr>
+                <tr><td><code>tools/api/mock_server.py</code></td><td>SWE (once)</td><td>make api-mock</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="cheatsheet">Command cheat sheet</h2>
+          <pre class="docs-codeblock"><code># ─── First run after cloning the repo ─────────────────────────
+make setup                                    # create .venv, install deps
+
+# ─── Long-running processes (one per terminal) ────────────────
+make -C services/portal serve                 # portal :8080 (Swagger UI + static)
+make api-mock                                  # mock :8001 (auto-reload ON)
+
+# ─── Manual validator run (if auto-reload is not running) ─────
+make -C services/portal doc-api-swagger-check-all              # every fragment
+make -C services/portal doc-api-swagger-check-all DIR=course   # only course/
+make -C services/portal doc-api-swagger-check FILE=course/createCourse.yaml
+
+# ─── Open Swagger UI ──────────────────────────────────────────
+# Portal-hosted preview (needs `make -C services/portal serve`)
+open http://127.0.0.1:8080/portal/internal/services/api/openapi/test/preview.html
+open http://127.0.0.1:8080/portal/internal/services/api/openapi/etr_study_app/preview.html
+
+# Built-in Swagger UI shipped inside each mock (no portal needed)
+open http://127.0.0.1:8001/ui/     # test canon
+open http://127.0.0.1:8002/ui/     # etr_study_app canon
+
+# ─── Focus on one operation ───────────────────────────────────
+open 'http://127.0.0.1:8080/portal/internal/services/api/openapi/test/preview.html?spec=fragments/course/createCourse.yaml'
+
+# ─── Check a mock is alive ────────────────────────────────────
+curl -s http://127.0.0.1:8001/openapi.json | head -1     # test
+curl -s http://127.0.0.1:8002/openapi.json | head -1     # etr_study_app
+
+# ─── Which ports are actually up? ─────────────────────────────
+lsof -nP -iTCP:8001 -iTCP:8002 -iTCP:8080 -sTCP:LISTEN
+
+# ─── curl the mocks directly ──────────────────────────────────
+# test canon
+curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -H 'Idempotency-Key: 8f5a2c19-3b4e-4d8a-9f3b-1c2d3e4f5a6b' \
+     -d '{"name":"My Course","length":10}'
+
+# etr_study_app canon (real production contract)
+curl -X POST http://127.0.0.1:8002/api/v1/user \
+     -H 'X-API-Key: sk_test_49d1f7a2b98c4c31af8e6b2b0c9b4d31' \
+     -H 'Idempotency-Key: create-user-2026-07-05-01' \
+     -H 'Content-Type: application/json' \
+     -d '{"system_user_id":"134tg","system_uuid":"b2c3d4e5-0002-4000-8000-000000000002","full_name":"Ivan"}'
+
+# ─── Prefer headers (RFC 7240) ────────────────────────────────
+-H 'Prefer: example=long_track'                    # pick a named example
+-H 'Prefer: code=409'                              # get the documented 409
+-H 'Prefer: code=400, example=name_too_long'       # both at once
+-H 'Prefer: dynamic=off'                           # disable overlay, return example as-is
+
+# ─── Kill a stuck process on a port ───────────────────────────
+lsof -nP -iTCP:8001 -sTCP:LISTEN | awk 'NR&gt;1 {print $2}' | xargs kill -9</code></pre>
+
+          <h2 id="trouble">Troubleshooting</h2>
+          <div class="docs-table-wrap">
+            <table class="docs-table docs-table--zebra">
+              <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+              <tbody>
+                <tr><td>Swagger UI: «Failed to fetch» / browser: <code>ERR_CONNECTION_REFUSED</code></td><td>The mock for that canon isn't running on that port</td><td><code>make api-mock</code> in a fresh terminal — it fans out and starts every canon at once. Confirm with <code>lsof -nP -iTCP:8001 -iTCP:8002 -sTCP:LISTEN</code>.</td></tr>
+                <tr><td>Mock returns <code>404 Not Found</code> at <code>http://127.0.0.1:PORT/</code></td><td>The root path isn't in any spec. This is correct behaviour.</td><td>Open <code>/ui/</code> for the built-in Swagger UI, or hit a declared path.</td></tr>
+                <tr><td>curl on 8080: <code>501 Unsupported method</code></td><td>You're hitting the portal static server, not a mock.</td><td>Replace port in URL with the right mock (<code>test</code> → :8001, <code>etr_study_app</code> → :8002, see the <code>make api-mock</code> startup log).</td></tr>
+                <tr><td>Validator: <code>Unresolvable: ../../_shared/…</code></td><td>Wrong number of <code>../</code> in <code>$ref</code></td><td>Recount levels from the fragment up to <code>openapi/test/</code></td></tr>
+                <tr><td>Swagger shows the old summary after a YAML edit</td><td>Mock didn't re-read merged-spec (auto-reload didn't fire)</td><td>Confirm the file actually saved, check the mock's log. Or run manually: <code>make -C services/portal doc-api-swagger-check-all</code> + refresh browser</td></tr>
+                <tr><td>Mock replies 400 <code>Missing query parameter</code></td><td>You added a required query param to the fragment, but forgot to send it</td><td>Add <code>?name=X</code> to the URL</td></tr>
+                <tr><td>Mock replies <code>Internal Server Error</code></td><td>Likely my resolver crashed. Look at the traceback in the mock's terminal.</td><td>Save the traceback, fix the fragment if the error is in the schema</td></tr>
+                <tr><td>After renaming an operation in YAML, the old operationId in Prefer no longer works</td><td>You renamed <code>operationId</code> → examples are now under the new key</td><td>Update the name in Prefer, or revert the rename</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <aside class="docs-card docs-card--gradient docs-card--mt-6">
+            <h3 class="docs-card__title">Next step</h3>
+            <ul>
+              <li><a href="../tutorial/api-first.html">Tutorial · Design your first endpoint API-first</a> — do it, don't just read about it.</li>
+              <li><a href="../authoring/apply-api-first.html">How-to · Apply API-first to a new endpoint</a> — the recipe form, once you've done it once.</li>
+              <li><a href="../reference/api-first-toolchain.html">Reference · API-first toolchain — five layers</a> — the lookup companion to this article.</li>
+              <li><a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036 · API-first as source of truth</a> — the policy this whole stack exists to enforce.</li>
+            </ul>
+          </aside>
+
+        </article>
+
+        <footer class="docs-history" aria-label="History">
+          <h2 class="docs-history__title">History</h2>
+          <ul class="docs-history__list">
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-07-04</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Authored as a Diátaxis Explanation for the API-first workflow — five layers, the request lifecycle, where validation lives, the file map, cheat sheet, and troubleshooting. Reframed from an earlier draft that packaged this as «SA 101 series #1»; a single article is an Explanation, not a series. Sits parallel to the SA tutorial, how-to, and reference on the same topic.</span>
+            </li>
+          </ul>
+        </footer>
+      </main>
+
+      <aside class="docs-toc" aria-label="On this page">
+        <p class="docs-toc__title">On this page</p>
+        <ol class="docs-toc__list">
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#overview">Big picture</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#you-write">1 · What you write</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#validator">2 · Validator</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#build-outputs">3 · Build outputs</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#mock">4 · Mock server</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#swagger">5 · Swagger UI</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#request-flow">6 · One request end-to-end</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#reload">7 · Auto-reload</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#validation-where">8 · Where validation lives</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#file-map">File map</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#cheatsheet">Cheat sheet</a></li>
+          <li class="docs-toc__item"><a class="docs-toc__link" href="#trouble">Troubleshooting</a></li>
+        </ol>
+      </aside>
+      <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+      <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+    </body></html>

@@ -17,6 +17,7 @@ PYTHON    := $(REPO_ROOT)/.venv/bin/python
 PIP       := $(REPO_ROOT)/.venv/bin/pip
 ENV       := $(REPO_ROOT)/.env
 PYTEST_FLAGS ?= -q --disable-warnings
+MOCK_PORT    ?= 8001
 
 NO_COLOR ?= 0
 ifeq ($(NO_COLOR),1)
@@ -35,7 +36,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify run migrate test test-one openapi-check contract-test openapi-accept-changes build deps-audit env-check
+.PHONY: help verify run migrate test test-one openapi-check contract-test openapi-accept-changes api-mock build deps-audit env-check
 
 help:
 	@echo "services/api — make targets"
@@ -47,6 +48,7 @@ help:
 	@echo "  make openapi-check          Lint + breaking-change guard vs baseline"
 	@echo "  make contract-test          Snapshot equality vs baseline"
 	@echo "  make openapi-accept-changes Overwrite baseline with current spec"
+	@echo "  make api-mock               Start a mock for EVERY canon (auto-detected ports)"
 	@echo "  make build                  docker build services/api/ (image: study-app-api:local)"
 	@echo "  make deps-audit             pip-audit against the live .venv"
 	@echo "  make env-check              Sanity-check .env + DB connectivity"
@@ -117,6 +119,17 @@ openapi-accept-changes:
 	@printf "$(ICON_STEP) %s\n" "Accepting OpenAPI changes (updating baseline)…"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/api/openapi_governance.py update-baseline
 	@printf "$(ICON_OK) %s\n" "OpenAPI baseline updated"
+
+# Layer 3 of the API-first toolchain — spec-driven mock server (Connexion + Flask).
+# Starts one mock per discovered canon under
+# `services/portal/internal/services/api/openapi/*/fragments/`. Each canon
+# gets its own port automatically (test → :8001, product canons → :8002, :8003, …).
+# Ctrl-C stops all of them at once.
+#
+# See services/portal/internal/handbook/sa/reference/api-first-toolchain.html.
+api-mock:
+	@printf "$(COLOR_CYAN)== API-MOCK: START ==$(COLOR_RESET)\n"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/api/mock_server.py
 
 # ─────────────────────────────────────────────
 # Docker

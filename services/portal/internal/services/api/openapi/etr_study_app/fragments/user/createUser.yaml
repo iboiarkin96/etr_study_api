@@ -1,0 +1,222 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  # ADR 0036 D6 — provenance tags for pre-existing code-first operations.
+  # `x-build-history` marks the fragment as a back-fill of an already-shipped
+  # handler; `x-portal-spec` points at the human view maintained in parallel.
+  x-build-history: code-first
+  x-portal-spec: /services/portal/internal/services/api/reference/user/operations/post-api-v1-user.html
+paths:
+  /api/v1/user:
+    post:
+      operationId: createUser
+      summary: Create a new user.
+      description: |
+        Creates a new `User` row for the calling tenant. Uniqueness is
+        enforced on the composite natural key `(system_user_id, system_uuid)`.
+        The server generates a stable `client_uuid` used as the owner key on
+        every downstream resource.
+
+        Requires the `X-API-Key` header (tenant auth) and the
+        `Idempotency-Key` header. A repeated request with the same key
+        within the 24 h idempotency window replays the cached response.
+        Reuse with a different payload returns 409.
+      tags: [User]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserCreateRequest" }
+            examples:
+              default:
+                summary: Basic registration
+                value:
+                  system_user_id: "134tg"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  full_name: "Ivan Petrov"
+                  username: "ipetrov"
+                  timezone: "Europe/Moscow"
+                  invalidation_reason_uuid: null
+                  is_row_invalid: 0
+              minimal:
+                summary: Only the required fields
+                value:
+                  system_user_id: "134tg"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  full_name: "Ivan Petrov"
+      responses:
+        "201":
+          description: Created — the persisted user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserCreateResponse" }
+              examples:
+                default:
+                  summary: The user as stored
+                  value:
+                    client_uuid: "0f14a2e8-0a01-4a1e-9f7c-3f6b1c7e0d21"
+                    created_at: "2026-07-05T09:15:00+00:00"
+                    updated_at: "2026-07-05T09:15:00+00:00"
+                    is_row_invalid: 0
+                    invalidation_reason_uuid: null
+                    system_user_id: "134tg"
+                    system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                    username: "ipetrov"
+                    full_name: "Ivan Petrov"
+                    timezone: "Europe/Moscow"
+        "400": { $ref: "./error-400/user-exists.yaml" }
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "409": { $ref: "./error-409/idempotency-replay.yaml" }
+        "413": { $ref: "../../_shared/responses/Error413.yaml" }
+        # 422 is inlined (not $ref'd to _shared/) so the examples name the
+        # actual fields of this operation. The envelope schema is shared.
+        "422":
+          description: Unprocessable Content — one or more request fields failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                system_user_id_too_long:
+                  summary: system_user_id exceeds maxLength 36
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/user"
+                    errors:
+                      - code: "USER_010"
+                        key: "system_user_id_length"
+                        message: "system_user_id must be between 1 and 36 characters."
+                        field: "system_user_id"
+                        source: "validation"
+                full_name_missing:
+                  summary: full_name is required
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/user"
+                    errors:
+                      - code: "USER_011"
+                        key: "full_name_required"
+                        message: "full_name is required."
+                        field: "full_name"
+                        source: "validation"
+                invalid_system_uuid:
+                  summary: system_uuid is not a valid UUID
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/user"
+                    errors:
+                      - code: "USER_012"
+                        key: "system_uuid_invalid"
+                        message: "system_uuid must be a valid UUID."
+                        field: "system_uuid"
+                        source: "validation"
+                invalid_timezone:
+                  summary: timezone is not a valid IANA zone
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/user"
+                    errors:
+                      - code: "USER_013"
+                        key: "timezone_invalid"
+                        message: "timezone must be a valid IANA name (e.g. 'UTC', 'Europe/Moscow')."
+                        field: "timezone"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    UserCreateRequest:
+      type: object
+      required: [system_user_id, system_uuid, full_name]
+      properties:
+        system_user_id:
+          type: string
+          minLength: 1
+          maxLength: 36
+          description: "User ID in the source system; unique together with `system_uuid`."
+          example: "134tg"
+        system_uuid:
+          type: string
+          format: uuid
+          description: "UUID of the source system (`systems.system_uuid`); composite key with `system_user_id`."
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: "Full name of the user."
+          example: "Ivan Petrov"
+        username:
+          type: [string, "null"]
+          maxLength: 255
+          description: "Optional username or login."
+          example: "ipetrov"
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+          default: "UTC"
+          description: "IANA timezone name (e.g. 'UTC', 'Europe/Moscow')."
+          example: "Europe/Moscow"
+        invalidation_reason_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "FK to invalidation reason, if the row is being marked invalid at creation time."
+          example: null
+        is_row_invalid:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: "Soft-invalidation flag (0 = active, 1 = invalidated)."
+
+    UserCreateResponse:
+      type: object
+      required:
+        - client_uuid
+        - created_at
+        - updated_at
+        - is_row_invalid
+        - full_name
+        - timezone
+      properties:
+        client_uuid:
+          type: string
+          format: uuid
+          description: "Server-generated internal identifier; stable across the user's lifetime."
+          example: "0f14a2e8-0a01-4a1e-9f7c-3f6b1c7e0d21"
+        created_at:
+          type: string
+          format: date-time
+          description: "Row creation timestamp (timezone-aware, RFC 3339)."
+          example: "2026-07-05T09:15:00+00:00"
+        updated_at:
+          type: string
+          format: date-time
+          description: "Last update timestamp (timezone-aware, RFC 3339)."
+          example: "2026-07-05T09:15:00+00:00"
+        is_row_invalid:
+          type: integer
+          enum: [0, 1]
+          description: "Soft-invalidation flag (0 = active, 1 = invalidated)."
+        invalidation_reason_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "FK to invalidation reason, if set."
+        system_user_id:
+          type: [string, "null"]
+          description: "External system user id, echoed from the request."
+        system_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "Related system UUID, echoed from the request."
+        username:
+          type: [string, "null"]
+          description: "Optional display username, echoed from the request."
+        full_name:
+          type: string
+          description: "Full name, echoed from the request."
+        timezone:
+          type: string
+          description: "IANA timezone string, echoed from the request."

@@ -34,7 +34,7 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
         pre-commit-install pre-commit-check pre-commit-validate \
         stack-up stack-down stack-down-volumes stack-logs logging-up logging-down \
         run migrate test test-one deps-audit \
-        openapi-check contract-test openapi-accept-changes build \
+        openapi-check contract-test openapi-accept-changes api-mock build \
         docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check \
         catalog-render catalog-render-check serve open sync-staging \
         visual-test visual-test-update
@@ -98,6 +98,7 @@ help:
 	@echo "    make openapi-check          → services/api/Makefile"
 	@echo "    make contract-test          → services/api/Makefile"
 	@echo "    make openapi-accept-changes → services/api/Makefile"
+	@echo "    make api-mock               → services/api/Makefile (mock every canon on its own port)"
 	@echo "    make build                  → services/api/Makefile (docker build)"
 	@echo "    make deps-audit             → services/api/Makefile"
 	@echo "    make docs-fix               → services/portal/Makefile"
@@ -114,6 +115,8 @@ help:
 	@echo "    make open  [PORTAL_PORT=N]  → services/portal/Makefile (open in browser)"
 	@echo "    make visual-test            → services/portal/Makefile (UI Kit pixel-diff, BL-047)"
 	@echo "    make visual-test-update     → services/portal/Makefile (refresh visual baselines)"
+	@echo "    make api-check              → services/portal/Makefile (validate ALL canons)"
+	@echo "    make api-check <resource>   → services/portal/Makefile (validate one resource across every canon)"
 	@echo ""
 	@echo "  Release pipeline (ADR 0034 dual-Pages)"
 	@echo "    make sync-staging           Reset staging branch to origin/main after a promo merge"
@@ -354,7 +357,7 @@ release:
 # ──────────────────────────────────────────────
 # Per-service delegates (kept so habits like `make run` stay working)
 # ──────────────────────────────────────────────
-run migrate openapi-check contract-test openapi-accept-changes build deps-audit:
+run migrate openapi-check contract-test openapi-accept-changes api-mock build deps-audit:
 	@$(MAKE) -C services/api $@
 
 test:
@@ -363,7 +366,7 @@ test:
 test-one:
 	@$(MAKE) -C services/api test-one path=$(path)
 
-docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update:
+docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check:
 	@$(MAKE) -C services/portal $@
 
 # ──────────────────────────────────────────────

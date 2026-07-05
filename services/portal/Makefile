@@ -34,7 +34,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update
+.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check
 
 PORTAL_PORT ?= 8080
 PORTAL_URL  := http://127.0.0.1:$(PORTAL_PORT)/portal/
@@ -61,6 +61,10 @@ help:
 	@echo "  make visual-test           Pixel-diff UI Kit templates vs tests/visual/baselines/ (BL-047)"
 	@echo "  make visual-test-update    Refresh those baselines after an intentional UI change"
 	@echo "                             VISUAL_TEST_WORKERS=N to tune Chromium parallelism (default 4)"
+	@echo ""
+	@echo "  OpenAPI canon validation"
+	@echo "    make api-check                Validate ALL fragments across ALL canons"
+	@echo "    make api-check user           Validate one resource (e.g. user, course) across every canon that has it"
 
 # ─────────────────────────────────────────────
 # Local preview — serve the portal + open in browser
@@ -228,6 +232,41 @@ catalog-render-check:
 	@printf "$(ICON_STEP) %s\n" "Checking service descriptors are up to date…"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_service_descriptors.py --check
 	@printf "$(ICON_OK) %s\n" "Service descriptor check passed"
+
+# ============================================================
+# API OpenAPI Validation
+# ============================================================
+# One target, two modes.
+#
+#   make api-check              # validate ALL fragments across ALL canons
+#   make api-check user         # validate only `user/` — everywhere it exists
+#   make api-check course       # validate only `course/` — everywhere it exists
+#
+# A "canon" is any directory `openapi/{NAME}/fragments/` under
+# `services/portal/internal/services/api/openapi/`. Adding a new one is
+# `mkdir` + drop fragments — no Make edits, no code changes.
+
+# Extract the resource name from MAKECMDGOALS — but only when `api-check`
+# is the first goal. Otherwise every other target in a chain would leak
+# into API_CHECK_RESOURCE and get overridden as a no-op.
+ifeq (api-check,$(firstword $(MAKECMDGOALS)))
+API_CHECK_RESOURCE := $(filter-out api-check,$(MAKECMDGOALS))
+ifneq (,$(API_CHECK_RESOURCE))
+# Silence make's «no recipe for …» warning for the resource-name argument.
+$(eval $(API_CHECK_RESOURCE):; @:)
+endif
+endif
+
+api-check:
+	@printf "$(COLOR_CYAN)== API-CHECK: START ==$(COLOR_RESET)\n"
+ifeq (,$(API_CHECK_RESOURCE))
+	@cd $(REPO_ROOT) && $(PYTHON) tools/governance/validate_openapi.py --all-trees
+else
+	@printf "$(ICON_INFO) %s\n" "Scope: resource '$(API_CHECK_RESOURCE)' across every canon that has it"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/governance/validate_openapi.py --resource $(API_CHECK_RESOURCE)
+endif
+	@printf "$(COLOR_GREEN)== API-CHECK: SUCCESS ==$(COLOR_RESET)\n"
+
 
 # ─────────────────────────────────────────────
 # Aggregator

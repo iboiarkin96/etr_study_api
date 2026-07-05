@@ -1,0 +1,72 @@
+openapi: 3.1.0
+info:
+  title: Study App API
+  version: v1
+paths:
+  /api/v1/courses:
+    post:
+      operationId: createCourse
+      summary: Create a new course.
+      description: |
+        Creates a new course in the catalog. Course `name` must be unique
+        across the resource; `length` is measured in weeks and constrained
+        to 1..1000. Returns the persisted course on success.
+
+        Idempotent per `Idempotency-Key` (required header) — a repeated
+        request with the same key within the idempotency window replays
+        the cached response.
+      tags: [All courses]
+      parameters:
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCourseRequest" }
+            examples:
+              short_track: { $ref: "#/components/examples/short_track" }
+              long_track:  { $ref: "#/components/examples/long_track" }
+      responses:
+        "201":
+          description: Created — the persisted course.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Course" }
+              examples:
+                short_track: { $ref: "#/components/examples/short_track" }
+                long_track:  { $ref: "#/components/examples/long_track" }
+        "400": { $ref: "./error-400/bad-request.yaml" }
+        "409": { $ref: "./error-409/name-conflict.yaml" }
+components:
+  schemas:
+    CreateCourseRequest:
+      type: object
+      required: [name, length]
+      properties:
+        name:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 80,
+            description: "Human-readable course title. Must be unique across the catalog.",
+          }
+        length:
+          {
+            type: integer,
+            minimum: 1,
+            maximum: 1000,
+            description: "Course duration in weeks.",
+          }
+    Course:
+      type: object
+      required: [name, length]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        length: { type: integer, minimum: 1, maximum: 1000 }
+  examples:
+    short_track:
+      summary: A short beginner track
+      value: { name: "Introduction to Python", length: 10 }
+    long_track:
+      summary: A full-semester course
+      value: { name: "Advanced Systems Design", length: 16 }

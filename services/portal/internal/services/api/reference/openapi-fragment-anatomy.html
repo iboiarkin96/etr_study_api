@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenAPI fragment anatomy · API · Documentation portal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-28" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">API</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">OpenAPI fragment anatomy</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Reference</span>
+          <span class="docs-pill docs-pill--teal">API</span>
+          <span class="docs-pill docs-pill--info">OpenAPI 3.1</span>
+          <span class="docs-pill docs-pill--neutral">Authoring</span>
+        </div>
+        <h1>OpenAPI fragment anatomy</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Every key you can write inside one of our OpenAPI 3.1 fragments —
+          what it does, whether it's required, and how it surfaces in
+          the <a href="../openapi/test/preview.html">Swagger UI preview</a>
+          (which defaults to the combined view of every fragment, or you can pin to one via <code>?spec=fragments/course/createCourse.yaml</code>).
+          Scoped to what we actually use in this repo's fragments; for the full OpenAPI 3.1 spec
+          see <a href="https://spec.openapis.org/oas/v3.1.0" rel="external">spec.openapis.org/oas/v3.1.0</a>.
+        </p>
+      </header>
+
+      <h2 id="scope">Scope &amp; how to read this page</h2>
+      <p>This is a lookup reference for <strong>one fragment file</strong> — the unit governed by <a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a> at <code>services/portal/internal/services/api/openapi/test/fragments/{resource}/{operationId}.yaml</code>. A fragment is a self-contained OpenAPI 3.1 document that describes <em>one operation</em>. Cross-cutting policy (versioning, public vs. internal split, error governance) lives in the related ADRs and in <a href="_shared/openapi-authoring-guide.html">the public-translation guide</a>; this page is about the YAML shape.</p>
+      <ul>
+        <li><strong>Required?</strong> column refers to the OpenAPI 3.1 spec. The <strong>Project rule</strong> column adds our local conventions on top (some optional keys are mandatory for us; some optional keys we never use).</li>
+        <li><strong>Renders as</strong> column tells you what Swagger UI shows when the key is present — read it side-by-side with <code>preview.html</code> open on <code>createCourse.yaml</code>.</li>
+        <li>Tables list only keys we actually use. If a key isn't here, treat it as «not for this project» until an ADR adds it.</li>
+      </ul>
+
+      <h2 id="skeleton">1 · Document skeleton</h2>
+      <p>The five top-level keys of a fragment. <code>openapi</code>, <code>info</code>, and <code>paths</code> are required by the spec; we additionally require <code>components</code> on any fragment that owns local schemas.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Required?</th><th>Type</th><th>Purpose</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>openapi</code></td><td>Yes</td><td>string</td><td>Spec version. Determines which keywords are legal.</td><td>Always <code>3.1.0</code>. We don't author 3.0 fragments.</td></tr>
+            <tr><td><code>info</code></td><td>Yes</td><td>Info Object</td><td>Document metadata: title, version, contact, license.</td><td>Title <code>Study App API</code>, version <code>v1</code>. No <code>termsOfService</code>, no <code>contact</code> — those belong to the public spec, not per-fragment.</td></tr>
+            <tr><td><code>servers</code></td><td>No</td><td>array of Server</td><td>Base URLs for the API. If absent, Swagger UI uses the same origin as the spec file.</td><td>Never set per-fragment. Server config is a runtime concern.</td></tr>
+            <tr><td><code>paths</code></td><td>Yes</td><td>Paths Object</td><td>One key per URL template, e.g. <code>/api/v1/courses</code>. Each value is a Path Item Object with one method block.</td><td>Exactly one path per fragment. Mixing operations from different paths in one file breaks the «one fragment per operation» rule.</td></tr>
+            <tr><td><code>components</code></td><td>No (spec)</td><td>Components Object</td><td>Reusable building blocks — schemas, parameters, responses, headers, examples. Referenced from anywhere in the document via <code>#/components/…</code>.</td><td>Required when the fragment owns request/response schemas (it usually does). Shared building blocks live in <code>_shared/</code>, not in per-fragment <code>components</code>.</td></tr>
+            <tr><td><code>tags</code></td><td>No</td><td>array of Tag</td><td>Top-level tag metadata (descriptions, external docs). Distinct from the <code>tags:</code> list inside an Operation.</td><td>Never set top-level. Tag descriptions live in the merged public spec, not in per-operation fragments.</td></tr>
+            <tr><td><code>security</code></td><td>No</td><td>array of Security Requirement</td><td>Default security schemes for every operation in the document.</td><td>Not used today. When auth lands, will be declared per-operation, not at document level.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Renders in Swagger UI as</strong> — the page header (<code>info.title</code> + <code>info.version</code>), one collapsible block per <code>paths</code> entry, and a «Schemas» section at the bottom built from <code>components.schemas</code>.</p>
+
+      <h2 id="operation">2 · Operation Object — <code>paths.{path}.{method}</code></h2>
+      <p>The body of <code>post:</code>, <code>get:</code>, <code>put:</code>, <code>patch:</code>, <code>delete:</code>, <code>head:</code>, or <code>options:</code> inside a Path Item. This is where most of the contract lives.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Required?</th><th>Type</th><th>Purpose</th><th>Renders as</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>operationId</code></td><td>No (spec) / Yes (us)</td><td>string</td><td>Unique identifier for the operation. SDK generators use it as the method name.</td><td>Shown in the operation header as a grey badge; also used as the anchor in deep links.</td><td>Required. <code>{verb}{Resource}</code> in camelCase (<code>createCourse</code>, <code>listCourses</code>, <code>getCourse</code>). Unique across the whole API. Stable forever.</td></tr>
+            <tr><td><code>summary</code></td><td>No</td><td>string (≤120 chars)</td><td>One-line description. The «title» of the operation.</td><td>The bold text next to the method pill (POST/GET/…) in the collapsed block header.</td><td>Required. Imperative mood, ends with a period. «Create a new course.»</td></tr>
+            <tr><td><code>description</code></td><td>No</td><td>string (CommonMark)</td><td>Long-form description. Supports Markdown.</td><td>Markdown-rendered block right under the operation header when expanded.</td><td>Optional. Use it when the operation has non-obvious semantics (idempotency window, side effects, ordering guarantees). Skip when <code>summary</code> + acceptance criteria say enough.</td></tr>
+            <tr><td><code>tags</code></td><td>No</td><td>array of string</td><td>Grouping. Swagger UI clusters operations by their first tag.</td><td>Section grouping in the side index; pill in the operation header.</td><td>Required. Exactly one tag — the resource's PascalCase name (<code>Course</code>, <code>User</code>, <code>Conspectus</code>).</td></tr>
+            <tr><td><code>parameters</code></td><td>No</td><td>array of Parameter/Reference</td><td>Path / query / header / cookie inputs.</td><td>«Parameters» table when expanded. Required ones marked with a red <em>required</em> badge.</td><td>Use <code>$ref</code> to <code>_shared/headers/*</code> for cross-operation headers (<code>Idempotency-Key</code>). Inline only operation-specific params.</td></tr>
+            <tr><td><code>requestBody</code></td><td>No</td><td>RequestBody/Reference</td><td>Payload for POST/PUT/PATCH.</td><td>«Request body» panel with a media-type dropdown, schema view, and example payload.</td><td>Required on every write. Always one media type: <code>application/json</code>. Always at least one <code>examples</code> entry.</td></tr>
+            <tr><td><code>responses</code></td><td>Yes</td><td>Responses Object</td><td>Map status code → Response Object.</td><td>«Responses» table with one row per status code; click a row to expand the body.</td><td>Document every status the handler can return — success, validation errors (<code>400</code>), idempotency conflicts (<code>409</code>), authentication (<code>401</code> when auth lands). Use <code>$ref</code> to <code>_shared/responses/*</code> for envelope reuse.</td></tr>
+            <tr><td><code>deprecated</code></td><td>No</td><td>boolean</td><td>Marks the operation as deprecated.</td><td>Strikethrough on the operation summary; warning banner.</td><td>Use only after a deprecation ADR. Set to <code>true</code>, point <code>description</code> at the successor operation and the deprecation date.</td></tr>
+            <tr><td><code>security</code></td><td>No</td><td>array of Security Requirement</td><td>Per-operation security overrides.</td><td>Lock icon next to the operation; security scheme listed in the «Authorize» dialog.</td><td>Not used yet — set per-operation once auth lands, not at document level.</td></tr>
+            <tr><td><code>callbacks</code></td><td>No</td><td>map of Callback</td><td>Webhook contracts.</td><td>«Callbacks» panel.</td><td>Not used. We don't ship webhooks.</td></tr>
+            <tr><td><code>servers</code></td><td>No</td><td>array of Server</td><td>Per-operation base URL override.</td><td>Server dropdown.</td><td>Not used.</td></tr>
+            <tr><td><code>externalDocs</code></td><td>No</td><td>External Documentation</td><td>Link out to extended docs.</td><td>«Find more info» link in the operation header.</td><td>Not used at operation level — the portal Operation spec page is the external doc.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="parameter">3 · Parameter Object</h2>
+      <p>One entry per element of an Operation's <code>parameters:</code> array. Reusable parameters (e.g. <code>Idempotency-Key</code>) live in <code>_shared/headers/</code> and are pulled in via <code>$ref</code>.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Required?</th><th>Type</th><th>Purpose</th><th>Renders as</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td>Yes</td><td>string</td><td>Parameter name as it appears on the wire.</td><td>The «Name» column in the Parameters table.</td><td>For <code>in: path</code>, must match the placeholder in the path (<code>/{course_id}</code> ↔ <code>name: course_id</code>). For headers and queries, follow our naming convention (snake_case for query, Title-Case-Hyphenated for HTTP headers).</td></tr>
+            <tr><td><code>in</code></td><td>Yes</td><td>enum</td><td>Where the parameter lives. One of <code>path</code> / <code>query</code> / <code>header</code> / <code>cookie</code>.</td><td>«Located in» column.</td><td>We use <code>path</code>, <code>query</code>, <code>header</code>. No cookies.</td></tr>
+            <tr><td><code>required</code></td><td>Yes for <code>in: path</code>, else No</td><td>boolean</td><td>Whether the parameter must be provided.</td><td>Red <em>required</em> badge in the Parameters table.</td><td>Always set explicitly, even when <code>false</code>, so the contract is unambiguous on review.</td></tr>
+            <tr><td><code>description</code></td><td>No</td><td>string (CommonMark)</td><td>What the parameter means.</td><td>Markdown-rendered description column.</td><td>Required for every parameter. Mention units, valid ranges, and any cross-references (e.g. «UUID of the course, see <code>GET /api/v1/courses</code>»).</td></tr>
+            <tr><td><code>schema</code></td><td>Yes (in practice)</td><td>Schema Object</td><td>Type and constraints of the value.</td><td>Type column («string», «integer», …) plus the format / pattern in the expanded view.</td><td>Always inline (small) or <code>$ref</code> to a shared schema (<code>_shared/schemas/Uuid.yaml</code>, etc.). Constrain with <code>pattern</code> / <code>minLength</code> / <code>maxLength</code> when the underlying type allows.</td></tr>
+            <tr><td><code>example</code></td><td>No</td><td>any (matches schema)</td><td>One representative value.</td><td>Pre-fills the «Try it out» form with this value.</td><td>Required on every <code>required: true</code> parameter. Optional otherwise.</td></tr>
+            <tr><td><code>examples</code></td><td>No</td><td>map of Example</td><td>Multiple named examples — useful when the same parameter has distinct shapes per use case.</td><td>Dropdown above the «Try it out» form.</td><td>Use when <code>example</code> isn't enough (e.g. a filter that takes either a UUID or a slug).</td></tr>
+            <tr><td><code>deprecated</code></td><td>No</td><td>boolean</td><td>Marks the parameter as deprecated.</td><td>Strikethrough on the parameter name.</td><td>Same rule as Operation-level <code>deprecated</code> — only after an ADR.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Header-parameter pattern (lives at <code>_shared/headers/IdempotencyKey.yaml</code> and is referenced by every write operation):</p>
+      <pre><code>name: Idempotency-Key
+in: header
+required: true
+description: &gt;
+  Caller-supplied opaque key (UUIDv4 recommended). Replays the cached
+  response for the configured idempotency window. See ADR-0006.
+schema:
+  type: string
+  minLength: 8
+  maxLength: 128
+  pattern: "^[A-Za-z0-9_-]+$"
+example: "8f5a2c19-3b4e-4d8a-9f3b-1c2d3e4f5a6b"
+</code></pre>
+
+      <h2 id="request-body">4 · Request Body Object</h2>
+      <p>The body of an Operation's <code>requestBody:</code>. Only used on POST / PUT / PATCH operations.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Required?</th><th>Type</th><th>Purpose</th><th>Renders as</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>description</code></td><td>No</td><td>string (CommonMark)</td><td>One-paragraph description of the payload.</td><td>Text above the schema view.</td><td>Optional. Use when the payload's invariants (e.g. «exactly one of <code>a</code> or <code>b</code>») aren't expressible in the schema.</td></tr>
+            <tr><td><code>required</code></td><td>No (default <code>false</code>)</td><td>boolean</td><td>Whether the body must be present.</td><td>Red <em>required</em> badge on the «Request body» panel.</td><td>Always <code>true</code> for POST/PUT/PATCH on this project. We don't author write ops that accept an empty body.</td></tr>
+            <tr><td><code>content</code></td><td>Yes</td><td>map of Media Type</td><td>Media-type → MediaType Object. The key is the MIME type (<code>application/json</code>, <code>multipart/form-data</code>, …).</td><td>Media-type dropdown above the schema view.</td><td>Exactly one entry: <code>application/json</code>. Multipart is out of scope until a file-upload operation lands (separate ADR).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="response">5 · Response Object</h2>
+      <p>One entry per status code under an Operation's <code>responses:</code>. Reusable error envelopes live in <code>_shared/responses/</code> and are pulled in via <code>$ref</code>.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Required?</th><th>Type</th><th>Purpose</th><th>Renders as</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>description</code></td><td>Yes</td><td>string (CommonMark)</td><td>What this response means — when the handler returns it, what state it implies.</td><td>The expanded row's primary description.</td><td>One sentence, present tense («Created.» «Conflict — operation conflicts with current state.»).</td></tr>
+            <tr><td><code>headers</code></td><td>No</td><td>map of Header</td><td>Response headers (e.g. <code>Location</code>, <code>ETag</code>).</td><td>«Headers» subsection inside the response row.</td><td>Document any header the client must read (e.g. <code>Location</code> on a 201 that returns a redirect). Use <code>$ref</code> for cross-operation headers.</td></tr>
+            <tr><td><code>content</code></td><td>No</td><td>map of Media Type</td><td>The body shape per media type.</td><td>Media-type dropdown above the body schema + example.</td><td>Required for 2xx and 4xx responses. Omit for 204 No Content.</td></tr>
+            <tr><td><code>links</code></td><td>No</td><td>map of Link</td><td>HATEOAS — declares how a returned value can drive a subsequent operation.</td><td>«Links» subsection.</td><td>Not used today. Add once the first cross-operation relationship needs it.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Shared error responses (under <code>_shared/responses/</code>) are full Response Objects — they ship <code>description</code> + <code>content</code> together. That's why a fragment can pull one in with one line: <code>"400": { $ref: "../../_shared/responses/Error400.yaml" }</code>.</p>
+
+      <h3 id="response-examples">Sharing tiers — where the 4xx response lives</h3>
+      <p>OpenAPI's <code>$ref</code> is a <em>full substitution</em> — it replaces the entire Response Object. You can't <code>$ref</code> a shared response and then «add one more example» to it. So we have three tiers, ordered cross-resource → per-resource → per-operation, and pick per status code per operation:</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Tier</th><th>Lives at</th><th>Use when</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>A · Cross-resource shared</strong></td>
+              <td><code>openapi/test/_shared/responses/Error{NNN}.yaml</code></td>
+              <td>The 4xx description is generic and identical across every resource — «request failed validation» with a non-specific example.</td>
+            </tr>
+            <tr>
+              <td><strong>B · Per-resource shared</strong></td>
+              <td><code>openapi/test/fragments/{resource}/error-{NNN}/{specifics}.yaml</code></td>
+              <td>Multiple operations on the SAME resource raise the same 4xx with the same semantics. <code>createCourse</code> and a future <code>updateCourse</code> both check «course name already exists» — the response file lives next to them, ready to be <code>$ref</code>'d from both.</td>
+            </tr>
+            <tr>
+              <td><strong>C · Inline per-operation</strong></td>
+              <td>Inside the fragment itself</td>
+              <td>The 4xx is unique to THIS operation: the examples name its specific fields, the description mentions its specific rules.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Tier A — generic cross-resource:</p>
+      <pre><code>responses:
+  "400": { $ref: "../../_shared/responses/Error400.yaml" }</code></pre>
+      <p>Tier B — per-resource (the file at <code>fragments/course/error-409/name-conflict.yaml</code> is a Response Object with course-specific examples; both POST and a future PATCH on the same resource reuse it):</p>
+      <pre><code>responses:
+  "409": { $ref: "./error-409/name-conflict.yaml" }</code></pre>
+      <p>Tier C — inline per-operation (used in <code>createCourse.yaml</code> for the 400 because the validation messages name <code>name</code> and <code>length</code>, which only exist on this operation):</p>
+      <pre><code>responses:
+  "400":
+    description: Bad Request — request body failed schema validation.
+    content:
+      application/json:
+        schema: { $ref: "../../_shared/schemas/ErrorBody.yaml" }
+        examples:
+          missing_name:
+            summary: "name is missing"
+            value:
+              code: validation_error
+              message: "Field 'name' must not be empty."
+          length_out_of_range:
+            summary: "length not in [1..1000]"
+            value:
+              code: validation_error
+              message: "Field 'length' must be between 1 and 1000."</code></pre>
+      <p>All three tiers reuse the same envelope <em>schema</em> (<code>_shared/schemas/ErrorBody.yaml</code>) — only the wrapping Response Object and its examples change.</p>
+      <p><strong>How to pick.</strong></p>
+      <ol>
+        <li>Is this 4xx specific to this resource's domain (e.g. «course name conflict»)? → <strong>tier B</strong>, sibling under <code>{resource}/error-{NNN}/</code>. Other operations on the same resource will reuse it.</li>
+        <li>Are the examples truly unique to this one operation (named after its specific fields)? → <strong>tier C</strong>, inline.</li>
+        <li>Is the 4xx genuinely generic and identical across resources? → <strong>tier A</strong>, cross-resource <code>$ref</code>.</li>
+      </ol>
+      <p><strong>Anti-pattern.</strong> Putting course-specific messages into <code>_shared/responses/Error409.yaml</code>. The cross-resource file should stay generic; the moment a message names a field, that's the cue to migrate to tier B or C.</p>
+      <p><strong>How the validator treats partials.</strong> Tier-B files live under <code>fragments/</code> but are Response Objects, not full OpenAPI 3.1 documents. The validator detects them (no top-level <code>openapi:</code> key) and skips them with a <code>↺ Partial</code> note — the partial gets validated transitively when its parent fragment's <code>$ref</code> walk pulls it in.</p>
+
+      <h2 id="media-type">6 · Media Type Object</h2>
+      <p>The body shape for one media type, inside either a Request Body or a Response.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Required?</th><th>Type</th><th>Purpose</th><th>Renders as</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>schema</code></td><td>Yes</td><td>Schema/Reference</td><td>The body's type and constraints.</td><td>Schema view in the panel.</td><td>Always <code>$ref</code> to a named schema — either local (<code>#/components/schemas/Foo</code>) or shared (<code>../../_shared/schemas/Foo.yaml</code>). Inline schemas only when the body is trivial (single primitive).</td></tr>
+            <tr><td><code>example</code></td><td>No</td><td>any (matches schema)</td><td>One representative body.</td><td>Pre-fills the «Try it out» form and shows on the request-body / response-body tab.</td><td>Use <code>examples</code> instead — even when there's only one, named examples make a clearer review.</td></tr>
+            <tr><td><code>examples</code></td><td>No</td><td>map of Example</td><td>Named examples.</td><td>Dropdown on the panel labelled with each example's name.</td><td>Required on every documented response status and request body. At least one named example. Example keys are snake_case (<code>minimal</code>, <code>with_optional</code>, <code>duplicate_name</code>).</td></tr>
+            <tr><td><code>encoding</code></td><td>No</td><td>map of Encoding</td><td>Per-property encoding rules (for <code>multipart/form-data</code> and friends).</td><td>«Encoding» subsection.</td><td>Not used — we're JSON-only.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Example Object</strong> inside <code>examples</code> has four keys: <code>summary</code> (short label), <code>description</code> (longer), <code>value</code> (the actual example), and <code>externalValue</code> (a URL — never used). We almost always use only <code>value</code>: <code>{ value: { name: "Introduction to Python" } }</code>.</p>
+
+      <h2 id="schema">7 · Schema Object</h2>
+      <p>JSON Schema 2020-12 with a small OpenAPI delta. Used in <code>requestBody</code>, response <code>content</code>, parameter <code>schema</code>, and <code>components/schemas</code>. We only use a subset — listed below.</p>
+
+      <h3 id="schema-core">Core keys</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Type</th><th>Purpose</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>type</code></td><td>string or array</td><td>JSON type: <code>string</code>, <code>integer</code>, <code>number</code>, <code>boolean</code>, <code>object</code>, <code>array</code>, <code>null</code>.</td><td>Always set, even when the schema also has <code>$ref</code> children. Nullable fields use <code>type: [string, "null"]</code> (3.1 style — never the deprecated <code>nullable: true</code>).</td></tr>
+            <tr><td><code>format</code></td><td>string</td><td>Hint about the concrete representation: <code>date-time</code>, <code>uuid</code>, <code>email</code>, <code>uri</code>, <code>int64</code>, etc.</td><td>Use <code>format: uuid</code> on UUID fields; <code>format: date-time</code> on RFC-3339 timestamps. Never invent custom formats — link to a shared schema instead.</td></tr>
+            <tr><td><code>$ref</code></td><td>URI reference</td><td>Replace this schema with the referenced one.</td><td>Always quoted: <code>$ref: "../../_shared/schemas/Foo.yaml"</code>. Paths are relative to the fragment's directory; the validator resolves them via its base URI.</td></tr>
+            <tr><td><code>description</code></td><td>string (CommonMark)</td><td>What this field means.</td><td>Required on every field exposed in a request or response. Required on every named schema in <code>components</code>.</td></tr>
+            <tr><td><code>examples</code></td><td>array</td><td>Sample values for the type. Distinct from the Media-Type-level <code>examples</code>.</td><td>Used inside <code>_shared/schemas/*</code> to make the «Schemas» bottom panel readable. Optional inside per-operation fragments — the operation's <code>examples</code> map is the primary source.</td></tr>
+            <tr><td><code>default</code></td><td>any</td><td>Value the server uses when the client omits the field.</td><td>Document defaults explicitly. A missing <code>default</code> on a non-required field means «the absence is meaningful» — make sure that's intentional.</td></tr>
+            <tr><td><code>enum</code></td><td>array</td><td>Closed set of allowed values.</td><td>Pull frequently-reused enums into <code>_shared/schemas/</code> rather than redefining inline.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="schema-object">Object schemas</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Type</th><th>Purpose</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>properties</code></td><td>map of Schema</td><td>Property name → schema.</td><td>Property names are snake_case. Always declare every documented property; never rely on <code>additionalProperties</code>.</td></tr>
+            <tr><td><code>required</code></td><td>array of string</td><td>Property names that must appear.</td><td>Always present (even when empty <code>[]</code>) for any object schema. Reviewers need it to read the contract at a glance.</td></tr>
+            <tr><td><code>additionalProperties</code></td><td>boolean or Schema</td><td>Whether/which extra properties are allowed.</td><td>Default to omitting (which means «allowed»). Set to <code>false</code> when the schema must be closed (e.g. a write body that mustn't accept stray fields).</td></tr>
+            <tr><td><code>minProperties</code> / <code>maxProperties</code></td><td>integer</td><td>Property-count bounds.</td><td>Rare. Use only when the cardinality has business meaning.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="schema-string">String constraints</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Purpose</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>minLength</code> / <code>maxLength</code></td><td>Length bounds.</td><td>Always set on user-supplied strings. Trace the upper bound to a real storage / UI limit.</td></tr>
+            <tr><td><code>pattern</code></td><td>JS-flavoured regex.</td><td>Use for IDs, slugs, opaque keys. Anchor with <code>^…$</code>. Test against the example: the example must match the pattern.</td></tr>
+            <tr><td><code>format</code></td><td>Semantic hint.</td><td>Combine with <code>pattern</code> when format alone isn't enough (Swagger UI shows both; clients honour the pattern).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="schema-number">Number / integer constraints</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Purpose</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>minimum</code> / <code>maximum</code></td><td>Inclusive numeric bounds.</td><td>Set on every numeric field that has a business range.</td></tr>
+            <tr><td><code>exclusiveMinimum</code> / <code>exclusiveMaximum</code></td><td>Strict numeric bounds (3.1 — boolean style).</td><td>Use when zero is meaningful and you need «strictly positive».</td></tr>
+            <tr><td><code>multipleOf</code></td><td>Step size.</td><td>Used on quantised values (e.g. minute-resolution timestamps).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="schema-array">Array schemas</h3>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Key</th><th>Purpose</th><th>Project rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>items</code></td><td>Schema of each element.</td><td>Always set on arrays — never use untyped arrays.</td></tr>
+            <tr><td><code>minItems</code> / <code>maxItems</code></td><td>Cardinality bounds.</td><td>Set <code>maxItems</code> on every user-supplied array. Set <code>minItems: 1</code> when an empty array is meaningless.</td></tr>
+            <tr><td><code>uniqueItems</code></td><td>Whether duplicates are allowed.</td><td>Set to <code>true</code> for set-like arrays (tag lists, IDs); skip for ordered logs.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="schema-compose">Composition</h3>
+      <p>OpenAPI inherits all four JSON Schema combinators: <code>allOf</code> (intersection), <code>oneOf</code> (xor), <code>anyOf</code> (union), <code>not</code> (negation). We use them sparingly:</p>
+      <ul>
+        <li><strong><code>allOf</code></strong> — to extend a base schema. Example: a paginated-response wrapper that <code>allOf</code>-merges a generic envelope with the concrete <code>items</code> schema.</li>
+        <li><strong><code>oneOf</code></strong> — to express «exactly one of these shapes». Pair with <code>discriminator</code> when the shapes have a tag field that picks between them.</li>
+        <li><strong><code>anyOf</code></strong> — only when an input can validly match more than one branch. Rare; usually <code>oneOf</code> is what you actually want.</li>
+        <li><strong><code>not</code></strong> — not used.</li>
+      </ul>
+
+      <h2 id="refs">8 · <code>$ref</code> resolution</h2>
+      <p>Every <code>$ref</code> is a URI. The validator (<code>tools/governance/validate_openapi.py</code>) resolves it against the fragment's own file URL. Concretely:</p>
+      <ul>
+        <li><strong>Local refs</strong> like <code>#/components/schemas/CreateCourseRequest</code> resolve inside the same fragment. The fragment is parsed once; refs are looked up against the parsed tree.</li>
+        <li><strong>Relative file refs</strong> like <code>../../_shared/responses/Error400.yaml</code> resolve as filesystem paths from the fragment's directory. From <code>fragments/course/createCourse.yaml</code>, two levels up lands on <code>openapi/</code>, where <code>_shared/</code> lives.</li>
+        <li><strong>URL refs</strong> (<code>https://…</code>) are technically valid but not used here — we want the canon to live in the repo.</li>
+      </ul>
+      <p>Count <code>../</code> by directory depth from the fragment:</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Fragment path</th><th>To <code>_shared/headers/X.yaml</code></th><th>To <code>_shared/responses/X.yaml</code></th><th>To <code>_shared/schemas/X.yaml</code></th></tr></thead>
+          <tbody>
+            <tr><td><code>fragments/course/createCourse.yaml</code></td><td><code>"../../_shared/headers/X.yaml"</code></td><td><code>"../../_shared/responses/X.yaml"</code></td><td><code>"../../_shared/schemas/X.yaml"</code></td></tr>
+            <tr><td><code>fragments/course/subdir/foo.yaml</code> (hypothetical nested resource)</td><td><code>"../../../_shared/headers/X.yaml"</code></td><td><code>"../../../_shared/responses/X.yaml"</code></td><td><code>"../../../_shared/schemas/X.yaml"</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If the validator says <code>Unresolvable: ../../_shared/responses/Error400.yaml</code>, the path is wrong — count again. The Swagger UI preview honours the same relative resolution, so a passing validator means a working preview.</p>
+
+      <h2 id="rules">9 · Project-specific rules in one place</h2>
+      <p>Hard rules that every fragment must satisfy. Reviewers check these before everything else; the validator catches most of them automatically.</p>
+      <ol>
+        <li>OpenAPI version <code>3.1.0</code>. Period.</li>
+        <li>Exactly one path under <code>paths:</code>. Exactly one method under that path. One fragment = one operation.</li>
+        <li><code>operationId</code> is required and follows <code>{verb}{Resource}</code> camelCase.</li>
+        <li><code>summary</code> is required (≤120 chars, imperative mood, ends with a period).</li>
+        <li><code>tags</code> is required, exactly one entry, PascalCase resource name.</li>
+        <li>Write operations (<code>post</code>, <code>put</code>, <code>patch</code>, <code>delete</code>) include the <code>Idempotency-Key</code> header via <code>$ref</code> to <code>_shared/headers/IdempotencyKey.yaml</code>.</li>
+        <li>Every documented response code has <code>content</code> (except <code>204</code>) and at least one named example.</li>
+        <li>Every 4xx and 5xx response uses a shared envelope from <code>_shared/responses/</code>. Never inline an error body.</li>
+        <li>Every request-body and response schema is a <code>$ref</code> (local or shared) — no anonymous inline schemas in <code>content.schema</code>.</li>
+        <li>Object schemas always declare <code>required: [...]</code> explicitly, even when empty.</li>
+        <li>Property names are snake_case. <code>operationId</code> is camelCase. Schema names are PascalCase. Tag names are PascalCase.</li>
+        <li>The validator (<code>make doc-api-swagger-check FILE={resource}/{operationId}.yaml</code>) exits 0 before the spec PR opens.</li>
+        <li>The Swagger UI preview (<code>preview.html?spec=fragments/{resource}/{operationId}.yaml</code>) renders the operation with every documented response code and example.</li>
+      </ol>
+
+      <h2 id="where-in-swagger">10 · Quick map — «where will this key show up in Swagger UI?»</h2>
+      <p>Open the <a href="../openapi/test/preview.html">Swagger UI preview</a> (combined view) alongside this list:</p>
+      <ul>
+        <li><code>info.title</code> + <code>info.version</code> → page header at the very top.</li>
+        <li>Each <code>tags</code> entry → collapsible section grouping operations.</li>
+        <li>Inside a tag: one block per operation. Block header = method pill (<code>POST</code>) + <code>summary</code> + grey <code>operationId</code> badge.</li>
+        <li>Click the block → <code>description</code>, then «Parameters» table, then «Request body» panel, then «Responses» table.</li>
+        <li>Parameters table: one row per <code>parameters[]</code> entry — name (with required badge), description, schema preview, example.</li>
+        <li>Request body panel: media-type dropdown → schema view + named examples dropdown.</li>
+        <li>Responses table: one row per status code → click to expand → <code>description</code>, schema view, named examples.</li>
+        <li>Bottom of the page: «Schemas» section listing every entry in <code>components.schemas</code> (and, after <code>$ref</code> resolution, the shared schemas too).</li>
+      </ul>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-28</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Authored as the Diátaxis Reference companion to the API-first triad (<a href="../../../handbook/sa/tutorial/api-first.html">tutorial</a> · <a href="../../../handbook/sa/authoring/apply-api-first.html">how-to</a> · <a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a>). Lookup tables for every key we author in fragments — document skeleton, Operation / Parameter / RequestBody / Response / MediaType / Schema objects, the <code>$ref</code> resolution rule, project conventions, and a Swagger-UI «where does this show up?» map. Scoped to the subset we actually use; links out to the official spec for everything else.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scope">Scope</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#skeleton">1 · Document skeleton</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#operation">2 · Operation Object</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#parameter">3 · Parameter Object</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#request-body">4 · Request Body</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#response">5 · Response Object</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#response-examples">— Shared vs. per-op examples</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#media-type">6 · Media Type</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#schema">7 · Schema Object</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#refs">8 · <code>$ref</code> resolution</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rules">9 · Project rules</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#where-in-swagger">10 · Map to Swagger UI</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

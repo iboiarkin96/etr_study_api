@@ -35,6 +35,9 @@ FROZEN_DOCS_REL_PATHS = {
     Path("internal/team/roles/manager/radar.html"),
     Path("internal/team/roles/sre/radar.html"),
     Path("internal/team/roles/qa/radar.html"),
+    # Swagger UI preview — embedded viewer
+    Path("internal/services/api/openapi/test/preview.html"),
+    Path("internal/services/api/openapi/etr_study_app/preview.html"),
 }
 
 # Pages that still load the legacy stack and are scheduled for separate
