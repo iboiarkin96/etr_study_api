@@ -2,15 +2,22 @@
 
 Runs three checks:
 
-1. **operationId ↔ spec page**: every operation page declares ``data-spec-operation-id`` on
-   ``<body>``; the script verifies that each declared ID is unique across pages and (unless the
-   page is in ``draft`` status) is present in ``services/portal/openapi/openapi-baseline.json``.
+1. **operationId ↔ page status oracle** — split by :data:`data-spec-status`:
+   * ``implemented`` → operationId must be in the **runtime spec**
+     (``services/portal/public/reference/api/openapi.json``), the actual code
+     ``app.openapi()`` output. If the spec page claims the operation is
+     shipped, the code must ship it.
+   * ``approved`` / ``in-review`` → operationId must be in the **canon**
+     (``services/portal/internal/services/api/openapi/etr_study_app/merged-spec.json``),
+     the analyst-authored contract. The analyst promised it; API-first
+     requires the promise land in canon before the code catches up.
+   * ``draft`` → free pass (page is a stub, oracle skipped).
+   Every page declaring ``data-spec-operation-id`` must be unique across pages
+   regardless of status.
 
-2. **OpenAPI → spec page**: for every ``operationId`` in the OpenAPI document, there must be
-   exactly one operation page that declares it. Pages explicitly tagged
-   ``data-spec-status="implemented"`` must match an OpenAPI entry; ``draft`` may precede the
-   OpenAPI entry. Stub pages with no ``data-spec-operation-id`` are skipped (the structural
-   linter ``spec_lint.py`` already flags them).
+2. **OpenAPI → spec page** — every ``operationId`` in the runtime spec must
+   have a spec page (else it's an undocumented shipped operation). Stub pages
+   with no ``data-spec-operation-id`` are skipped (``spec_lint.py`` flags them).
 
 3. **Error code/key ↔ catalog**: every ``code`` / ``key`` pair listed in section 12 of an
    operation page must be registered on ``services/portal/internal/api/_shared/error-catalog.html``. Catalog
@@ -35,11 +42,16 @@ OPERATIONS_GLOB = "services/portal/internal/services/api/reference/*/operations/
 ERROR_CATALOG = (
     REPO_ROOT / "services/portal/internal/services/api/reference/_shared/error-catalog.html"
 )
-OPENAPI_BASELINE = REPO_ROOT / "services/portal/public/reference/api/openapi-baseline.json"
+RUNTIME_SPEC = REPO_ROOT / "services/portal/public/reference/api/openapi.json"
+CANON_SPEC = (
+    REPO_ROOT / "services/portal/internal/services/api/openapi/etr_study_app/merged-spec.json"
+)
 
-# A spec page in these statuses is allowed to lack a corresponding OpenAPI operation:
-# the spec is the source of truth and may precede implementation.
-ALLOW_NO_OPENAPI_STATUSES: frozenset[str] = frozenset({"draft", "in-review", "approved"})
+# Draft pages are stubs — no oracle applied. Every other status is checked
+# against either the canon (approved/in-review) or the runtime spec (implemented).
+DRAFT_STATUSES: frozenset[str] = frozenset({"draft"})
+CANON_STATUSES: frozenset[str] = frozenset({"approved", "in-review"})
+RUNTIME_STATUSES: frozenset[str] = frozenset({"implemented"})
 
 # OpenAPI operations tagged with any of these names are infrastructure plumbing
 # (health probes, internal telemetry) and intentionally have no analyst-facing spec page.
@@ -134,10 +146,10 @@ def _collect_catalog_tokens(html: str) -> tuple[set[str], set[str], set[str], se
 
 
 def _read_openapi_operations(path: Path) -> dict[str, list[str]]:
-    """Read ``operationId`` → ``tags`` mapping from the OpenAPI baseline document.
+    """Read ``operationId`` → ``tags`` mapping from an OpenAPI document.
 
     Args:
-        path: Path to ``openapi-baseline.json``.
+        path: Path to an OpenAPI JSON (runtime spec or merged canon).
 
     Returns:
         Mapping from ``operationId`` to its declared tag list (possibly empty);
@@ -194,9 +206,11 @@ def _consistency_run(repo_root: Path) -> tuple[list[str], list[str]]:
     if not spec_paths:
         return ["spec_consistency: no operation specs found"], []
 
-    # Check 1 + 2: operationId mapping.
-    openapi_ops = _read_openapi_operations(OPENAPI_BASELINE)
-    openapi_ids = set(openapi_ops.keys())
+    # Check 1 + 2: operationId mapping — split oracle.
+    runtime_ops = _read_openapi_operations(RUNTIME_SPEC)
+    canon_ops = _read_openapi_operations(CANON_SPEC)
+    runtime_ids = set(runtime_ops.keys())
+    canon_ids = set(canon_ops.keys())
     spec_ids: dict[str, list[Path]] = {}
     for path in spec_paths:
         html = path.read_text(encoding="utf-8")
@@ -206,17 +220,27 @@ def _consistency_run(repo_root: Path) -> tuple[list[str], list[str]]:
             warnings.append(f"{path.relative_to(repo_root)}: no data-spec-operation-id (skipped)")
             continue
         spec_ids.setdefault(op_id, []).append(path)
-        if status == "implemented" and op_id not in openapi_ids:
+        if status in RUNTIME_STATUSES and op_id not in runtime_ids:
             failures.append(
-                f"{path.relative_to(repo_root)}: status=implemented but "
-                f"operationId {op_id!r} not in {OPENAPI_BASELINE.relative_to(repo_root)}",
+                f"{path.relative_to(repo_root)}: status={status} but operationId "
+                f"{op_id!r} not in runtime spec ({RUNTIME_SPEC.relative_to(repo_root)})",
             )
-        if status not in ALLOW_NO_OPENAPI_STATUSES and status != "implemented" and status:
-            # Other statuses (e.g. deprecated): require OpenAPI presence.
-            if op_id not in openapi_ids:
+        elif status in CANON_STATUSES and op_id not in canon_ids:
+            failures.append(
+                f"{path.relative_to(repo_root)}: status={status} but operationId "
+                f"{op_id!r} not in canon ({CANON_SPEC.relative_to(repo_root)})",
+            )
+        elif (
+            status
+            and status not in DRAFT_STATUSES
+            and status not in RUNTIME_STATUSES
+            and status not in CANON_STATUSES
+        ):
+            # Unknown status (e.g. deprecated) — require presence in at least one oracle.
+            if op_id not in runtime_ids and op_id not in canon_ids:
                 failures.append(
-                    f"{path.relative_to(repo_root)}: status={status} but "
-                    f"operationId {op_id!r} not in OpenAPI",
+                    f"{path.relative_to(repo_root)}: status={status} but operationId "
+                    f"{op_id!r} not in runtime spec or canon",
                 )
 
     for op_id, paths in spec_ids.items():
@@ -225,12 +249,12 @@ def _consistency_run(repo_root: Path) -> tuple[list[str], list[str]]:
             failures.append(f"operationId {op_id!r} declared on multiple pages: {joined}")
 
     declared = set(spec_ids.keys())
-    orphan_in_openapi = sorted(openapi_ids - declared)
-    for op_id in orphan_in_openapi:
-        tags = openapi_ops.get(op_id, [])
+    orphan_in_runtime = sorted(runtime_ids - declared)
+    for op_id in orphan_in_runtime:
+        tags = runtime_ops.get(op_id, [])
         if any(tag in SKIP_OPENAPI_TAGS for tag in tags):
             continue
-        warnings.append(f"OpenAPI operationId {op_id!r} has no internal spec page")
+        warnings.append(f"runtime operationId {op_id!r} has no internal spec page")
 
     # Check 3: error tokens vs catalog.
     if not ERROR_CATALOG.exists():

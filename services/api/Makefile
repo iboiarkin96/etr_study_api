@@ -8,9 +8,9 @@
 #   make -C services/api run           # uvicorn dev server (reload + migrate)
 #   make -C services/api migrate       # alembic upgrade head
 #   make -C services/api test          # pytest + coverage gate
-#   make -C services/api openapi-check # baseline diff + lint
+#   make -C services/api openapi-check # canon-parity guard + lint
 #   make -C services/api build         # docker build services/api/
-#   make -C services/api verify        # API-side gate (deps-audit + openapi + contract + test)
+#   make -C services/api verify        # API-side gate (deps-audit + openapi-check + test)
 
 REPO_ROOT := $(abspath ..)/..
 PYTHON    := $(REPO_ROOT)/.venv/bin/python
@@ -36,7 +36,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify run migrate test test-one openapi-check contract-test openapi-accept-changes api-mock build deps-audit env-check
+.PHONY: help verify run migrate test test-one openapi-check openapi-regen api-mock build deps-audit env-check
 
 help:
 	@echo "services/api — make targets"
@@ -45,14 +45,13 @@ help:
 	@echo "  make migrate                Apply alembic migrations"
 	@echo "  make test                   pytest + coverage gate"
 	@echo "  make test-one path=…        Run one test file/node"
-	@echo "  make openapi-check          Lint + breaking-change guard vs baseline"
-	@echo "  make contract-test          Snapshot equality vs baseline"
-	@echo "  make openapi-accept-changes Overwrite baseline with current spec"
+	@echo "  make openapi-check          Lint + canon-parity guard vs etr_study_app/merged-spec.json"
+	@echo "  make openapi-regen          Refresh public/reference/api/openapi.json from app.openapi()"
 	@echo "  make api-mock               Start a mock for EVERY canon (auto-detected ports)"
 	@echo "  make build                  docker build services/api/ (image: study-app-api:local)"
 	@echo "  make deps-audit             pip-audit against the live .venv"
 	@echo "  make env-check              Sanity-check .env + DB connectivity"
-	@echo "  make verify                 deps-audit + openapi-check + contract-test + test"
+	@echo "  make verify                 deps-audit + openapi-check + test"
 
 # ─────────────────────────────────────────────
 # Run / migrate
@@ -108,17 +107,10 @@ openapi-check:
 	@printf "$(ICON_OK) %s\n" "OpenAPI checks passed"
 	@printf "$(COLOR_GREEN)== OPENAPI-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
-contract-test:
-	@printf "$(COLOR_CYAN)== CONTRACT-TEST: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_STEP) %s\n" "Running OpenAPI snapshot contract test…"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/api/openapi_governance.py contract-test
-	@printf "$(ICON_OK) %s\n" "OpenAPI contract-test passed"
-	@printf "$(COLOR_GREEN)== CONTRACT-TEST: SUCCESS ==$(COLOR_RESET)\n"
-
-openapi-accept-changes:
-	@printf "$(ICON_STEP) %s\n" "Accepting OpenAPI changes (updating baseline)…"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/api/openapi_governance.py update-baseline
-	@printf "$(ICON_OK) %s\n" "OpenAPI baseline updated"
+openapi-regen:
+	@printf "$(ICON_STEP) %s\n" "Regenerating runtime OpenAPI spec…"
+	@cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) tools/api/openapi_governance.py regen
+	@printf "$(ICON_OK) %s\n" "Runtime OpenAPI spec refreshed"
 
 # Layer 3 of the API-first toolchain — spec-driven mock server (Connexion + Flask).
 # Starts one mock per discovered canon under
@@ -168,12 +160,10 @@ env-check:
 # ─────────────────────────────────────────────
 verify:
 	@printf "$(COLOR_CYAN)== API VERIFY: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/4] deps-audit"
+	@printf "$(ICON_INFO) %s\n" "[1/3] deps-audit"
 	@$(MAKE) deps-audit
-	@printf "$(ICON_INFO) %s\n" "[2/4] openapi-check"
+	@printf "$(ICON_INFO) %s\n" "[2/3] openapi-check"
 	@$(MAKE) openapi-check
-	@printf "$(ICON_INFO) %s\n" "[3/4] contract-test"
-	@$(MAKE) contract-test
-	@printf "$(ICON_INFO) %s\n" "[4/4] test"
+	@printf "$(ICON_INFO) %s\n" "[3/3] test"
 	@$(MAKE) test
 	@printf "$(COLOR_GREEN)== API VERIFY: SUCCESS ==$(COLOR_RESET)\n"

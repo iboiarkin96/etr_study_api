@@ -1,0 +1,115 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  # ADR 0036 D6 — back-fill of a code-first FastAPI handler.
+  # The runtime spec is the source of truth; this fragment mirrors it verbatim
+  # so the canon stays whole and the human-view portal spec has a stable target.
+  x-build-history: code-first
+  x-portal-spec: /services/portal/internal/services/api/reference/user/operations/get-api-v1-user-system_uuid-system_user_id.html
+paths:
+  /api/v1/user/{system_uuid}/{system_user_id}:
+    get:
+      operationId: getUserBySystemUserId
+      summary: Get user by system_uuid and system_user_id.
+      description: |
+        Returns the user profile identified by the composite natural key
+        `(system_uuid, system_user_id)`. This is a pure read — no
+        `Idempotency-Key` is required.
+
+        Requires the `X-API-Key` header (tenant auth). Returns 404 when no
+        user matches the composite key for the calling tenant.
+      tags: [User]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: system_uuid
+          in: path
+          required: true
+          description: Source system UUID (`systems.system_uuid`).
+          schema:
+            type: string
+            format: uuid
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+        - name: system_user_id
+          in: path
+          required: true
+          description: External user id in the source system.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 36
+          example: "134tg"
+      responses:
+        "200":
+          description: OK — the persisted user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserCreateResponse" }
+              examples:
+                default:
+                  summary: The user as stored
+                  value:
+                    client_uuid: "0f14a2e8-0a01-4a1e-9f7c-3f6b1c7e0d21"
+                    created_at: "2026-07-05T09:15:00+00:00"
+                    updated_at: "2026-07-05T09:15:00+00:00"
+                    is_row_invalid: 0
+                    invalidation_reason_uuid: null
+                    system_user_id: "134tg"
+                    system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                    username: "ipetrov"
+                    full_name: "Ivan Petrov"
+                    timezone: "Europe/Moscow"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404": { $ref: "./error-404/user-not-found.yaml" }
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    UserCreateResponse:
+      type: object
+      required:
+        - client_uuid
+        - created_at
+        - updated_at
+        - is_row_invalid
+        - full_name
+        - timezone
+      properties:
+        client_uuid:
+          type: string
+          format: uuid
+          description: "Server-generated internal identifier; stable across the user's lifetime."
+          example: "0f14a2e8-0a01-4a1e-9f7c-3f6b1c7e0d21"
+        created_at:
+          type: string
+          format: date-time
+          description: "Row creation timestamp (timezone-aware, RFC 3339)."
+          example: "2026-07-05T09:15:00+00:00"
+        updated_at:
+          type: string
+          format: date-time
+          description: "Last update timestamp (timezone-aware, RFC 3339)."
+          example: "2026-07-05T09:15:00+00:00"
+        is_row_invalid:
+          type: integer
+          enum: [0, 1]
+          description: "Soft-invalidation flag (0 = active, 1 = invalidated)."
+        invalidation_reason_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "FK to invalidation reason, if set."
+        system_user_id:
+          type: [string, "null"]
+          description: "External system user id, echoed from the path."
+        system_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "Related system UUID, echoed from the path."
+        username:
+          type: [string, "null"]
+          description: "Optional display username."
+        full_name:
+          type: string
+          description: "Full name of the user."
+        timezone:
+          type: string
+          description: "IANA timezone string stored for the user."

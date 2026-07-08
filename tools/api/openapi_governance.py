@@ -1,9 +1,22 @@
-"""OpenAPI governance checks and baseline management."""
+"""OpenAPI governance: lint + canon parity + runtime-spec regeneration.
+
+Two artefacts, two purposes (per ADR 0036):
+
+* **Canon** (`etr_study_app/merged-spec.json`) — analyst-authored contract,
+  the source of truth for what the product API *should* be. Grown by
+  hand-authored fragments under `openapi/etr_study_app/fragments/`.
+* **Runtime spec** (`openapi.json` in the public portal) — dev artefact,
+  the real thing `app.openapi()` emits. Auto-regenerated on `make docs-fix`
+  and consumed by the public Scalar explorer; never hand-edited, never
+  reviewed as a diff.
+
+`command_check` enforces canon ⊆ code ⊆ canon∪exceptions; `command_regen`
+refreshes the runtime spec so it never lags the code.
+"""
 
 from __future__ import annotations
 
 import argparse
-import difflib
 import json
 import os
 import sys
@@ -12,9 +25,35 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-BASELINE_PATH = (
-    ROOT / "services" / "portal" / "public" / "reference" / "api" / "openapi-baseline.json"
+# Runtime spec: dev-generated dump of `app.openapi()`, consumed by the public
+# Scalar explorer. Regenerated on `make docs-fix` — never hand-edited.
+RUNTIME_SPEC_PATH = ROOT / "services" / "portal" / "public" / "reference" / "api" / "openapi.json"
+# ADR 0036 — the etr_study_app canon is the source of truth for product-facing
+# operations. `openapi-check` compares the FastAPI runtime spec against this
+# merged document so drift between the API-first canon and the shipped code
+# fails CI instead of accumulating silently.
+CANON_PATH = (
+    ROOT
+    / "services"
+    / "portal"
+    / "internal"
+    / "services"
+    / "api"
+    / "openapi"
+    / "etr_study_app"
+    / "merged-spec.json"
 )
+# Operations that live in the FastAPI runtime spec but are intentionally *not*
+# in the product canon:
+#   - `/live`, `/ready`: Kubernetes-style health probes, no client contract.
+#   - `/internal/telemetry/*`: portal-internal telemetry surface (see ADR 0033).
+# Every entry here is a red flag reviewable in each PR. Shrinks as canon grows.
+KNOWN_NON_CANON_OPERATIONS: set[tuple[str, str]] = {
+    ("get", "/live"),
+    ("get", "/ready"),
+    ("post", "/internal/telemetry/docs-search"),
+    ("get", "/internal/telemetry/docs-search/metrics"),
+}
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 
 
@@ -46,30 +85,48 @@ def _load_current_openapi() -> dict[str, Any]:
     return app.openapi()
 
 
-def _load_baseline() -> dict[str, Any]:
-    """Read the committed OpenAPI baseline JSON from disk.
+def _load_canon() -> dict[str, Any]:
+    """Read the etr_study_app canon (merged fragments) JSON from disk.
 
     Returns:
-        Parsed baseline document.
+        Parsed canon document.
 
     Raises:
-        FileNotFoundError: If :data:`BASELINE_PATH` does not exist.
+        FileNotFoundError: If :data:`CANON_PATH` does not exist.
     """
-    if not BASELINE_PATH.exists():
+    if not CANON_PATH.exists():
         raise FileNotFoundError(
-            f"Baseline not found: {BASELINE_PATH}. Run: make openapi-accept-changes"
+            f"Canon not found: {CANON_PATH}. Regenerate with: make -C services/portal api-check"
         )
-    return json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+    return json.loads(CANON_PATH.read_text(encoding="utf-8"))
 
 
-def _write_baseline(spec: dict[str, Any]) -> None:
-    """Write ``spec`` to :data:`BASELINE_PATH` with stable JSON formatting.
+def _find_operation(spec: dict[str, Any], path: str, method: str) -> dict[str, Any]:
+    """Return the operation dict for ``(path, method)`` or an empty dict if absent.
+
+    Args:
+        spec: OpenAPI document.
+        path: URL template as it appears under ``paths``.
+        method: Lower-cased HTTP method.
+
+    Returns:
+        The operation object, or an empty dict when either the path or method is missing.
+    """
+    path_item = spec.get("paths", {}).get(path)
+    if not isinstance(path_item, dict):
+        return {}
+    op = path_item.get(method)
+    return op if isinstance(op, dict) else {}
+
+
+def _write_runtime_spec(spec: dict[str, Any]) -> None:
+    """Write ``spec`` to :data:`RUNTIME_SPEC_PATH` with stable JSON formatting.
 
     Args:
         spec: Full OpenAPI document to persist.
     """
-    BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    BASELINE_PATH.write_text(
+    RUNTIME_SPEC_PATH.parent.mkdir(parents=True, exist_ok=True)
+    RUNTIME_SPEC_PATH.write_text(
         json.dumps(spec, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
@@ -275,125 +332,101 @@ def _required_parameters(operation: dict[str, Any]) -> dict[tuple[str, str], boo
     return result
 
 
-def run_breaking_check(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
-    """Detect backward-incompatible changes between two OpenAPI documents.
+def run_parity_check(
+    canon: dict[str, Any],
+    current: dict[str, Any],
+    non_canon: set[tuple[str, str]] | None = None,
+) -> list[str]:
+    """Ensure the FastAPI runtime spec is in parity with the API-first canon.
+
+    Semantics:
+
+    * Every operation declared in ``canon`` must exist in ``current``. Missing
+      operations mean canon says a contract is shipped but the code doesn't
+      implement it.
+    * Every operation in ``current`` must either be declared in ``canon`` or be
+      listed in ``non_canon`` exceptions (health probes, telemetry). Anything
+      else is silent drift and must be brought into canon or explicitly excluded.
+    * For operations present in both, the code must not weaken the canon
+      contract: canon-required parameters and request-body fields must stay
+      required in code, and every canon-documented response status must be
+      reachable in code.
 
     Args:
-        baseline: Previously accepted API description.
-        current: Newly generated API description.
+        canon: Merged canon document (see :data:`CANON_PATH`).
+        current: FastAPI runtime OpenAPI document.
+        non_canon: Set of ``(method_lower, path)`` tuples explicitly exempted
+            from the "must be in canon" rule.
 
     Returns:
-        List of issue strings describing removals or new requirements; empty if safe.
+        Human-readable parity issues; empty when code and canon agree.
     """
+    exceptions = non_canon or set()
     issues: list[str] = []
 
-    base_paths = baseline.get("paths", {})
-    curr_paths = current.get("paths", {})
-    if not isinstance(base_paths, dict) or not isinstance(curr_paths, dict):
-        return ["Invalid OpenAPI document structure: paths must be objects"]
+    canon_ops = {(method, path) for path, method, _ in _iter_operations(canon)}
+    curr_ops = {(method, path) for path, method, _ in _iter_operations(current)}
 
-    for path, base_path_item in base_paths.items():
-        if path not in curr_paths:
-            issues.append(f"Removed path: {path}")
-            continue
-        curr_path_item = curr_paths[path]
-        if not isinstance(base_path_item, dict) or not isinstance(curr_path_item, dict):
-            continue
+    for method, path in sorted(canon_ops - curr_ops):
+        issues.append(f"Canon operation missing in code: {method.upper()} {path}")
 
-        for method, base_op in base_path_item.items():
-            if method.lower() not in HTTP_METHODS or not isinstance(base_op, dict):
-                continue
-            curr_op = curr_path_item.get(method)
-            if not isinstance(curr_op, dict):
-                issues.append(f"Removed operation: {method.upper()} {path}")
-                continue
-
-            base_params = _required_parameters(base_op)
-            curr_params = _required_parameters(curr_op)
-            for param_key, was_required in base_params.items():
-                if was_required and param_key not in curr_params:
-                    issues.append(
-                        f"Removed required parameter {param_key[0]} in {param_key[1]} for "
-                        f"{method.upper()} {path}"
-                    )
-            for param_key, is_required in curr_params.items():
-                if is_required and not base_params.get(param_key, False):
-                    issues.append(
-                        f"New required parameter {param_key[0]} in {param_key[1]} for "
-                        f"{method.upper()} {path}"
-                    )
-
-            base_req_schema = _json_request_schema(base_op, baseline)
-            curr_req_schema = _json_request_schema(curr_op, current)
-            base_required_fields = _required_fields(base_req_schema)
-            curr_required_fields = _required_fields(curr_req_schema)
-            newly_required = sorted(curr_required_fields - base_required_fields)
-            for field in newly_required:
-                issues.append(f"New required request field '{field}' in {method.upper()} {path}")
-
-            base_responses = base_op.get("responses", {})
-            curr_responses = curr_op.get("responses", {})
-            if isinstance(base_responses, dict) and isinstance(curr_responses, dict):
-                for status_code in base_responses.keys():
-                    if status_code not in curr_responses:
-                        issues.append(
-                            f"Removed response status {status_code} for {method.upper()} {path}"
-                        )
-
-                for status_code in sorted(base_responses.keys()):
-                    if not str(status_code).startswith("2"):
-                        continue
-                    if status_code not in curr_responses:
-                        continue
-                    base_resp_required = _required_fields(
-                        _json_response_schema(base_op, str(status_code), baseline)
-                    )
-                    curr_resp_required = _required_fields(
-                        _json_response_schema(curr_op, str(status_code), current)
-                    )
-                    dropped_required = sorted(base_resp_required - curr_resp_required)
-                    for field in dropped_required:
-                        issues.append(
-                            f"Required response field '{field}' removed for "
-                            f"{method.upper()} {path} [{status_code}]"
-                        )
-
-    return issues
-
-
-def run_snapshot_check(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
-    """Return issues when ``current`` is not byte-identical to ``baseline`` (sorted JSON diff).
-
-    Args:
-        baseline: Accepted snapshot document.
-        current: Live document from the app.
-
-    Returns:
-        Empty list if equal; otherwise headers plus a truncated unified diff.
-    """
-    if baseline == current:
-        return []
-
-    baseline_json = json.dumps(baseline, ensure_ascii=True, indent=2, sort_keys=True).splitlines()
-    current_json = json.dumps(current, ensure_ascii=True, indent=2, sort_keys=True).splitlines()
-    diff_lines = list(
-        difflib.unified_diff(
-            baseline_json,
-            current_json,
-            fromfile="openapi-baseline.json",
-            tofile="current-openapi.json",
-            lineterm="",
+    for method, path in sorted((curr_ops - canon_ops) - exceptions):
+        issues.append(
+            f"Operation in code but not in canon or exceptions: {method.upper()} {path}. "
+            "Either back-fill it into openapi/etr_study_app/fragments/ or add to "
+            "KNOWN_NON_CANON_OPERATIONS."
         )
-    )
 
-    issues = [
-        "OpenAPI snapshot differs from baseline.",
-        "If changes are intentional, run: make openapi-accept-changes",
-    ]
-    max_diff_lines = 40
-    if diff_lines:
-        issues.append(f"Snapshot diff (first {max_diff_lines} lines):")
-        issues.extend(diff_lines[:max_diff_lines])
+    for method, path in sorted(canon_ops & curr_ops):
+        canon_op = _find_operation(canon, path, method)
+        curr_op = _find_operation(current, path, method)
+
+        canon_id = canon_op.get("operationId")
+        curr_id = curr_op.get("operationId")
+        if isinstance(canon_id, str) and isinstance(curr_id, str) and canon_id != curr_id:
+            issues.append(
+                f"operationId mismatch for {method.upper()} {path}: "
+                f"canon={canon_id!r} vs code={curr_id!r}"
+            )
+
+        canon_params = _required_parameters(canon_op)
+        curr_params = _required_parameters(curr_op)
+        for pkey, was_required in sorted(canon_params.items()):
+            if was_required and not curr_params.get(pkey, False):
+                issues.append(
+                    f"Canon-required parameter '{pkey[0]}' (in={pkey[1]}) is missing or "
+                    f"optional in code for {method.upper()} {path}"
+                )
+
+        canon_req_body = _required_fields(_json_request_schema(canon_op, canon))
+        curr_req_body = _required_fields(_json_request_schema(curr_op, current))
+        for field in sorted(canon_req_body - curr_req_body):
+            issues.append(
+                f"Canon-required request field '{field}' is missing or optional in code for "
+                f"{method.upper()} {path}"
+            )
+
+        canon_codes = {str(code) for code in canon_op.get("responses", {}).keys()}
+        curr_codes = {str(code) for code in curr_op.get("responses", {}).keys()}
+        for code in sorted(canon_codes - curr_codes):
+            issues.append(
+                f"Canon-documented response {code} is missing in code for {method.upper()} {path}"
+            )
+
+        # 2xx response-schema parity: canon-required fields must stay required
+        # in code. This closes the drift window where a spec page says «field X
+        # is always present in 200» but the runtime drops it to optional.
+        for code in sorted(canon_codes & curr_codes):
+            if not code.startswith("2"):
+                continue
+            canon_resp = _required_fields(_json_response_schema(canon_op, code, canon))
+            curr_resp = _required_fields(_json_response_schema(curr_op, code, current))
+            for field in sorted(canon_resp - curr_resp):
+                issues.append(
+                    f"Canon-required response field '{field}' is missing or optional in "
+                    f"code for {method.upper()} {path} [{code}]"
+                )
+
     return issues
 
 
@@ -413,63 +446,60 @@ def _print_issues(title: str, issues: list[str]) -> None:
 
 
 def command_check() -> int:
-    """Run lint + breaking-change checks against the stored baseline.
+    """Run lint + canon-parity checks against the ``etr_study_app`` canon.
+
+    Route C of the API-first stack: the shipped FastAPI spec must stay in
+    parity with the hand-authored canon. Non-product endpoints (health probes,
+    telemetry) are allow-listed via :data:`KNOWN_NON_CANON_OPERATIONS`.
 
     Returns:
         ``0`` if both pass, ``1`` if either reports issues.
     """
     current = _load_current_openapi()
-    baseline = _load_baseline()
+    canon = _load_canon()
 
     lint_issues = run_lint(current)
-    breaking_issues = run_breaking_check(baseline, current)
+    parity_issues = run_parity_check(canon, current, KNOWN_NON_CANON_OPERATIONS)
 
     _print_issues("OpenAPI lint", lint_issues)
-    _print_issues("OpenAPI breaking change guard", breaking_issues)
+    _print_issues("OpenAPI canon parity (etr_study_app)", parity_issues)
 
-    return 1 if lint_issues or breaking_issues else 0
-
-
-def command_contract_test() -> int:
-    """Run full JSON snapshot equality check (stricter than breaking-only guard).
-
-    Returns:
-        ``0`` if current matches baseline exactly, else ``1``.
-    """
-    current = _load_current_openapi()
-    baseline = _load_baseline()
-    snapshot_issues = run_snapshot_check(baseline, current)
-    _print_issues("OpenAPI snapshot contract", snapshot_issues)
-    return 1 if snapshot_issues else 0
+    return 1 if lint_issues or parity_issues else 0
 
 
-def command_update_baseline() -> int:
-    """Overwrite the baseline file with the current app OpenAPI JSON.
+def command_regen() -> int:
+    """Regenerate the runtime spec file from the current FastAPI app.
+
+    Called from ``make docs-fix`` so the public Scalar explorer always renders
+    the real code. Never a review gate — canon parity lives in ``check``.
 
     Returns:
         Always ``0`` after a successful write.
     """
     current = _load_current_openapi()
-    _write_baseline(current)
-    print(f"✓ OpenAPI baseline updated: {BASELINE_PATH}")
+    _write_runtime_spec(current)
+    print(f"✓ Runtime OpenAPI spec regenerated: {RUNTIME_SPEC_PATH}")
     return 0
 
 
 def main() -> None:
-    """Dispatch ``check``, ``contract-test``, or ``update-baseline`` subcommands."""
-    parser = argparse.ArgumentParser(description="OpenAPI governance checks and baseline update.")
+    """Dispatch ``check`` or ``regen`` subcommands."""
+    parser = argparse.ArgumentParser(
+        description="OpenAPI governance: canon parity + runtime-spec regeneration."
+    )
     parser.add_argument(
         "command",
-        choices=["check", "contract-test", "update-baseline"],
-        help="Run checks or update baseline from current app.openapi() output.",
+        choices=["check", "regen"],
+        help=(
+            "check → lint + canon parity against etr_study_app/merged-spec.json. "
+            "regen → refresh public/reference/api/openapi.json from app.openapi()."
+        ),
     )
     args = parser.parse_args()
 
     if args.command == "check":
         raise SystemExit(command_check())
-    if args.command == "contract-test":
-        raise SystemExit(command_contract_test())
-    raise SystemExit(command_update_baseline())
+    raise SystemExit(command_regen())
 
 
 if __name__ == "__main__":

@@ -408,7 +408,7 @@ DOCS_SEARCH_TELEMETRY_422_EXAMPLES = {
     operation_id="ingestDocsSearchTelemetryEvent",
     status_code=202,
     responses={
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": ValidationErrorResponse,
             "description": "Validation error for malformed telemetry payload.",
             "content": {

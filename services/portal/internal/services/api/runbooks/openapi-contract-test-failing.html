@@ -2,7 +2,7 @@
 <html lang="en" data-portal="internal" data-theme="light"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Runbook 0007 · OpenAPI contract-test failing · Study App Internal</title>
+  <title>Runbook 0007 · OpenAPI canon-parity failing · Study App Internal</title>
   <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-06" data-role="sre">
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-07-09" data-role="sre">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -20,7 +20,7 @@
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">api</a></li>
         <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Runbooks</a></li>
-        <li class="docs-breadcrumbs__item" aria-current="page">0007 · OpenAPI contract drift</li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0007 · OpenAPI canon-parity failing</li>
       </ol>
     </nav>
     <div class="topbar__spacer"></div>
@@ -38,24 +38,24 @@
           <span class="docs-pill docs-pill--danger">Runbook</span>
           <span class="docs-pill docs-pill--accent">CI</span>
         </p>
-        <h1>0007 — OpenAPI contract-test failing</h1>
+        <h1>0007 — OpenAPI canon-parity failing</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede">Snapshot drift vs baseline. Intentional vs accidental contract changes — recovery paths for each.</p>
+        <p class="lede">The parity gate detected divergence between the analyst-authored canon (<code>etr_study_app/merged-spec.json</code>) and the shipped FastAPI runtime spec. Two failure classes, two recovery paths — pick the one that matches the message.</p>
       </header>
 
       <section aria-labelledby="metadata-h">
         <h2 id="metadata-h">Metadata</h2>
         <dl class="svc-meta svc-meta--neutral">
           <dt>Runbook</dt>
-          <dd>0007 — OpenAPI contract-test failing</dd>
+          <dd>0007 — OpenAPI canon-parity failing</dd>
           <dt>Category</dt>
-          <dd>CI</dd>
+          <dd>CI · Contract</dd>
           <dt>Severity</dt>
-          <dd>SEV-2</dd>
+          <dd>SEV-2 (breaking contract change shipped to published version) · SEV-3 (drift caught pre-merge)</dd>
           <dt>Owner</dt>
           <dd><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
           <dt>Last reviewed</dt>
-          <dd><time datetime="2026-05-29">2026-05-29</time></dd>
+          <dd><time datetime="2026-07-09">2026-07-09</time></dd>
         </dl>
       </section>
 
@@ -77,68 +77,72 @@
 
       <h2 id="trigger-h">Trigger</h2>
       <ul>
-        <li><code>make contract-test</code> fails.</li>
-        <li><code>make verify</code> fails on the <code>contract-test</code> stage.</li>
-        <li>CI reports OpenAPI snapshot drift vs baseline.</li>
+        <li><code>make openapi-check</code> fails with <em>«Canon operation missing in code: …»</em> or <em>«Operation in code but not in canon or exceptions: …»</em> or <em>«Canon-required … missing or optional in code for …»</em>.</li>
+        <li><code>make verify</code> fails on the <code>openapi-check</code> stage.</li>
+        <li>CI reports canon-parity issues on the PR build.</li>
       </ul>
 
       <h2 id="triage-h">Fast triage</h2>
       <ol>
-        <li>Run <code>make contract-test</code> to see the diff summary.</li>
-        <li>Identify whether changes are intentional or accidental.</li>
-        <li>If accidental, revert/fix API contract changes in code.</li>
-        <li>If intentional, validate compatibility and docs, then accept baseline update.</li>
+        <li>Run <code>make openapi-check</code> locally to read the exact message.</li>
+        <li>Match it to one of the two failure classes below.</li>
+        <li>Pick the recovery branch based on which side of the parity is «right»: canon (analyst) or code (dev).</li>
       </ol>
 
       <h2 id="causes-h">Most common causes</h2>
       <ul>
-        <li>Field type changed in request/response schema.</li>
-        <li>Error code/key mapping changed unintentionally.</li>
-        <li>Response status set changed (for example removed <code>422</code> or <code>404</code>).</li>
-        <li>A field or parameter flipped between required and optional.</li>
-        <li>OpenAPI examples or router response declarations diverged from implementation.</li>
+        <li>Field renamed or type-changed in a Pydantic model on the code side, but the canon fragment still declares the old shape.</li>
+        <li>New endpoint added in code without a matching fragment under <code>openapi/etr_study_app/fragments/</code>.</li>
+        <li>Endpoint removed in code while its fragment is still in canon.</li>
+        <li>Response status set changed on the code side (e.g. removed <code>422</code> or <code>404</code>) while the canon still lists it.</li>
+        <li>Field or parameter flipped between required and optional on either side.</li>
+        <li>A newly-added internal telemetry / infra endpoint hasn't been added to <code>KNOWN_NON_CANON_OPERATIONS</code>.</li>
       </ul>
 
       <h2 id="recovery-h">Recovery paths</h2>
-      <h3>Unintentional contract drift</h3>
+
+      <h3>Case A · Canon says X exists, code doesn't (or code shape weaker than canon)</h3>
+      <p>Messages: <em>«Canon operation missing in code…»</em>, <em>«Canon-required … missing or optional in code for …»</em>, <em>«Canon-documented response N missing in code…»</em>.</p>
+      <p>Question to answer: <strong>is the canon aspirational (analyst hasn't been implemented yet) or is the code broken?</strong></p>
       <ul>
-        <li>Fix schema/router/validation code to restore expected contract.</li>
-        <li>Re-run <code>make openapi-check</code> and <code>make contract-test</code>.</li>
-        <li>Run <code>make verify</code> before commit.</li>
+        <li><strong>Canon is aspirational.</strong> Leave the fragment alone; the ratified spec must be implemented before the PR can land. Implement the missing operation / field / response in <code>services/api/app/…</code>; re-run <code>make openapi-check</code>. This is the normal API-first flow: canon leads, code follows.</li>
+        <li><strong>Code is broken.</strong> Something in the FastAPI handler / Pydantic model / response definition drifted from what the canon promises. Fix it in the code (revert the rename, add back the required field, restore the response code). Do <em>not</em> update the canon to match — that hides the break from every future review.</li>
       </ul>
-      <h3>Intentional contract change</h3>
+
+      <h3>Case B · Code has an operation the canon doesn't cover</h3>
+      <p>Message: <em>«Operation in code but not in canon or exceptions: METHOD /path…»</em>.</p>
+      <p>Question to answer: <strong>is this a public product endpoint, or infrastructure?</strong></p>
       <ul>
-        <li>Confirm the change is safe for the current API major version.</li>
-        <li>Update tests, examples, and related <code>services/portal/</code> ADR notes.</li>
-        <li>Accept new baseline: <code>make openapi-accept-changes</code>.</li>
-        <li>Re-run <code>make contract-test</code> and <code>make verify</code>.</li>
+        <li><strong>Public product endpoint.</strong> The API-first flow requires a canon fragment before shipping. Author it: add <code>services/portal/internal/services/api/openapi/etr_study_app/fragments/&lt;resource&gt;/&lt;operationId&gt;.yaml</code> using the createUser fragment as reference. Run <code>make api-check</code> to regenerate <code>merged-spec.json</code>. Re-run <code>make openapi-check</code>.</li>
+        <li><strong>Infrastructure endpoint</strong> (health probe, telemetry). Add <code>(method, path)</code> to <code>KNOWN_NON_CANON_OPERATIONS</code> in <code>tools/api/openapi_governance.py</code>. This flags the exception for PR review and lets the parity gate pass. Every entry there should be justifiable in one sentence.</li>
       </ul>
 
       <h2 id="final">Final recovery sequence</h2>
-      <pre class="docs-code"><code class="language-bash">make openapi-check
-make contract-test
- make verify</code></pre>
+      <pre class="docs-code"><code class="language-bash">make api-check      # regenerate canon merged-spec.json if a fragment changed
+make openapi-check  # confirm canon parity passes
+make verify         # full local gate before push</code></pre>
 
       <h2 id="exit-h">Exit criteria</h2>
       <ul>
-        <li><code>make contract-test</code> passes.</li>
+        <li><code>make openapi-check</code> passes with both «OpenAPI lint» and «OpenAPI canon parity (etr_study_app)» green.</li>
         <li><code>make verify</code> passes end-to-end.</li>
-        <li>If you updated the baseline, the commit message or PR explains why.</li>
+        <li>If you added an entry to <code>KNOWN_NON_CANON_OPERATIONS</code>, the PR description names the endpoint and explains why it's not public API surface.</li>
+        <li>If you touched a canon fragment, the corresponding portal-spec page (<code>services/portal/internal/services/api/reference/&lt;resource&gt;/operations/…html</code>) has been updated to match.</li>
       </ul>
 
       <h2 id="escalation-h">Escalation</h2>
-      <p>If <strong>30 minutes</strong> of triage didn't get <code>make contract-test</code> green, or the failure mode isn't on the «Most common causes» list:</p>
+      <p>If <strong>30 minutes</strong> of triage didn't get <code>make openapi-check</code> green, or the failure mode isn't on the «Most common causes» list:</p>
       <ol>
-        <li>Capture state — <code>make contract-test 2&gt;&amp;1 | tee /tmp/runbook-0007-state.txt</code>, the diff against the current OpenAPI baseline, <code>git status</code>, and the recovery steps tried.</li>
+        <li>Capture state — <code>make openapi-check 2&gt;&amp;1 | tee /tmp/runbook-0007-state.txt</code>, the current <code>services/portal/internal/services/api/openapi/etr_study_app/merged-spec.json</code>, <code>git status</code>, and the recovery steps tried.</li>
         <li>Open a SEV-3 incident in the team backlog and link this runbook from it. A breaking contract change shipped to a published version jumps to SEV-2 immediately — downstream consumers will hit it on the next deploy.</li>
-        <li>Page on-call (or, for solo work, the project incident commander) with the captured state and the last known-good baseline commit hash.</li>
-        <li><strong>Do not</strong> run <code>make openapi-accept-changes</code> blindly to «make the test pass» — that hides breakage rather than fixing it; accept the new baseline only when the change is intentional and the PR explains why.</li>
+        <li>Page on-call (or, for solo work, the project incident commander) with the captured state and the last known-good canon commit hash.</li>
+        <li><strong>Do not</strong> weaken the canon fragment or grow <code>KNOWN_NON_CANON_OPERATIONS</code> just to «make the check pass» — canon is the analyst contract, not a movable target. If the code is right and the canon is wrong, update the canon deliberately (as a documented change) rather than silently.</li>
       </ol>
 
       <h2 id="followup-h">Follow-up</h2>
       <ul>
         <li>If compatibility rules changed, update an ADR and developer docs.</li>
-        <li>If this keeps happening, tighten checks in <code>scripts/openapi_governance.py</code>.</li>
+        <li>If this keeps happening in the same shape, tighten <code>run_parity_check</code> in <code>tools/api/openapi_governance.py</code> — the gate should get harder to bypass over time, not easier.</li>
       </ul>
 
     </article>
@@ -146,6 +150,11 @@ make contract-test
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-09</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Rewrote from «contract-test failing» (snapshot diff vs <code>openapi-baseline.json</code>) to «canon-parity failing» (parity vs analyst-authored <code>etr_study_app/merged-spec.json</code>) per <a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a>. Two recovery branches now match the two failure classes the parity gate can emit: canon says X exists / code doesn't (Case A) vs code has X the canon doesn't (Case B). Dropped references to the retired <code>make contract-test</code> and <code>make openapi-accept-changes</code> targets.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-05-29</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

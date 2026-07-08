@@ -85,12 +85,12 @@ USER_HTTP_BASE_PATH = "/api/v1/user"
             }
         ),
         status.HTTP_409_CONFLICT: COMMON_IDEMPOTENCY_CONFLICT_409_RESPONSE,
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": ValidationErrorResponse,
             "description": "Request validation errors for all supported user create field rules.",
             "content": {"application/json": {"examples": USER_CREATE_VALIDATION_ERROR_EXAMPLES}},
         },
-        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE: COMMON_BODY_TOO_LARGE_413_RESPONSE,
+        status.HTTP_413_CONTENT_TOO_LARGE: COMMON_BODY_TOO_LARGE_413_RESPONSE,
         **common_protected_route_responses(),
     },
 )
@@ -270,12 +270,12 @@ def get_user(
             },
         },
         status.HTTP_409_CONFLICT: COMMON_IDEMPOTENCY_CONFLICT_409_RESPONSE,
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": ValidationErrorResponse,
             "description": "Request validation errors for user update body rules.",
             "content": {"application/json": {"examples": USER_UPDATE_VALIDATION_ERROR_EXAMPLES}},
         },
-        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE: COMMON_BODY_TOO_LARGE_413_RESPONSE,
+        status.HTTP_413_CONTENT_TOO_LARGE: COMMON_BODY_TOO_LARGE_413_RESPONSE,
         **common_protected_route_responses(),
     },
 )
@@ -406,12 +406,12 @@ def update_user(
             },
         },
         status.HTTP_409_CONFLICT: COMMON_IDEMPOTENCY_CONFLICT_409_RESPONSE,
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": ValidationErrorResponse,
             "description": "Request validation errors for user patch body rules.",
             "content": {"application/json": {"examples": USER_PATCH_VALIDATION_ERROR_EXAMPLES}},
         },
-        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE: COMMON_BODY_TOO_LARGE_413_RESPONSE,
+        status.HTTP_413_CONTENT_TOO_LARGE: COMMON_BODY_TOO_LARGE_413_RESPONSE,
         **common_protected_route_responses(),
     },
 )

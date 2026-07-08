@@ -131,27 +131,29 @@ docs-fix:
 		printf "$(ICON_ERR) %s\n" "tools/docs/regenerate_docs.py not found."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-FIX: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/10] regenerate UML diagrams"
+	@printf "$(ICON_INFO) %s\n" "[1/11] regenerate UML diagrams"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/regenerate_docs.py
-	@printf "$(ICON_INFO) %s\n" "[2/10] sync marker-based documentation"
+	@printf "$(ICON_INFO) %s\n" "[2/11] sync marker-based documentation"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/sync_docs.py
-	@printf "$(ICON_INFO) %s\n" "[3/10] render docs markdown to html companions"
+	@printf "$(ICON_INFO) %s\n" "[3/11] render docs markdown to html companions"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[4/10] repair docs html structure"
+	@printf "$(ICON_INFO) %s\n" "[4/11] repair docs html structure"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/repair_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[5/10] normalize docs html template"
+	@printf "$(ICON_INFO) %s\n" "[5/11] normalize docs html template"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/format_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[6/10] render service catalog (YAML → HTML)"
+	@printf "$(ICON_INFO) %s\n" "[6/11] render service catalog (YAML → HTML)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_service_descriptors.py
-	@printf "$(ICON_INFO) %s\n" "[7/10] ensure docs body maintainers"
+	@printf "$(ICON_INFO) %s\n" "[7/11] ensure docs body maintainers"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/ensure_docs_maintainers.py
-	@printf "$(ICON_INFO) %s\n" "[8/10] Python API reference (pdoc)"
+	@printf "$(ICON_INFO) %s\n" "[8/11] regenerate runtime OpenAPI spec (public Scalar source)"
+	@cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) tools/api/openapi_governance.py regen
+	@printf "$(ICON_INFO) %s\n" "[9/11] Python API reference (pdoc)"
 	@rm -rf $(REPO_ROOT)/services/portal/internal/services/api/code-reference
 	@cd $(REPO_ROOT) && PYTHONHASHSEED=0 PYTHONPATH=services/api $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/normalize_pdoc_output.py
-	@printf "$(ICON_INFO) %s\n" "[9/10] rebuild internal catalog (quadrant / service / topic / recent)"
+	@printf "$(ICON_INFO) %s\n" "[10/11] rebuild internal catalog (quadrant / service / topic / recent)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_catalog.py
-	@printf "$(ICON_INFO) %s\n" "[10/10] build pagefind index (ADR-0033)"
+	@printf "$(ICON_INFO) %s\n" "[11/11] build pagefind index (ADR-0033)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_pagefind_index.py
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_pagefind_visibility.py
 	@printf "$(COLOR_GREEN)== DOCS-FIX: SUCCESS ==$(COLOR_RESET)\n"

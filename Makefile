@@ -34,7 +34,7 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
         pre-commit-install pre-commit-check pre-commit-validate \
         stack-up stack-down stack-down-volumes stack-logs logging-up logging-down \
         run migrate test test-one deps-audit \
-        openapi-check contract-test openapi-accept-changes api-mock build \
+        openapi-check openapi-regen api-mock build \
         docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check \
         catalog-render catalog-render-check serve open sync-staging \
         visual-test visual-test-update
@@ -58,7 +58,7 @@ help:
 	@echo "    make ship                   # full pre-release gate"
 	@echo ""
 	@echo "  Per-service verify (one gate per service in the monorepo)"
-	@echo "    make verify-api             → services/api/verify    (deps-audit · openapi · contract · test)"
+	@echo "    make verify-api             → services/api/verify    (deps-audit · openapi-check · test)"
 	@echo "    make verify-portal          → services/portal/verify (docs-check drift gate + docs-a11y)"
 	@echo "    make verify-monitoring      → services/monitoring/verify (compose-config smoke for both stacks)"
 	@echo "    make verify-frontend        # no own gate yet — assets consumed and exercised by portal"
@@ -96,8 +96,7 @@ help:
 	@echo "    make migrate                → services/api/Makefile"
 	@echo "    make test [path=…]          → services/api/Makefile"
 	@echo "    make openapi-check          → services/api/Makefile"
-	@echo "    make contract-test          → services/api/Makefile"
-	@echo "    make openapi-accept-changes → services/api/Makefile"
+	@echo "    make openapi-regen          → services/api/Makefile"
 	@echo "    make api-mock               → services/api/Makefile (mock every canon on its own port)"
 	@echo "    make build                  → services/api/Makefile (docker build)"
 	@echo "    make deps-audit             → services/api/Makefile"
@@ -281,15 +280,13 @@ fix:
 
 check:
 	@printf "$(COLOR_CYAN)== CHECK: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/5] lint-check"
+	@printf "$(ICON_INFO) %s\n" "[1/4] lint-check"
 	@$(MAKE) lint-check
-	@printf "$(ICON_INFO) %s\n" "[2/5] type-check"
+	@printf "$(ICON_INFO) %s\n" "[2/4] type-check"
 	@$(MAKE) type-check
-	@printf "$(ICON_INFO) %s\n" "[3/5] openapi-check"
+	@printf "$(ICON_INFO) %s\n" "[3/4] openapi-check"
 	@$(MAKE) -C services/api openapi-check
-	@printf "$(ICON_INFO) %s\n" "[4/5] contract-test"
-	@$(MAKE) -C services/api contract-test
-	@printf "$(ICON_INFO) %s\n" "[5/5] test"
+	@printf "$(ICON_INFO) %s\n" "[4/4] test"
 	@$(MAKE) -C services/api test
 	@printf "$(COLOR_GREEN)== CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
@@ -357,7 +354,7 @@ release:
 # ──────────────────────────────────────────────
 # Per-service delegates (kept so habits like `make run` stay working)
 # ──────────────────────────────────────────────
-run migrate openapi-check contract-test openapi-accept-changes api-mock build deps-audit:
+run migrate openapi-check openapi-regen api-mock build deps-audit:
 	@$(MAKE) -C services/api $@
 
 test:

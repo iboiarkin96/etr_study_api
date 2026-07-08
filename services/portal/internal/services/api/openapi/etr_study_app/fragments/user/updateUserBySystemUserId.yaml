@@ -1,0 +1,218 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  # ADR 0036 D6 — back-fill of a code-first FastAPI handler.
+  x-build-history: code-first
+  x-portal-spec: /services/portal/internal/services/api/reference/user/operations/put-api-v1-user-system_uuid-system_user_id.html
+paths:
+  /api/v1/user/{system_uuid}/{system_user_id}:
+    put:
+      operationId: updateUserBySystemUserId
+      summary: Full replacement of mutable user profile fields.
+      description: |
+        Replaces every mutable profile field on the user identified by the
+        composite natural key `(system_uuid, system_user_id)`. `full_name`
+        and `timezone` are required; other fields default or clear.
+
+        Requires `X-API-Key` (tenant auth) and `Idempotency-Key` (write
+        deduplication). A repeated request with the same key within the
+        24 h window replays the cached response; a repeated request with
+        the same key but a different payload returns 409 Conflict.
+
+        Use `PATCH` for a partial update — see
+        [`patchUserBySystemUserId`](./patchUserBySystemUserId.yaml).
+      tags: [User]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+        - name: system_uuid
+          in: path
+          required: true
+          description: Source system UUID (`systems.system_uuid`).
+          schema:
+            type: string
+            format: uuid
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+        - name: system_user_id
+          in: path
+          required: true
+          description: External user id in the source system.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 36
+          example: "134tg"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserUpdateRequest" }
+            examples:
+              default:
+                summary: Replace full profile
+                value:
+                  full_name: "Ivan Petrov"
+                  timezone: "Europe/Moscow"
+                  username: "ipetrov"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  invalidation_reason_uuid: null
+                  is_row_invalid: 0
+              minimal:
+                summary: Only required fields
+                value:
+                  full_name: "Ivan Petrov"
+                  timezone: "UTC"
+      responses:
+        "200":
+          description: OK — the persisted user after update.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserCreateResponse" }
+              examples:
+                default:
+                  summary: Updated user
+                  value:
+                    client_uuid: "0f14a2e8-0a01-4a1e-9f7c-3f6b1c7e0d21"
+                    created_at: "2026-07-05T09:15:00+00:00"
+                    updated_at: "2026-07-09T11:42:11+00:00"
+                    is_row_invalid: 0
+                    invalidation_reason_uuid: null
+                    system_user_id: "134tg"
+                    system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                    username: "ipetrov"
+                    full_name: "Ivan Petrov"
+                    timezone: "Europe/Moscow"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404": { $ref: "./error-404/user-not-found.yaml" }
+        "409": { $ref: "./error-409/idempotency-replay.yaml" }
+        "413": { $ref: "../../_shared/responses/Error413.yaml" }
+        # Inlined so examples name the actual PUT body fields; the envelope
+        # schema is shared. Mirrors USER_UPDATE_VALIDATION_ERROR_EXAMPLES.
+        "422":
+          description: Unprocessable Content — one or more request fields failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                missing_full_name:
+                  summary: Missing required field full_name (update)
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "PUT /api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/134tg"
+                    errors:
+                      - code: "USER_014"
+                        key: "USER_UPDATE_FULL_NAME_REQUIRED"
+                        message: "Field `full_name` is required."
+                        field: "full_name"
+                        source: "validation"
+                        details:
+                          type: "missing"
+                          loc: ["body", "full_name"]
+                          input: { timezone: "UTC", is_row_invalid: 0 }
+                          ctx: null
+                invalid_timezone:
+                  summary: Invalid timezone name (update)
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "PUT /api/v1/user/b2c3d4e5-0002-4000-8000-000000000002/134tg"
+                    errors:
+                      - code: "USER_018"
+                        key: "USER_UPDATE_TIMEZONE_INVALID"
+                        message: "Field `timezone` must be a valid IANA timezone."
+                        field: "timezone"
+                        source: "validation"
+                        details:
+                          type: "value_error"
+                          loc: ["body", "timezone"]
+                          input: "Europe/Mscow"
+                          ctx: { error: {} }
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    UserUpdateRequest:
+      type: object
+      required: [full_name, timezone]
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: "Full name of the user."
+          example: "Ivan Petrov"
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: "IANA timezone name (e.g. 'UTC', 'Europe/Moscow')."
+          example: "Europe/Moscow"
+        username:
+          type: [string, "null"]
+          maxLength: 255
+          description: "Username or login; set null to clear."
+          example: "ipetrov"
+        system_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "Related system UUID; set null to clear."
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+        invalidation_reason_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "FK to invalidation reason; set null to clear."
+          example: null
+        is_row_invalid:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: "Soft-invalidation flag (0 = active, 1 = invalidated)."
+
+    UserCreateResponse:
+      type: object
+      required:
+        - client_uuid
+        - created_at
+        - updated_at
+        - is_row_invalid
+        - full_name
+        - timezone
+      properties:
+        client_uuid:
+          type: string
+          format: uuid
+          description: "Server-generated internal identifier; stable across the user's lifetime."
+          example: "0f14a2e8-0a01-4a1e-9f7c-3f6b1c7e0d21"
+        created_at:
+          type: string
+          format: date-time
+          description: "Row creation timestamp (timezone-aware, RFC 3339)."
+          example: "2026-07-05T09:15:00+00:00"
+        updated_at:
+          type: string
+          format: date-time
+          description: "Last update timestamp (timezone-aware, RFC 3339)."
+          example: "2026-07-09T11:42:11+00:00"
+        is_row_invalid:
+          type: integer
+          enum: [0, 1]
+          description: "Soft-invalidation flag (0 = active, 1 = invalidated)."
+        invalidation_reason_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "FK to invalidation reason, if set."
+        system_user_id:
+          type: [string, "null"]
+          description: "External system user id."
+        system_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "Related system UUID."
+        username:
+          type: [string, "null"]
+          description: "Optional display username."
+        full_name:
+          type: string
+          description: "Full name of the user."
+        timezone:
+          type: string
+          description: "IANA timezone string stored for the user."
