@@ -1,0 +1,250 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/conspectus/operations/get-api-v1-conspectuses.html
+paths:
+  /api/v1/conspectuses:
+    get:
+      operationId: listConspectuses
+      x-implementation-status: pending
+      summary: List the learner's conspectuses (cursor-paginated).
+      description: |
+        Returns the learner's conspectuses, paginated with an opaque cursor
+        for stable forward-only traversal across large catalogues. Distinct
+        from `listDueConspectuses`, which is a scan capped at 100 items for
+        the study-load widget — this operation is the full library view.
+
+        Sort is fixed at `created_at DESC, conspectus_uuid DESC` in v1.
+        Filters (all optional, combinable):
+
+        * `slot` — restrict to a single ETR slot.
+        * `created_after` / `created_before` — half-open range on creation
+          timestamp; both server-parsed as RFC 3339, UTC recommended.
+        * `include_invalid` — when `false` (default), soft-deleted rows
+          (`is_row_invalid=1`) are hidden. Set `true` to include them for
+          audit / restore workflows.
+
+        Read-only; no `Idempotency-Key`. Requires `X-API-Key`.
+      tags: [Conspectus]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: system_user_id
+          in: query
+          required: true
+          description: External user id (composite key with `system_uuid`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+          example: "learner-01"
+        - name: system_uuid
+          in: query
+          required: true
+          description: Source system UUID (composite key with `system_user_id`).
+          schema:
+            type: string
+            format: uuid
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum items per page. Default `50`.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          example: 50
+        - name: cursor
+          in: query
+          required: false
+          description: >
+            Opaque forward cursor from the `next_cursor` field of the
+            previous response. Absent on the first page. The server rejects
+            malformed / expired cursors with 422.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+        - name: slot
+          in: query
+          required: false
+          description: Filter to a single ETR slot.
+          schema:
+            type: string
+            enum: [A, B, C, D]
+        - name: created_after
+          in: query
+          required: false
+          description: Inclusive lower bound on `created_at` (RFC 3339).
+          schema:
+            type: string
+            format: date-time
+          example: "2026-07-01T00:00:00+00:00"
+        - name: created_before
+          in: query
+          required: false
+          description: Exclusive upper bound on `created_at` (RFC 3339).
+          schema:
+            type: string
+            format: date-time
+          example: "2026-07-31T00:00:00+00:00"
+        - name: include_invalid
+          in: query
+          required: false
+          description: When `true`, soft-deleted rows are included in the results.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: OK — a page of conspectuses.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConspectusListPage" }
+              examples:
+                first_page:
+                  summary: First page with two items and a cursor for more
+                  value:
+                    items:
+                      - conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                        title: "Cue-based retrieval — first pass"
+                        cue_sheet:
+                          prompts: ["What is E in ETR?"]
+                        cue_sheet_schema_version: 1
+                        dense_paragraph: "Extract-Transform-Retrieve …"
+                        bullets: ["Extract: raw source → dense paragraph."]
+                        slot: "B"
+                        slot_d_ladder_index: 0
+                        next_review_at: "2026-07-10T12:34:56+00:00"
+                        schedule_policy_id: "etr-default-v1"
+                        algorithm_version: "1.0.0"
+                        schedule_revision: 4
+                        content_version: 1
+                        is_row_invalid: 0
+                        invalidation_reason_uuid: null
+                        invalidated_at: null
+                        created_at: "2026-07-08T10:00:00+00:00"
+                        updated_at: "2026-07-08T10:00:00+00:00"
+                        schedule_updated_at: "2026-07-09T12:34:56+00:00"
+                    next_cursor: "eyJjcmVhdGVkX2F0IjoiMjAyNi0wNy0wOFQxMDowMDowMFoiLCJ1dWlkIjoiOGZhMmM4YjAtOWMwZi00YjQxLTlmNjYtMmQwZTZmM2EwZjExIn0"
+                    count: 1
+                    has_more: true
+                last_page:
+                  summary: Last page — no `next_cursor`
+                  value:
+                    items: []
+                    next_cursor: null
+                    count: 0
+                    has_more: false
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404": { $ref: "./error-404/conspectus-not-found.yaml" }
+        "422":
+          description: Unprocessable Content — query parameters failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                invalid_cursor:
+                  summary: Cursor is malformed or expired
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/conspectuses"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `cursor` is malformed or has expired. Restart pagination without it."
+                        field: "cursor"
+                        source: "validation"
+                limit_out_of_range:
+                  summary: "`limit` is outside [1, 100]"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/conspectuses"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `limit` must be between 1 and 100."
+                        field: "limit"
+                        source: "validation"
+                created_after_after_before:
+                  summary: "`created_after` is greater than `created_before`"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/conspectuses"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `created_after` must be earlier than `created_before`."
+                        field: "created_after"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ConspectusListPage:
+      type: object
+      required: [items, next_cursor, count, has_more]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/ConspectusResponse" }
+          description: "Conspectuses in this page (up to `limit`)."
+        next_cursor:
+          type: [string, "null"]
+          description: >
+            Opaque cursor to fetch the next page. `null` when there are no
+            more pages. Prefer the `next_cursor` field over inspecting
+            `items.length` when deciding whether to keep paging — the two
+            can disagree if the caller's `limit` matches the last page
+            exactly.
+        count:
+          type: integer
+          format: int32
+          minimum: 0
+          description: "Number of items in this page (equal to `items.length`)."
+        has_more:
+          type: boolean
+          description: "Convenience mirror of `next_cursor != null`."
+
+    ConspectusResponse:
+      type: object
+      required:
+        - conspectus_uuid
+        - cue_sheet
+        - cue_sheet_schema_version
+        - dense_paragraph
+        - bullets
+        - slot
+        - slot_d_ladder_index
+        - next_review_at
+        - schedule_policy_id
+        - algorithm_version
+        - schedule_revision
+        - content_version
+        - is_row_invalid
+        - created_at
+        - updated_at
+        - schedule_updated_at
+      properties:
+        conspectus_uuid: { type: string, format: uuid }
+        title: { type: [string, "null"] }
+        cue_sheet: { type: object }
+        cue_sheet_schema_version: { type: integer, format: int32 }
+        dense_paragraph: { type: string }
+        bullets: { type: array, items: { type: string } }
+        slot: { type: string, enum: [A, B, C, D] }
+        slot_d_ladder_index: { type: integer, format: int32, minimum: 0 }
+        next_review_at: { type: string, format: date-time }
+        schedule_policy_id: { type: string }
+        algorithm_version: { type: string }
+        schedule_revision: { type: integer, format: int64, minimum: 1 }
+        content_version: { type: integer, format: int64, minimum: 1 }
+        is_row_invalid: { type: integer, enum: [0, 1] }
+        invalidation_reason_uuid: { type: [string, "null"], format: uuid }
+        invalidated_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        schedule_updated_at: { type: string, format: date-time }

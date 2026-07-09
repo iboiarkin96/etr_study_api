@@ -103,9 +103,19 @@
       <ul>
         <li><strong>Insert.</strong> <a href="operations/post-api-v1-errors.html"><code>POST /api/v1/errors</code></a> writes one row in a single transaction.</li>
         <li><strong>Read.</strong> <a href="operations/get-api-v1-errors.html"><code>GET /api/v1/errors</code></a> lists the learner's errors, optionally filtered by conspectus.</li>
-        <li><strong>Edit / delete.</strong> Out of scope in v1 — see the per-operation <em>Out of scope</em> sections.</li>
+        <li><strong>Edit / delete.</strong> <strong>Rejected in v1</strong> — see the block below for the rationale.</li>
         <li><strong>Cascade behaviour.</strong> Deleting a conspectus uses <code>ON DELETE SET NULL</code> on <code>learning_errors.conspectus_uuid</code> — the error survives, the link clears.</li>
       </ul>
+
+      <aside class="docs-card docs-card--rail" data-tone="warn" role="note" aria-labelledby="no-patch-delete-h">
+        <h3 id="no-patch-delete-h" class="docs-card__title">Decision · No <code>PATCH</code>, no <code>DELETE</code> on <code>/api/v1/errors/{id}</code> in v1</h3>
+        <div class="docs-card__body">
+          <p><strong>Why the resource is append-only.</strong> An error log entry is the learner's own record of a mistake — the value of the artefact comes from its immutability. If a learner can edit or retract a mistake, the log stops being a truthful traceback of what actually happened during a review session; it becomes a curated retelling. That's the wrong signal for the audit / remediation surface the log feeds.</p>
+          <p><strong>What replaces mutation.</strong> Superseding entries — the learner posts a fresh <code>POST /api/v1/errors</code> that references the same <code>conspectus_uuid</code> and includes context in the <code>message</code> body («earlier note was wrong — the real confusion was …»). The client-side UI can visually collapse or thread superseding entries, but the server keeps every one.</p>
+          <p><strong>What replaces deletion.</strong> Retention policy expiry (out of scope in v1, will be an administrative sweep — not a per-row DELETE). Cross-tenant leakage protection: <code>GET /api/v1/errors</code> already scopes results to the calling tenant.</p>
+          <p><strong>Reversal criteria.</strong> This decision is revisited only if (a) a compliance requirement mandates learner-initiated erasure, or (b) UX research shows the immutable-log framing meaningfully harms usage. Neither signal is present in v1.</p>
+        </div>
+      </aside>
 
       <h2 id="operations">Operations</h2>
       <p>Canonical HTTP surface for the resource. Each method links to its analyst spec (Phase 5 production-grade); the status pill mirrors <code>data-spec-status</code> on that page.</p>

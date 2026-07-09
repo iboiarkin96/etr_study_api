@@ -1,0 +1,261 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/conspectus/operations/get-api-v1-conspectuses-conspectus_uuid-history.html
+paths:
+  /api/v1/conspectuses/{conspectus_uuid}/history:
+    get:
+      operationId: getConspectusHistory
+      x-implementation-status: pending
+      summary: Return the immutable audit log of a Conspectus (reviews + content patches).
+      description: |
+        Returns two interleaved streams for the given conspectus:
+
+        * `reviews` — every `reviewConspectus` call, with slot transition
+          (`slot_from` → `slot_to`), outcome tag, resulting
+          `schedule_revision`, and server timestamp.
+        * `content_events` — every `patchConspectus` call, with the fields
+          that changed (`changed_fields`) and the resulting `content_version`.
+
+        Ordered `created_at ASC, sequence ASC` (chronological). Cursor-
+        paginated with the same `limit` semantics as `listConspectuses`.
+        Filters:
+
+        * `event_type` — `review` | `content_patch` | `all` (default).
+        * `since` — inclusive lower bound on `created_at` (RFC 3339); most
+          integrators paginate by anchoring at the last-seen event's
+          `created_at` after a reconnect.
+
+        Read-only; no `Idempotency-Key`. Requires `X-API-Key`.
+
+        Both streams are append-only: no update, no delete. The endpoint
+        is the canonical audit trail for the conspectus.
+      tags: [Conspectus]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: conspectus_uuid
+          in: path
+          required: true
+          description: Server-generated stable identifier.
+          schema:
+            type: string
+            format: uuid
+          example: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+        - name: system_user_id
+          in: query
+          required: true
+          description: External user id (composite key with `system_uuid`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: system_uuid
+          in: query
+          required: true
+          description: Source system UUID (composite key with `system_user_id`).
+          schema:
+            type: string
+            format: uuid
+        - name: event_type
+          in: query
+          required: false
+          description: Filter results by event kind.
+          schema:
+            type: string
+            enum: [review, content_patch, all]
+            default: all
+        - name: since
+          in: query
+          required: false
+          description: Inclusive lower bound on event `created_at` (RFC 3339).
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          description: Maximum events per page. Default `50`.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque forward cursor from the `next_cursor` field of the previous response.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+      responses:
+        "200":
+          description: OK — a page of audit events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConspectusHistoryPage" }
+              examples:
+                mixed_events:
+                  summary: A review and two patches
+                  value:
+                    conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                    items:
+                      - event_type: "review"
+                        event_id: "cev-000001"
+                        created_at: "2026-07-09T09:00:00+00:00"
+                        actor:
+                          system_user_id: "learner-01"
+                          system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                        review:
+                          tag: "easy"
+                          slot_from: "A"
+                          slot_to: "B"
+                          slot_d_ladder_index_from: 0
+                          slot_d_ladder_index_to: 0
+                          schedule_revision_after: 2
+                          next_review_at_after: "2026-07-10T09:00:00+00:00"
+                      - event_type: "content_patch"
+                        event_id: "cev-000002"
+                        created_at: "2026-07-09T10:30:00+00:00"
+                        actor:
+                          system_user_id: "learner-01"
+                          system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                        content_patch:
+                          changed_fields: ["title"]
+                          content_version_after: 2
+                    next_cursor: "eyJzZXEiOjJ9"
+                    count: 2
+                    has_more: true
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — either the user or the conspectus does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+                conspectus_not_found:
+                  summary: No conspectus with the given uuid for the caller
+                  value:
+                    code: "CONS_404"
+                    key: "CONSPECTUS_NOT_FOUND"
+                    message: "Conspectus not found for the calling tenant."
+                    source: "business"
+        "422":
+          description: Unprocessable Content — query parameters failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                invalid_event_type:
+                  summary: "`event_type` must be one of review/content_patch/all"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/conspectuses/{conspectus_uuid}/history"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `event_type` must be one of review, content_patch, all."
+                        field: "event_type"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ConspectusHistoryPage:
+      type: object
+      required: [conspectus_uuid, items, next_cursor, count, has_more]
+      properties:
+        conspectus_uuid:
+          type: string
+          format: uuid
+          description: "Echo of the path parameter for client-side sanity checks."
+        items:
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/ConspectusHistoryEvent" }
+          description: "Events in this page, in chronological order."
+        next_cursor:
+          type: [string, "null"]
+          description: "Opaque cursor to fetch the next page. `null` when no more."
+        count:
+          type: integer
+          format: int32
+          minimum: 0
+          description: "Number of events in this page."
+        has_more:
+          type: boolean
+          description: "Convenience mirror of `next_cursor != null`."
+
+    ConspectusHistoryEvent:
+      type: object
+      required: [event_type, event_id, created_at, actor]
+      description: >
+        Discriminated union — `review` events carry the `review` object,
+        `content_patch` events carry the `content_patch` object. The other
+        payload is absent (not set to null) so clients can switch on
+        `event_type` cleanly.
+      properties:
+        event_type:
+          type: string
+          enum: [review, content_patch]
+          description: "Discriminator; drives which payload is present."
+        event_id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: "Stable server-generated identifier for the event."
+        created_at:
+          type: string
+          format: date-time
+          description: "Server-side timestamp of the event (RFC 3339, UTC)."
+        actor:
+          type: object
+          required: [system_user_id, system_uuid]
+          properties:
+            system_user_id: { type: string }
+            system_uuid: { type: string, format: uuid }
+          description: "External identity of the caller who triggered the event."
+        review:
+          type: object
+          description: "Present iff `event_type == 'review'`."
+          required:
+            - tag
+            - slot_from
+            - slot_to
+            - slot_d_ladder_index_from
+            - slot_d_ladder_index_to
+            - schedule_revision_after
+            - next_review_at_after
+          properties:
+            tag: { type: string, enum: [easy, hard, forgot] }
+            slot_from: { type: string, enum: [A, B, C, D] }
+            slot_to: { type: string, enum: [A, B, C, D] }
+            slot_d_ladder_index_from: { type: integer, format: int32, minimum: 0 }
+            slot_d_ladder_index_to: { type: integer, format: int32, minimum: 0 }
+            schedule_revision_after: { type: integer, format: int64, minimum: 1 }
+            next_review_at_after: { type: string, format: date-time }
+        content_patch:
+          type: object
+          description: "Present iff `event_type == 'content_patch'`."
+          required: [changed_fields, content_version_after]
+          properties:
+            changed_fields:
+              type: array
+              minItems: 1
+              items:
+                type: string
+                enum: [title, cue_sheet, dense_paragraph, bullets]
+              description: "Which top-level ETR fields were replaced by the patch."
+            content_version_after:
+              type: integer
+              format: int64
+              minimum: 1
+              description: "`content_version` of the row after the patch was applied."

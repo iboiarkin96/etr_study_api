@@ -228,6 +228,243 @@
             "$ref": "_shared/responses/Error429.yaml"
           }
         }
+      },
+      "get": {
+        "operationId": "listConspectuses",
+        "x-implementation-status": "pending",
+        "summary": "List the learner's conspectuses (cursor-paginated).",
+        "description": "Returns the learner's conspectuses, paginated with an opaque cursor\nfor stable forward-only traversal across large catalogues. Distinct\nfrom `listDueConspectuses`, which is a scan capped at 100 items for\nthe study-load widget — this operation is the full library view.\n\nSort is fixed at `created_at DESC, conspectus_uuid DESC` in v1.\nFilters (all optional, combinable):\n\n* `slot` — restrict to a single ETR slot.\n* `created_after` / `created_before` — half-open range on creation\n  timestamp; both server-parsed as RFC 3339, UTC recommended.\n* `include_invalid` — when `false` (default), soft-deleted rows\n  (`is_row_invalid=1`) are hidden. Set `true` to include them for\n  audit / restore workflows.\n\nRead-only; no `Idempotency-Key`. Requires `X-API-Key`.\n",
+        "tags": [
+          "Conspectus"
+        ],
+        "parameters": [
+          {
+            "$ref": "_shared/headers/ApiKey.yaml"
+          },
+          {
+            "name": "system_user_id",
+            "in": "query",
+            "required": true,
+            "description": "External user id (composite key with `system_uuid`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "example": "learner-01"
+          },
+          {
+            "name": "system_uuid",
+            "in": "query",
+            "required": true,
+            "description": "Source system UUID (composite key with `system_user_id`).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "b2c3d4e5-0002-4000-8000-000000000002"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum items per page. Default `50`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "example": 50
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque forward cursor from the `next_cursor` field of the previous response. Absent on the first page. The server rejects malformed / expired cursors with 422.\n",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "slot",
+            "in": "query",
+            "required": false,
+            "description": "Filter to a single ETR slot.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ]
+            }
+          },
+          {
+            "name": "created_after",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive lower bound on `created_at` (RFC 3339).",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-07-01T00:00:00+00:00"
+          },
+          {
+            "name": "created_before",
+            "in": "query",
+            "required": false,
+            "description": "Exclusive upper bound on `created_at` (RFC 3339).",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2026-07-31T00:00:00+00:00"
+          },
+          {
+            "name": "include_invalid",
+            "in": "query",
+            "required": false,
+            "description": "When `true`, soft-deleted rows are included in the results.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — a page of conspectuses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/listConspectuses_ConspectusListPage"
+                },
+                "examples": {
+                  "first_page": {
+                    "summary": "First page with two items and a cursor for more",
+                    "value": {
+                      "items": [
+                        {
+                          "conspectus_uuid": "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11",
+                          "title": "Cue-based retrieval — first pass",
+                          "cue_sheet": {
+                            "prompts": [
+                              "What is E in ETR?"
+                            ]
+                          },
+                          "cue_sheet_schema_version": 1,
+                          "dense_paragraph": "Extract-Transform-Retrieve …",
+                          "bullets": [
+                            "Extract: raw source → dense paragraph."
+                          ],
+                          "slot": "B",
+                          "slot_d_ladder_index": 0,
+                          "next_review_at": "2026-07-10T12:34:56+00:00",
+                          "schedule_policy_id": "etr-default-v1",
+                          "algorithm_version": "1.0.0",
+                          "schedule_revision": 4,
+                          "content_version": 1,
+                          "is_row_invalid": 0,
+                          "invalidation_reason_uuid": null,
+                          "invalidated_at": null,
+                          "created_at": "2026-07-08T10:00:00+00:00",
+                          "updated_at": "2026-07-08T10:00:00+00:00",
+                          "schedule_updated_at": "2026-07-09T12:34:56+00:00"
+                        }
+                      ],
+                      "next_cursor": "eyJjcmVhdGVkX2F0IjoiMjAyNi0wNy0wOFQxMDowMDowMFoiLCJ1dWlkIjoiOGZhMmM4YjAtOWMwZi00YjQxLTlmNjYtMmQwZTZmM2EwZjExIn0",
+                      "count": 1,
+                      "has_more": true
+                    }
+                  },
+                  "last_page": {
+                    "summary": "Last page — no `next_cursor`",
+                    "value": {
+                      "items": [],
+                      "next_cursor": null,
+                      "count": 0,
+                      "has_more": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "_shared/responses/Error401.yaml"
+          },
+          "404": {
+            "$ref": "fragments/conspectus/error-404/conspectus-not-found.yaml"
+          },
+          "422": {
+            "description": "Unprocessable Content — query parameters failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ValidationErrorResponse.yaml"
+                },
+                "examples": {
+                  "invalid_cursor": {
+                    "summary": "Cursor is malformed or expired",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/conspectuses",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Query parameter `cursor` is malformed or has expired. Restart pagination without it.",
+                          "field": "cursor",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  },
+                  "limit_out_of_range": {
+                    "summary": "`limit` is outside [1, 100]",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/conspectuses",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Query parameter `limit` must be between 1 and 100.",
+                          "field": "limit",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  },
+                  "created_after_after_before": {
+                    "summary": "`created_after` is greater than `created_before`",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/conspectuses",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Query parameter `created_after` must be earlier than `created_before`.",
+                          "field": "created_after",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "_shared/responses/Error429.yaml"
+          }
+        }
       }
     },
     "/api/v1/conspectuses/due": {
@@ -401,6 +638,371 @@
       }
     },
     "/api/v1/conspectuses/{conspectus_uuid}": {
+      "delete": {
+        "operationId": "deleteConspectus",
+        "x-implementation-status": "pending",
+        "summary": "Soft-delete a Conspectus.",
+        "description": "Marks the conspectus as invalidated by setting `is_row_invalid=1`,\n`invalidation_reason_uuid`, and `invalidated_at`. The row is\nretained in storage — subsequent `listDueConspectuses` calls hide\nit, but `getConspectusById` still returns it (and `listConspectuses`\ncan opt-in via `include_invalid=true`).\n\n**Cascade rule.** Linked error-log entries have their\n`conspectus_uuid` cleared to `null` (ON DELETE SET NULL, mirrored in\n`createErrorLog`) — the errors themselves survive because they\ncapture learner-authored context that is valuable independent of\nthe linked note.\n\n**Rationale for soft (not hard).** Learner-authored content has a\nretention obligation the API respects. Hard-delete is a separate\nadministrative operation (out of scope in v1). Soft-delete is\nidempotent by nature — repeated calls with the same body return\nthe already-invalidated row.\n\nRequires `X-API-Key` (tenant auth) and `Idempotency-Key`.\n",
+        "tags": [
+          "Conspectus"
+        ],
+        "parameters": [
+          {
+            "$ref": "_shared/headers/ApiKey.yaml"
+          },
+          {
+            "$ref": "_shared/headers/IdempotencyKey.yaml"
+          },
+          {
+            "name": "conspectus_uuid",
+            "in": "path",
+            "required": true,
+            "description": "Server-generated stable identifier of the conspectus to soft-delete.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/deleteConspectus_ConspectusDeleteRequest"
+              },
+              "examples": {
+                "user_requested": {
+                  "summary": "Learner requested deletion",
+                  "value": {
+                    "system_user_id": "learner-01",
+                    "system_uuid": "b2c3d4e5-0002-4000-8000-000000000002",
+                    "invalidation_reason_uuid": "9c4e1234-0000-4000-8000-user-request"
+                  }
+                },
+                "stale_content": {
+                  "summary": "Content-owner marked as stale",
+                  "value": {
+                    "system_user_id": "learner-01",
+                    "system_uuid": "b2c3d4e5-0002-4000-8000-000000000002",
+                    "invalidation_reason_uuid": "9c4e1234-0000-4000-8000-stale-content"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK — the soft-deleted conspectus. Idempotent on repeat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/deleteConspectus_ConspectusResponse"
+                },
+                "examples": {
+                  "default": {
+                    "summary": "Conspectus now marked invalid",
+                    "value": {
+                      "conspectus_uuid": "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11",
+                      "title": "Cue-based retrieval — first pass",
+                      "cue_sheet": {
+                        "prompts": [
+                          "What is E in ETR?"
+                        ]
+                      },
+                      "cue_sheet_schema_version": 1,
+                      "dense_paragraph": "Extract-Transform-Retrieve …",
+                      "bullets": [
+                        "Extract: raw source → dense paragraph."
+                      ],
+                      "slot": "B",
+                      "slot_d_ladder_index": 0,
+                      "next_review_at": "2026-07-10T12:34:56+00:00",
+                      "schedule_policy_id": "etr-default-v1",
+                      "algorithm_version": "1.0.0",
+                      "schedule_revision": 4,
+                      "content_version": 1,
+                      "is_row_invalid": 1,
+                      "invalidation_reason_uuid": "9c4e1234-0000-4000-8000-user-request",
+                      "invalidated_at": "2026-07-09T14:00:00+00:00",
+                      "created_at": "2026-07-08T10:00:00+00:00",
+                      "updated_at": "2026-07-09T14:00:00+00:00",
+                      "schedule_updated_at": "2026-07-09T12:34:56+00:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request — `Idempotency-Key` header is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ApiErrorResponse.yaml"
+                },
+                "examples": {
+                  "idempotency_key_required": {
+                    "summary": "Missing Idempotency-Key header",
+                    "value": {
+                      "code": "COMMON_400",
+                      "key": "IDEMPOTENCY_KEY_REQUIRED",
+                      "message": "`Idempotency-Key` header is required on this operation.",
+                      "source": "business"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "_shared/responses/Error401.yaml"
+          },
+          "404": {
+            "description": "Not Found — either the user or the conspectus does not exist for this tenant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ApiErrorResponse.yaml"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No user matches the composite key",
+                    "value": {
+                      "code": "USER_404",
+                      "key": "USER_NOT_FOUND",
+                      "message": "User with this `system_user_id` and `system_uuid` was not found.",
+                      "source": "business"
+                    }
+                  },
+                  "conspectus_not_found": {
+                    "summary": "No conspectus with the given uuid for the caller",
+                    "value": {
+                      "code": "CONS_404",
+                      "key": "CONSPECTUS_NOT_FOUND",
+                      "message": "Conspectus not found for the calling tenant.",
+                      "source": "business"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — Idempotency-Key was previously seen with a different payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ApiErrorResponse.yaml"
+                },
+                "examples": {
+                  "idempotency_replay_mismatch": {
+                    "summary": "Idempotency-Key replayed with a different body",
+                    "value": {
+                      "code": "COMMON_409",
+                      "key": "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD",
+                      "message": "`Idempotency-Key` has been seen within the 24 h window with a different payload.",
+                      "source": "business"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "_shared/responses/Error413.yaml"
+          },
+          "422": {
+            "description": "Unprocessable Content — request body failed schema validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ValidationErrorResponse.yaml"
+                },
+                "examples": {
+                  "missing_reason": {
+                    "summary": "`invalidation_reason_uuid` is required",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "DELETE /api/v1/conspectuses/{conspectus_uuid}",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Field `invalidation_reason_uuid` is required.",
+                          "field": "invalidation_reason_uuid",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "_shared/responses/Error429.yaml"
+          }
+        }
+      },
+      "get": {
+        "operationId": "getConspectusById",
+        "x-implementation-status": "pending",
+        "summary": "Look up a single Conspectus by uuid.",
+        "description": "Returns the full `ConspectusResponse` for the given uuid, provided\nthe row is owned by the calling tenant. Read-only; no\n`Idempotency-Key`. Requires `X-API-Key`.\n\nCross-tenant misses collapse into 404 (never 403) so the API\ndoesn't leak existence of rows owned by other tenants.\n\nRows soft-invalidated by `deleteConspectus` are still returned by\nthis operation — the client can inspect `is_row_invalid` and\n`invalidation_reason_uuid` to decide what to render.\n",
+        "tags": [
+          "Conspectus"
+        ],
+        "parameters": [
+          {
+            "$ref": "_shared/headers/ApiKey.yaml"
+          },
+          {
+            "name": "conspectus_uuid",
+            "in": "path",
+            "required": true,
+            "description": "Server-generated stable identifier.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+          },
+          {
+            "name": "system_user_id",
+            "in": "query",
+            "required": true,
+            "description": "External user id (composite key with `system_uuid`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "example": "learner-01"
+          },
+          {
+            "name": "system_uuid",
+            "in": "query",
+            "required": true,
+            "description": "Source system UUID (composite key with `system_user_id`).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "b2c3d4e5-0002-4000-8000-000000000002"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — the persisted conspectus.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getConspectusById_ConspectusResponse"
+                },
+                "examples": {
+                  "active": {
+                    "summary": "Active conspectus, slot B, revision 4",
+                    "value": {
+                      "conspectus_uuid": "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11",
+                      "title": "Cue-based retrieval — first pass",
+                      "cue_sheet": {
+                        "prompts": [
+                          "What is E in ETR?"
+                        ]
+                      },
+                      "cue_sheet_schema_version": 1,
+                      "dense_paragraph": "Extract-Transform-Retrieve …",
+                      "bullets": [
+                        "Extract: raw source → dense paragraph."
+                      ],
+                      "slot": "B",
+                      "slot_d_ladder_index": 0,
+                      "next_review_at": "2026-07-10T12:34:56+00:00",
+                      "schedule_policy_id": "etr-default-v1",
+                      "algorithm_version": "1.0.0",
+                      "schedule_revision": 4,
+                      "content_version": 1,
+                      "is_row_invalid": 0,
+                      "invalidation_reason_uuid": null,
+                      "invalidated_at": null,
+                      "created_at": "2026-07-08T10:00:00+00:00",
+                      "updated_at": "2026-07-08T10:00:00+00:00",
+                      "schedule_updated_at": "2026-07-09T12:34:56+00:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "_shared/responses/Error401.yaml"
+          },
+          "404": {
+            "description": "Not Found — either the user or the conspectus does not exist for this tenant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ApiErrorResponse.yaml"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No user matches the composite key",
+                    "value": {
+                      "code": "USER_404",
+                      "key": "USER_NOT_FOUND",
+                      "message": "User with this `system_user_id` and `system_uuid` was not found.",
+                      "source": "business"
+                    }
+                  },
+                  "conspectus_not_found": {
+                    "summary": "No conspectus with the given uuid for the caller",
+                    "value": {
+                      "code": "CONS_404",
+                      "key": "CONSPECTUS_NOT_FOUND",
+                      "message": "Conspectus not found for the calling tenant.",
+                      "source": "business"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content — query parameters failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ValidationErrorResponse.yaml"
+                },
+                "examples": {
+                  "invalid_conspectus_uuid": {
+                    "summary": "`conspectus_uuid` path parameter is not a valid UUID",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/conspectuses/{conspectus_uuid}",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Path parameter `conspectus_uuid` must be a valid UUID.",
+                          "field": "conspectus_uuid",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "_shared/responses/Error429.yaml"
+          }
+        }
+      },
       "patch": {
         "operationId": "patchConspectus",
         "x-implementation-status": "pending",
@@ -882,6 +1484,224 @@
         }
       }
     },
+    "/api/v1/conspectuses/{conspectus_uuid}/history": {
+      "get": {
+        "operationId": "getConspectusHistory",
+        "x-implementation-status": "pending",
+        "summary": "Return the immutable audit log of a Conspectus (reviews + content patches).",
+        "description": "Returns two interleaved streams for the given conspectus:\n\n* `reviews` — every `reviewConspectus` call, with slot transition\n  (`slot_from` → `slot_to`), outcome tag, resulting\n  `schedule_revision`, and server timestamp.\n* `content_events` — every `patchConspectus` call, with the fields\n  that changed (`changed_fields`) and the resulting `content_version`.\n\nOrdered `created_at ASC, sequence ASC` (chronological). Cursor-\npaginated with the same `limit` semantics as `listConspectuses`.\nFilters:\n\n* `event_type` — `review` | `content_patch` | `all` (default).\n* `since` — inclusive lower bound on `created_at` (RFC 3339); most\n  integrators paginate by anchoring at the last-seen event's\n  `created_at` after a reconnect.\n\nRead-only; no `Idempotency-Key`. Requires `X-API-Key`.\n\nBoth streams are append-only: no update, no delete. The endpoint\nis the canonical audit trail for the conspectus.\n",
+        "tags": [
+          "Conspectus"
+        ],
+        "parameters": [
+          {
+            "$ref": "_shared/headers/ApiKey.yaml"
+          },
+          {
+            "name": "conspectus_uuid",
+            "in": "path",
+            "required": true,
+            "description": "Server-generated stable identifier.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+          },
+          {
+            "name": "system_user_id",
+            "in": "query",
+            "required": true,
+            "description": "External user id (composite key with `system_uuid`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "system_uuid",
+            "in": "query",
+            "required": true,
+            "description": "Source system UUID (composite key with `system_user_id`).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "required": false,
+            "description": "Filter results by event kind.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "review",
+                "content_patch",
+                "all"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive lower bound on event `created_at` (RFC 3339).",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum events per page. Default `50`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque forward cursor from the `next_cursor` field of the previous response.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — a page of audit events.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getConspectusHistory_ConspectusHistoryPage"
+                },
+                "examples": {
+                  "mixed_events": {
+                    "summary": "A review and two patches",
+                    "value": {
+                      "conspectus_uuid": "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11",
+                      "items": [
+                        {
+                          "event_type": "review",
+                          "event_id": "cev-000001",
+                          "created_at": "2026-07-09T09:00:00+00:00",
+                          "actor": {
+                            "system_user_id": "learner-01",
+                            "system_uuid": "b2c3d4e5-0002-4000-8000-000000000002"
+                          },
+                          "review": {
+                            "tag": "easy",
+                            "slot_from": "A",
+                            "slot_to": "B",
+                            "slot_d_ladder_index_from": 0,
+                            "slot_d_ladder_index_to": 0,
+                            "schedule_revision_after": 2,
+                            "next_review_at_after": "2026-07-10T09:00:00+00:00"
+                          }
+                        },
+                        {
+                          "event_type": "content_patch",
+                          "event_id": "cev-000002",
+                          "created_at": "2026-07-09T10:30:00+00:00",
+                          "actor": {
+                            "system_user_id": "learner-01",
+                            "system_uuid": "b2c3d4e5-0002-4000-8000-000000000002"
+                          },
+                          "content_patch": {
+                            "changed_fields": [
+                              "title"
+                            ],
+                            "content_version_after": 2
+                          }
+                        }
+                      ],
+                      "next_cursor": "eyJzZXEiOjJ9",
+                      "count": 2,
+                      "has_more": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "_shared/responses/Error401.yaml"
+          },
+          "404": {
+            "description": "Not Found — either the user or the conspectus does not exist for this tenant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ApiErrorResponse.yaml"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No user matches the composite key",
+                    "value": {
+                      "code": "USER_404",
+                      "key": "USER_NOT_FOUND",
+                      "message": "User with this `system_user_id` and `system_uuid` was not found.",
+                      "source": "business"
+                    }
+                  },
+                  "conspectus_not_found": {
+                    "summary": "No conspectus with the given uuid for the caller",
+                    "value": {
+                      "code": "CONS_404",
+                      "key": "CONSPECTUS_NOT_FOUND",
+                      "message": "Conspectus not found for the calling tenant.",
+                      "source": "business"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content — query parameters failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ValidationErrorResponse.yaml"
+                },
+                "examples": {
+                  "invalid_event_type": {
+                    "summary": "`event_type` must be one of review/content_patch/all",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/conspectuses/{conspectus_uuid}/history",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Query parameter `event_type` must be one of review, content_patch, all.",
+                          "field": "event_type",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "_shared/responses/Error429.yaml"
+          }
+        }
+      }
+    },
     "/api/v1/errors": {
       "post": {
         "operationId": "createErrorLog",
@@ -1259,6 +2079,211 @@
                           "key": "COMMON_VALIDATION_ERROR",
                           "message": "Query parameter `conspectus_uuid` must be a valid UUID.",
                           "field": "conspectus_uuid",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "_shared/responses/Error429.yaml"
+          }
+        }
+      }
+    },
+    "/api/v1/schedule/preview": {
+      "get": {
+        "operationId": "getSchedulePreview",
+        "x-implementation-status": "pending",
+        "summary": "Return a server-shuffled lookahead of due conspectuses (evening-review shape).",
+        "description": "Returns the conspectuses due within a configurable time window,\npre-shuffled by the server. The intended consumer is the\n«evening review» client flow, which wants presentation-ready\nrandomization without the client seeing the full due-list.\n\n**Server-side randomization** — a decision, not an accident. The\nclient never receives items that fall outside the window, and\nnever has to implement its own shuffle (which is a common source\nof subtle bugs — biased Fisher-Yates, insecure PRNG, inconsistent\ncross-device order). The server owns the shuffle and stamps each\nitem with a stable `preview_order_index` so the client can render\ndeterministically even after a mid-session refresh.\n\n**Determinism.** The response is deterministic for a given\n`(system_user_id, system_uuid, window, random_seed)` tuple within\nthe current `computed_at` minute — subsequent calls with the same\nseed replay the same order. When `random_seed` is omitted, the\nserver generates one and echoes it in the response so the client\ncan pin its session against it.\n\nRead-only; no `Idempotency-Key`. Requires `X-API-Key`.\n",
+        "tags": [
+          "Schedule"
+        ],
+        "parameters": [
+          {
+            "$ref": "_shared/headers/ApiKey.yaml"
+          },
+          {
+            "name": "system_user_id",
+            "in": "query",
+            "required": true,
+            "description": "External user id (composite key with `system_uuid`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "system_uuid",
+            "in": "query",
+            "required": true,
+            "description": "Source system UUID (composite key with `system_user_id`).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "description": "ISO 8601 duration bound on `next_review_at <= computed_at + window`. Server accepts `PT1H`, `PT4H`, `PT24H`, `P1D`; other durations are rejected with 422.\n",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PT1H",
+                "PT4H",
+                "PT24H",
+                "P1D"
+              ],
+              "default": "PT4H"
+            },
+            "example": "PT4H"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum items in the preview. Default `20`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "random_seed",
+            "in": "query",
+            "required": false,
+            "description": "Optional deterministic-shuffle seed. Alphanumeric string, 1–64 chars. When omitted, the server generates one and echoes it in the response.\n",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — server-shuffled preview of due items in the window.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getSchedulePreview_SchedulePreviewResponse"
+                },
+                "examples": {
+                  "three_items": {
+                    "summary": "Three items due in the next 4 hours, server-shuffled",
+                    "value": {
+                      "window": "PT4H",
+                      "computed_at": "2026-07-09T18:00:00+00:00",
+                      "random_seed": "seed-2026-07-09-evening",
+                      "items": [
+                        {
+                          "preview_order_index": 0,
+                          "conspectus_uuid": "aaaa1111-0000-4000-8000-000000000001",
+                          "title": "ETR loop primer",
+                          "slot": "A",
+                          "next_review_at": "2026-07-09T20:00:00+00:00"
+                        },
+                        {
+                          "preview_order_index": 1,
+                          "conspectus_uuid": "cccc3333-0000-4000-8000-000000000003",
+                          "title": "Slot-C consolidation",
+                          "slot": "C",
+                          "next_review_at": "2026-07-09T19:15:00+00:00"
+                        },
+                        {
+                          "preview_order_index": 2,
+                          "conspectus_uuid": "bbbb2222-0000-4000-8000-000000000002",
+                          "title": "Cue-sheet anatomy",
+                          "slot": "B",
+                          "next_review_at": "2026-07-09T21:00:00+00:00"
+                        }
+                      ],
+                      "count": 3
+                    }
+                  },
+                  "empty": {
+                    "summary": "Nothing due in the window",
+                    "value": {
+                      "window": "PT4H",
+                      "computed_at": "2026-07-09T18:00:00+00:00",
+                      "random_seed": "seed-2026-07-09-late-evening",
+                      "items": [],
+                      "count": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "_shared/responses/Error401.yaml"
+          },
+          "404": {
+            "description": "Not Found — the user does not exist for this tenant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ApiErrorResponse.yaml"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No user matches the composite key",
+                    "value": {
+                      "code": "USER_404",
+                      "key": "USER_NOT_FOUND",
+                      "message": "User with this `system_user_id` and `system_uuid` was not found.",
+                      "source": "business"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content — query parameters failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ValidationErrorResponse.yaml"
+                },
+                "examples": {
+                  "invalid_window": {
+                    "summary": "`window` must be one of PT1H/PT4H/PT24H/P1D",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/schedule/preview",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Query parameter `window` must be one of PT1H, PT4H, PT24H, P1D.",
+                          "field": "window",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  },
+                  "invalid_random_seed": {
+                    "summary": "`random_seed` contains disallowed characters",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/schedule/preview",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Query parameter `random_seed` must match `^[A-Za-z0-9_-]+$`.",
+                          "field": "random_seed",
                           "source": "validation"
                         }
                       ]
@@ -2201,6 +3226,575 @@
           }
         }
       },
+      "deleteConspectus_ConspectusDeleteRequest": {
+        "type": "object",
+        "required": [
+          "system_user_id",
+          "system_uuid",
+          "invalidation_reason_uuid"
+        ],
+        "description": "Soft-delete payload. Reason is required — a delete without a traceable reason blocks audit workflows and is refused.\n",
+        "properties": {
+          "system_user_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Owner key (composite with `system_uuid`)."
+          },
+          "system_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owner key (composite with `system_user_id`)."
+          },
+          "invalidation_reason_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "description": "FK to a stable invalidation-reason row (e.g. «user request», «stale content», «duplicate»). Required so soft-deletes stay explainable in audit exports.\n"
+          }
+        }
+      },
+      "deleteConspectus_ConspectusResponse": {
+        "type": "object",
+        "required": [
+          "conspectus_uuid",
+          "cue_sheet",
+          "cue_sheet_schema_version",
+          "dense_paragraph",
+          "bullets",
+          "slot",
+          "slot_d_ladder_index",
+          "next_review_at",
+          "schedule_policy_id",
+          "algorithm_version",
+          "schedule_revision",
+          "content_version",
+          "is_row_invalid",
+          "created_at",
+          "updated_at",
+          "schedule_updated_at"
+        ],
+        "properties": {
+          "conspectus_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "cue_sheet": {
+            "type": "object"
+          },
+          "cue_sheet_schema_version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dense_paragraph": {
+            "type": "string"
+          },
+          "bullets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "slot_d_ladder_index": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "next_review_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "schedule_policy_id": {
+            "type": "string"
+          },
+          "algorithm_version": {
+            "type": "string"
+          },
+          "schedule_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "content_version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "is_row_invalid": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "invalidation_reason_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "invalidated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "schedule_updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "getConspectusById_ConspectusResponse": {
+        "type": "object",
+        "required": [
+          "conspectus_uuid",
+          "cue_sheet",
+          "cue_sheet_schema_version",
+          "dense_paragraph",
+          "bullets",
+          "slot",
+          "slot_d_ladder_index",
+          "next_review_at",
+          "schedule_policy_id",
+          "algorithm_version",
+          "schedule_revision",
+          "content_version",
+          "is_row_invalid",
+          "created_at",
+          "updated_at",
+          "schedule_updated_at"
+        ],
+        "properties": {
+          "conspectus_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "cue_sheet": {
+            "type": "object"
+          },
+          "cue_sheet_schema_version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dense_paragraph": {
+            "type": "string"
+          },
+          "bullets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "slot_d_ladder_index": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "next_review_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "schedule_policy_id": {
+            "type": "string"
+          },
+          "algorithm_version": {
+            "type": "string"
+          },
+          "schedule_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "content_version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "is_row_invalid": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "invalidation_reason_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "invalidated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "schedule_updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "getConspectusHistory_ConspectusHistoryPage": {
+        "type": "object",
+        "required": [
+          "conspectus_uuid",
+          "items",
+          "next_cursor",
+          "count",
+          "has_more"
+        ],
+        "properties": {
+          "conspectus_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Echo of the path parameter for client-side sanity checks."
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/getConspectusHistory_ConspectusHistoryEvent"
+            },
+            "description": "Events in this page, in chronological order."
+          },
+          "next_cursor": {
+            "type": "string",
+            "description": "Opaque cursor to fetch the next page. `null` when no more.",
+            "nullable": true
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of events in this page."
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "Convenience mirror of `next_cursor != null`."
+          }
+        }
+      },
+      "getConspectusHistory_ConspectusHistoryEvent": {
+        "type": "object",
+        "required": [
+          "event_type",
+          "event_id",
+          "created_at",
+          "actor"
+        ],
+        "description": "Discriminated union — `review` events carry the `review` object, `content_patch` events carry the `content_patch` object. The other payload is absent (not set to null) so clients can switch on `event_type` cleanly.\n",
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "review",
+              "content_patch"
+            ],
+            "description": "Discriminator; drives which payload is present."
+          },
+          "event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Stable server-generated identifier for the event."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Server-side timestamp of the event (RFC 3339, UTC)."
+          },
+          "actor": {
+            "type": "object",
+            "required": [
+              "system_user_id",
+              "system_uuid"
+            ],
+            "properties": {
+              "system_user_id": {
+                "type": "string"
+              },
+              "system_uuid": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "description": "External identity of the caller who triggered the event."
+          },
+          "review": {
+            "type": "object",
+            "description": "Present iff `event_type == 'review'`.",
+            "required": [
+              "tag",
+              "slot_from",
+              "slot_to",
+              "slot_d_ladder_index_from",
+              "slot_d_ladder_index_to",
+              "schedule_revision_after",
+              "next_review_at_after"
+            ],
+            "properties": {
+              "tag": {
+                "type": "string",
+                "enum": [
+                  "easy",
+                  "hard",
+                  "forgot"
+                ]
+              },
+              "slot_from": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "B",
+                  "C",
+                  "D"
+                ]
+              },
+              "slot_to": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "B",
+                  "C",
+                  "D"
+                ]
+              },
+              "slot_d_ladder_index_from": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "slot_d_ladder_index_to": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "schedule_revision_after": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 1
+              },
+              "next_review_at_after": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "content_patch": {
+            "type": "object",
+            "description": "Present iff `event_type == 'content_patch'`.",
+            "required": [
+              "changed_fields",
+              "content_version_after"
+            ],
+            "properties": {
+              "changed_fields": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "title",
+                    "cue_sheet",
+                    "dense_paragraph",
+                    "bullets"
+                  ]
+                },
+                "description": "Which top-level ETR fields were replaced by the patch."
+              },
+              "content_version_after": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 1,
+                "description": "`content_version` of the row after the patch was applied."
+              }
+            }
+          }
+        }
+      },
+      "listConspectuses_ConspectusListPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor",
+          "count",
+          "has_more"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/listConspectuses_ConspectusResponse"
+            },
+            "description": "Conspectuses in this page (up to `limit`)."
+          },
+          "next_cursor": {
+            "type": "string",
+            "description": "Opaque cursor to fetch the next page. `null` when there are no more pages. Prefer the `next_cursor` field over inspecting `items.length` when deciding whether to keep paging — the two can disagree if the caller's `limit` matches the last page exactly.\n",
+            "nullable": true
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of items in this page (equal to `items.length`)."
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "Convenience mirror of `next_cursor != null`."
+          }
+        }
+      },
+      "listConspectuses_ConspectusResponse": {
+        "type": "object",
+        "required": [
+          "conspectus_uuid",
+          "cue_sheet",
+          "cue_sheet_schema_version",
+          "dense_paragraph",
+          "bullets",
+          "slot",
+          "slot_d_ladder_index",
+          "next_review_at",
+          "schedule_policy_id",
+          "algorithm_version",
+          "schedule_revision",
+          "content_version",
+          "is_row_invalid",
+          "created_at",
+          "updated_at",
+          "schedule_updated_at"
+        ],
+        "properties": {
+          "conspectus_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "cue_sheet": {
+            "type": "object"
+          },
+          "cue_sheet_schema_version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dense_paragraph": {
+            "type": "string"
+          },
+          "bullets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "slot_d_ladder_index": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "next_review_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "schedule_policy_id": {
+            "type": "string"
+          },
+          "algorithm_version": {
+            "type": "string"
+          },
+          "schedule_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "content_version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "is_row_invalid": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "invalidation_reason_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "invalidated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "schedule_updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "listDueConspectuses_ConspectusResponse": {
         "type": "object",
         "required": [
@@ -2681,6 +4275,94 @@
             "type": "string",
             "format": "date-time",
             "description": "Row creation timestamp (RFC 3339, UTC)."
+          }
+        }
+      },
+      "getSchedulePreview_SchedulePreviewResponse": {
+        "type": "object",
+        "required": [
+          "window",
+          "computed_at",
+          "random_seed",
+          "items",
+          "count"
+        ],
+        "properties": {
+          "window": {
+            "type": "string",
+            "enum": [
+              "PT1H",
+              "PT4H",
+              "PT24H",
+              "P1D"
+            ],
+            "description": "Echo of the effective window (default resolved server-side)."
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Server timestamp when the preview was materialised (RFC 3339, UTC)."
+          },
+          "random_seed": {
+            "type": "string",
+            "description": "Echo of the seed used for the shuffle. Present even when the client omitted the parameter, so the client can pin the same order for the rest of its session.\n"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/getSchedulePreview_SchedulePreviewItem"
+            },
+            "description": "Preview items in the server-computed order."
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of items in `items`."
+          }
+        }
+      },
+      "getSchedulePreview_SchedulePreviewItem": {
+        "type": "object",
+        "required": [
+          "preview_order_index",
+          "conspectus_uuid",
+          "slot",
+          "next_review_at"
+        ],
+        "description": "Compact projection of a conspectus for the preview flow. Full content is fetched via `getConspectusById` when the client is ready to render the review card.\n",
+        "properties": {
+          "preview_order_index": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Position of this item in the shuffled order (0-indexed). Stable for the given `(random_seed, computed_at)` — the client can render deterministically on session refresh.\n"
+          },
+          "conspectus_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Server-generated stable identifier."
+          },
+          "title": {
+            "type": "string",
+            "description": "Optional title, echoed for lightweight rendering.",
+            "nullable": true
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "description": "Current ETR slot."
+          },
+          "next_review_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this item became due (already ≤ `computed_at + window`)."
           }
         }
       },

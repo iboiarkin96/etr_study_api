@@ -1,0 +1,228 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/schedule/operations/get-api-v1-schedule-preview.html
+paths:
+  /api/v1/schedule/preview:
+    get:
+      operationId: getSchedulePreview
+      x-implementation-status: pending
+      summary: Return a server-shuffled lookahead of due conspectuses (evening-review shape).
+      description: |
+        Returns the conspectuses due within a configurable time window,
+        pre-shuffled by the server. The intended consumer is the
+        «evening review» client flow, which wants presentation-ready
+        randomization without the client seeing the full due-list.
+
+        **Server-side randomization** — a decision, not an accident. The
+        client never receives items that fall outside the window, and
+        never has to implement its own shuffle (which is a common source
+        of subtle bugs — biased Fisher-Yates, insecure PRNG, inconsistent
+        cross-device order). The server owns the shuffle and stamps each
+        item with a stable `preview_order_index` so the client can render
+        deterministically even after a mid-session refresh.
+
+        **Determinism.** The response is deterministic for a given
+        `(system_user_id, system_uuid, window, random_seed)` tuple within
+        the current `computed_at` minute — subsequent calls with the same
+        seed replay the same order. When `random_seed` is omitted, the
+        server generates one and echoes it in the response so the client
+        can pin its session against it.
+
+        Read-only; no `Idempotency-Key`. Requires `X-API-Key`.
+      tags: [Schedule]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: system_user_id
+          in: query
+          required: true
+          description: External user id (composite key with `system_uuid`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: system_uuid
+          in: query
+          required: true
+          description: Source system UUID (composite key with `system_user_id`).
+          schema:
+            type: string
+            format: uuid
+        - name: window
+          in: query
+          required: false
+          description: >
+            ISO 8601 duration bound on `next_review_at <= computed_at + window`.
+            Server accepts `PT1H`, `PT4H`, `PT24H`, `P1D`; other durations
+            are rejected with 422.
+          schema:
+            type: string
+            enum: ["PT1H", "PT4H", "PT24H", "P1D"]
+            default: "PT4H"
+          example: "PT4H"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum items in the preview. Default `20`.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: random_seed
+          in: query
+          required: false
+          description: >
+            Optional deterministic-shuffle seed. Alphanumeric string,
+            1–64 chars. When omitted, the server generates one and echoes
+            it in the response.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+            pattern: "^[A-Za-z0-9_-]+$"
+      responses:
+        "200":
+          description: OK — server-shuffled preview of due items in the window.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SchedulePreviewResponse" }
+              examples:
+                three_items:
+                  summary: Three items due in the next 4 hours, server-shuffled
+                  value:
+                    window: "PT4H"
+                    computed_at: "2026-07-09T18:00:00+00:00"
+                    random_seed: "seed-2026-07-09-evening"
+                    items:
+                      - preview_order_index: 0
+                        conspectus_uuid: "aaaa1111-0000-4000-8000-000000000001"
+                        title: "ETR loop primer"
+                        slot: "A"
+                        next_review_at: "2026-07-09T20:00:00+00:00"
+                      - preview_order_index: 1
+                        conspectus_uuid: "cccc3333-0000-4000-8000-000000000003"
+                        title: "Slot-C consolidation"
+                        slot: "C"
+                        next_review_at: "2026-07-09T19:15:00+00:00"
+                      - preview_order_index: 2
+                        conspectus_uuid: "bbbb2222-0000-4000-8000-000000000002"
+                        title: "Cue-sheet anatomy"
+                        slot: "B"
+                        next_review_at: "2026-07-09T21:00:00+00:00"
+                    count: 3
+                empty:
+                  summary: Nothing due in the window
+                  value:
+                    window: "PT4H"
+                    computed_at: "2026-07-09T18:00:00+00:00"
+                    random_seed: "seed-2026-07-09-late-evening"
+                    items: []
+                    count: 0
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — the user does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+        "422":
+          description: Unprocessable Content — query parameters failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                invalid_window:
+                  summary: "`window` must be one of PT1H/PT4H/PT24H/P1D"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/schedule/preview"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `window` must be one of PT1H, PT4H, PT24H, P1D."
+                        field: "window"
+                        source: "validation"
+                invalid_random_seed:
+                  summary: "`random_seed` contains disallowed characters"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/schedule/preview"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `random_seed` must match `^[A-Za-z0-9_-]+$`."
+                        field: "random_seed"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    SchedulePreviewResponse:
+      type: object
+      required: [window, computed_at, random_seed, items, count]
+      properties:
+        window:
+          type: string
+          enum: ["PT1H", "PT4H", "PT24H", "P1D"]
+          description: "Echo of the effective window (default resolved server-side)."
+        computed_at:
+          type: string
+          format: date-time
+          description: "Server timestamp when the preview was materialised (RFC 3339, UTC)."
+        random_seed:
+          type: string
+          description: >
+            Echo of the seed used for the shuffle. Present even when the
+            client omitted the parameter, so the client can pin the same
+            order for the rest of its session.
+        items:
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/SchedulePreviewItem" }
+          description: "Preview items in the server-computed order."
+        count:
+          type: integer
+          format: int32
+          minimum: 0
+          description: "Number of items in `items`."
+
+    SchedulePreviewItem:
+      type: object
+      required: [preview_order_index, conspectus_uuid, slot, next_review_at]
+      description: >
+        Compact projection of a conspectus for the preview flow. Full
+        content is fetched via `getConspectusById` when the client is
+        ready to render the review card.
+      properties:
+        preview_order_index:
+          type: integer
+          format: int32
+          minimum: 0
+          description: >
+            Position of this item in the shuffled order (0-indexed).
+            Stable for the given `(random_seed, computed_at)` — the client
+            can render deterministically on session refresh.
+        conspectus_uuid:
+          type: string
+          format: uuid
+          description: "Server-generated stable identifier."
+        title:
+          type: [string, "null"]
+          description: "Optional title, echoed for lightweight rendering."
+        slot:
+          type: string
+          enum: [A, B, C, D]
+          description: "Current ETR slot."
+        next_review_at:
+          type: string
+          format: date-time
+          description: "When this item became due (already ≤ `computed_at + window`)."
