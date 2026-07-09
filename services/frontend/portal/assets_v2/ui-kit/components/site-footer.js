@@ -56,7 +56,7 @@ const DEFAULT_CONFIG = {
       links: [
         { label: "RFCs", href: "/services/portal/internal/governance/rfc/index.html" },
         { label: "ADRs", href: "/services/portal/internal/governance/adr/index.html" },
-        { label: "Backlog", href: "/services/portal/internal/governance/backlog/index.html" },
+        { label: "Backlog", href: "/services/portal/internal/governance/backlog/plans.html" },
         { label: "Audits", href: "/services/portal/internal/governance/audits/index.html" },
       ],
     },
