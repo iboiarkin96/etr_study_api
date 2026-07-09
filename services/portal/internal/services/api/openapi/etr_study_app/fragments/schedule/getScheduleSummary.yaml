@@ -1,0 +1,151 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/conspectus/operations/get-api-v1-schedule-summary.html
+paths:
+  /api/v1/schedule/summary:
+    get:
+      operationId: getScheduleSummary
+      x-implementation-status: pending
+      summary: Aggregated study-load counts for a learner (by slot + due-now + due next 24h).
+      description: |
+        Returns server-computed counts of the learner's active conspectuses
+        grouped by ETR slot (A/B/C/D), plus how many are due at snapshot
+        time and how many become due within the next 24 hours. The intended
+        consumer is the study-load badge on the client — a fast, small
+        payload that avoids a full `listDueConspectuses` scan.
+
+        Read-only; no `Idempotency-Key`. Requires `X-API-Key`. Snapshot-
+        isolated reads; no caching in v1 — each call recomputes.
+      tags: [Schedule]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: system_user_id
+          in: query
+          required: true
+          description: External user id (composite key with `system_uuid`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+          example: "learner-01"
+        - name: system_uuid
+          in: query
+          required: true
+          description: Source system UUID (composite key with `system_user_id`).
+          schema:
+            type: string
+            format: uuid
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+      responses:
+        "200":
+          description: OK — aggregated counts as of `computed_at`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScheduleSummaryResponse" }
+              examples:
+                mid_session:
+                  summary: Mid-session snapshot with items in three slots
+                  value:
+                    by_slot:
+                      A: 4
+                      B: 7
+                      C: 3
+                      D: 0
+                    due_now: 2
+                    due_next_24h: 5
+                    total: 14
+                    computed_at: "2026-07-09T12:00:00+00:00"
+                empty:
+                  summary: Fresh learner with no conspectuses
+                  value:
+                    by_slot: { A: 0, B: 0, C: 0, D: 0 }
+                    due_now: 0
+                    due_next_24h: 0
+                    total: 0
+                    computed_at: "2026-07-09T12:00:00+00:00"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — the user does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+        "422":
+          description: Unprocessable Content — query parameters failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                missing_system_uuid:
+                  summary: "`system_uuid` is required"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/schedule/summary"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `system_uuid` is required."
+                        field: "system_uuid"
+                        source: "validation"
+                invalid_system_uuid:
+                  summary: "`system_uuid` is not a valid UUID"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/schedule/summary"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `system_uuid` must be a valid UUID."
+                        field: "system_uuid"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ScheduleSummaryResponse:
+      type: object
+      required: [by_slot, due_now, due_next_24h, total, computed_at]
+      properties:
+        by_slot:
+          type: object
+          description: >
+            Count of active conspectuses per slot. All four keys are always
+            present; a slot with no items is `0` (not omitted). Convention
+            simplifies client code.
+          required: [A, B, C, D]
+          properties:
+            A: { type: integer, format: int64, minimum: 0 }
+            B: { type: integer, format: int64, minimum: 0 }
+            C: { type: integer, format: int64, minimum: 0 }
+            D: { type: integer, format: int64, minimum: 0 }
+        due_now:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "Items whose `next_review_at <= computed_at`."
+        due_next_24h:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "Items whose `computed_at < next_review_at <= computed_at + PT24H`."
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+          description: >
+            Convenience total — equals the sum of `by_slot` values. Present
+            so the client doesn't have to add four numbers just to render
+            «14 items in your queue».
+        computed_at:
+          type: string
+          format: date-time
+          description: "Server timestamp when the aggregation was computed (RFC 3339, UTC)."

@@ -1,0 +1,233 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/error-log/operations/post-api-v1-errors.html
+paths:
+  /api/v1/errors:
+    post:
+      operationId: createErrorLog
+      x-implementation-status: pending
+      summary: Append an error log entry for a learner (optionally linked to a conspectus or review).
+      description: |
+        Records a mistake the learner made during retrieval so it can be
+        surfaced as remediation context on the linked conspectus. The row
+        is append-only — no PATCH, no DELETE in v1.
+
+        Both `conspectus_uuid` and `review_log_id` are optional. When
+        present, the server verifies each references a row owned by the
+        calling tenant; a missing or foreign reference returns 404
+        `ERROR_LOG_REFERENCE_NOT_FOUND`.
+
+        `message` is PII class **High** — full server-side redaction is
+        applied to log streams, and the operation is expected to obey the
+        retention window defined for user-authored content.
+
+        Requires `X-API-Key` (tenant auth) and `Idempotency-Key`.
+      tags: [ErrorLog]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ErrorLogCreateRequest" }
+            examples:
+              minimal:
+                summary: Freestanding error, no linked conspectus
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  message: "I confused 'Retrieve' with 'Recall' — need to re-read the ETR loop."
+              linked_to_conspectus:
+                summary: Error attached to a specific conspectus
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  message: "Got the slot order wrong on the last review."
+                  conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+              linked_to_review:
+                summary: Error attached to a specific review log entry
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  message: "Applied 'hard' when I meant 'forgot'."
+                  conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                  review_log_id: 4271
+      responses:
+        "201":
+          description: Created — the persisted error log entry.
+          headers:
+            Location:
+              description: Canonical URL of the newly created error log entry (implementation-defined).
+              schema:
+                type: string
+                example: "/api/v1/errors/e9f2c8b0-9c0f-4b41-9f66-2d0e6f3a0f22"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorLogResponse" }
+              examples:
+                default:
+                  summary: Fresh entry linked to a conspectus
+                  value:
+                    error_uuid: "e9f2c8b0-9c0f-4b41-9f66-2d0e6f3a0f22"
+                    message: "Got the slot order wrong on the last review."
+                    conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                    review_log_id: null
+                    created_at: "2026-07-09T12:15:00+00:00"
+        "400":
+          description: Bad Request — `Idempotency-Key` header is required for writes.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_key_required:
+                  summary: Missing Idempotency-Key header
+                  value:
+                    code: "COMMON_400"
+                    key: "IDEMPOTENCY_KEY_REQUIRED"
+                    message: "`Idempotency-Key` header is required on this operation."
+                    source: "business"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — either the user or a referenced FK target does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+                error_log_reference_not_found:
+                  summary: "`conspectus_uuid` or `review_log_id` is missing / not owned by the caller"
+                  value:
+                    code: "ERR_404"
+                    key: "ERROR_LOG_REFERENCE_NOT_FOUND"
+                    message: "Referenced `conspectus_uuid` or `review_log_id` is missing or not owned by the caller."
+                    source: "business"
+        "409":
+          description: Conflict — Idempotency-Key was previously seen with a different payload.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_replay_mismatch:
+                  summary: Idempotency-Key replayed with a different body
+                  value:
+                    code: "COMMON_409"
+                    key: "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD"
+                    message: "`Idempotency-Key` has been seen within the 24 h window with a different payload."
+                    source: "business"
+        "413": { $ref: "../../_shared/responses/Error413.yaml" }
+        "422":
+          description: Unprocessable Content — request body failed schema validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                empty_message:
+                  summary: "`message` is empty after trim"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/errors"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `message` must not be empty."
+                        field: "message"
+                        source: "validation"
+                message_too_long:
+                  summary: "`message` exceeds max length 2000"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/errors"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `message` must be no longer than 2000 characters."
+                        field: "message"
+                        source: "validation"
+                invalid_conspectus_uuid:
+                  summary: "`conspectus_uuid` is not a valid UUID"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/errors"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `conspectus_uuid` must be a valid UUID."
+                        field: "conspectus_uuid"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ErrorLogCreateRequest:
+      type: object
+      required: [system_user_id, system_uuid, message]
+      properties:
+        system_user_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: "External user id (composite key with `system_uuid`)."
+          example: "learner-01"
+        system_uuid:
+          type: string
+          format: uuid
+          description: "Source system UUID (composite key with `system_user_id`)."
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: >
+            Free-form learner-authored description of the mistake. PII class
+            High — full server-side redaction on log streams; retention
+            governed by the user-content policy.
+          example: "Confused Extract with Transform."
+        conspectus_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Optional FK to the conspectus this mistake was made against.
+            ON DELETE SET NULL — deleting the conspectus doesn't hard-delete
+            its errors.
+          example: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+        review_log_id:
+          type: [integer, "null"]
+          format: int64
+          minimum: 1
+          description: >
+            Optional FK to the specific review log entry this mistake was
+            observed on. Coexists with `conspectus_uuid` — a mistake can
+            reference either, both, or neither.
+
+    ErrorLogResponse:
+      type: object
+      required: [error_uuid, message, created_at]
+      properties:
+        error_uuid:
+          type: string
+          format: uuid
+          description: "Server-generated stable identifier for the error log entry."
+        message:
+          type: string
+          description: "Echoed learner-authored description. PII class High."
+        conspectus_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "Referenced conspectus, or `null` if the error is freestanding."
+        review_log_id:
+          type: [integer, "null"]
+          format: int64
+          description: "Referenced review log entry id, or `null`."
+        created_at:
+          type: string
+          format: date-time
+          description: "Row creation timestamp (RFC 3339, UTC)."
