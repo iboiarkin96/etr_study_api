@@ -73,6 +73,7 @@ study_app/
     │       └── rules/
     └── portal/
         ├── internal/
+        │   ├── blog/
         │   ├── catalog/
         │   ├── explanation/
         │   ├── governance/
