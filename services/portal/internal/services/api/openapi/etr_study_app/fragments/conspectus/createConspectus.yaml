@@ -1,0 +1,286 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  # ADR 0036 D6 — provenance tags. `canon-first` marks a fragment that
+  # was authored ahead of code; `pending` tells the parity gate not to
+  # fail on canon-only ops (see run_parity_check).
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/conspectus/operations/post-api-v1-conspectuses.html
+paths:
+  /api/v1/conspectuses:
+    post:
+      operationId: createConspectus
+      # Aspirational — code hasn't landed yet. Flip to `shipped` (or drop)
+      # in the same PR that implements this handler in services/api/.
+      x-implementation-status: pending
+      summary: Create a new Conspectus and its initial schedule (slot A).
+      description: |
+        Creates a new `Conspectus` row for the calling tenant and atomically
+        provisions its initial schedule (slot A, 1-hour cadence, revision 1).
+        The composite natural key is `(system_uuid, system_user_id)` — the
+        server rejects the call with 404 when no such user exists.
+
+        Requires `X-API-Key` (tenant auth) and `Idempotency-Key`. A repeated
+        request with the same key within the 24 h window replays the cached
+        201 response; a repeated request with the same key but a different
+        payload returns 409.
+      tags: [Conspectus]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConspectusCreateRequest" }
+            examples:
+              default:
+                summary: Standard creation with cue_sheet + dense paragraph + bullets
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  title: "Cue-based retrieval — first pass"
+                  cue_sheet:
+                    prompts:
+                      - "What is E in ETR?"
+                      - "Why does cue precede dense?"
+                  dense_paragraph: "Extract-Transform-Retrieve is a spaced-retrieval discipline where the learner distils a source into a cue sheet, a dense paragraph, and a bullet list, then retrieves them at policy-driven intervals."
+                  bullets:
+                    - "Extract: raw source → dense paragraph."
+                    - "Transform: paragraph → cue sheet."
+                    - "Retrieve: policy-driven spaced review."
+      responses:
+        "201":
+          description: Created — the persisted conspectus with its initial schedule.
+          headers:
+            Location:
+              description: Canonical URL of the newly created conspectus.
+              schema:
+                type: string
+                example: "/api/v1/conspectuses/8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConspectusResponse" }
+              examples:
+                default:
+                  summary: Fresh conspectus at slot A, revision 1
+                  value:
+                    conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                    title: "Cue-based retrieval — first pass"
+                    cue_sheet:
+                      prompts:
+                        - "What is E in ETR?"
+                        - "Why does cue precede dense?"
+                    cue_sheet_schema_version: 1
+                    dense_paragraph: "Extract-Transform-Retrieve is a spaced-retrieval discipline where the learner distils a source into a cue sheet, a dense paragraph, and a bullet list, then retrieves them at policy-driven intervals."
+                    bullets:
+                      - "Extract: raw source → dense paragraph."
+                      - "Transform: paragraph → cue sheet."
+                      - "Retrieve: policy-driven spaced review."
+                    slot: "A"
+                    slot_d_ladder_index: 0
+                    next_review_at: "2026-07-09T13:00:00+00:00"
+                    schedule_policy_id: "etr-default-v1"
+                    algorithm_version: "1.0.0"
+                    schedule_revision: 1
+                    content_version: 1
+                    created_at: "2026-07-09T12:00:00+00:00"
+                    updated_at: "2026-07-09T12:00:00+00:00"
+                    schedule_updated_at: "2026-07-09T12:00:00+00:00"
+        "400":
+          description: Bad Request — `Idempotency-Key` header is required for writes.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_key_required:
+                  summary: Missing Idempotency-Key header
+                  value:
+                    code: "COMMON_400"
+                    key: "IDEMPOTENCY_KEY_REQUIRED"
+                    message: "`Idempotency-Key` header is required on this operation."
+                    source: "business"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404": { $ref: "../user/error-404/user-not-found.yaml" }
+        "409":
+          description: Conflict — Idempotency-Key was previously seen with a different payload.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_replay_mismatch:
+                  summary: Idempotency-Key replayed with a different body
+                  value:
+                    code: "COMMON_409"
+                    key: "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD"
+                    message: "`Idempotency-Key` has been seen within the 24 h window with a different payload."
+                    source: "business"
+        "413": { $ref: "../../_shared/responses/Error413.yaml" }
+        "422":
+          description: Unprocessable Content — request body failed schema validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                dense_paragraph_missing:
+                  summary: "`dense_paragraph` is required"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/conspectuses"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `dense_paragraph` is required."
+                        field: "dense_paragraph"
+                        source: "validation"
+                bullets_too_many:
+                  summary: More than 20 bullets
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/conspectuses"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `bullets` must contain at most 20 items."
+                        field: "bullets"
+                        source: "validation"
+                cue_sheet_wrong_type:
+                  summary: "`cue_sheet` must be an object, not an array"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/conspectuses"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `cue_sheet` must be a JSON object (see ADR 0037)."
+                        field: "cue_sheet"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ConspectusCreateRequest:
+      type: object
+      required: [system_user_id, system_uuid, cue_sheet, dense_paragraph, bullets]
+      properties:
+        system_user_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: "External user id (composite key with `system_uuid`)."
+          example: "learner-01"
+        system_uuid:
+          type: string
+          format: uuid
+          description: "Source system UUID (composite key with `system_user_id`)."
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+        title:
+          type: [string, "null"]
+          maxLength: 256
+          description: "Human-readable title (optional; may be empty)."
+          example: "Cue-based retrieval — first pass"
+        cue_sheet:
+          type: object
+          description: >
+            Cue prompts the learner will retrieve against. Must be a JSON
+            object (not an array). Concrete shape is intentionally open in
+            v1 — see ADR 0037 for the cue_sheet enforcement policy.
+        dense_paragraph:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: "Dense synthesis of the source material."
+        bullets:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+          description: "Ordered list of atomic bullets distilling the source."
+
+    ConspectusResponse:
+      type: object
+      required:
+        - conspectus_uuid
+        - cue_sheet
+        - cue_sheet_schema_version
+        - dense_paragraph
+        - bullets
+        - slot
+        - slot_d_ladder_index
+        - next_review_at
+        - schedule_policy_id
+        - algorithm_version
+        - schedule_revision
+        - content_version
+        - created_at
+        - updated_at
+        - schedule_updated_at
+      properties:
+        conspectus_uuid:
+          type: string
+          format: uuid
+          description: "Server-generated stable identifier."
+        title:
+          type: [string, "null"]
+          description: "Optional human-readable title."
+        cue_sheet:
+          type: object
+          description: "Cue prompts (see ADR 0037)."
+        cue_sheet_schema_version:
+          type: integer
+          format: int32
+          description: "Version of the cue_sheet schema this row is stored under."
+          example: 1
+        dense_paragraph:
+          type: string
+          description: "Dense synthesis of the source."
+        bullets:
+          type: array
+          items: { type: string }
+          description: "Ordered atomic bullets."
+        slot:
+          type: string
+          enum: [A, B, C, D]
+          description: "Current retrieval slot in the ETR ladder."
+        slot_d_ladder_index:
+          type: integer
+          format: int32
+          minimum: 0
+          description: "Position within slot D's ladder (0 immediately after entering D)."
+        next_review_at:
+          type: string
+          format: date-time
+          description: "Timestamp when the next review is due (RFC 3339, UTC)."
+        schedule_policy_id:
+          type: string
+          description: "Identifier of the SchedulePolicy version pinned at creation time (see ADR 0039)."
+          example: "etr-default-v1"
+        algorithm_version:
+          type: string
+          description: "Semver of the scheduling algorithm implementation."
+          example: "1.0.0"
+        schedule_revision:
+          type: integer
+          format: int64
+          minimum: 1
+          description: "Optimistic-concurrency token for the schedule row; incremented on every review."
+        content_version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: "Optimistic-concurrency token for the content row; incremented on every patch."
+        created_at:
+          type: string
+          format: date-time
+          description: "Row creation timestamp (RFC 3339, UTC)."
+        updated_at:
+          type: string
+          format: date-time
+          description: "Last content update timestamp; equals `created_at` on a fresh row."
+        schedule_updated_at:
+          type: string
+          format: date-time
+          description: "Last schedule update timestamp; equals `created_at` on a fresh row."

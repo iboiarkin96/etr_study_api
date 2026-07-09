@@ -1,0 +1,164 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/conspectus/operations/get-api-v1-conspectuses-due.html
+paths:
+  /api/v1/conspectuses/due:
+    get:
+      operationId: listDueConspectuses
+      x-implementation-status: pending
+      summary: Return conspectuses whose next review is due.
+      description: |
+        Returns conspectuses owned by `(system_uuid, system_user_id)` whose
+        `next_review_at <= due_before` (default: server `now()`), ordered
+        by `next_review_at ASC, created_at ASC, conspectus_uuid ASC`.
+        Read-only; no `Idempotency-Key`.
+
+        Hard-capped at 100 items in v1 — no cursor / pagination. A learner
+        expected to overflow 100 pending reviews in a single call is a red
+        flag for policy configuration, not a paging problem.
+
+        Requires `X-API-Key` (tenant auth).
+      tags: [Conspectus]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: system_user_id
+          in: query
+          required: true
+          description: External user id (composite key with `system_uuid`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+          example: "learner-01"
+        - name: system_uuid
+          in: query
+          required: true
+          description: Source system UUID (composite key with `system_user_id`).
+          schema:
+            type: string
+            format: uuid
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+        - name: due_before
+          in: query
+          required: false
+          description: >
+            Upper bound for `next_review_at`; RFC 3339, must be timezone-aware
+            (UTC recommended). Server default: `now()` in UTC.
+          schema:
+            type: string
+            format: date-time
+          example: "2026-07-09T12:00:00+00:00"
+        - name: slot
+          in: query
+          required: false
+          description: Filter results to a single ETR slot.
+          schema:
+            type: string
+            enum: [A, B, C, D]
+          example: "A"
+      responses:
+        "200":
+          description: OK — the due conspectuses (may be empty).
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items: { $ref: "#/components/schemas/ConspectusResponse" }
+              examples:
+                empty:
+                  summary: Nothing is due
+                  value: []
+                one_due:
+                  summary: One conspectus in slot A is due
+                  value:
+                    - conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                      title: "Cue-based retrieval — first pass"
+                      cue_sheet:
+                        prompts:
+                          - "What is E in ETR?"
+                      cue_sheet_schema_version: 1
+                      dense_paragraph: "Extract-Transform-Retrieve is a spaced-retrieval discipline …"
+                      bullets:
+                        - "Extract: raw source → dense paragraph."
+                      slot: "A"
+                      slot_d_ladder_index: 0
+                      next_review_at: "2026-07-09T11:55:00+00:00"
+                      schedule_policy_id: "etr-default-v1"
+                      algorithm_version: "1.0.0"
+                      schedule_revision: 3
+                      content_version: 1
+                      created_at: "2026-07-08T10:00:00+00:00"
+                      updated_at: "2026-07-08T10:00:00+00:00"
+                      schedule_updated_at: "2026-07-09T10:55:00+00:00"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404": { $ref: "../user/error-404/user-not-found.yaml" }
+        "422":
+          description: Unprocessable Content — query params failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                invalid_slot:
+                  summary: "`slot` must be one of A/B/C/D"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/conspectuses/due"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `slot` must be one of A, B, C, D."
+                        field: "slot"
+                        source: "validation"
+                malformed_due_before:
+                  summary: "`due_before` is not a valid RFC 3339 timestamp"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/conspectuses/due"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `due_before` must be an RFC 3339 timezone-aware timestamp."
+                        field: "due_before"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ConspectusResponse:
+      type: object
+      required:
+        - conspectus_uuid
+        - cue_sheet
+        - cue_sheet_schema_version
+        - dense_paragraph
+        - bullets
+        - slot
+        - slot_d_ladder_index
+        - next_review_at
+        - schedule_policy_id
+        - algorithm_version
+        - schedule_revision
+        - content_version
+        - created_at
+        - updated_at
+        - schedule_updated_at
+      properties:
+        conspectus_uuid: { type: string, format: uuid }
+        title: { type: [string, "null"] }
+        cue_sheet: { type: object }
+        cue_sheet_schema_version: { type: integer, format: int32 }
+        dense_paragraph: { type: string }
+        bullets: { type: array, items: { type: string } }
+        slot: { type: string, enum: [A, B, C, D] }
+        slot_d_ladder_index: { type: integer, format: int32, minimum: 0 }
+        next_review_at: { type: string, format: date-time }
+        schedule_policy_id: { type: string }
+        algorithm_version: { type: string }
+        schedule_revision: { type: integer, format: int64, minimum: 1 }
+        content_version: { type: integer, format: int64, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        schedule_updated_at: { type: string, format: date-time }

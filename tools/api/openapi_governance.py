@@ -119,6 +119,28 @@ def _find_operation(spec: dict[str, Any], path: str, method: str) -> dict[str, A
     return op if isinstance(op, dict) else {}
 
 
+def _implementation_status(operation: dict[str, Any]) -> str:
+    """Return the ``x-implementation-status`` of a canon operation.
+
+    Values:
+        - ``"shipped"`` (default when omitted): the code implements this operation.
+          Parity gate enforces canon ⊆ code for it.
+        - ``"pending"``: aspirational — canon-first, code hasn't landed yet.
+          The «canon operation missing in code» check is skipped; all other
+          checks still apply if the code does add the operation.
+
+    Args:
+        operation: OpenAPI operation object from the canon.
+
+    Returns:
+        The status string; ``"shipped"`` for missing/unknown values.
+    """
+    status = operation.get("x-implementation-status")
+    if not isinstance(status, str) or status not in {"shipped", "pending"}:
+        return "shipped"
+    return status
+
+
 def _write_runtime_spec(spec: dict[str, Any]) -> None:
     """Write ``spec`` to :data:`RUNTIME_SPEC_PATH` with stable JSON formatting.
 
@@ -341,9 +363,12 @@ def run_parity_check(
 
     Semantics:
 
-    * Every operation declared in ``canon`` must exist in ``current``. Missing
-      operations mean canon says a contract is shipped but the code doesn't
-      implement it.
+    * Every operation declared in ``canon`` with
+      ``x-implementation-status: shipped`` (or omitted — that's the default)
+      must exist in ``current``. Fragments tagged
+      ``x-implementation-status: pending`` are aspirational (canon-first,
+      code hasn't caught up yet) and are exempt from this check — but if the
+      operation *does* land in code, all other parity checks still apply.
     * Every operation in ``current`` must either be declared in ``canon`` or be
       listed in ``non_canon`` exceptions (health probes, telemetry). Anything
       else is silent drift and must be brought into canon or explicitly excluded.
@@ -368,7 +393,15 @@ def run_parity_check(
     curr_ops = {(method, path) for path, method, _ in _iter_operations(current)}
 
     for method, path in sorted(canon_ops - curr_ops):
-        issues.append(f"Canon operation missing in code: {method.upper()} {path}")
+        canon_op = _find_operation(canon, path, method)
+        # Aspirational canon (canon-first, code hasn't landed yet) is intentional.
+        # The parity gate only flags shipped ops the code has silently dropped.
+        if _implementation_status(canon_op) == "pending":
+            continue
+        issues.append(
+            f"Canon operation missing in code: {method.upper()} {path}. "
+            "If aspirational, tag the fragment with `x-implementation-status: pending`."
+        )
 
     for method, path in sorted((curr_ops - canon_ops) - exceptions):
         issues.append(

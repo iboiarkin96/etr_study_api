@@ -1,0 +1,257 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html
+paths:
+  /api/v1/conspectuses/{conspectus_uuid}/actions/review:
+    post:
+      operationId: reviewConspectus
+      x-implementation-status: pending
+      summary: Record a review outcome and advance the schedule.
+      description: |
+        Applies a retrieve outcome (`easy` | `hard` | `forgot`) to the
+        conspectus's schedule, advancing the ETR slot ladder per the
+        `SchedulePolicy` version pinned on the schedule row. Atomically
+        updates the schedule row (new `slot`, `next_review_at`,
+        `schedule_revision + 1`) and appends an immutable review log entry.
+
+        The reference policy (see ADR 0039):
+
+        | From \ Outcome | easy   | hard | forgot |
+        |----------------|--------|------|--------|
+        | A              | B (1D) | A (1H) | A (1H) |
+        | B              | C (3D) | A (1H) | A (1H) |
+        | C              | D[0] (7D) | B (1D) | A (1H) |
+        | D[n]           | D[n+1] (…60D at [3]) | C (3D) | A (1H) |
+
+        Requires `X-API-Key` (tenant auth) and `Idempotency-Key`.
+        Optionally supply `expected_schedule_revision` for optimistic
+        concurrency — mismatch → 409 `CONSPECTUS_REVIEW_REVISION_CONFLICT`.
+      tags: [Conspectus]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+        - name: conspectus_uuid
+          in: path
+          required: true
+          description: Server-generated stable identifier of the conspectus to review.
+          schema:
+            type: string
+            format: uuid
+          example: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConspectusReviewRequest" }
+            examples:
+              easy:
+                summary: Successful retrieve — advance the ladder
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  tag: "easy"
+                  expected_schedule_revision: 3
+              hard:
+                summary: Retrieve was hard — retreat by one step
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  tag: "hard"
+              forgot:
+                summary: Retrieve failed — reset to slot A
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  tag: "forgot"
+                  expected_schedule_revision: 3
+                  reviewed_at: "2026-07-09T12:34:56+00:00"
+      responses:
+        "200":
+          description: OK — the conspectus with its advanced schedule.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConspectusResponse" }
+              examples:
+                easy_from_a_to_b:
+                  summary: Slot A → B (easy), revision 3 → 4
+                  value:
+                    conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                    title: "Cue-based retrieval — first pass"
+                    cue_sheet:
+                      prompts: ["What is E in ETR?"]
+                    cue_sheet_schema_version: 1
+                    dense_paragraph: "Extract-Transform-Retrieve …"
+                    bullets: ["Extract: raw source → dense paragraph."]
+                    slot: "B"
+                    slot_d_ladder_index: 0
+                    next_review_at: "2026-07-10T12:34:56+00:00"
+                    schedule_policy_id: "etr-default-v1"
+                    algorithm_version: "1.0.0"
+                    schedule_revision: 4
+                    content_version: 1
+                    created_at: "2026-07-08T10:00:00+00:00"
+                    updated_at: "2026-07-08T10:00:00+00:00"
+                    schedule_updated_at: "2026-07-09T12:34:56+00:00"
+        "400":
+          description: Bad Request — `Idempotency-Key` header is required for writes.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_key_required:
+                  summary: Missing Idempotency-Key header
+                  value:
+                    code: "COMMON_400"
+                    key: "IDEMPOTENCY_KEY_REQUIRED"
+                    message: "`Idempotency-Key` header is required on this operation."
+                    source: "business"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — either the user or the conspectus does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+                conspectus_not_found:
+                  summary: No conspectus with the given uuid for the caller
+                  value:
+                    code: "CONS_404"
+                    key: "CONSPECTUS_NOT_FOUND"
+                    message: "Conspectus not found for the calling tenant."
+                    source: "business"
+        "409":
+          description: >
+            Conflict — either the Idempotency-Key was replayed with a different
+            body, or `expected_schedule_revision` did not match the current
+            schedule revision.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_replay_mismatch:
+                  summary: Idempotency-Key replayed with a different body
+                  value:
+                    code: "COMMON_409"
+                    key: "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD"
+                    message: "`Idempotency-Key` has been seen within the 24 h window with a different payload."
+                    source: "business"
+                review_revision_conflict:
+                  summary: Concurrency conflict — schedule was updated by someone else first
+                  value:
+                    code: "CONS_409"
+                    key: "CONSPECTUS_REVIEW_REVISION_CONFLICT"
+                    message: "`expected_schedule_revision` does not match the current schedule revision. Refetch the conspectus and retry."
+                    source: "business"
+        "413": { $ref: "../../_shared/responses/Error413.yaml" }
+        "422":
+          description: Unprocessable Content — request body failed schema validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                invalid_tag:
+                  summary: "`tag` must be one of easy/hard/forgot"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/conspectuses/{conspectus_uuid}/actions/review"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `tag` must be one of easy, hard, forgot."
+                        field: "tag"
+                        source: "validation"
+                missing_tag:
+                  summary: "`tag` is required"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "POST /api/v1/conspectuses/{conspectus_uuid}/actions/review"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `tag` is required."
+                        field: "tag"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ConspectusReviewRequest:
+      type: object
+      required: [system_user_id, system_uuid, tag]
+      properties:
+        system_user_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: "Owner key (composite with `system_uuid`)."
+        system_uuid:
+          type: string
+          format: uuid
+          description: "Owner key (composite with `system_user_id`)."
+        tag:
+          type: string
+          enum: [easy, hard, forgot]
+          description: >
+            Retrieve outcome. `easy` advances the ladder; `hard` retreats by
+            one step; `forgot` resets to slot A (see business rules in the
+            operation description).
+        expected_schedule_revision:
+          type: [integer, "null"]
+          format: int64
+          minimum: 1
+          description: >
+            Optional optimistic-concurrency token. If present, the server
+            compares it to the row's `schedule_revision`; mismatch → 409.
+            Omit for last-writer-wins semantics.
+        reviewed_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            Client-side timestamp when the review happened. Currently
+            ignored by the server (documentation only) but reserved for
+            future offline-catchup use cases. RFC 3339, UTC.
+
+    ConspectusResponse:
+      type: object
+      required:
+        - conspectus_uuid
+        - cue_sheet
+        - cue_sheet_schema_version
+        - dense_paragraph
+        - bullets
+        - slot
+        - slot_d_ladder_index
+        - next_review_at
+        - schedule_policy_id
+        - algorithm_version
+        - schedule_revision
+        - content_version
+        - created_at
+        - updated_at
+        - schedule_updated_at
+      properties:
+        conspectus_uuid: { type: string, format: uuid }
+        title: { type: [string, "null"] }
+        cue_sheet: { type: object }
+        cue_sheet_schema_version: { type: integer, format: int32 }
+        dense_paragraph: { type: string }
+        bullets: { type: array, items: { type: string } }
+        slot: { type: string, enum: [A, B, C, D] }
+        slot_d_ladder_index: { type: integer, format: int32, minimum: 0 }
+        next_review_at: { type: string, format: date-time }
+        schedule_policy_id: { type: string }
+        algorithm_version: { type: string }
+        schedule_revision: { type: integer, format: int64, minimum: 1 }
+        content_version: { type: integer, format: int64, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        schedule_updated_at: { type: string, format: date-time }
