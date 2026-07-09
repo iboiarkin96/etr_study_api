@@ -49,6 +49,12 @@ DOCS_ROOT = ROOT / "services" / "portal"
 FROZEN_DOCS_REL_PATHS = {
     Path("internal/team/people/ivan-boyarkin/sa-growth.html"),
     Path("internal/team/people/ivan-boyarkin/week-calendar-2026-05-07.html"),
+    # Swagger UI preview — a dev tool, not a portal docs page. Intentionally
+    # sits outside the D7 schema; loads Swagger UI from a CDN and renders
+    # any fragment YAML via ?spec=… query param. See ADR 0036 + the tutorial
+    # at handbook/sa/tutorial/api-first.html.
+    Path("internal/services/api/openapi/test/preview.html"),
+    Path("internal/services/api/openapi/etr_study_app/preview.html"),
 }
 
 # Pages that intentionally bypass the D7 metadata schema. The portal root

@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apply API-first to a new endpoint · Authoring · Documentation handbook</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-27" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Handbook</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Authoring</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Apply API-first</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">How-to</span>
+          <span class="docs-pill docs-pill--info">Authoring</span>
+          <span class="docs-pill docs-pill--teal">API</span>
+          <span class="docs-pill docs-pill--neutral">Architecture</span>
+        </div>
+        <h1>Apply API-first to a new endpoint</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Recipe for shipping one new HTTP operation under the API-first policy
+          (<a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a>):
+          the contract is authored, linted, reviewed, and ratified <em>before</em> the FastAPI handler exists.
+          Two PRs per operation — spec first, code second. Follow the seven steps below from a clean
+          working tree to a merged, observable endpoint.
+        </p>
+      </header>
+
+      <h2 id="when">When this applies</h2>
+      <ul>
+        <li>You are adding a new HTTP operation under <code>/api/v*/</code> (new path, new method, or new behaviour worth a separate <code>operationId</code>).</li>
+        <li>You are amending an existing operation in a way that changes the request/response shape, the error envelope, or an idempotency rule.</li>
+        <li>You are back-filling a fragment for a code-first operation that pre-dates ADR 0036. Same steps; the resulting fragment carries <code>x-build-history: code-first</code> in its top matter.</li>
+      </ul>
+      <p>If the change is purely internal (refactor a service, rename a private helper, change SQL), there is no contract change — skip this recipe and ship the code PR alone.</p>
+
+      <h2 id="before-you-start">Before you start</h2>
+      <ul>
+        <li>You have a working dev environment — <code>make setup</code> creates <code>.venv/</code> and installs <code>services/api/requirements.txt</code> (validator + Connexion + Flask + FastAPI). Three local processes are available: <code>make -C services/portal serve</code> (portal docs on :8080), <code>make api-mock</code> (fans out one Connexion mock per discovered canon — <code>test</code> → :8001, <code>etr_study_app</code> → :8002, next canon → :8003, …), <code>make run</code> (real FastAPI on :8000).</li>
+        <li>The Python toolchain is in the <code>.venv</code> — <code>openapi_spec_validator</code> (fragment lint + <code>$ref</code> resolution), <code>schemathesis</code> (property-based contract fuzz), and FastAPI's own <code>/openapi.json</code> (the runtime spec the parity gate diffs against).</li>
+        <li>You know the resource the operation belongs to (an existing <code>{resource}</code> directory under <code>services/portal/internal/services/api/openapi/test/fragments/</code>) or are creating a new one.</li>
+        <li>The operation's business intent is written down somewhere a reviewer can read — a ticket, a section in an epic, or a sketch in a Discovery doc. The fragment is the contract; you still need the «why».</li>
+      </ul>
+      <p>If any of the four bullets is false, fix it first — API-first does not absolve the upstream work, it just refuses to start without it.</p>
+
+      <h2 id="tools">Tools you will use</h2>
+      <p>The whole toolchain is Python — same <code>.venv</code> as the API, no Node.js side-stack. Every tool is invoked through a <code>make</code> target so pre-commit and CI run the same commands you do.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Tool</th><th>What it does</th><th>When in the flow</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong><a href="https://github.com/python-openapi/openapi_spec_validator" rel="external">openapi_spec_validator</a></strong> <span class="docs-pill docs-pill--neutral docs-pill--inline">pip</span></td>
+              <td>Validates each fragment as OpenAPI 3.1 and resolves cross-file <code>$ref</code> (e.g. shared error responses) relative to the fragment's directory. Invoked through <code>tools/governance/validate_openapi.py</code>.</td>
+              <td>After you write the fragment, before you open the spec PR. <code>make doc-api-swagger-check FILE=…</code> for one fragment; <code>make doc-api-swagger-check-all DIR={resource}</code> for a sub-tree.</td>
+            </tr>
+            <tr>
+              <td><strong><code>tools/api/openapi_governance.py check</code></strong></td>
+              <td>Compares the canonical merged spec with the FastAPI runtime <code>/openapi.json</code>. Any breaking change or unauthorised divergence fails the gate. Wired into <code>make openapi-check</code> per <a href="../../../governance/adr/0008-make-command-taxonomy-and-workflow-entrypoints.html">ADR-0008</a>.</td>
+              <td>After the handler PR opens, on every push. Runs locally via <code>make openapi-check</code>.</td>
+            </tr>
+            <tr>
+              <td><strong><a href="https://schemathesis.readthedocs.io/" rel="external">schemathesis</a></strong> <span class="docs-pill docs-pill--neutral docs-pill--inline">pip</span></td>
+              <td>Property-based fuzz against the canonical spec — generates inputs from the schema, fires them at a running handler, and reports any input the schema accepts that the handler rejects (or vice versa). Pure Python, talks plain HTTP.</td>
+              <td>Nightly + before merge of the handler PR. Backstops the explicit contract tests.</td>
+            </tr>
+            <tr>
+              <td><strong><a href="https://connexion.readthedocs.io/" rel="external">Connexion + Flask</a></strong> <span class="docs-pill docs-pill--neutral docs-pill--inline">pip</span></td>
+              <td>Spec-driven mock server (layer 3). Reads <code>merged-spec.json</code> and for each documented operation returns the first 2xx <code>examples.{key}.value</code>. Lets you <code>curl</code> the contract before any handler exists.</td>
+              <td>While authoring + during front-end / SDK work. See the <a href="../reference/api-first-toolchain.html">5-layer toolchain reference</a> for how it fits with the parity gate.</td>
+            </tr>
+            <tr>
+              <td><strong>FastAPI <code>/openapi.json</code></strong></td>
+              <td>The runtime claim against which the canon is diffed (layer 5 of the toolchain). Once a real handler ships, its auto-generated spec is what <code>make openapi-check</code> compares to the canon.</td>
+              <td>Always — running whenever <code>make run</code> is up.</td>
+            </tr>
+            <tr>
+              <td><strong>Make</strong> (aggregator)</td>
+              <td>Wires the gates into one verb. <code>make doc-api-swagger-check-all</code> for fragment lint; <code>make openapi-check</code> for the parity gate; <code>make contract-test</code> for the §3 contract suite. Per <a href="../../../governance/adr/0008-make-command-taxonomy-and-workflow-entrypoints.html">ADR-0008</a>, this is the single «is my spec OK?» entry point.</td>
+              <td>Every commit on a branch that touches the API.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="steps">Steps</h2>
+
+      <h3 id="s1">1. Write the OpenAPI fragment</h3>
+      <p>Create one file at <code>services/portal/internal/services/api/openapi/test/fragments/{resource}/{operationId}.yaml</code>. The <code>operationId</code> is camelCase, verb-then-noun (e.g. <code>createCourse</code>, <code>listCourses</code>, <code>getCourse</code>). The fragment describes <em>this one operation only</em> plus any local <code>components/schemas</code> it owns. Re-used schemas live under <code>fragments/_shared/</code> and are referenced via relative <code>$ref</code> — the validator resolves them from the fragment's directory. For the full key-by-key reference (which keys are mandatory, what each renders to in Swagger UI, the <code>$ref</code> resolution rules), see <a href="../../../services/api/reference/openapi-fragment-anatomy.html">OpenAPI fragment anatomy</a>.</p>
+      <p>Every fragment includes:</p>
+      <ul>
+        <li>One <code>paths:</code> entry with the method + path.</li>
+        <li>A required <code>operationId</code>, <code>summary</code>, and <code>tags</code>.</li>
+        <li>A request body (if any) with at least one full <code>example</code>.</li>
+        <li>Every documented response code with a <code>schema</code> and at least one <code>example</code>.</li>
+        <li>The standard error-envelope <code>$ref</code> for every 4xx/5xx, per <a href="../../../governance/adr/0003-error-contract-governance.html">ADR-0003</a>.</li>
+        <li>For writes: <code>x-idempotent: true</code> and the <code>Idempotency-Key</code> header per <a href="../../../governance/adr/0006-idempotency-write-operations.html">ADR-0006</a>.</li>
+      </ul>
+      <p>Skeleton (replace placeholders):</p>
+      <pre><code>openapi: 3.1.0
+info:
+  title: Study App API
+  version: v1
+paths:
+  /api/v1/{resources}:
+    post:
+      operationId: createResource
+      summary: Create a new resource.
+      tags: [Resource]
+      parameters:
+        - $ref: "../_shared/headers/IdempotencyKey.yaml"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateResourceRequest" }
+            examples:
+              minimal: { value: { name: example } }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Resource" }
+              examples:
+                minimal: { value: { id: r_abc, name: example } }
+        "400": { $ref: "../_shared/responses/Error400.yaml" }
+        "409": { $ref: "../_shared/responses/Error409.yaml" }
+components:
+  schemas:
+    CreateResourceRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+    Resource:
+      type: object
+      required: [id, name]
+      properties:
+        id:   { type: string, pattern: "^r_[a-z0-9]+$" }
+        name: { type: string }
+</code></pre>
+
+      <h3 id="s2">2. Validate the fragment</h3>
+      <p>From the repository root:</p>
+      <pre><code># one fragment
+make -C services/portal doc-api-swagger-check FILE={resource}/{operationId}.yaml
+
+# every fragment under one resource
+make -C services/portal doc-api-swagger-check-all DIR={resource}
+
+# every fragment in the tree
+make -C services/portal doc-api-swagger-check-all</code></pre>
+      <p>Under the hood this calls <code>tools/governance/validate_openapi.py</code> (which wraps <code>openapi_spec_validator</code> with <code>$ref</code> resolution rooted at the fragment's directory). Common findings on a first pass: missing <code>operationId</code>, missing <code>example</code> on a documented response, an unresolved <code>$ref</code> (wrong relative path to <code>_shared/</code>), or an unknown error-envelope shape. Fix them in the fragment — never silence the validator.</p>
+
+      <h3 id="s3">3. Exercise the operation via the mock</h3>
+      <p>The mock (layer 3 of the toolchain) lets you <code>curl</code> the contract before any handler exists. It reads <code>merged-spec.json</code> at startup and replies to every documented operation with the first 2xx example from the fragment.</p>
+      <pre><code># terminal A — one command fans out mocks for every discovered canon
+make api-mock
+# → 🟢 Starting N mock server(s):
+#      · test              → http://127.0.0.1:8001
+#      · etr_study_app     → http://127.0.0.1:8002
+# Ctrl-C stops all of them at once.
+
+# terminal B — exercise the new operation on the right port
+# (test canon → :8001, product canons → :8002+, in the order shown above)
+curl -X POST http://127.0.0.1:8002/api/v1/{resources} \
+     -H 'Content-Type: application/json' \
+     -H 'Idempotency-Key: 8f5a2c19-3b4e-4d8a-9f3b-1c2d3e4f5a6b' \
+     -d '{ "name": "example" }'
+# → 201 + documented example body
+
+# Browse every operation of a canon in Swagger UI — two options:
+#   1. Portal-hosted:   http://127.0.0.1:8080/portal/internal/services/api/openapi/{canon}/preview.html
+#   2. Built-in mock:   http://127.0.0.1:{PORT}/ui/   (Connexion ships its own Swagger UI)
+# Note: hitting the mock's root — http://127.0.0.1:{PORT}/ — returns 404 by design.
+# Nothing is documented at /, only under the paths declared in the spec.</code></pre>
+      <p>Drive the operation as a client would (<code>curl</code>, HTTPie, the front-end you're pairing with, or Swagger UI's «Try it out»). The examples you put in the fragment double as request fixtures for the contract tests in step 5; if an example fails the schema in the fragment, the validator from step 2 will reject it before the mock ever loads it.</p>
+      <p>Auto-reload is ON by default — save a YAML, watchfiles restarts the affected mock in 2–3 seconds. Manual <code>Ctrl-C + make api-mock</code> is only needed when the mock crashes on startup (broken YAML surfaced too late). The full layer breakdown is at <a href="../reference/api-first-toolchain.html">API-first toolchain · five layers</a>.</p>
+
+      <h3 id="s4">4. Author the portal Operation spec page §1–§19</h3>
+      <p>Copy the template:</p>
+      <pre><code>cp services/portal/internal/handbook/sa/templates/api-spec.html \
+   services/portal/internal/services/api/reference/{resource}/operations/{method}-{path}.html</code></pre>
+      <p>Fill all nineteen sections. The non-skippable ones for API-first:</p>
+      <ul>
+        <li><strong>§3 Acceptance criteria</strong> in Given/When/Then. Every line becomes a test name later — write it like a test name.</li>
+        <li><strong>§6 NFRs</strong> with numbers: P95 latency budget, idempotency window, retention class, privacy class.</li>
+        <li><strong>§11 Idempotency &amp; concurrency.</strong> Must match the fragment's <code>x-idempotent</code> and the header spec.</li>
+        <li><strong>§14 Observability.</strong> Names of the structured-log events, Prometheus metrics, and alerts this operation must emit (per <a href="../../../governance/adr/0009-health-readiness-and-observability.html">ADR-0009</a>).</li>
+        <li><strong>§15 Test plan.</strong> Unit + contract + integration + at least one E2E line. Each cell references a §3 G/W/T id.</li>
+        <li><strong>§19 Traceability.</strong> Back-link to the fragment, every ADR cited, the contract-test plan sibling.</li>
+      </ul>
+
+      <h3 id="s5">5. Write the contract-test plan as a sibling page</h3>
+      <p>Copy <code>handbook/sa/templates/test-plan.html</code> to <code>{operationId}-contract-tests.html</code> next to the spec. The contract test is the executable form of §3 — one pytest per Given/When/Then row, with the fragment's <code>examples</code> as fixtures, plus a small <code>schemathesis</code> property-based pass that fuzzes the schema (nightly):</p>
+      <pre><code>.venv/bin/schemathesis run \
+    http://127.0.0.1:8000/openapi.json \
+    --endpoint "/api/v1/{resources}" \
+    --base-url http://127.0.0.1:8000 \
+    --hypothesis-max-examples=50</code></pre>
+
+      <h3 id="s6">6. Open the spec PR; ratify; then write the handler</h3>
+      <p>The spec PR contains: the fragment, the portal Operation spec page, the contract-test plan page, and updates to <code>nav-tree-internal.json</code>. It contains <em>no Python handler code</em>. Reviewers focus on the contract.</p>
+      <p>When the spec PR ratifies (status pill flips draft → ratified in the spec page header), open the implementation PR. Its only review question is «does the running code match the ratified spec». Add the FastAPI route, the service, the repository, the model, the Alembic migration if needed, and the contract tests written against §3.</p>
+
+      <h3 id="s7">7. Verify parity and merge</h3>
+      <p>Locally, before pushing:</p>
+      <pre><code>make -C services/portal doc-api-swagger-check-all   # fragment lint
+make openapi-check                                  # canon ↔ FastAPI parity gate
+make docs-check                                     # portal autogen + link integrity
+make test path=services/api/tests/contract/test_{operationId}.py</code></pre>
+      <p>CI runs the same gates. If <code>openapi-check</code> reports drift, the handler PR — not the fragment — is wrong. Either align the handler to the spec, or open a follow-up fragment-amendment PR first (and re-ratify) before re-running CI.</p>
+
+      <h2 id="verify">Verify</h2>
+      <ul>
+        <li>Fragment exists at <code>services/portal/internal/services/api/openapi/test/fragments/{resource}/{operationId}.yaml</code> and validates as OpenAPI 3.1.</li>
+        <li><code>make -C services/portal doc-api-swagger-check-all</code> exits 0 — every fragment in the tree passes.</li>
+        <li>Every documented response status has at least one <code>examples</code> block — they're the contract-test fixtures.</li>
+        <li>Portal Operation spec page exists, has all of §1–§19 filled, and §19 back-links to the fragment + cited ADRs.</li>
+        <li>Contract-test plan sibling exists and lists one row per §3 G/W/T entry.</li>
+        <li>Sidebar nav-tree has entries for both the spec and the contract-test plan; both pages reachable from <code>governance/backlog/plans.html</code> via the right breadcrumb.</li>
+        <li>The handler PR's CI step <code>make openapi-check</code> exits 0 — canon and runtime agree.</li>
+        <li>Contract tests pass against the running handler (<code>make test path=services/api/tests/contract/</code>).</li>
+        <li><code>make docs-check</code> exits 0.</li>
+      </ul>
+
+      <h2 id="anti-patterns">Anti-patterns</h2>
+      <ul>
+        <li><strong>Editing the FastAPI handler before the spec ratifies.</strong> Defeats the whole policy. If you're already writing the handler, the spec PR is overdue — split the work.</li>
+        <li><strong>Reaching for a Node-based tool (Spectral, Prism, openapi-diff) instead of the Python toolchain.</strong> The repo stays single-language on purpose — one <code>.venv</code>, one <code>requirements.txt</code>. New rule? Add it to <code>tools/governance/validate_openapi.py</code>, not a second toolchain.</li>
+        <li><strong>Silencing the validator with an inline override instead of fixing the cause.</strong> Open an ADR to amend the rule, or fix the fragment — never look the other way.</li>
+        <li><strong>Documenting one response example for the happy path only.</strong> Every documented response code needs at least one example. Otherwise the contract test loses its fixture.</li>
+        <li><strong>Treating <code>x-build-history: code-first</code> as «I can skip the spec PR».</strong> It marks a back-fill from a pre-ADR-0036 era only. New work never uses it.</li>
+        <li><strong>Letting <code>openapi-check</code> drift cross a release.</strong> Drift is a release-blocker, not a follow-up ticket.</li>
+      </ul>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Validator reports <code>Unresolvable: ../_shared/responses/Error400.yaml</code>.</td>
+              <td>The <code>$ref</code> path is wrong — too many or too few <code>../</code> for the fragment's depth.</td>
+              <td>Count the directory levels from the fragment up to <code>fragments/</code>; the <code>$ref</code> needs that many <code>../</code> before <code>_shared/</code>. <code>tools/governance/validate_openapi.py</code> resolves refs relative to the fragment's directory.</td>
+            </tr>
+            <tr>
+              <td>Validator reports «<code>operationId</code> missing» on a route that has one.</td>
+              <td>The <code>operationId</code> is on the path-level object, not the method-level object.</td>
+              <td>Move <code>operationId</code> into the <code>post:</code> / <code>get:</code> / etc. block.</td>
+            </tr>
+            <tr>
+              <td><code>make openapi-check</code> reports breaking change «added required field».</td>
+              <td>The FastAPI handler accepts a new required field that wasn't in the ratified spec.</td>
+              <td>If the field is intended, open a fragment-amendment PR first; if not, remove the requirement from the handler.</td>
+            </tr>
+            <tr>
+              <td>Contract tests pass locally but fail in CI.</td>
+              <td>The local FastAPI runs against a stale Alembic state and the schema mismatches what CI sees.</td>
+              <td>Run <code>make migrate</code> then <code>make openapi-check</code> locally; the parity gate will surface the mismatch before push.</td>
+            </tr>
+            <tr>
+              <td>Schemathesis flags an input the schema clearly allows.</td>
+              <td>Example uses snake_case where the schema declared camelCase (or vice versa).</td>
+              <td>Align the example to the schema's <code>property</code> names verbatim — the validator and schemathesis are both strict.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-28</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Swapped the Node-based toolchain (Spectral / Prism / openapi-diff) for the Python one already in the repo's <code>.venv</code> — <code>openapi_spec_validator</code> via <code>tools/governance/validate_openapi.py</code> + <code>make doc-api-swagger-check[-all]</code>, <code>make openapi-check</code> for canon ↔ runtime parity, and <code>schemathesis</code> for property-based contract fuzz. Fragment paths corrected to the actual layout under <code>services/portal/internal/services/api/openapi/test/fragments/</code>. Troubleshooting table updated to match the validator's real error messages.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-27</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Authored alongside <a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a> as the concrete recipe — seven steps from a clean working tree to a merged endpoint, the OpenAPI fragment skeleton, anti-patterns, and a troubleshooting table.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#when">When this applies</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#before-you-start">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tools">Tools</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Anti-patterns</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting">Troubleshooting</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

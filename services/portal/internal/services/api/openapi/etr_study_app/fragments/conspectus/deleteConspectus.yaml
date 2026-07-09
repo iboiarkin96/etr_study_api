@@ -1,0 +1,223 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/conspectus/operations/delete-api-v1-conspectuses-conspectus_uuid.html
+paths:
+  /api/v1/conspectuses/{conspectus_uuid}:
+    delete:
+      operationId: deleteConspectus
+      x-implementation-status: pending
+      summary: Soft-delete a Conspectus.
+      description: |
+        Marks the conspectus as invalidated by setting `is_row_invalid=1`,
+        `invalidation_reason_uuid`, and `invalidated_at`. The row is
+        retained in storage — subsequent `listDueConspectuses` calls hide
+        it, but `getConspectusById` still returns it (and `listConspectuses`
+        can opt-in via `include_invalid=true`).
+
+        **Cascade rule.** Linked error-log entries have their
+        `conspectus_uuid` cleared to `null` (ON DELETE SET NULL, mirrored in
+        `createErrorLog`) — the errors themselves survive because they
+        capture learner-authored context that is valuable independent of
+        the linked note.
+
+        **Rationale for soft (not hard).** Learner-authored content has a
+        retention obligation the API respects. Hard-delete is a separate
+        administrative operation (out of scope in v1). Soft-delete is
+        idempotent by nature — repeated calls with the same body return
+        the already-invalidated row.
+
+        Requires `X-API-Key` (tenant auth) and `Idempotency-Key`.
+      tags: [Conspectus]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+        - name: conspectus_uuid
+          in: path
+          required: true
+          description: Server-generated stable identifier of the conspectus to soft-delete.
+          schema:
+            type: string
+            format: uuid
+          example: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConspectusDeleteRequest" }
+            examples:
+              user_requested:
+                summary: Learner requested deletion
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  invalidation_reason_uuid: "9c4e1234-0000-4000-8000-user-request"
+              stale_content:
+                summary: Content-owner marked as stale
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  invalidation_reason_uuid: "9c4e1234-0000-4000-8000-stale-content"
+      responses:
+        "200":
+          description: OK — the soft-deleted conspectus. Idempotent on repeat.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConspectusResponse" }
+              examples:
+                default:
+                  summary: Conspectus now marked invalid
+                  value:
+                    conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                    title: "Cue-based retrieval — first pass"
+                    cue_sheet:
+                      prompts: ["What is E in ETR?"]
+                    cue_sheet_schema_version: 1
+                    dense_paragraph: "Extract-Transform-Retrieve …"
+                    bullets: ["Extract: raw source → dense paragraph."]
+                    slot: "B"
+                    slot_d_ladder_index: 0
+                    next_review_at: "2026-07-10T12:34:56+00:00"
+                    schedule_policy_id: "etr-default-v1"
+                    algorithm_version: "1.0.0"
+                    schedule_revision: 4
+                    content_version: 1
+                    is_row_invalid: 1
+                    invalidation_reason_uuid: "9c4e1234-0000-4000-8000-user-request"
+                    invalidated_at: "2026-07-09T14:00:00+00:00"
+                    created_at: "2026-07-08T10:00:00+00:00"
+                    updated_at: "2026-07-09T14:00:00+00:00"
+                    schedule_updated_at: "2026-07-09T12:34:56+00:00"
+        "400":
+          description: Bad Request — `Idempotency-Key` header is required.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_key_required:
+                  summary: Missing Idempotency-Key header
+                  value:
+                    code: "COMMON_400"
+                    key: "IDEMPOTENCY_KEY_REQUIRED"
+                    message: "`Idempotency-Key` header is required on this operation."
+                    source: "business"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — either the user or the conspectus does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+                conspectus_not_found:
+                  summary: No conspectus with the given uuid for the caller
+                  value:
+                    code: "CONS_404"
+                    key: "CONSPECTUS_NOT_FOUND"
+                    message: "Conspectus not found for the calling tenant."
+                    source: "business"
+        "409":
+          description: Conflict — Idempotency-Key was previously seen with a different payload.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_replay_mismatch:
+                  summary: Idempotency-Key replayed with a different body
+                  value:
+                    code: "COMMON_409"
+                    key: "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD"
+                    message: "`Idempotency-Key` has been seen within the 24 h window with a different payload."
+                    source: "business"
+        "413": { $ref: "../../_shared/responses/Error413.yaml" }
+        "422":
+          description: Unprocessable Content — request body failed schema validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                missing_reason:
+                  summary: "`invalidation_reason_uuid` is required"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "DELETE /api/v1/conspectuses/{conspectus_uuid}"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `invalidation_reason_uuid` is required."
+                        field: "invalidation_reason_uuid"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ConspectusDeleteRequest:
+      type: object
+      required: [system_user_id, system_uuid, invalidation_reason_uuid]
+      description: >
+        Soft-delete payload. Reason is required — a delete without a
+        traceable reason blocks audit workflows and is refused.
+      properties:
+        system_user_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: "Owner key (composite with `system_uuid`)."
+        system_uuid:
+          type: string
+          format: uuid
+          description: "Owner key (composite with `system_user_id`)."
+        invalidation_reason_uuid:
+          type: string
+          format: uuid
+          description: >
+            FK to a stable invalidation-reason row (e.g. «user request»,
+            «stale content», «duplicate»). Required so soft-deletes stay
+            explainable in audit exports.
+
+    ConspectusResponse:
+      type: object
+      required:
+        - conspectus_uuid
+        - cue_sheet
+        - cue_sheet_schema_version
+        - dense_paragraph
+        - bullets
+        - slot
+        - slot_d_ladder_index
+        - next_review_at
+        - schedule_policy_id
+        - algorithm_version
+        - schedule_revision
+        - content_version
+        - is_row_invalid
+        - created_at
+        - updated_at
+        - schedule_updated_at
+      properties:
+        conspectus_uuid: { type: string, format: uuid }
+        title: { type: [string, "null"] }
+        cue_sheet: { type: object }
+        cue_sheet_schema_version: { type: integer, format: int32 }
+        dense_paragraph: { type: string }
+        bullets: { type: array, items: { type: string } }
+        slot: { type: string, enum: [A, B, C, D] }
+        slot_d_ladder_index: { type: integer, format: int32, minimum: 0 }
+        next_review_at: { type: string, format: date-time }
+        schedule_policy_id: { type: string }
+        algorithm_version: { type: string }
+        schedule_revision: { type: integer, format: int64, minimum: 1 }
+        content_version: { type: integer, format: int64, minimum: 1 }
+        is_row_invalid: { type: integer, enum: [0, 1] }
+        invalidation_reason_uuid: { type: [string, "null"], format: uuid }
+        invalidated_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        schedule_updated_at: { type: string, format: date-time }

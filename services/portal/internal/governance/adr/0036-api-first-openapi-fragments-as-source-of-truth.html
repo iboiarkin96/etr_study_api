@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0036 · API-first — hand-authored OpenAPI fragments as source of truth · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-27" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0036</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0036</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--warn" href="0018-adr-lifecycle-ratification-and-badges.html">Proposed</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li class="is-current">Proposed</li>
+                    <li>Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li class="is-current">Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li class="is-current">Not started</li>
+                    <li>In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
+        <h1>API-first — hand-authored OpenAPI fragments as the single source of truth</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Every new HTTP operation in this project ships its contract before its handler.
+          One YAML fragment per operation, hand-authored and reviewed; the running FastAPI's
+          <code>/openapi.json</code> is a claim, not the contract; a Python parity gate
+          (<code>make openapi-check</code>) is the release blocker. This ADR sets the policy;
+          the recipe lives at
+          <a href="../../handbook/sa/authoring/apply-api-first.html">Handbook · SA · Authoring · Apply API-first</a>.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0036</code> — API-first OpenAPI fragments as source of truth</dd>
+          <dt>Category</dt>
+          <dd>process · architecture</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-06-27">2026-06-27</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-06-27">2026-06-27</time></dd>
+          <dt>Related</dt>
+          <dd>
+            <a href="0007-openapi-governance-and-usability-standard.html">ADR-0007</a> (OpenAPI governance &amp; usability standard),
+            <a href="0025-external-and-internal-api-documentation.html">ADR-0025</a> (external vs internal documentation split),
+            <a href="0008-make-command-taxonomy-and-workflow-entrypoints.html">ADR-0008</a> (Make taxonomy),
+            <a href="0003-error-contract-governance.html">ADR-0003</a> (error contract governance),
+            <a href="0006-idempotency-write-operations.html">ADR-0006</a> (idempotency for writes).
+          </dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p>The Study App API grows by one HTTP operation at a time. Today the working convention is <em>code-first</em>: a FastAPI handler is written, its Pydantic schemas drive a generated <code>/openapi.json</code>, and that generated spec is treated as the contract. For one operation written and reviewed by the same person on the same day, this works. As the API surface grows past a handful of operations and the contributor pool widens, two failure modes appear.</p>
+        <ul>
+          <li><strong>Review happens too late.</strong> The spec exists only after the handler does, so the contract is reviewed against an already-written implementation. The first opportunity to spot a wrong status code, a missing required field, a leaky internal name, or a misaligned error envelope is in the same PR that ships the wrong behaviour — when the cost of changing the contract is highest.</li>
+          <li><strong>Drift is invisible.</strong> When the spec is regenerated from the code, the spec changes whenever the code changes, by definition. There is nothing stable to diff against, so the question «did we break compatibility?» has no mechanical answer.</li>
+        </ul>
+        <p>The industry's name for the opposite practice is <strong>API-first</strong>: the contract is authored first, in a machine-readable form, reviewed in its own PR, and only then implemented. Stripe, Twilio, and GitHub run their public APIs this way; client SDKs, mock servers, reference docs, and contract tests all derive from the same canonical artifact. Inside the company the spec — not the handler — is the unit of review.</p>
+        <p>This ADR commits the project to API-first as policy and names the artifacts, paths, and tooling that make it enforceable rather than aspirational. Concrete authoring steps live in the <a href="../../handbook/sa/authoring/apply-api-first.html">how-to</a>; this ADR is the policy.</p>
+      </section>
+
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <p>Adopt API-first for every new HTTP operation added to <code>/api/v*/</code>. The policy has six clauses.</p>
+        <ol>
+          <li><strong>D1 — Hand-authored OpenAPI fragments are canonical.</strong> One YAML file per operation lives at <code>services/portal/internal/services/api/openapi/test/fragments/{resource}/{operationId}.yaml</code>. Shared schemas, headers, and error responses live under <code>fragments/_shared/</code> and are referenced via relative <code>$ref</code>. The fragment is what reviewers and contract tests read.</li>
+          <li><strong>D2 — There is no merged build output.</strong> Each fragment stands on its own as a valid OpenAPI 3.1 document, validated in isolation with cross-file <code>$ref</code> resolution. We do not maintain a single merged <code>openapi.yaml</code> alongside the fragments; the merged view, if ever needed downstream, is computed on the fly.</li>
+          <li><strong>D3 — FastAPI's runtime <code>/openapi.json</code> is a claim, not the truth.</strong> It documents what the running code does. Disagreement between the canonical fragments and the runtime claim is drift, and drift fails CI.</li>
+          <li><strong>D4 — The contract ships before the handler.</strong> Every new operation lands as two PRs in order: a <em>spec PR</em> that authors the fragment plus the portal Operation spec page; then an <em>implementation PR</em> whose only review question is «does this match the ratified spec». A handler PR cannot change the contract — only an amendment to the fragment can.</li>
+          <li><strong>D5 — The toolchain is single-language Python.</strong> Fragment lint via <strong>openapi_spec_validator</strong> (wrapped by <code>tools/governance/validate_openapi.py</code> and surfaced as <code>make doc-api-swagger-check[-all]</code>); canon ↔ runtime parity via <strong>openapi_governance.py</strong> (surfaced as <code>make openapi-check</code>); property-based contract fuzz via <strong>schemathesis</strong> against the running FastAPI. No Node.js side-stack — Spectral, Prism, and openapi-diff were considered and rejected as a second toolchain to install. Tool selection is part of the decision; introducing a non-Python tool requires a successor ADR.</li>
+          <li><strong>D6 — Code-first resources are grandfathered, then back-filled within 60 days.</strong> Any operation that exists in the codebase at the date of this ADR but does not yet have a hand-authored fragment is tagged in its eventual fragment with <code>x-build-history: code-first</code>. The back-fill window is two months from the day the toolchain (D5) lands; past that point, the asymmetry is unacceptable and we reopen the decision.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li><strong>In scope:</strong> every new HTTP operation added to <code>/api/v*/</code> after the date this ADR is ratified. The fragment, the portal Operation spec, the contract-test plan, and the tooling that gates them.</li>
+          <li><strong>In scope:</strong> the Python toolchain in this repository's <code>.venv</code> — <code>openapi_spec_validator</code> for fragment lint, <code>schemathesis</code> for property-based contract fuzz, and <code>tools/api/openapi_governance.py</code> for the canon ↔ runtime parity gate. Driven through <code>make doc-api-swagger-check[-all]</code>, <code>make openapi-check</code>, and <code>make contract-test</code>.</li>
+          <li><strong>Out of scope:</strong> public-API documentation generation. The split between external and internal documentation surfaces is governed by <a href="0025-external-and-internal-api-documentation.html">ADR-0025</a>; this ADR only changes what is <em>canonical</em> on the contract side.</li>
+          <li><strong>Out of scope:</strong> client SDK generation. The project does not ship client SDKs today. When it does, the SDK build pipeline will read from the merged <code>openapi.yaml</code> output of D2.</li>
+          <li><strong>Out of scope:</strong> transport protocols other than HTTP. If the project ever exposes gRPC or GraphQL, a successor ADR adopts the equivalent contract-first artifact and lint chain for that surface.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered <span class="docs-pill docs-pill--rose docs-pill--inline">MANDATORY · MIN 2</span></h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Keep code-first — generate OpenAPI from FastAPI handlers</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Rejected because:</strong> the contract becomes a downstream artifact of the implementation. Review happens after the handler exists, so the cheapest moment to fix a contract mistake — before the code is written — is always skipped by construction. Drift between intended and actual contract is invisible because there is no second source to diff against.</p>
+              <p>Pros considered: zero new tooling; one source file to maintain per operation; the FastAPI/Pydantic chain already produces a usable spec.</p>
+              <p>Cons that decided it: contract review happens too late; drift cannot be detected mechanically; the SA review has no leverage independent of the handler author.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">One hand-authored monolithic <code>openapi.yaml</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Rejected because:</strong> PR review on a multi-thousand-line YAML is illegible. Every operation review touches the same file, merge conflicts are frequent, and the diff context spans hundreds of unrelated lines. The fragment-per-operation pattern keeps review at the grain of one operation, which is the right unit of work for both authors and reviewers.</p>
+              <p>Pros considered: simpler tooling — no merge step; the spec is always internally consistent because it lives in one place.</p>
+              <p>Cons that decided it: PR grain breaks down; concurrent work serialises on a single file; review noise drowns out the signal.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Treat the portal HTML Operation spec as the contract — no YAML at all</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Rejected because:</strong> HTML prose is not machine-checkable. There is no parity diff for prose, no contract-test fixture in HTML, and no SDK generator that reads from it. The portal page is the right form for humans, but the contract still needs a machine-readable canon a tool chain can act on.</p>
+              <p>Pros considered: no new file format to learn; the portal spec page is already authored anyway; one less artifact per operation.</p>
+              <p>Cons that decided it: downstream consumers (mock servers, contract tests, future SDK codegen) cannot consume HTML; review is by reading, not by tooling; parity with the running code cannot be gated mechanically.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <h3>What we get</h3>
+        <ul>
+          <li><strong>Contract review precedes implementation.</strong> The spec PR is reviewed against the requirements; the handler PR is reviewed against the spec. The «which one is right» question disappears.</li>
+          <li><strong>Drift is mechanical.</strong> <code>make openapi-check</code> fails the build the moment the runtime spec disagrees with the canonical fragments. Disagreement is found when it costs one commit to fix, not one quarter.</li>
+          <li><strong>Single-language toolchain.</strong> Fragment lint, parity gate, and contract fuzz all run inside the same Python <code>.venv</code> as the API. Contributors install one set of dependencies; CI runs one matrix; the contract-first practice doesn't drag a second language stack into the repo.</li>
+          <li><strong>Reviewable grain.</strong> One fragment per operation means one PR per operation contract — small, focused, mergeable in minutes.</li>
+        </ul>
+        <h3>What it costs</h3>
+        <ul>
+          <li><strong>~2 hours of overhead per new operation</strong> to author the fragment and align it with the portal spec page. Acceptable at the project's current scale; reconsidered if the API grows past tens of operations.</li>
+          <li><strong>One Python tool to maintain.</strong> <code>tools/governance/validate_openapi.py</code> wraps <code>openapi_spec_validator</code> with <code>$ref</code> resolution; it must keep up with the validator's API and any project-specific rules (idempotency tag, error-envelope shape) we add over time.</li>
+          <li><strong>One asymmetric edge during back-fill.</strong> Pre-existing code-first operations are grandfathered with an <code>x-build-history: code-first</code> tag for the first 60 days. Readers must understand the tag means «the canon was reconstructed, not authored» and is not the pattern to copy.</li>
+          <li><strong>PR ordering discipline.</strong> Two PRs per operation (spec then code). Mitigated by the fact that the spec PR is small enough to review in minutes and authoring it costs roughly what aligning the runtime spec to expectations would have cost anyway.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="compatibility-h">
+        <h2 id="compatibility-h">Compatibility and migration</h2>
+        <ul>
+          <li><strong>Backwards-compatible.</strong> Additive policy. No existing URL changes, no existing handler is touched, no existing portal page is rewritten as a precondition.</li>
+          <li><strong>Migration plan.</strong>
+            <ol>
+              <li>Bootstrap <code>services/portal/internal/services/api/openapi/test/fragments/</code> with the <code>_shared/</code> sub-tree (headers, schemas, responses) and a README that names the conventions.</li>
+              <li>Land the toolchain — <code>tools/governance/validate_openapi.py</code> + <code>make doc-api-swagger-check[-all]</code> for fragment lint, <code>make openapi-check</code> for the parity gate — wired into pre-commit and CI.</li>
+              <li>Back-fill fragments for every code-first operation that exists at the date of this ADR. Each carries <code>x-build-history: code-first</code> in its fragment. Target: within 60 days of the toolchain landing.</li>
+              <li>From that point on, every new operation lands as spec PR + implementation PR in that order.</li>
+            </ol>
+          </li>
+          <li><strong>Rollback strategy.</strong> Removing the fragments tree, <code>tools/governance/validate_openapi.py</code>, and the CI gate reverts the project to code-first. No data migration, no URL changes — a pure process rollback. Triggers for rollback: toolchain maintenance burden exceeds 2× the estimate; a better contract format emerges (gRPC, GraphQL) for which a successor ADR is opened.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="implementation-h">
+        <h2 id="implementation-h">Implementation in this repository</h2>
+        <p>This ADR sets policy. The concrete recipe — what to type, in what order, with which tools — lives in the how-to at <a href="../../handbook/sa/authoring/apply-api-first.html">Handbook · SA · Authoring · Apply API-first</a>, and the from-zero walk-through at <a href="../../handbook/sa/tutorial/api-first.html">Handbook · SA · Tutorial · Design your first endpoint API-first</a>. The fragment shape itself — every key you can author and what each renders to in Swagger UI — is in the reference at <a href="../../services/api/reference/openapi-fragment-anatomy.html">API · OpenAPI fragment anatomy</a>. The full big-picture map of all five toolchain layers (spec, validator, mock, contract tests, parity gate) is at <a href="../../handbook/sa/reference/api-first-toolchain.html">Handbook · SA · Reference · API-first toolchain — five layers</a>. The table below records where the artifacts live and which target gates each step, so that the canon is unambiguous from day one.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead><tr><th>Category</th><th>Path / target</th><th>Tool</th><th>Note</th></tr></thead>
+            <tbody>
+              <tr><td>Canonical fragments</td><td><code>services/portal/internal/services/api/openapi/test/fragments/{resource}/{operationId}.yaml</code></td><td>—</td><td>One YAML per operation. Hand-authored. Source of truth for every downstream artifact.</td></tr>
+              <tr><td>Shared building blocks</td><td><code>fragments/_shared/{headers,schemas,responses}/</code></td><td>—</td><td>Cross-operation reusables (e.g. <code>Error400.yaml</code>, <code>IdempotencyKey.yaml</code>, <code>ErrorBody.yaml</code>). Referenced via relative <code>$ref</code>.</td></tr>
+              <tr><td>Operation spec page</td><td><code>services/portal/internal/services/api/reference/{resource}/operations/{method}-{path}.html</code></td><td>—</td><td>Human-readable companion to the fragment. Template: <code>handbook/sa/templates/api-spec.html</code>.</td></tr>
+              <tr><td>Contract-test plan</td><td>Sibling of the spec page</td><td>—</td><td>Template: <code>handbook/sa/templates/test-plan.html</code>. §3 of the spec becomes the test names.</td></tr>
+              <tr><td>Fragment lint</td><td><code>make doc-api-swagger-check FILE=…</code> · <code>make doc-api-swagger-check-all [DIR=…]</code></td><td><a href="https://github.com/python-openapi/openapi_spec_validator" rel="external">openapi_spec_validator</a> via <code>tools/governance/validate_openapi.py</code></td><td>OpenAPI 3.1 well-formedness + cross-file <code>$ref</code> resolution from the fragment's directory. Required <code>operationId</code>, error-envelope schema (per <a href="0003-error-contract-governance.html">ADR-0003</a>), <code>x-idempotent</code> on writes (per <a href="0006-idempotency-write-operations.html">ADR-0006</a>) are added as project-specific rules to the same script as they become enforceable.</td></tr>
+              <tr><td>Parity gate</td><td><code>make openapi-check</code></td><td><code>tools/api/openapi_governance.py check</code></td><td>Canon ↔ FastAPI runtime <code>/openapi.json</code>. No removed/renamed fields, no added required fields, no status-code regression.</td></tr>
+              <tr><td>Property-based fuzz</td><td>Nightly + pre-merge</td><td><a href="https://schemathesis.readthedocs.io/" rel="external">schemathesis</a></td><td>Generates inputs from the schema; flags any input the schema accepts that the handler rejects (or vice versa). Backstops the explicit contract tests.</td></tr>
+              <tr><td>Aggregate (per ADR-0008)</td><td><code>make verify</code></td><td>Make</td><td>Runs the lint + parity + contract suites in order. Wired into pre-commit and CI per <a href="0008-make-command-taxonomy-and-workflow-entrypoints.html">ADR-0008</a>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <p>The decision is validated when the first <em>new</em> operation ships under this policy — fragment authored, <code>make doc-api-swagger-check</code> clean, portal spec page §1–§19 complete, contract tests pass, <code>make openapi-check</code> clean. Concrete signals to watch over the first quarter after ratification:</p>
+        <ul>
+          <li><strong>Spec ratification precedes the handler PR.</strong> Every new operation lands as two PRs in order. If a handler PR ever introduces a route without a ratified fragment, the gate failed.</li>
+          <li><strong>The parity gate trips at least once during normal authoring.</strong> If <code>make openapi-check</code> never trips in the first month, either nothing real shipped or the gate is misconfigured.</li>
+          <li><strong>Review grain stays small.</strong> A typical fragment PR touches one YAML file plus its spec page. If a fragment PR routinely spans more than two operations, the «one operation per fragment» rule is being bent — investigate.</li>
+          <li><strong>Code-first back-fill completes within 60 days.</strong> Every operation that existed at the date of this ADR has a back-filled fragment within two months. Past that date, the asymmetry is permanent and the decision is re-opened.</li>
+        </ul>
+      </section>
+
+      <footer class="docs-history" aria-label="History">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-28</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">D5 swapped from the Node-based toolchain (Spectral / openapi-diff / Prism) to the Python one already in the repo's <code>.venv</code> — <code>openapi_spec_validator</code> driven through <code>tools/governance/validate_openapi.py</code> and <code>make doc-api-swagger-check[-all]</code>, <code>tools/api/openapi_governance.py</code> + <code>make openapi-check</code> for canon ↔ runtime parity, <code>schemathesis</code> for property-based contract fuzz. Single-language stack made explicit in Consequences. D2 simplified: no merged <code>openapi.yaml</code> build output — each fragment stands on its own. Implementation table now points to the real paths (<code>services/portal/internal/services/api/openapi/test/fragments/</code>) and real Make targets.</span>
+          </li>
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-06-27</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Proposed. Codifies API-first as the project-wide working practice — hand-authored OpenAPI fragments are canon, FastAPI's <code>/openapi.json</code> is a claim, parity is a CI gate. Three alternatives considered and rejected (code-first, monolithic YAML, HTML-as-contract). Pre-existing code-first operations grandfathered with back-fill within 60 days of the toolchain landing. Recipe lives at <a href="../../handbook/sa/authoring/apply-api-first.html">Handbook · SA · Authoring · Apply API-first</a>.</span>
+          </li>
+        </ul>
+      </footer>
+    </article>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#context-h">Context</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#decision-h">Decision</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scope-h">Scope</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#alternatives-h">Alternatives</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#consequences-h">Consequences</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#compatibility-h">Compatibility</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#implementation-h">Implementation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#validation-h">Validation</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

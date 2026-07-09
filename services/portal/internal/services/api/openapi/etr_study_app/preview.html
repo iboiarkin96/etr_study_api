@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenAPI fragment preview · Study App</title>
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css">
+  <style>
+    html, body { margin: 0; padding: 0; font-family: Inter, system-ui, sans-serif; }
+    .preview-bar {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.6rem 1rem; background: #1e293b; color: #f1f5f9;
+    font-size: 14px; border-bottom: 1px solid #334155;
+    }
+    .preview-bar a { color: #93c5fd; text-decoration: none; }
+    .preview-bar a:hover { text-decoration: underline; }
+    .preview-bar code { background: #334155; padding: 0.1em 0.4em; border-radius: 3px; }
+    .preview-bar select {
+    background: #0f172a; color: #f1f5f9; border: 1px solid #475569;
+    padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 13px;
+    }
+    .preview-bar .spacer { flex: 1; }
+    #swagger-ui { padding-bottom: 4rem; }
+  </style>
+</head>
+<body data-maintainer-ids="16fc8b78537109162984a2fdbef6e142">
+  <nav class="preview-bar" aria-label="Preview controls">
+    <h1 style="margin:0;font-size:14px;font-weight:600;letter-spacing:0.02em">OpenAPI fragment preview</h1>
+    <div id="docs-top-nav"></div>
+    <span>·</span>
+    <label for="spec-picker">Spec:</label>
+    <select id="spec-picker" aria-label="Pick a fragment to preview">
+      <option value="">Loading fragments-index.json…</option>
+    </select>
+    <code id="current-spec"></code>
+    <span class="spacer"></span>
+    <a href="../../../../index.html">← Internal portal</a>
+    <a href="../../../../handbook/sa/tutorial/api-first.html">Tutorial</a>
+  </nav>
+  <div id="swagger-ui" role="main"></div>
+
+  <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js" crossorigin=""></script>
+  <script>
+    (function () {
+    var ALL_SPEC = 'merged-spec.json';
+    var ALL_LABEL = 'All endpoints  ·  combined view';
+    var params = new URLSearchParams(window.location.search);
+    var picker = document.getElementById('spec-picker');
+    var label = document.getElementById('current-spec');
+
+    function bootSwagger(spec) {
+    if (label) { label.textContent = spec; }
+    window.ui = SwaggerUIBundle({
+    url: spec,
+    dom_id: '#swagger-ui',
+    deepLinking: true,
+    presets: [SwaggerUIBundle.presets.apis],
+    layout: 'BaseLayout',
+    docExpansion: 'list',
+    defaultModelsExpandDepth: 1
+    });
+    }
+
+    function syncPicker(spec, items) {
+    if (!picker) return;
+    picker.innerHTML = '';
+
+    // First option is always the combined view.
+    var allOpt = document.createElement('option');
+    allOpt.value = ALL_SPEC;
+    allOpt.textContent = ALL_LABEL;
+    if (spec === ALL_SPEC) { allOpt.selected = true; }
+    picker.appendChild(allOpt);
+
+    if (items && items.length) {
+    var sep = document.createElement('option');
+    sep.disabled = true;
+    sep.textContent = '──────── individual fragments ────────';
+    picker.appendChild(sep);
+    items.forEach(function (item) {
+    var opt = document.createElement('option');
+    opt.value = item.spec;
+    opt.textContent = item.label || (item.method + ' ' + item.path);
+    if (item.spec === spec) { opt.selected = true; }
+    picker.appendChild(opt);
+    });
+    }
+
+    // Spec from URL wasn't in the manifest or the combined option — surface it.
+    var inList = Array.prototype.some.call(picker.options, function (o) { return o.value === spec; });
+    if (spec && !inList) {
+    var custom = document.createElement('option');
+    custom.value = spec; custom.textContent = spec + '  ·  (not in index)'; custom.selected = true;
+    picker.appendChild(custom);
+    }
+    picker.addEventListener('change', function () {
+    if (!picker.value) return;
+    var u = new URL(window.location.href);
+    u.searchParams.set('spec', picker.value);
+    window.location.href = u.toString();
+    });
+    }
+
+    fetch('fragments-index.json', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(function (manifest) {
+    var items = (manifest && manifest.items) || [];
+    // Default to the combined view — every operation visible at once.
+    var spec = params.get('spec') || ALL_SPEC;
+    syncPicker(spec, items);
+    bootSwagger(spec);
+    });
+    })();
+  </script>
+
+</body></html>

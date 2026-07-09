@@ -34,7 +34,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update
+.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check
 
 PORTAL_PORT ?= 8080
 PORTAL_URL  := http://127.0.0.1:$(PORTAL_PORT)/portal/
@@ -61,6 +61,10 @@ help:
 	@echo "  make visual-test           Pixel-diff UI Kit templates vs tests/visual/baselines/ (BL-047)"
 	@echo "  make visual-test-update    Refresh those baselines after an intentional UI change"
 	@echo "                             VISUAL_TEST_WORKERS=N to tune Chromium parallelism (default 4)"
+	@echo ""
+	@echo "  OpenAPI canon validation"
+	@echo "    make api-check                Validate ALL fragments across ALL canons"
+	@echo "    make api-check user           Validate one resource (e.g. user, course) across every canon that has it"
 
 # ─────────────────────────────────────────────
 # Local preview — serve the portal + open in browser
@@ -127,27 +131,29 @@ docs-fix:
 		printf "$(ICON_ERR) %s\n" "tools/docs/regenerate_docs.py not found."; exit 1; \
 	fi
 	@printf "$(COLOR_CYAN)== DOCS-FIX: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/10] regenerate UML diagrams"
+	@printf "$(ICON_INFO) %s\n" "[1/11] regenerate UML diagrams"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/regenerate_docs.py
-	@printf "$(ICON_INFO) %s\n" "[2/10] sync marker-based documentation"
+	@printf "$(ICON_INFO) %s\n" "[2/11] sync marker-based documentation"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/sync_docs.py
-	@printf "$(ICON_INFO) %s\n" "[3/10] render docs markdown to html companions"
+	@printf "$(ICON_INFO) %s\n" "[3/11] render docs markdown to html companions"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[4/10] repair docs html structure"
+	@printf "$(ICON_INFO) %s\n" "[4/11] repair docs html structure"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/repair_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[5/10] normalize docs html template"
+	@printf "$(ICON_INFO) %s\n" "[5/11] normalize docs html template"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/format_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[6/10] render service catalog (YAML → HTML)"
+	@printf "$(ICON_INFO) %s\n" "[6/11] render service catalog (YAML → HTML)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_service_descriptors.py
-	@printf "$(ICON_INFO) %s\n" "[7/10] ensure docs body maintainers"
+	@printf "$(ICON_INFO) %s\n" "[7/11] ensure docs body maintainers"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/ensure_docs_maintainers.py
-	@printf "$(ICON_INFO) %s\n" "[8/10] Python API reference (pdoc)"
+	@printf "$(ICON_INFO) %s\n" "[8/11] regenerate runtime OpenAPI spec (public Scalar source)"
+	@cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) tools/api/openapi_governance.py regen
+	@printf "$(ICON_INFO) %s\n" "[9/11] Python API reference (pdoc)"
 	@rm -rf $(REPO_ROOT)/services/portal/internal/services/api/code-reference
 	@cd $(REPO_ROOT) && PYTHONHASHSEED=0 PYTHONPATH=services/api $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/normalize_pdoc_output.py
-	@printf "$(ICON_INFO) %s\n" "[9/10] rebuild internal catalog (quadrant / service / topic / recent)"
+	@printf "$(ICON_INFO) %s\n" "[10/11] rebuild internal catalog (quadrant / service / topic / recent)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_catalog.py
-	@printf "$(ICON_INFO) %s\n" "[10/10] build pagefind index (ADR-0033)"
+	@printf "$(ICON_INFO) %s\n" "[11/11] build pagefind index (ADR-0033)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_pagefind_index.py
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_pagefind_visibility.py
 	@printf "$(COLOR_GREEN)== DOCS-FIX: SUCCESS ==$(COLOR_RESET)\n"
@@ -228,6 +234,41 @@ catalog-render-check:
 	@printf "$(ICON_STEP) %s\n" "Checking service descriptors are up to date…"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_service_descriptors.py --check
 	@printf "$(ICON_OK) %s\n" "Service descriptor check passed"
+
+# ============================================================
+# API OpenAPI Validation
+# ============================================================
+# One target, two modes.
+#
+#   make api-check              # validate ALL fragments across ALL canons
+#   make api-check user         # validate only `user/` — everywhere it exists
+#   make api-check course       # validate only `course/` — everywhere it exists
+#
+# A "canon" is any directory `openapi/{NAME}/fragments/` under
+# `services/portal/internal/services/api/openapi/`. Adding a new one is
+# `mkdir` + drop fragments — no Make edits, no code changes.
+
+# Extract the resource name from MAKECMDGOALS — but only when `api-check`
+# is the first goal. Otherwise every other target in a chain would leak
+# into API_CHECK_RESOURCE and get overridden as a no-op.
+ifeq (api-check,$(firstword $(MAKECMDGOALS)))
+API_CHECK_RESOURCE := $(filter-out api-check,$(MAKECMDGOALS))
+ifneq (,$(API_CHECK_RESOURCE))
+# Silence make's «no recipe for …» warning for the resource-name argument.
+$(eval $(API_CHECK_RESOURCE):; @:)
+endif
+endif
+
+api-check:
+	@printf "$(COLOR_CYAN)== API-CHECK: START ==$(COLOR_RESET)\n"
+ifeq (,$(API_CHECK_RESOURCE))
+	@cd $(REPO_ROOT) && $(PYTHON) tools/governance/validate_openapi.py --all-trees
+else
+	@printf "$(ICON_INFO) %s\n" "Scope: resource '$(API_CHECK_RESOURCE)' across every canon that has it"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/governance/validate_openapi.py --resource $(API_CHECK_RESOURCE)
+endif
+	@printf "$(COLOR_GREEN)== API-CHECK: SUCCESS ==$(COLOR_RESET)\n"
+
 
 # ─────────────────────────────────────────────
 # Aggregator

@@ -1,0 +1,250 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html
+paths:
+  /api/v1/conspectuses/{conspectus_uuid}:
+    patch:
+      operationId: patchConspectus
+      x-implementation-status: pending
+      summary: Partial content update on an existing Conspectus.
+      description: |
+        Updates ETR content fields (`title`, `cue_sheet`, `dense_paragraph`,
+        `bullets`) on an existing Conspectus. At least one of the four must
+        be present in the body; otherwise the server returns 400
+        `CONSPECTUS_PATCH_BODY_EMPTY`. `cue_sheet` is whole-replaced when
+        present, not field-level-merged.
+
+        Schedule fields (`slot`, `next_review_at`, `schedule_revision`) are
+        never touched by this operation — use `reviewConspectus` for that.
+        `content_version` is incremented by exactly 1 on success.
+
+        Requires `X-API-Key` (tenant auth) and `Idempotency-Key`. Last-writer
+        wins on concurrent patches (no optimistic-concurrency guard on
+        content — only on schedule).
+      tags: [Conspectus]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+        - name: conspectus_uuid
+          in: path
+          required: true
+          description: Server-generated stable identifier of the conspectus to patch.
+          schema:
+            type: string
+            format: uuid
+          example: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConspectusPatchRequest" }
+            examples:
+              rename:
+                summary: Change the title only
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  title: "Cue-based retrieval — revised pass"
+              replace_cue_sheet:
+                summary: Whole-replace the cue_sheet
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  cue_sheet:
+                    prompts:
+                      - "Restate ETR in one sentence."
+                      - "Why is the cue sheet retrieved before the paragraph?"
+              add_bullets:
+                summary: Replace the bullet list
+                value:
+                  system_user_id: "learner-01"
+                  system_uuid: "b2c3d4e5-0002-4000-8000-000000000002"
+                  bullets:
+                    - "Extract: source → dense paragraph."
+                    - "Transform: paragraph → cue sheet."
+                    - "Retrieve: policy-driven review."
+                    - "Log outcome per review."
+      responses:
+        "200":
+          description: OK — the updated conspectus. `content_version` incremented; schedule unchanged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConspectusResponse" }
+              examples:
+                default:
+                  summary: Renamed conspectus, `content_version` moved from 1 to 2
+                  value:
+                    conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                    title: "Cue-based retrieval — revised pass"
+                    cue_sheet:
+                      prompts:
+                        - "What is E in ETR?"
+                        - "Why does cue precede dense?"
+                    cue_sheet_schema_version: 1
+                    dense_paragraph: "Extract-Transform-Retrieve is a spaced-retrieval discipline where the learner distils a source into a cue sheet, a dense paragraph, and a bullet list, then retrieves them at policy-driven intervals."
+                    bullets:
+                      - "Extract: raw source → dense paragraph."
+                      - "Transform: paragraph → cue sheet."
+                      - "Retrieve: policy-driven spaced review."
+                    slot: "A"
+                    slot_d_ladder_index: 0
+                    next_review_at: "2026-07-09T13:00:00+00:00"
+                    schedule_policy_id: "etr-default-v1"
+                    algorithm_version: "1.0.0"
+                    schedule_revision: 1
+                    content_version: 2
+                    created_at: "2026-07-09T12:00:00+00:00"
+                    updated_at: "2026-07-09T12:35:00+00:00"
+                    schedule_updated_at: "2026-07-09T12:00:00+00:00"
+        "400":
+          description: Bad Request — business-rule failure on Conspectus patch.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_key_required:
+                  summary: Missing Idempotency-Key header
+                  value:
+                    code: "COMMON_400"
+                    key: "IDEMPOTENCY_KEY_REQUIRED"
+                    message: "`Idempotency-Key` header is required on this operation."
+                    source: "business"
+                patch_body_empty:
+                  summary: PATCH body did not include any ETR content field to update
+                  value:
+                    code: "CONS_102"
+                    key: "CONSPECTUS_PATCH_BODY_EMPTY"
+                    message: "PATCH body must include at least one of `title`, `cue_sheet`, `dense_paragraph`, or `bullets`."
+                    source: "business"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — either the user or the conspectus does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+                conspectus_not_found:
+                  summary: No conspectus with the given uuid for the caller
+                  value:
+                    code: "CONS_404"
+                    key: "CONSPECTUS_NOT_FOUND"
+                    message: "Conspectus not found for the calling tenant."
+                    source: "business"
+        "409":
+          description: Conflict — Idempotency-Key was previously seen with a different payload.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                idempotency_replay_mismatch:
+                  summary: Idempotency-Key replayed with a different body
+                  value:
+                    code: "COMMON_409"
+                    key: "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD"
+                    message: "`Idempotency-Key` has been seen within the 24 h window with a different payload."
+                    source: "business"
+        "413": { $ref: "../../_shared/responses/Error413.yaml" }
+        "422":
+          description: Unprocessable Content — request body failed schema validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                dense_paragraph_too_long:
+                  summary: "`dense_paragraph` exceeds max length 4000"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "PATCH /api/v1/conspectuses/{conspectus_uuid}"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Field `dense_paragraph` must be no longer than 4000 characters."
+                        field: "dense_paragraph"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ConspectusPatchRequest:
+      type: object
+      required: [system_user_id, system_uuid]
+      description: >
+        Partial content update. Server rejects the request with
+        `CONS_102 · CONSPECTUS_PATCH_BODY_EMPTY` when none of `title`,
+        `cue_sheet`, `dense_paragraph`, `bullets` are present.
+      properties:
+        system_user_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: "Owner key (composite with `system_uuid`)."
+        system_uuid:
+          type: string
+          format: uuid
+          description: "Owner key (composite with `system_user_id`)."
+        title:
+          type: [string, "null"]
+          maxLength: 256
+          description: "New title; omit to leave unchanged; set null to clear."
+        cue_sheet:
+          type: object
+          description: "New cue sheet — whole-replace (not field-level merge). Omit to leave unchanged."
+        dense_paragraph:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: "New dense paragraph; omit to leave unchanged."
+        bullets:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+          description: "New bullet list — whole-replace. Omit to leave unchanged."
+
+    ConspectusResponse:
+      type: object
+      required:
+        - conspectus_uuid
+        - cue_sheet
+        - cue_sheet_schema_version
+        - dense_paragraph
+        - bullets
+        - slot
+        - slot_d_ladder_index
+        - next_review_at
+        - schedule_policy_id
+        - algorithm_version
+        - schedule_revision
+        - content_version
+        - created_at
+        - updated_at
+        - schedule_updated_at
+      properties:
+        conspectus_uuid: { type: string, format: uuid }
+        title: { type: [string, "null"] }
+        cue_sheet: { type: object }
+        cue_sheet_schema_version: { type: integer, format: int32 }
+        dense_paragraph: { type: string }
+        bullets: { type: array, items: { type: string } }
+        slot: { type: string, enum: [A, B, C, D] }
+        slot_d_ladder_index: { type: integer, format: int32, minimum: 0 }
+        next_review_at: { type: string, format: date-time }
+        schedule_policy_id: { type: string }
+        algorithm_version: { type: string }
+        schedule_revision: { type: integer, format: int64, minimum: 1 }
+        content_version: { type: integer, format: int64, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        schedule_updated_at: { type: string, format: date-time }

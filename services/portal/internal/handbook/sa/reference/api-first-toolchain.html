@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API-first toolchain — five layers · API · Documentation portal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-28" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Handbook</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">API-first toolchain</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Reference</span>
+          <span class="docs-pill docs-pill--teal">API</span>
+          <span class="docs-pill docs-pill--info">Toolchain</span>
+          <span class="docs-pill docs-pill--neutral">Architecture</span>
+        </div>
+        <h1>API-first toolchain — five layers</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          The five distinct tools that make API-first work on this project, the
+          question each layer answers, the Make target it sits behind, and how
+          they compose. Spec → validator → mock → contract test → parity gate —
+          each one is a server or a script with a different job; none of them
+          replaces another. Read alongside <a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a> (policy) and <a href="../../../services/api/reference/openapi-fragment-anatomy.html">OpenAPI fragment anatomy</a> (YAML keys).
+        </p>
+      </header>
+
+      <h2 id="big-picture">The big picture</h2>
+      <p>Each fragment passes through five sequential layers from authoring to release. Layers 1–3 are «contract-first» work — they exist before any handler is written; layers 4–5 enter once an implementation PR opens and start gating it against the canon.</p>
+      <pre class="docs-codeblock"><code>┌────────────────────────────────────────────────────────────────────────┐
+│  1 · Spec authoring                                                    │
+│      OpenAPI 3.1 YAML fragments                                        │
+│      fragments/{resource}/{operationId}.yaml                           │
+│      (hand-authored — no tooling)                                      │
+└─────────────────────────────┬──────────────────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  2 · Validator                                                         │
+│      openapi_spec_validator (Python, in .venv)                         │
+│      tools/governance/validate_openapi.py                              │
+│      make doc-api-swagger-check[-all]                                  │
+│                                                                        │
+│      Side effects: writes fragments-index.json + merged-spec.json      │
+│      (consumed by Swagger UI preview)                                  │
+└─────────────────────────────┬──────────────────────────────────────────┘
+                              │
+            ┌─────────────────┼─────────────────┐
+            ▼                 ▼                 ▼
+┌──────────────────┐  ┌──────────────┐  ┌─────────────────────────────┐
+│ Swagger UI       │  │ 3 · Mock     │  │ 5 · Parity gate             │
+│ preview.html     │  │ connexion    │  │ openapi_governance.py       │
+│ (read-only       │  │ + Flask      │  │ make openapi-check          │
+│  browser view    │  │ make api-    │  │                             │
+│  of merged-spec) │  │   mock       │  │ Compares merged-spec.json   │
+│                  │  │              │  │ ↔ FastAPI runtime           │
+│ :8080 portal     │  │ :8001, :8002 │  │ /openapi.json on :8000      │
+└──────────────────┘  └──────┬───────┘  └──────────────┬──────────────┘
+                             │                         │
+                             │ exercised by ◄──────────┘
+                             ▼                         │
+                  ┌──────────────────┐                 │
+                  │ 4 · Contract     │                 │
+                  │ tests (future)   │                 │
+                  │ schemathesis +   │                 │
+                  │ pytest           │                 │
+                  │ make contract-   │                 │
+                  │   test           │                 │
+                  └──────┬───────────┘                 │
+                         │                             │
+                         └─────► hits ─────────────────┤
+                                                       ▼
+                                          ┌──────────────────────────┐
+                                          │ FastAPI runtime          │
+                                          │ services/api/app/        │
+                                          │ make run · :8000         │
+                                          └──────────────────────────┘
+</code></pre>
+
+      <h2 id="layer-questions">Which layer answers which question</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Layer</th><th>Question it answers</th><th>Tool</th><th>Make target</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>1 · Spec</strong></td>
+              <td>What's the contract?</td>
+              <td>OpenAPI 3.1 YAML (hand-authored)</td>
+              <td>—</td>
+              <td><span class="docs-pill docs-pill--success">live</span></td>
+            </tr>
+            <tr>
+              <td><strong>2 · Validator</strong></td>
+              <td>Is the spec syntactically valid OpenAPI 3.1?</td>
+              <td><a href="https://github.com/python-openapi/openapi_spec_validator" rel="external">openapi_spec_validator</a> via <code>tools/governance/validate_openapi.py</code></td>
+              <td><code>make doc-api-swagger-check[-all]</code></td>
+              <td><span class="docs-pill docs-pill--success">live</span></td>
+            </tr>
+            <tr>
+              <td><strong>3 · Mock server</strong></td>
+              <td>What would the API feel like to a caller before the handler exists?</td>
+              <td><a href="https://connexion.readthedocs.io/" rel="external">connexion[flask]</a> via <code>tools/api/mock_server.py</code></td>
+              <td><code>make api-mock</code> · fans out to every canon (:8001, :8002, …)</td>
+              <td><span class="docs-pill docs-pill--success">live</span></td>
+            </tr>
+            <tr>
+              <td><strong>4 · Contract tests</strong></td>
+              <td>Does the real backend honour the spec for every documented input?</td>
+              <td><a href="https://schemathesis.readthedocs.io/" rel="external">schemathesis</a> + pytest (future)</td>
+              <td><code>make contract-test</code></td>
+              <td><span class="docs-pill docs-pill--warn">future</span></td>
+            </tr>
+            <tr>
+              <td><strong>5 · Parity gate</strong></td>
+              <td>Has the runtime drifted from the canonical spec?</td>
+              <td><code>tools/api/openapi_governance.py</code></td>
+              <td><code>make openapi-check</code></td>
+              <td><span class="docs-pill docs-pill--success">live</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The five questions are <em>different</em>. A validator that says «spec is OK» tells you nothing about whether a caller can actually use the API — that's what the mock is for. A green mock tells you nothing about whether the real handler matches what the mock pretends — that's what the contract test is for. Each layer is a distinct check.</p>
+
+      <h2 id="layer-1">1 · Spec authoring</h2>
+      <p>You hand-author one YAML fragment per HTTP operation under <code>services/portal/internal/services/api/openapi/test/fragments/{resource}/{operationId}.yaml</code>. No tooling — this is the source of truth (per <a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a>). Shared building blocks (error envelopes, the <code>Idempotency-Key</code> header) live under <code>openapi/test/_shared/</code>. The full key-by-key reference for what to put in a fragment is at <a href="../../../services/api/reference/openapi-fragment-anatomy.html">OpenAPI fragment anatomy</a>.</p>
+
+      <h2 id="layer-2">2 · Validator</h2>
+      <p>The validator answers <em>«is this YAML well-formed OpenAPI 3.1?»</em>. It does NOT make any HTTP request, run any server, or check whether a handler exists. It only inspects the YAML and resolves <code>$ref</code> chains.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Aspect</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Tool</td><td><code>openapi_spec_validator</code> (Python, already in <code>.venv</code>)</td></tr>
+            <tr><td>Wrapper</td><td><code>tools/governance/validate_openapi.py</code></td></tr>
+            <tr><td>Make target</td><td><code>make -C services/portal doc-api-swagger-check FILE=…</code> · <code>doc-api-swagger-check-all [DIR=…]</code></td></tr>
+            <tr><td>Side effects</td><td>Writes <code>fragments-index.json</code> (manifest for the picker) and <code>merged-spec.json</code> (combined view consumed by Swagger UI and by the mock)</td></tr>
+            <tr><td>Exit codes</td><td><code>0</code> when every fragment validates; <code>1</code> on any failure. Partials (files without a top-level <code>openapi:</code> key) are skipped with a <code>↺ Partial</code> note and validated transitively via their parent's <code>$ref</code> walk.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="layer-3">3 · Mock server</h2>
+      <p>The mock answers <em>«what would the API feel like to a caller before the handler exists?»</em>. <code>make api-mock</code> fans out one Connexion+Flask server per discovered canon under <code>openapi/*/fragments/</code>: <code>test</code> lands on port 8001, product canons (<code>etr_study_app</code>, …) on 8002, 8003, … in alphabetical order. Each server accepts requests for every documented operation on its canon and returns the first documented 2xx <code>examples.{key}.value</code> from the fragment.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Aspect</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Tool</td><td><a href="https://connexion.readthedocs.io/" rel="external">Connexion</a> with the Flask extra — single-language Python, no Node.js</td></tr>
+            <tr><td>Entry point</td><td><code>tools/api/mock_server.py</code></td></tr>
+            <tr><td>Make target</td><td><code>make api-mock</code> — fans out one Flask process per canon; <code>Ctrl-C</code> stops them all</td></tr>
+            <tr><td>Built-in Swagger UI</td><td><code>http://127.0.0.1:{PORT}/ui/</code> ships inside each mock (no portal needed)</td></tr>
+            <tr><td>Root URL</td><td><code>http://127.0.0.1:{PORT}/</code> returns <code>404</code> by design — only paths declared in the spec are documented</td></tr>
+            <tr><td>Reads</td><td><code>services/portal/internal/services/api/openapi/test/merged-spec.json</code></td></tr>
+            <tr><td>Behaviour</td><td>For each <code>path + method</code>: registers a route. <strong>Default response</strong>: first documented 2xx example. <strong>Dynamic overlay</strong>: the caller's request body (POST/PUT/PATCH) and query string (GET/DELETE) are overlaid on top of the example — only keys the example already contains are overwritten; response fields the schema doesn't declare are never invented. Turn off with <code>Prefer: dynamic=off</code>. <strong>Body validation</strong>: every <code>POST/PUT/PATCH/DELETE</code> body is validated against the spec's request schema BEFORE overlay runs; invalid bodies return <code>400</code> in the documented <code>ErrorBody</code> envelope. <strong><code>Prefer</code> header</strong> (RFC 7240): <code>Prefer: example=NAME</code> picks a specific documented example; <code>Prefer: code=NNN</code> picks a specific response status; combined (<code>Prefer: code=409, example=name_already_exists</code>) lets the front-end test any documented error case.</td></tr>
+            <tr><td>Used by</td><td>Frontend devs (UX-testing the API), Swagger UI «Try it out» (the merged spec ships a <code>servers:</code> entry pointing here), curl smoke tests, future SDK CI.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>What the mock DOES</strong> — accepts HTTP, returns documented examples, lets a frontend build UI against the contract before any handler is written.</p>
+      <p><strong>What the mock does NOT do</strong> — write to a database, run real business logic, integrate with auth, simulate latency, or remember state between requests (a POST + GET round-trip won't return the same id; Stripe-mock does this, we don't). It's a UX rehearsal of the contract, not a replacement backend.</p>
+
+      <h2 id="layer-4">4 · Contract tests (future)</h2>
+      <p>Contract tests answer <em>«does the real backend honour the spec for every documented input?»</em>. They run after layers 1–3 have shipped and a real FastAPI handler exists. Cadence: nightly + on every implementation PR.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Aspect</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Tool</td><td><a href="https://schemathesis.readthedocs.io/" rel="external">schemathesis</a> + pytest</td></tr>
+            <tr><td>Approach</td><td>Property-based fuzz against the running FastAPI: schemathesis reads the spec, generates inputs that <em>should</em> validate, fires them at the handler, and reports any input the schema accepts but the handler rejects (or vice versa).</td></tr>
+            <tr><td>Status</td><td><span class="docs-pill docs-pill--warn">future</span> — lands once the first ratified spec gets its implementation PR.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="layer-5">5 · Parity gate</h2>
+      <p>The parity gate answers <em>«has the runtime drifted from the canonical spec?»</em>. It compares the merged canon (<code>merged-spec.json</code>) against the FastAPI's runtime <code>/openapi.json</code> and fails the build on any unauthorised divergence — added required fields, removed responses, status-code regressions.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Aspect</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Tool</td><td><code>tools/api/openapi_governance.py check</code></td></tr>
+            <tr><td>Make target</td><td><code>make openapi-check</code></td></tr>
+            <tr><td>Behaviour today</td><td>Trips on drift because the canon contains operations (<code>POST /api/v1/courses</code>, etc.) for which no FastAPI handler exists yet. That's the gate working — it blocks merging an implementation PR whose runtime spec doesn't satisfy the ratified canon.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="ports">Ports and processes — what runs where</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Port</th><th>Process</th><th>Started by</th><th>Serves</th></tr></thead>
+          <tbody>
+            <tr><td><code>8080</code></td><td>Portal static server (<code>python -m http.server</code>)</td><td><code>make -C services/portal serve</code></td><td>Docs, Swagger UI preview, fragment YAML files (GET only — POST returns 501 because <code>http.server</code> doesn't handle writes)</td></tr>
+            <tr><td><code>8001</code></td><td>Mock for the <code>test</code> canon (Flask via Connexion)</td><td><code>make api-mock</code> (fans out; smoke sandbox first)</td><td>Every path + method in <code>openapi/test/merged-spec.json</code>. Swagger UI «Try it out» from the portal-hosted <code>test/preview.html</code> lands here.</td></tr>
+            <tr><td><code>8002</code>, <code>8003</code>, …</td><td>Mocks for product canons (<code>etr_study_app</code>, …)</td><td>Same <code>make api-mock</code> — one process per canon under <code>openapi/*/fragments/</code>, in alphabetical order</td><td>Every path + method in that canon. Root URL returns 404 by design; open <code>/ui/</code> for a built-in Swagger UI or hit a declared path.</td></tr>
+            <tr><td><code>8000</code></td><td>FastAPI runtime (uvicorn)</td><td><code>make run</code></td><td>Real handlers under <code>services/api/app/</code> + auto-generated <code>/openapi.json</code>. Today only <code>User</code> handler exists; the rest will arrive in implementation PRs.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Common confusion. Hitting port <code>8080</code> with a POST returns <code>501 Unsupported method</code>: that's Python's <code>http.server</code>, serving STATIC docs only. Direct curl smoke tests at a mock port (see the <code>make api-mock</code> startup log for the exact canon → port mapping) or the real runtime (<code>8000</code>), not the portal (<code>8080</code>).</p>
+      <p>Hitting a mock's root (<code>http://127.0.0.1:{PORT}/</code>) returns <code>404</code>: nothing is documented at <code>/</code>, only under the paths in the spec. Browse the mock via <code>http://127.0.0.1:{PORT}/ui/</code> (Connexion's built-in Swagger UI) or the portal-hosted <code>preview.html</code>.</p>
+      <p>Which ports are actually up? One-liner: <code>lsof -nP -iTCP:8001 -iTCP:8002 -iTCP:8080 -sTCP:LISTEN</code>.</p>
+
+      <h2 id="why-not-merge">Why not collapse the mock into the validator?</h2>
+      <p>Periodically someone suggests it: «the validator already walks every fragment — why not have it serve responses too?» Three reasons:</p>
+      <ul>
+        <li><strong>Different shape.</strong> Validator is a one-shot CLI that exits 0/1. Mock is a long-running HTTP server. Different lifecycles, different process models.</li>
+        <li><strong>Different consumers.</strong> Validator's audience is the spec author + CI. Mock's audience is the frontend dev + the API caller (curl, Postman, future SDK CI).</li>
+        <li><strong>Different failure modes.</strong> A broken validator means «I can't tell whether the spec is correct». A broken mock means «the frontend can't develop». Coupling them couples the failure modes.</li>
+      </ul>
+      <p>Industry mirrors this split: Stripe ships <a href="https://github.com/stripe/stripe-mock" rel="external">stripe-mock</a> as a separate binary, independent of their spec linter; Stoplight ships <a href="https://stoplight.io/open-source/spectral" rel="external">Spectral</a> (lint) and <a href="https://stoplight.io/open-source/prism" rel="external">Prism</a> (mock) as separate tools.</p>
+
+      <h2 id="industry">Industry context — who does this</h2>
+      <ul>
+        <li><strong>Stripe</strong> — <a href="https://github.com/stripe/stripe-mock" rel="external">stripe-mock</a> reads their public OpenAPI spec and serves examples. Used by their 8-language SDK CI, by frontend devs, by their own dashboard's unit tests.</li>
+        <li><strong>Twilio, Plaid, GitHub</strong> — same pattern: spec-driven mock backs SDK CI and frontend development until the real backend lands.</li>
+        <li><strong>Postman</strong> — sells mock servers as a product line; internally uses spec-driven mocks for design collaboration.</li>
+        <li><strong>Stoplight</strong> — built <a href="https://stoplight.io/open-source/prism" rel="external">Prism</a> as the de-facto industry mock for OpenAPI; we use the Python equivalent (Connexion) for the single-language constraint.</li>
+      </ul>
+
+      <h2 id="quick-start">Quick-start cheat sheet</h2>
+      <pre class="docs-codeblock"><code># Edit a fragment
+$EDITOR services/portal/internal/services/api/openapi/test/fragments/course/createCourse.yaml
+
+# Layer 2 — validate; regenerates the manifest + merged spec
+make -C services/portal doc-api-swagger-check-all
+
+# Layer 3 — start every mock (terminal A)
+make api-mock                           # test → :8001, etr_study_app → :8002, …
+
+# Browse layer 2 output in Swagger UI (terminal B)
+make -C services/portal serve           # :8080
+open http://127.0.0.1:8080/portal/internal/services/api/openapi/test/preview.html
+
+# Hit the mock with curl (terminal C)
+curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"Introduction to Python","length":10}'
+
+# Layer 5 — once a real handler exists, parity gate
+make run                                # :8000  (terminal D)
+make openapi-check                      # canon ↔ runtime diff
+</code></pre>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-28</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Authored as the «big-picture» reference for the API-first stack on this project — five distinct layers (spec / validator / mock / contract test / parity gate), each with its own question, tool, Make target, and port. Documents the rationale for keeping mock and validator separate (industry mirrors the split: Stripe ships stripe-mock independent of their lint chain). Pairs with <a href="../../../services/api/reference/openapi-fragment-anatomy.html">OpenAPI fragment anatomy</a> (YAML keys) and <a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a> (policy).</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#big-picture">The big picture</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layer-questions">Which layer answers which question</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layer-1">1 · Spec</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layer-2">2 · Validator</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layer-3">3 · Mock server</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layer-4">4 · Contract tests</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layer-5">5 · Parity gate</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#ports">Ports &amp; processes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why-not-merge">Why not merge mock + validator</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#industry">Industry context</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#quick-start">Quick-start</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

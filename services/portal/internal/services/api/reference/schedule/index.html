@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schedule resource · API · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" data-service="api" data-role="" data-lifecycle="published" data-updated="2026-07-09" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-spec-page="hub" data-spec-status="draft" data-spec-owner="ivan-boyarkin">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">api</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Schedule</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Reference</span>
+          <span class="docs-pill docs-pill--warn">API</span>
+          <span class="docs-pill docs-pill--neutral" data-spec-status-mount="">Draft</span>
+          <span class="docs-pill docs-pill--neutral">v1 · Internal</span>
+        </div>
+        <h1>Schedule resource</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Schedule projection over <code>conspectus_schedules</code>: two read-only endpoints that turn the underlying schedule rows into presentation-ready views for the client. Mount: <code>/api/v1/schedule</code>. Owner: <a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a>. Last reviewed <time datetime="2026-07-09">2026-07-09</time>.</p>
+      </header>
+
+      <h2 id="overview">Overview</h2>
+      <p>Schedule is a <strong>computed projection</strong>, not a writable resource. Both endpoints read from <code>conspectus_schedules</code> and return an aggregated or shuffled view of it — the client never writes here. Writes happen through <a href="../conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a>, which is the only surface that mutates a schedule row.</p>
+      <p>Two operations serve two distinct client flows:</p>
+      <ul>
+        <li><strong>Summary</strong> — a compact count-per-slot payload for the study-load badge (rendered on every screen).</li>
+        <li><strong>Preview</strong> — a server-shuffled, deterministic lookahead for the evening-review session.</li>
+      </ul>
+
+      <h2 id="business-context">Business context</h2>
+      <p>The methodology's retrieve step needs two answers from the schedule surface, and giving the client each one via a specialised endpoint costs less than shipping the full due-list every time:</p>
+      <ul>
+        <li><em>«How much is on my plate right now?»</em> — <code>getScheduleSummary</code>. Cheap enough to poll on every UI mount; four small integers per response.</li>
+        <li><em>«Give me an evening batch, mixed so I don't cram same-slot»</em> — <code>getSchedulePreview</code>. Server owns the shuffle so the order is reproducible for support and consistent across the learner's devices.</li>
+      </ul>
+      <p>Methodology anchor: <a href="../../../../explanation/methodology.html#retrieve-system">methodology · retrieve cadence</a>. Schedule state is written by <a href="../conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a> (state transitions per the reference SchedulePolicy) and by <a href="../conspectus/operations/post-api-v1-conspectuses.html"><code>createConspectus</code></a> (initial slot A · revision 1 · +1h next review).</p>
+
+      <h2 id="domain-model">Domain model</h2>
+      <p>Storage table: <code>conspectus_schedules</code> (one row per active conspectus, joined on <code>conspectus_uuid</code>). This hub summarises the columns that both Schedule endpoints project on; canonical column reference lives on the <a href="../conspectus/index.html">Conspectus resource</a> page (Schedule is a projection, not a distinct storage entity).</p>
+      <div class="docs-table-wrap" role="region" aria-label="Schedule fields">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Field</th><th>Type</th><th>DB column</th><th>Role in Schedule</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>conspectus_uuid</code></td>
+              <td>string · uuid</td>
+              <td><code>conspectus_uuid</code> (FK)</td>
+              <td>Join key back to the note. Preview echoes it so the client can fetch full content on demand.</td>
+            </tr>
+            <tr>
+              <td><code>owner_client_uuid</code></td>
+              <td>string · uuid</td>
+              <td><code>owner_client_uuid</code></td>
+              <td>Ownership scope. Both endpoints filter on it; cross-tenant leakage is impossible.</td>
+            </tr>
+            <tr>
+              <td><code>slot</code></td>
+              <td>string · enum (<code>A</code>·<code>B</code>·<code>C</code>·<code>D</code>)</td>
+              <td><code>slot</code></td>
+              <td>Grouped for <code>getScheduleSummary.by_slot</code>. Preview echoes for card-badge rendering.</td>
+            </tr>
+            <tr>
+              <td><code>next_review_at</code></td>
+              <td>string · date-time (UTC)</td>
+              <td><code>next_review_at</code></td>
+              <td>Drives <code>due_now</code> / <code>due_next_24h</code> in Summary; window filter in Preview.</td>
+            </tr>
+            <tr>
+              <td><code>schedule_revision</code></td>
+              <td>integer · int64</td>
+              <td><code>schedule_revision</code></td>
+              <td>Optimistic-concurrency token — not returned by Schedule reads (fetch the conspectus for it).</td>
+            </tr>
+            <tr>
+              <td><code>is_row_invalid</code></td>
+              <td>integer · <code>0</code>/<code>1</code></td>
+              <td><code>is_row_invalid</code> (via conspectus row)</td>
+              <td>Both endpoints filter <code>is_row_invalid = 0</code> — soft-deleted notes never surface.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="lifecycle">Lifecycle</h2>
+      <p>Schedule is <strong>read-only</strong>: the client never posts here. State transitions happen on the Conspectus resource; Schedule endpoints observe the resulting view.</p>
+      <ul>
+        <li><strong>Row creation.</strong> A fresh <code>conspectus_schedules</code> row is inserted by <a href="../conspectus/operations/post-api-v1-conspectuses.html"><code>createConspectus</code></a> in the same transaction as the conspectus.</li>
+        <li><strong>State transition.</strong> <a href="../conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a> advances <code>slot</code>, <code>next_review_at</code>, and <code>schedule_revision</code> per the reference SchedulePolicy.</li>
+        <li><strong>Soft delete.</strong> <a href="../conspectus/operations/delete-api-v1-conspectuses-conspectus_uuid.html"><code>deleteConspectus</code></a> flips <code>is_row_invalid = 1</code> on the parent conspectus — Schedule reads filter it out. The schedule row itself is not modified.</li>
+        <li><strong>Reads.</strong> <a href="operations/get-api-v1-schedule-summary.html"><code>getScheduleSummary</code></a> and <a href="operations/get-api-v1-schedule-preview.html"><code>getSchedulePreview</code></a>. No <code>Idempotency-Key</code>.</li>
+      </ul>
+
+      <h2 id="operations">Operations</h2>
+      <p>Two read-only projections. Both scoped implicitly to the calling tenant via composite key.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Schedule operations">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Method &amp; path</th><th>operationId</th><th>Status</th><th>Idempotency</th><th>Success</th><th>Spec page</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="docs-pill docs-pill--success">GET</span> <code>/api/v1/schedule/summary</code></td>
+              <td><code>getScheduleSummary</code></td>
+              <td><span class="docs-pill docs-pill--neutral">Draft</span></td>
+              <td>Not used (read)</td>
+              <td><code>200 OK</code></td>
+              <td><a href="operations/get-api-v1-schedule-summary.html">Open spec →</a></td>
+            </tr>
+            <tr>
+              <td><span class="docs-pill docs-pill--success">GET</span> <code>/api/v1/schedule/preview</code></td>
+              <td><code>getSchedulePreview</code></td>
+              <td><span class="docs-pill docs-pill--neutral">Draft</span></td>
+              <td>Not used (read)</td>
+              <td><code>200 OK</code></td>
+              <td><a href="operations/get-api-v1-schedule-preview.html">Open spec →</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <aside class="docs-card docs-card--rail" data-tone="info" role="note" aria-labelledby="server-shuffle-h">
+        <h3 id="server-shuffle-h" class="docs-card__title">Decision · Server-side shuffle on <code>getSchedulePreview</code></h3>
+        <div class="docs-card__body">
+          <p><strong>Why the server owns the shuffle.</strong> A client-side shuffle spreads the same responsibility across every integrator — mobile app, web app, CLI, future partners — and each implementation carries the risk of a biased Fisher-Yates or a non-seeded PRNG. Server-side keeps the algorithm in one place, protects the learner from same-slot cramming even on brand-new clients, and lets support engineers reproduce a specific evening session by replaying the seed.</p>
+          <p><strong>Determinism boundary.</strong> Same <code>(random_seed, computed_at.minute)</code> → identical order. The client's session anchor is the echoed <code>random_seed</code>; mid-session refresh preserves order for up to 60 seconds. Beyond that the minute rolls over and the order can change.</p>
+          <p><strong>Payload shape.</strong> Compact projection (five fields: <code>preview_order_index</code>, <code>conspectus_uuid</code>, <code>title</code>, <code>slot</code>, <code>next_review_at</code>) — the client calls <a href="../conspectus/operations/get-api-v1-conspectuses-conspectus_uuid.html"><code>getConspectusById</code></a> on tap for the full content.</p>
+        </div>
+      </aside>
+
+      <h2 id="cross-cutting">Cross-cutting concerns</h2>
+      <p>Each operation page links to these shared pages for the global rules; this hub collects them in one place for quick navigation.</p>
+      <ul>
+        <li><a href="../_shared/auth.html">Authentication &amp; authorization</a> — API key, ownership rule, cross-tenant collapses to 404.</li>
+        <li><a href="../_shared/error-envelope.html">Error envelope</a> — standard shape for <code>401</code>·<code>404</code>·<code>422</code>·<code>429</code>.</li>
+        <li><a href="../_shared/error-catalog.html">Error catalog</a> — no Schedule-domain codes; both endpoints only raise common + user errors.</li>
+        <li><a href="../_shared/field-conventions.html">Field conventions</a> — UTC everywhere, integer counts, ISO 8601 durations for <code>window</code>.</li>
+        <li><a href="../_shared/observability-conventions.html">Observability conventions</a> — log events, metrics, alerts.</li>
+        <li><a href="../_shared/openapi-authoring-guide.html">OpenAPI authoring guide</a> — internal-spec → canon-fragment translation.</li>
+      </ul>
+
+      <h2 id="technical-overview">Technical overview</h2>
+      <p>Both endpoints share the same access pattern: resolve <code>owner_client_uuid</code> from the query composite key, run one indexed scan on <code>conspectus_schedules</code>, compute the projection in memory, return. No writes, no idempotency middleware. The composite index <code>(owner_client_uuid, next_review_at)</code> covers Summary's grouping and Preview's window filter.</p>
+      <p><strong>Specification only.</strong> Canon fragments are ratified (<code>x-implementation-status: pending</code>); FastAPI handlers land alongside the Conspectus review-loop implementation because the two share the same schedule state.</p>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-09</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial hub — Schedule promoted to a standalone resource. Previously the two Schedule operation pages lived under <code>conspectus/operations/</code> for expedient reasons; that hid them from the reference index and mixed the mount surfaces. Move by <code>git mv</code>; canon <code>x-portal-spec</code> paths updated on both fragments; nav-tree gets a dedicated Schedule node.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#overview">Overview</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#business-context">Business context</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#domain-model">Domain model</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lifecycle">Lifecycle</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#operations">Operations</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#cross-cutting">Cross-cutting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#technical-overview">Technical overview</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

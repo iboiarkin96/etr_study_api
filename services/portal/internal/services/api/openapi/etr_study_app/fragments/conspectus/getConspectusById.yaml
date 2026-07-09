@@ -1,0 +1,161 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/conspectus/operations/get-api-v1-conspectuses-conspectus_uuid.html
+paths:
+  /api/v1/conspectuses/{conspectus_uuid}:
+    get:
+      operationId: getConspectusById
+      x-implementation-status: pending
+      summary: Look up a single Conspectus by uuid.
+      description: |
+        Returns the full `ConspectusResponse` for the given uuid, provided
+        the row is owned by the calling tenant. Read-only; no
+        `Idempotency-Key`. Requires `X-API-Key`.
+
+        Cross-tenant misses collapse into 404 (never 403) so the API
+        doesn't leak existence of rows owned by other tenants.
+
+        Rows soft-invalidated by `deleteConspectus` are still returned by
+        this operation — the client can inspect `is_row_invalid` and
+        `invalidation_reason_uuid` to decide what to render.
+      tags: [Conspectus]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: conspectus_uuid
+          in: path
+          required: true
+          description: Server-generated stable identifier.
+          schema:
+            type: string
+            format: uuid
+          example: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+        - name: system_user_id
+          in: query
+          required: true
+          description: External user id (composite key with `system_uuid`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+          example: "learner-01"
+        - name: system_uuid
+          in: query
+          required: true
+          description: Source system UUID (composite key with `system_user_id`).
+          schema:
+            type: string
+            format: uuid
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+      responses:
+        "200":
+          description: OK — the persisted conspectus.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConspectusResponse" }
+              examples:
+                active:
+                  summary: Active conspectus, slot B, revision 4
+                  value:
+                    conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                    title: "Cue-based retrieval — first pass"
+                    cue_sheet:
+                      prompts: ["What is E in ETR?"]
+                    cue_sheet_schema_version: 1
+                    dense_paragraph: "Extract-Transform-Retrieve …"
+                    bullets: ["Extract: raw source → dense paragraph."]
+                    slot: "B"
+                    slot_d_ladder_index: 0
+                    next_review_at: "2026-07-10T12:34:56+00:00"
+                    schedule_policy_id: "etr-default-v1"
+                    algorithm_version: "1.0.0"
+                    schedule_revision: 4
+                    content_version: 1
+                    is_row_invalid: 0
+                    invalidation_reason_uuid: null
+                    invalidated_at: null
+                    created_at: "2026-07-08T10:00:00+00:00"
+                    updated_at: "2026-07-08T10:00:00+00:00"
+                    schedule_updated_at: "2026-07-09T12:34:56+00:00"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — either the user or the conspectus does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+                conspectus_not_found:
+                  summary: No conspectus with the given uuid for the caller
+                  value:
+                    code: "CONS_404"
+                    key: "CONSPECTUS_NOT_FOUND"
+                    message: "Conspectus not found for the calling tenant."
+                    source: "business"
+        "422":
+          description: Unprocessable Content — query parameters failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                invalid_conspectus_uuid:
+                  summary: "`conspectus_uuid` path parameter is not a valid UUID"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/conspectuses/{conspectus_uuid}"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Path parameter `conspectus_uuid` must be a valid UUID."
+                        field: "conspectus_uuid"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ConspectusResponse:
+      type: object
+      required:
+        - conspectus_uuid
+        - cue_sheet
+        - cue_sheet_schema_version
+        - dense_paragraph
+        - bullets
+        - slot
+        - slot_d_ladder_index
+        - next_review_at
+        - schedule_policy_id
+        - algorithm_version
+        - schedule_revision
+        - content_version
+        - is_row_invalid
+        - created_at
+        - updated_at
+        - schedule_updated_at
+      properties:
+        conspectus_uuid: { type: string, format: uuid }
+        title: { type: [string, "null"] }
+        cue_sheet: { type: object }
+        cue_sheet_schema_version: { type: integer, format: int32 }
+        dense_paragraph: { type: string }
+        bullets: { type: array, items: { type: string } }
+        slot: { type: string, enum: [A, B, C, D] }
+        slot_d_ladder_index: { type: integer, format: int32, minimum: 0 }
+        next_review_at: { type: string, format: date-time }
+        schedule_policy_id: { type: string }
+        algorithm_version: { type: string }
+        schedule_revision: { type: integer, format: int64, minimum: 1 }
+        content_version: { type: integer, format: int64, minimum: 1 }
+        is_row_invalid: { type: integer, enum: [0, 1] }
+        invalidation_reason_uuid: { type: [string, "null"], format: uuid }
+        invalidated_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        schedule_updated_at: { type: string, format: date-time }

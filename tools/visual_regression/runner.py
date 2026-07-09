@@ -324,7 +324,7 @@ def compare(baseline_path: Path, actual_path: Path) -> tuple[float, bytes | None
     if bbox is None:
         return 0.0, None
 
-    changed = sum(1 for px in mask.getdata() if px > 0)
+    changed = sum(mask.histogram()[1:])
     total = base.size[0] * base.size[1]
     ratio = changed / total
 

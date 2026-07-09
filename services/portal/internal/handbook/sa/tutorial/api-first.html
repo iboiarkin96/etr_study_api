@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design your first endpoint API-first · Tutorial · SA · Documentation handbook</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="tutorial" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-28" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Handbook</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Tutorial</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Design your first endpoint API-first</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Tutorial</span>
+          <span class="docs-pill docs-pill--teal">SA · Foundations</span>
+          <span class="docs-pill docs-pill--neutral">Python-only</span>
+        </p>
+        <h1>Design your first endpoint API-first</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Install the toolchain, author one OpenAPI fragment, validate it, exercise it
+          against the dev FastAPI, and leave the working tree ready for a spec PR.
+          The point is to feel the API-first loop end-to-end — contract first, handler
+          second — not to ship a real endpoint. Real work uses the same shape; you'll
+          repeat it on every new operation under <a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a>.
+        </p>
+        <div class="docs-chip-row docs-chip-row--mt-3">
+          <span class="docs-chip">⚙️ 7 phases</span>
+          <span class="docs-chip">⏱ 35–50 min</span>
+          <span class="docs-chip">📚 First-time</span>
+          <span class="docs-chip">💻 Local stack · Python only</span>
+        </div>
+      </header>
+
+      <section id="prereqs">
+        <h2><span class="docs-step-number" aria-hidden="true">–</span>Before you start</h2>
+        <ul>
+          <li><strong>Python 3.11+</strong> installed (<code>python3 --version</code> reports 3.11 or newer).</li>
+          <li><strong><code>make</code></strong> available on your shell.</li>
+          <li><strong>You are at the repo root</strong> — <code>pwd</code> ends with <code>/study_app</code>. Every command in this tutorial is run from there.</li>
+          <li><strong><code>curl</code></strong> or any HTTP client for Phase 4. <code>jq</code> is nice but not required.</li>
+        </ul>
+        <p>The toolchain is single-language Python. Everything you install lives inside one <code>.venv/</code> at the repo root.</p>
+      </section>
+
+      <section id="goal">
+        <h2><span class="docs-step-number" aria-hidden="true">0</span>Goal</h2>
+        <p>By the end of this tutorial you will have:</p>
+        <ul>
+          <li>A working Python <code>.venv/</code> with <code>openapi_spec_validator</code>, Connexion + Flask, and the rest of the API requirements.</li>
+          <li>One OpenAPI 3.1 fragment authored at <code>services/portal/internal/services/api/openapi/test/fragments/course/createCourse.yaml</code>.</li>
+          <li>A green <code>make doc-api-swagger-check FILE=course/createCourse.yaml</code> — the validator approves the fragment and resolves every <code>$ref</code>.</li>
+          <li>The fragment rendered as a live Swagger UI on the portal's static server.</li>
+          <li>A running Connexion mock on <code>:8001</code> that answers <code>curl POST /api/v1/courses</code> with the documented example.</li>
+          <li>A portal Operation spec page stub at the canonical reference path, ready to be filled out.</li>
+          <li>A clean working tree summary — what is staged, what is not, what would land in a spec PR.</li>
+        </ul>
+        <p>Three local processes by the end of Phase 5 (each in its own terminal):</p>
+        <ul>
+          <li><strong>:8080</strong> — portal static server, started by <code>make -C services/portal serve</code>. Serves Swagger UI, fragment YAML, the merged spec. GET-only (POST returns <code>501 Unsupported method</code>).</li>
+          <li><strong>:8001, :8002, …</strong> — Connexion mocks, all started at once by <code>make api-mock</code>. One process per canon under <code>openapi/*/</code>: the smoke <code>test</code> canon lives on :8001, product canons (<code>etr_study_app</code>, …) on :8002+ in alphabetical order. Each accepts every documented HTTP method and returns the documented 2xx example.</li>
+          <li><strong>:8000</strong> — <em>optional</em>, FastAPI dev server, started by <code>make run</code>. The real runtime; today it doesn't have handlers for these smoke-test endpoints (Phase 5b shows the parity gate tripping on that).</li>
+        </ul>
+        <p>You will <strong>not</strong> commit anything in this tutorial. Per the project convention, commits happen only when the author explicitly approves the spec PR.</p>
+      </section>
+
+      <section id="phase-1">
+        <h2><span class="docs-step-number" aria-hidden="true">1</span>Bootstrap the Python toolchain</h2>
+        <p>The repo ships one <code>requirements.txt</code> that pins every Python dep you need, including <code>openapi_spec_validator</code>, <code>jsonschema-path</code>, <code>schemathesis</code>'s prerequisites, and FastAPI itself. <code>make setup</code> wires that up in one step.</p>
+        <ol>
+          <li>From the repo root, create the venv and install dependencies:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">make setup</code></pre>
+        <ol start="2">
+          <li>Confirm the validator landed inside the venv:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">.venv/bin/python -c "import openapi_spec_validator; print(openapi_spec_validator.__version__)"</code></pre>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>
+            The command prints a version string (e.g. <code>0.9.0</code>). If you see <code>ModuleNotFoundError</code>, <code>make setup</code> did not finish — re-run it from the repo root and watch for the line that installs <code>services/api/requirements.txt</code>.
+            If <code>python3</code> reports a version below 3.11, install a newer Python first (e.g. via <code>pyenv</code>) and re-run <code>make setup</code>.
+          </p>
+        </div>
+      </section>
+
+      <section id="phase-2">
+        <h2><span class="docs-step-number" aria-hidden="true">2</span>Author the OpenAPI fragment</h2>
+        <p>One fragment describes one operation. The path is fixed by convention (<a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a> D1): <code>fragments/{resource}/{operationId}.yaml</code> under the canonical tree. Shared schemas, headers, and error responses live next to it under <code>_shared/</code> and are referenced via relative <code>$ref</code>.</p>
+        <ol>
+          <li>Create the resource directory (skip if it already exists):</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">mkdir -p services/portal/internal/services/api/openapi/test/fragments/course</code></pre>
+        <ol start="2">
+          <li>Author the fragment at <code>services/portal/internal/services/api/openapi/test/fragments/course/createCourse.yaml</code> with the body below. Copy verbatim for the first pass — change names later when you adapt this to a real endpoint.</li>
+        </ol>
+        <pre class="docs-code"><code class="language-yaml">openapi: 3.1.0
+info:
+  title: Study App API
+  version: v1
+paths:
+  /api/v1/courses:
+    post:
+      operationId: createCourse
+      summary: Create a new course.
+      tags: [Course]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCourseRequest" }
+            examples:
+              minimal: { value: { name: "Introduction to Python" } }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Course" }
+              examples:
+                minimal:
+                  { value: { id: c_abc123, name: "Introduction to Python" } }
+        "400": { $ref: "../../_shared/responses/Error400.yaml" }
+components:
+  schemas:
+    CreateCourseRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+    Course:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, pattern: "^c_[a-z0-9]+$" }
+        name: { type: string }
+</code></pre>
+        <p>Three details to notice in the shape:</p>
+        <ul>
+          <li><strong><code>operationId</code>: <code>createCourse</code></strong> sits on the method-level object (<code>post:</code>), not the path-level object. It must be unique across the whole API and is what the FastAPI route name should match.</li>
+          <li><strong><code>$ref: "../../_shared/responses/Error400.yaml"</code></strong> uses a path relative to the fragment file. The validator we'll run in Phase 3 resolves it from this fragment's directory, so the count of <code>../</code> matters — two levels up from <code>fragments/course/</code> lands on <code>openapi/</code>, where <code>_shared/</code> lives.</li>
+          <li><strong>Every documented response carries an <code>examples</code> block</strong> (or <code>$ref</code>s a response that does). Those examples double as fixtures for the contract tests later.</li>
+        </ul>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>
+            <code>ls services/portal/internal/services/api/openapi/test/fragments/course/createCourse.yaml</code> shows the file.
+            Opening the file, you can read off the operation: <code>POST /api/v1/courses</code>, request needs a <code>name</code> (1–80 chars), success returns 201 with an <code>id</code> matching <code>^c_[a-z0-9]+$</code>, validation errors return 400.
+            If <code>ls</code> says no such file, you saved the fragment at the wrong path — most often <code>services/api/openapi/...</code> (the old location). The canonical path lives under <code>services/portal/internal/services/api/openapi/test/fragments/</code>.
+          </p>
+        </div>
+      </section>
+
+      <section id="phase-3">
+        <h2><span class="docs-step-number" aria-hidden="true">3</span>Validate the fragment</h2>
+        <p>The fragment lints through <code>tools/governance/validate_openapi.py</code>, which wraps <code>openapi_spec_validator</code> and resolves relative <code>$ref</code> from the fragment's directory. You invoke it through a Make target so pre-commit and CI run the same command.</p>
+        <ol>
+          <li>Validate this one fragment by short name (the target resolves it under the canonical fragments tree):</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">make doc-api-swagger-check FILE=course/createCourse.yaml</code></pre>
+        <ol start="2">
+          <li>Validate every fragment under <code>course/</code> at once (useful once you've authored more than one):</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">make doc-api-swagger-check-all DIR=course</code></pre>
+        <ol start="3">
+          <li>Validate the whole fragments tree (the gate CI runs):</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">make doc-api-swagger-check-all</code></pre>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>
+            Each command ends with a green <code>== DOC-API-SWAGGER-CHECK[-ALL]: SUCCESS ==</code> banner and a per-file <code>✅ Valid: …createCourse.yaml</code> line.
+            If you see <code>Unresolvable: ../../_shared/responses/Error400.yaml</code>, the <code>$ref</code> path is wrong — count directories from the fragment up to <code>fragments/</code> and adjust the number of <code>../</code>.
+            If you see <code>'paths' is a required property</code>, your top-level keys are mis-indented; YAML cares.
+            If you see <code>missing required property operationId</code>, you put <code>operationId</code> at path level instead of method level — move it under <code>post:</code>.
+          </p>
+        </div>
+      </section>
+
+      <section id="phase-4">
+        <h2><span class="docs-step-number" aria-hidden="true">4</span>See your design in the browser (Swagger UI)</h2>
+        <p>Validation tells you the fragment is well-formed. To <em>see</em> the API as a human reviewer will read it — endpoints, parameters, schemas, examples, response shapes — open the fragment in Swagger UI. The portal ships a small preview page that loads any fragment by URL query param. It runs entirely off your local static server; no Node.js, no separate process.</p>
+        <ol>
+          <li>From the repo root, start the portal static server (in its own terminal):</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">make -C services/portal serve</code></pre>
+        <ol start="2">
+          <li>Open the preview page in your browser:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">open "http://127.0.0.1:8080/portal/internal/services/api/openapi/test/preview.html"</code></pre>
+        <p>(<code>open</code> is macOS; on Linux use <code>xdg-open</code>; on Windows paste the URL into your browser.)</p>
+        <p>By default the page loads <code>merged-spec.json</code> — every fragment under <code>fragments/</code> rendered as a single Swagger UI, so all of your operations are visible at once. To focus on one fragment, pick it from the dropdown at the top, or append <code>?spec=fragments/{resource}/{operationId}.yaml</code> to the URL. Both <code>merged-spec.json</code> and the per-fragment manifest are auto-regenerated by the validator (Phase 3), so the dropdown and combined view stay in sync without manual edits.</p>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>
+            Swagger UI shows one operation grouped under the <strong>Course</strong> tag: <code>POST /api/v1/courses</code>. Expanding it reveals:
+            the <code>Idempotency-Key</code> request header marked required;
+            a request body whose example reads <code>{ "name": "Introduction to Python" }</code>;
+            three response codes (<code>201</code> Created, <code>400</code> Bad Request, <code>409</code> Conflict) each with a worked example.
+            If you see a CORS or 404 error inside the Swagger UI panel, the YAML URL is wrong — the path you pass via <code>?spec=</code> is relative to <code>preview.html</code>, not to the repo root. If Swagger UI itself fails to load (blank page), check your network for blocked CDN requests against <code>unpkg.com</code>.
+          </p>
+        </div>
+      </section>
+
+      <section id="phase-5">
+        <h2><span class="docs-step-number" aria-hidden="true">5</span>Exercise the contract via the mock</h2>
+        <p>So far you've <em>seen</em> the contract in Swagger UI. Now we send real HTTP at it and watch the documented examples come back — without writing a single line of handler code. This is <strong>layer 3</strong> of the toolchain (see <a href="../reference/api-first-toolchain.html">API-first toolchain</a>): a Connexion + Flask mock that reads <code>merged-spec.json</code> at startup, registers a route for every documented operation, and on each request returns the first <code>examples.{key}.value</code> from a documented 2xx response.</p>
+        <p>Two terminals — one for the mocks, one for curl. <strong>The portal static server on :8080 from Phase 4 cannot serve POST/PUT/DELETE</strong> (it's <code>python -m http.server</code>, GET-only — it returns <code>501 Unsupported method</code> on writes). Mocks run on their own ports (<strong>:8001 for <code>test</code>, :8002 for <code>etr_study_app</code>, and so on</strong>) so you can keep the portal and all the mocks up at once.</p>
+        <ol>
+          <li>In a fresh terminal at the repo root, start every mock at once:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">make api-mock</code></pre>
+        <p>You should see startup output like:</p>
+        <pre class="docs-code"><code class="language-text">== API-MOCK: START ==
+🟢 Starting 2 mock server(s):
+   · test                     → http://127.0.0.1:8001
+   · etr_study_app            → http://127.0.0.1:8002
+mock_server · INFO · Loaded 4 operations from …/test/merged-spec.json
+  · createCourse   · body-schema · 201[short_track,long_track], 400[…], 409[…]
+  · getCourse      · no-body     · 200[default]
+  · getUser        · no-body     · 200[default]
+  · updateUser     · body-schema · 200[default], 400[…], 409[…]
+mock_server · INFO · Loaded 1 operations from …/etr_study_app/merged-spec.json
+  · createUser     · body-schema · 201[default], 400[…], 401[…], 409[…], 422[…], 429[…]
+INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://127.0.0.1:8002 (Press CTRL+C to quit)</code></pre>
+        <p><code>Ctrl-C</code> stops every mock at once. Leave this terminal open and switch to a SECOND terminal.</p>
+        <ol start="2">
+          <li>From the second terminal, POST the documented body to the mock:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"Introduction to Python","length":10}'</code></pre>
+        <p>The mock answers with the documented <code>201</code> example from the fragment:</p>
+        <pre class="docs-code"><code class="language-json">{"name": "Introduction to Python"}</code></pre>
+        <ol start="3">
+          <li>Try the other operations the same way — every documented method works:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash"># Both GETs require a documented query parameter.
+curl 'http://127.0.0.1:8001/api/v1/courses/test?name=Introduction%20to%20Python'
+curl 'http://127.0.0.1:8001/api/v1/users/test?email=test@example.com'
+
+# Missing the required param → 400 in our ErrorBody envelope
+curl http://127.0.0.1:8001/api/v1/courses/test
+# → {"code":"validation_error","message":"Missing query parameter 'name'"}
+
+# Malformed value → 400 (format check from the schema)
+curl 'http://127.0.0.1:8001/api/v1/users/test?email=not-an-email'
+# → {"code":"validation_error","message":"'not-an-email' is not a 'email' …"}
+
+curl -X PUT http://127.0.0.1:8001/api/v1/users/test \
+     -H 'Content-Type: application/json' \
+     -H 'Idempotency-Key: 8f5a2c19-3b4e-4d8a-9f3b-1c2d3e4f5a6b' \
+     -d '{"name":"Renamed","email":"renamed@example.com"}'</code></pre>
+        <p>The same mock is what Swagger UI's «Try it out» button targets — every canon's <code>merged-spec.json</code> ships a <code>servers:</code> entry pointing at its own port (<code>test</code> → :8001, <code>etr_study_app</code> → :8002, …), so browser-side calls land in the matching Connexion process.</p>
+
+        <h3 id="see-in-browser">Where to open Swagger UI for the mock</h3>
+        <p>Every canon renders in a Swagger UI you can open two ways:</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead><tr><th>Way</th><th>URL</th><th>When to use</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Portal-hosted preview</td>
+                <td><code>http://127.0.0.1:8080/portal/internal/services/api/openapi/<em>&lt;canon&gt;</em>/preview.html</code></td>
+                <td>Rich shell with dark-mode toggle and a spec picker. Requires the portal (<code>make -C services/portal serve</code>) to be up on :8080.</td>
+              </tr>
+              <tr>
+                <td>Built-in mock Swagger UI</td>
+                <td><code>http://127.0.0.1:<em>&lt;port&gt;</em>/ui/</code></td>
+                <td>Ships inside the Connexion mock — no portal needed. Bare-bones but always available whenever <code>make api-mock</code> is running.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Common gotcha.</strong> Hitting the mock's root — <code>http://127.0.0.1:8002/</code> — returns <code>404 Not Found</code>. That's by design: nothing is documented at <code>/</code>, only under the paths declared in the spec. Open <code>/ui/</code> to browse, or curl one of the declared paths.</p>
+
+        <h3 id="mock-troubleshoot">Mock troubleshooting</h3>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>ERR_CONNECTION_REFUSED</code> in the browser</td>
+                <td>Mock isn't running on that port.</td>
+                <td>Confirm with <code>curl -s http://127.0.0.1:8002/openapi.json | head -1</code> — <code>{</code> = alive, empty = down. Start <code>make api-mock</code> in a fresh terminal.</td>
+              </tr>
+              <tr>
+                <td><code>404 Not Found</code> at <code>http://127.0.0.1:PORT/</code></td>
+                <td>Root path isn't in the spec. This is correct.</td>
+                <td>Open <code>/ui/</code> or a documented path (e.g. <code>/api/v1/user</code>).</td>
+              </tr>
+              <tr>
+                <td><code>501 Unsupported method</code></td>
+                <td>You hit port <code>8080</code> (portal static server) instead of a mock port.</td>
+                <td>Change the port to the mock's (see the fan-out startup log — <code>test</code> → :8001, <code>etr_study_app</code> → :8002).</td>
+              </tr>
+              <tr>
+                <td>Which ports are actually listening?</td>
+                <td>—</td>
+                <td>One-liner: <code>lsof -nP -iTCP:8001 -iTCP:8002 -iTCP:8080 -sTCP:LISTEN</code>.</td>
+              </tr>
+              <tr>
+                <td>Swagger UI shows the old summary after a YAML edit</td>
+                <td>Auto-reload didn't fire.</td>
+                <td>Check the mock's terminal for a <code>WatchFiles detected changes</code> line. If absent, save the file again; if still absent, <code>Ctrl-C</code> the fan-out and re-run <code>make api-mock</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="dynamic-overlay">Dynamic overlay — your input reflected in the response</h3>
+        <p>The mock is a systems-analyst tool: on every request it overlays your input onto the picked example, so stakeholders see the exact values you sent. Keys the example already declares are overwritten; keys the schema doesn't declare are never invented.</p>
+        <pre class="docs-code"><code class="language-bash">curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -H 'Idempotency-Key: 8f5a2c19-3b4e-4d8a-9f3b-1c2d3e4f5a6b' \
+     -d '{"name": "Advanced Systems Design", "length": 16}'
+# → 201 + {"name":"Advanced Systems Design","length":16}   ← your values
+
+curl 'http://127.0.0.1:8001/api/v1/courses/test?name=Rust'
+# → 200 + {"name":"Rust","length":10}                       ← name from query, length from example
+
+curl 'http://127.0.0.1:8001/api/v1/users/test?email=alice@studyapp.io'
+# → 200 + {"id":"u_a1b2c3d4","name":"Alice Example","email":"alice@studyapp.io"}
+#                                                              ↑ email from query, id+name from example</code></pre>
+        <p>Turn overlay off with <code>Prefer: dynamic=off</code> when you want the raw documented example verbatim (for testing that the spec is correctly written, not for UX demos):</p>
+        <pre class="docs-code"><code class="language-bash">curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -H 'Idempotency-Key: 8f5a2c19-3b4e-4d8a-9f3b-1c2d3e4f5a6b' \
+     -H 'Prefer: dynamic=off' \
+     -d '{"name":"whatever","length":42}'
+# → 201 + {"name":"Introduction to Python","length":10}    ← documented example, ignored input</code></pre>
+
+        <h3 id="prefer-header">Picking a specific example — the <code>Prefer</code> header</h3>
+        <p>By default the mock returns the FIRST documented 2xx example. To pick a different one (other success example, or a documented error), send <code>Prefer:</code> (RFC 7240, the same convention Stripe uses):</p>
+        <pre class="docs-code"><code class="language-bash"># Pick a specific 2xx example (createCourse has minimal + full)
+curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -H 'Prefer: example=full' \
+     -d '{"name":"X","length":5}'
+# → 201 + {"name":"Introduction to Rust","length":10}
+
+# Pick a documented error code (createCourse documents 400 with three named examples)
+curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -H 'Prefer: code=400, example=length_out_of_range' \
+     -d '{"name":"X","length":5}'
+# → 400 + {"code":"validation_error","message":"Field 'length' must be between 1 and 1000."}
+
+# Pick a documented 409 case (per-resource error file)
+curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -H 'Prefer: code=409, example=name_already_exists' \
+     -d '{"name":"X","length":5}'
+# → 409 + {"code":"course_name_already_exists","message":"A course named 'Introduction to Python' already exists."}</code></pre>
+        <p>The example names match the keys you put in the fragment (look at <code>fragments/course/error-409/name-conflict.yaml</code> — <code>name_already_exists</code> is the YAML key). Tier-B per-resource error files are followed via <code>$ref</code>, so their examples are pickable just like inline ones.</p>
+
+        <h3 id="body-validation">Body validation — invalid payloads return our documented error envelope</h3>
+        <p>The mock validates every <code>POST/PUT/PATCH/DELETE</code> body against the spec's request schema. Anything that doesn't match returns <code>400</code> with the shape documented in <code>_shared/schemas/ErrorBody.yaml</code>:</p>
+        <pre class="docs-code"><code class="language-bash"># Missing required field
+curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"X"}'
+# → 400 + {"code":"validation_error","message":"'length' is a required property"}
+
+# Field out of declared range
+curl -X POST http://127.0.0.1:8001/api/v1/courses \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"X","length":9999}'
+# → 400 + {"code":"validation_error","message":"9999 is greater than the maximum of 1000 - 'length'"}
+
+# Wrong format (email)
+curl -X PUT http://127.0.0.1:8001/api/v1/users/test \
+     -H 'Content-Type: application/json' \
+     -H 'Idempotency-Key: 8f5a2c19-3b4e-4d8a-9f3b-1c2d3e4f5a6b' \
+     -d '{"name":"X","email":"not-an-email"}'
+# → 400 + {"code":"validation_error","message":"'not-an-email' is not a 'email' - 'email'"}</code></pre>
+        <p>The validator is the spec — change <code>minLength</code>, <code>maximum</code>, <code>format</code>, or <code>required</code> in the fragment, re-run <code>make -C services/portal doc-api-swagger-check-all</code>, restart the mock, and the new rules go live. Two messages differ:</p>
+        <ul>
+          <li><strong>Schema-violation 400</strong> (auto-generated by validation): <code>{"code": "validation_error", "message": "<field>: <reason>"}</reason></field></code> — the message is computed at runtime from the schema.</li>
+          <li><strong>Prefer-picked documented 400</strong>: returns the EXACT <code>code</code> and <code>message</code> you wrote in the fragment's examples (e.g. <code>"Field 'length' must be between 1 and 1000."</code>).</li>
+        </ul>
+        <p>Use Prefer when you want the front-end to render an EXACT documented message; rely on schema validation for any input the front-end might actually generate.</p>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>
+            <code>make api-mock</code> reaches the <code>Uvicorn running on http://127.0.0.1:8001</code> line and lists every operationId; every curl above returns the documented 2xx body with the right status code; Swagger UI's «Try it out» round-trips through the same mock.
+          </p>
+          <p>
+            Common stumbles:
+            <strong>«Connection refused»</strong> — the mock isn't running; check the first terminal didn't crash.
+            <strong>«501 Unsupported method»</strong> — you hit port <code>8080</code> (portal static server) instead of <code>8001</code> (mock); change the URL.
+            <strong>«merged-spec.json not found»</strong> — run <code>make -C services/portal doc-api-swagger-check-all</code> first; it's what writes the file the mock reads.
+            <strong>«unknown operation»</strong> — you added a fragment but forgot to re-run the validator; the mock only knows what was in <code>merged-spec.json</code> at startup, so kill the mock with Ctrl-C, run the validator, then restart <code>make api-mock</code>.
+          </p>
+        </div>
+      </section>
+
+      <section id="phase-5b">
+        <h2><span class="docs-step-number" aria-hidden="true">5b</span>Optional: see the parity gate trip on missing handler</h2>
+        <p>This is <strong>layer 5</strong> of the toolchain — the canon ↔ runtime parity diff. It compares <code>merged-spec.json</code> with FastAPI's real <code>/openapi.json</code>. Today it will <em>fail</em>, and that's the right outcome: there are no real handlers yet for the four smoke-test operations, so the runtime spec lacks them.</p>
+        <ol>
+          <li>Start the FastAPI dev server in a THIRD terminal (the real backend, separate from the mock):</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">make run            # uvicorn on http://127.0.0.1:8000</code></pre>
+        <ol start="2">
+          <li>From any terminal, run the parity gate:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">make openapi-check  # canon ↔ runtime diff</code></pre>
+        <p>Expected: <code>make openapi-check</code> reports drift — the canon contains <code>POST /api/v1/courses</code>, the runtime does not. That drift is the gate working: it blocks an implementation PR from merging until its FastAPI route matches the ratified spec. Once a real handler lands in <code>services/api/app/</code>, this gate flips green for that operation.</p>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>You saw <code>make openapi-check</code> fail on a known cause (no handler yet). That's the layer-5 gate doing its job. You can stop here — Phase 5b is informational; the next phase moves on to authoring the human-readable spec page.</p>
+        </div>
+      </section>
+
+      <section id="phase-6">
+        <h2><span class="docs-step-number" aria-hidden="true">6</span>Author the portal Operation spec page</h2>
+        <p>The fragment is the machine-readable contract; the Operation spec page is its human-readable companion. Reviewers read both — the fragment to see field shapes, the page to see §3 acceptance criteria, §11 idempotency, §14 observability, §15 test plan, §19 traceability back to the fragment.</p>
+        <ol>
+          <li>Create the reference directory for the resource:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">mkdir -p services/portal/internal/services/api/reference/course/operations</code></pre>
+        <ol start="2">
+          <li>Copy the canonical template to the canonical path:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">cp services/portal/internal/handbook/sa/templates/api-spec.html \
+   services/portal/internal/services/api/reference/course/operations/post-api-v1-courses.html</code></pre>
+        <ol start="3">
+          <li>Open the copied page and fill the §-numbered sections from the fragment:</li>
+        </ol>
+        <ul>
+          <li><strong>§3 Acceptance criteria</strong> — one Given/When/Then per response status. Example: «Given valid <code>name</code>, When <code>POST /api/v1/courses</code>, Then <code>201</code> with body matching <code>Course</code>».</li>
+          <li><strong>§11 Idempotency &amp; concurrency</strong> — note that <code>Idempotency-Key</code> is required for writes (per <a href="../../../governance/adr/0006-idempotency-write-operations.html">ADR-0006</a>) and that this fragment does not yet declare the header. Mark it as a TODO; you'll add the <code>$ref</code> to <code>_shared/headers/IdempotencyKey.yaml</code> before opening the spec PR.</li>
+          <li><strong>§14 Observability</strong> — names of the structured-log events, Prometheus metrics, and alerts this operation must emit (per <a href="../../../governance/adr/0009-health-readiness-and-observability.html">ADR-0009</a>).</li>
+          <li><strong>§15 Test plan</strong> — one row per §3 G/W/T entry. Each row maps to a pytest case name later.</li>
+          <li><strong>§19 Traceability</strong> — back-links to the fragment, every ADR cited (at minimum 0003 for the error envelope, 0006 for idempotency, 0036 for the API-first policy), and the contract-test plan sibling once it exists.</li>
+        </ul>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ Check your progress</h3>
+          <p>
+            The file <code>services/portal/internal/services/api/reference/course/operations/post-api-v1-courses.html</code> opens in your editor and contains §1–§19 placeholders from the template. §3, §11, §14, §15, §19 contain text you wrote — not the template's <code>&lt;…&gt;</code> placeholders. The page need not be perfect; it must be reviewable.
+          </p>
+        </div>
+      </section>
+
+      <section id="phase-final">
+        <h2><span class="docs-step-number" aria-hidden="true">7</span>Hand off for review</h2>
+        <p>You've authored a contract and proved the toolchain accepts it. The remaining step is to surface the artifacts a reviewer would see and stop — <em>without committing</em>. Commits happen only after the author (you) explicitly approves the spec PR scope.</p>
+        <ol>
+          <li>Run the gates one more time, end-to-end:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">make doc-api-swagger-check-all
+make docs-check</code></pre>
+        <ol start="2">
+          <li>List the working-tree artifacts that the spec PR would contain:</li>
+        </ol>
+        <pre class="docs-code"><code class="language-bash">git status --short -- \
+  services/portal/internal/services/api/openapi/test/fragments/course/ \
+  services/portal/internal/services/api/reference/course/</code></pre>
+        <div class="docs-card docs-card--ghost">
+          <h3 class="docs-card__title">✓ You're done</h3>
+          <ol>
+            <li>The fragment exists, validates, and lives at the canonical path.</li>
+            <li>The Swagger UI preview renders the operation, parameters, and example responses.</li>
+            <li><code>make api-mock</code> answers <code>POST /api/v1/courses</code> on <code>:8001</code> with the documented 201 example.</li>
+            <li>The portal Operation spec page exists with §-numbered placeholders filled.</li>
+            <li><code>make doc-api-swagger-check-all</code> and <code>make docs-check</code> both exit 0.</li>
+            <li>(Optional) <code>make run</code> + <code>make openapi-check</code> reports drift on the known cause (no handler yet) — that's the layer-5 gate working.</li>
+            <li>Nothing is committed. The next decision is yours: stage the fragment + page as a spec PR, or iterate.</li>
+          </ol>
+          <p>
+            That is the API-first loop on this project — <strong>fragment → validate → preview → exercise (mock) → spec page → review</strong>.
+            Real endpoints widen the surface (more responses, more shared schemas, a separate contract-test plan sibling), but the steps are identical. The recipe form (no narrative, just the seven steps) lives in the <a href="../authoring/apply-api-first.html">Apply API-first how-to</a>.
+          </p>
+        </div>
+        <div class="docs-card docs-card--ghost docs-card--mt-3">
+          <h3 class="docs-card__title">↺ Want to start over?</h3>
+          <p>Reverts only the files this tutorial creates — leaves the rest of the working tree untouched:</p>
+          <pre class="docs-code"><code class="language-bash">rm -rf services/portal/internal/services/api/openapi/test/fragments/course
+rm -rf services/portal/internal/services/api/reference/course</code></pre>
+          <p>Re-run from Phase 2.</p>
+        </div>
+      </section>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">Next step</h3>
+        <ul>
+          <li><a href="../reference/api-first-toolchain.html">API-first toolchain — five layers</a> — the big-picture map of the whole stack (spec → validator → mock → contract test → parity gate), what each layer does, what port it runs on.</li>
+          <li><a href="../../../services/api/reference/openapi-fragment-anatomy.html">OpenAPI fragment anatomy</a> — lookup reference for every key you can write in a fragment + what it renders to in Swagger UI.</li>
+          <li><a href="../authoring/apply-api-first.html">Apply API-first to a new endpoint</a> — the recipe form of the same loop; use this from your second endpoint onward.</li>
+          <li><a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036 · API-first as source of truth</a> — the policy this tutorial enacts (why fragments are canon, what the parity gate buys).</li>
+        </ul>
+      </aside>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-28</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Added Phase 4 — Swagger UI preview. The portal now ships a small viewer at <code>internal/services/api/openapi/test/preview.html</code> that loads any fragment via <code>?spec=…</code> query param and renders it through Swagger UI 5 (CDN-loaded). Phases 5–7 renumbered; TOC + recap card updated to add the «preview» step into the loop.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-06-28</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Authored as the Diátaxis tutorial pair to <a href="../authoring/apply-api-first.html">apply-api-first.html</a> (how-to) and <a href="../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">ADR 0036</a> (policy). Walks a first-time reader from <code>make setup</code> through one validated OpenAPI fragment, exercise of the dev FastAPI, and a draft Operation spec page — using only the Python toolchain already in the repo's <code>.venv</code>. Worked example: <code>POST /api/v1/courses</code>. Page-type flipped <code>reference</code> → <code>tutorial</code>; <code>data-service</code> set to <code>api</code>; fragments path corrected to the actual <code>services/portal/internal/services/api/openapi/test/fragments/</code> tree; commit step removed per the project's «no commit without explicit approval» rule.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#prereqs">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#goal">Goal</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#phase-1">Phase 1 · Bootstrap the toolchain</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#phase-2">Phase 2 · Author the fragment</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#phase-3">Phase 3 · Validate</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#phase-4">Phase 4 · See it in the browser</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#phase-5">Phase 5 · Exercise via the mock</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#phase-5b">— 5b · Parity gate (optional)</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#phase-6">Phase 6 · Operation spec page</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#phase-final">Phase 7 · Hand off for review</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

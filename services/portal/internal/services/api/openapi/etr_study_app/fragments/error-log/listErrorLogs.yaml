@@ -1,0 +1,145 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/error-log/operations/get-api-v1-errors.html
+paths:
+  /api/v1/errors:
+    get:
+      operationId: listErrorLogs
+      x-implementation-status: pending
+      summary: List a learner's error log entries (optionally filtered by conspectus).
+      description: |
+        Returns the learner's error log entries ordered
+        `created_at DESC, error_uuid DESC`, capped at 100 items. When
+        `conspectus_uuid` is present, results are filtered to entries
+        linked to that conspectus — the canonical shape for the in-note
+        remediation sidebar.
+
+        Read-only; no `Idempotency-Key`. Requires `X-API-Key`.
+
+        `message` is PII class **High** — treat responses as sensitive on
+        every hop.
+      tags: [ErrorLog]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: system_user_id
+          in: query
+          required: true
+          description: External user id (composite key with `system_uuid`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+          example: "learner-01"
+        - name: system_uuid
+          in: query
+          required: true
+          description: Source system UUID (composite key with `system_user_id`).
+          schema:
+            type: string
+            format: uuid
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+        - name: conspectus_uuid
+          in: query
+          required: false
+          description: Filter results to errors linked to this conspectus.
+          schema:
+            type: string
+            format: uuid
+          example: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+      responses:
+        "200":
+          description: OK — the learner's error log entries (may be empty).
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items: { $ref: "#/components/schemas/ErrorLogResponse" }
+              examples:
+                empty:
+                  summary: No errors logged
+                  value: []
+                two_recent:
+                  summary: Two entries; newest first
+                  value:
+                    - error_uuid: "f0a2c8b0-9c0f-4b41-9f66-2d0e6f3a0f33"
+                      message: "Applied 'hard' when I meant 'forgot'."
+                      conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                      review_log_id: 4271
+                      created_at: "2026-07-09T12:20:00+00:00"
+                    - error_uuid: "e9f2c8b0-9c0f-4b41-9f66-2d0e6f3a0f22"
+                      message: "Confused Extract with Transform."
+                      conspectus_uuid: "8fa2c8b0-9c0f-4b41-9f66-2d0e6f3a0f11"
+                      review_log_id: null
+                      created_at: "2026-07-09T11:05:00+00:00"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — the user does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+        "422":
+          description: Unprocessable Content — query parameters failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                missing_system_user_id:
+                  summary: "`system_user_id` is required"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/errors"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `system_user_id` is required."
+                        field: "system_user_id"
+                        source: "validation"
+                invalid_conspectus_uuid:
+                  summary: "`conspectus_uuid` filter is not a valid UUID"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/errors"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `conspectus_uuid` must be a valid UUID."
+                        field: "conspectus_uuid"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    ErrorLogResponse:
+      type: object
+      required: [error_uuid, message, created_at]
+      properties:
+        error_uuid:
+          type: string
+          format: uuid
+          description: "Server-generated stable identifier for the error log entry."
+        message:
+          type: string
+          description: "Learner-authored description of the mistake. PII class High."
+        conspectus_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: "Linked conspectus, or `null` when freestanding."
+        review_log_id:
+          type: [integer, "null"]
+          format: int64
+          description: "Linked review log entry id, or `null`."
+        created_at:
+          type: string
+          format: date-time
+          description: "Row creation timestamp (RFC 3339, UTC)."

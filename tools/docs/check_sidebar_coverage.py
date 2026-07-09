@@ -52,6 +52,10 @@ EXCLUDED_GLOBS: list[str] = [
     # The profile `index.html` page is reachable from People; sub-notes
     # are linked from there, not the global sidebar.
     "services/portal/internal/team/people/*/sa-growth.html",
+    # Swagger UI viewer for OpenAPI fragments — a dev tool reachable
+    # from the SA tutorial + ADR 0036, not from the global sidebar.
+    "services/portal/internal/services/api/openapi/test/preview.html",
+    "services/portal/internal/services/api/openapi/etr_study_app/preview.html",
 ]
 
 REDIRECT_MARKER = 'http-equiv="refresh"'

@@ -1,0 +1,61 @@
+openapi: 3.1.0
+info:
+  title: Study App API
+  version: v1
+paths:
+  /api/v1/users/test:
+    put:
+      operationId: updateUser
+      summary: Replace a user's editable fields.
+      description: |
+        Replaces the current user's `email` with the supplied
+        value. Returns the updated user on success.
+
+        Idempotent per `Idempotency-Key` (required header) — a repeated
+        request with the same key within the idempotency window replays
+        the cached response.
+      tags: [User]
+      parameters:
+        - $ref: "../../_shared/headers/IdempotencyKey.yaml"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateUserRequest" }
+            examples:
+              rename:
+                summary: Update the display name only
+                value: { name: "Alice Example", email: "alice@example.com" }
+              email_change:
+                summary: Update both name and email
+                value: { name: "Alice Example", email: "alice.example@company.com" }
+      responses:
+        "200":
+          description: OK — the updated user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+              examples:
+                default:
+                  summary: The user after replacement
+                  value:
+                    id: u_a1b2c3d4
+                    name: "Alice Example"
+                    email: "alice@example.com"
+        "400": { $ref: "./error-400/bad-request.yaml" }
+        "409": { $ref: "./error-409/email-conflict.yaml" }
+components:
+  schemas:
+    UpdateUserRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name:  { type: string, minLength: 1, maxLength: 80 }
+        email: { type: string, format: email, maxLength: 254 }
+    User:
+      type: object
+      required: [id, name, email]
+      properties:
+        id:    { type: string, pattern: "^u_[a-z0-9]+$" }
+        name:  { type: string, minLength: 1, maxLength: 80 }
+        email: { type: string, format: email, maxLength: 254 }
