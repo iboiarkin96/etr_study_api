@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GET /api/v1/conspectuses/{conspectus_uuid}/history · Conspectus · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <link rel="stylesheet" href="../../../../../../../frontend/portal/assets_v2/ui-kit/components/api-spec-structure.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-spec-page="operation" data-spec-status="draft" data-spec-owner="ivan-boyarkin" data-spec-operation-id="getConspectusHistory" data-service="api" data-lifecycle="published" data-updated="2026-07-09" data-role="swe">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">api</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Conspectus</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">GET history</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Spec · API · Conspectus</span>
+          <span class="docs-pill docs-pill--neutral" data-spec-status-mount="">Draft</span>
+        </p>
+      </header>
+
+      <div class="endpoint-hero">
+        <h1 class="endpoint-hero__title">
+          <span class="endpoint-hero__method endpoint-hero__method--get">GET</span>
+          <span class="endpoint-hero__path">/api/v1/conspectuses/{conspectus_uuid}/history</span>
+        </h1>
+        <div id="docs-top-nav"></div>
+      </div>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Operation</dt>
+          <dd><code>GET /api/v1/conspectuses/{conspectus_uuid}/history</code></dd>
+          <dt>operationId</dt>
+          <dd><code>getConspectusHistory</code></dd>
+          <dt>Resource</dt>
+          <dd>Conspectus</dd>
+          <dt>Category</dt>
+          <dd>read · audit</dd>
+          <dt>Auth</dt>
+          <dd><code>X-API-Key</code></dd>
+          <dt>Idempotent</dt>
+          <dd>Yes — read-only (no <code>Idempotency-Key</code> required)</dd>
+          <dt>Latency target</dt>
+          <dd>P95 ≤ 200 ms · P99 ≤ 500 ms per page</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-07-09">2026-07-09</time></dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="overview-h">
+        <h2 id="overview-h">Overview</h2>
+        <p>Immutable audit trail for a Conspectus — every <a href="post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a> and every <a href="patch-api-v1-conspectuses-conspectus_uuid.html"><code>patchConspectus</code></a> emits an event on this stream. Cursor-paginated in chronological order. Two event kinds share one <strong>discriminated union</strong>: <code>review</code> events carry slot transitions, <code>content_patch</code> events carry the list of changed fields.</p>
+      </section>
+
+      <section data-spec-section="business-context" data-spec-required="true">
+        <h2 id="business-context"><span class="h2-num">§1</span>Business context</h2>
+        <p>The history stream is the analytics primitive for the ETR loop: it makes «did this note actually get better over time?» a queryable question. It's also the backbone of any «why is my schedule off?» support ticket — the review series shows exactly which tags landed, in what order, and how the ladder walked. Immutability is the value: a mutable log stops being a truthful traceback (see the <a href="../../error-log/index.html">error-log resource</a> for the mirror-image decision).</p>
+      </section>
+
+      <section data-spec-section="user-stories" data-spec-required="true">
+        <h2 id="user-stories"><span class="h2-num">§2</span>User stories</h2>
+        <ul>
+          <li><strong>US-CONSP-HIST-1.</strong> As a <em>learner</em>, I want to see how a note has evolved so I can decide whether to keep drilling it or retire it.</li>
+          <li><strong>US-CONSP-HIST-2.</strong> As a <em>support engineer</em>, I want to inspect the full review series when a learner reports «my schedule is broken».</li>
+          <li><strong>US-CONSP-HIST-3.</strong> As a <em>data auditor</em>, I want to distinguish content changes from schedule changes so I can compute «retention lift per content revision».</li>
+          <li><strong>US-CONSP-HIST-4.</strong> As an <em>integrator</em>, I want cursor pagination so I can replay long histories deterministically.</li>
+        </ul>
+      </section>
+
+      <section data-spec-section="acceptance-criteria" data-spec-required="true">
+        <h2 id="acceptance-criteria"><span class="h2-num">§3</span>Acceptance criteria · Given / When / Then</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head">
+            <thead><tr><th>ID &amp; scenario</th><th>Given</th><th>When</th><th>Then</th></tr></thead>
+            <tbody>
+              <tr><td>AC-CONSP-HIST-001 · Mixed stream</td><td>U's row has 3 reviews and 2 patches in chronological order.</td><td>GET default.</td><td><code>200 OK</code>; 5 events interleaved by <code>created_at ASC</code>; each event's <code>event_type</code> discriminates the payload.</td></tr>
+              <tr><td>AC-CONSP-HIST-002 · Filter reviews</td><td>Same.</td><td>GET <code>?event_type=review</code>.</td><td><code>200 OK</code>; only <code>event_type = "review"</code> items.</td></tr>
+              <tr><td>AC-CONSP-HIST-003 · Filter patches</td><td>Same.</td><td>GET <code>?event_type=content_patch</code>.</td><td><code>200 OK</code>; only <code>event_type = "content_patch"</code>.</td></tr>
+              <tr><td>AC-CONSP-HIST-004 · Since anchor</td><td>2 events yesterday, 3 today.</td><td>GET <code>?since=&lt;today 00:00Z&gt;</code>.</td><td><code>200 OK</code>; today's 3 events only.</td></tr>
+              <tr><td>AC-CONSP-HIST-005 · Cursor forward</td><td>110 events.</td><td>Page 1 then use <code>next_cursor</code>.</td><td>Page 2 starts immediately after page 1's last event; no overlap.</td></tr>
+              <tr><td>AC-CONSP-HIST-006 · Empty history</td><td>U's row was just created; no reviews or patches.</td><td>GET.</td><td><code>200 OK</code>; <code>items = []</code>, <code>has_more = false</code>.</td></tr>
+              <tr><td>AC-CONSP-HIST-007 · Cross-tenant miss</td><td>Row exists for another tenant.</td><td>GET.</td><td><code>404 CONS_404</code>.</td></tr>
+              <tr><td>AC-CONSP-HIST-008 · Invalid event_type</td><td>—.</td><td>GET <code>?event_type=weird</code>.</td><td><code>422 COMMON_000</code>.</td></tr>
+              <tr><td>AC-CONSP-HIST-009 · Deleted parent</td><td>Row is soft-deleted; had events before deletion.</td><td>GET.</td><td><code>200 OK</code>; the historical events still return.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section data-spec-section="functional-requirements" data-spec-required="true">
+        <h2 id="functional-requirements"><span class="h2-num">§4</span>Functional requirements</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head">
+            <thead><tr><th>ID</th><th>Short description</th><th>Detailed characteristic</th></tr></thead>
+            <tbody>
+              <tr><td>FR-CONSP-HIST-001</td><td>Resolve owner + conspectus.</td><td>Same guard as <code>getConspectusById</code>; miss → <code>404 USER_404</code> or <code>CONS_404</code>.</td></tr>
+              <tr><td>FR-CONSP-HIST-002</td><td>Merge two source tables.</td><td>UNION ALL over <code>review_events</code> and <code>content_events</code> tagged with <code>event_type</code>.</td></tr>
+              <tr><td>FR-CONSP-HIST-003</td><td>Event-type filter.</td><td>When <code>event_type ∈ {review, content_patch}</code>, restrict to that table only. Default <code>all</code>.</td></tr>
+              <tr><td>FR-CONSP-HIST-004</td><td>Since filter.</td><td><code>WHERE created_at &gt;= ?</code> — inclusive lower bound.</td></tr>
+              <tr><td>FR-CONSP-HIST-005</td><td>Ordering.</td><td><code>ORDER BY created_at ASC, sequence ASC</code>. <code>sequence</code> is a per-conspectus monotonic counter that breaks same-timestamp ties.</td></tr>
+              <tr><td>FR-CONSP-HIST-006</td><td>Cursor.</td><td>Opaque token encoding <code>(created_at, sequence)</code> of the last event returned; server-signed with 7-day TTL.</td></tr>
+              <tr><td>FR-CONSP-HIST-007</td><td>Discriminated union.</td><td>Each item has an <code>event_type</code> discriminator. Exactly one of <code>review</code> / <code>content_patch</code> is present (not both, not neither).</td></tr>
+              <tr><td>FR-CONSP-HIST-008</td><td>Immutable.</td><td>No PATCH, no DELETE on events. Even a <code>deleteConspectus</code> keeps its history readable.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section data-spec-section="non-functional-requirements" data-spec-required="true">
+        <h2 id="non-functional-requirements"><span class="h2-num">§5</span>Non-functional requirements</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head">
+            <thead><tr><th>ID</th><th>Short description</th><th>Detailed characteristic</th></tr></thead>
+            <tbody>
+              <tr><td>NFR-CONSP-HIST-001</td><td>Latency.</td><td>P95 ≤ 200 ms, P99 ≤ 500 ms per page.</td></tr>
+              <tr><td>NFR-CONSP-HIST-002</td><td>Index coverage.</td><td>Both event tables have composite <code>(conspectus_uuid, created_at, sequence)</code>.</td></tr>
+              <tr><td>NFR-CONSP-HIST-003</td><td>Payload cap.</td><td><code>items.maxItems = 100</code>; <code>limit = 50</code> default.</td></tr>
+              <tr><td>NFR-CONSP-HIST-004</td><td>Immutability.</td><td>No update path exists — even the retention sweep leaves events alone until the parent conspectus is hard-deleted (out of scope in v1).</td></tr>
+              <tr><td>NFR-CONSP-HIST-005</td><td>Backwards compatibility.</td><td>Adding a new event_type is breaking for clients that don't gracefully switch — see <a href="#openapi-authoring-hints">§16</a>.</td></tr>
+              <tr><td>NFR-CONSP-HIST-006</td><td>Cursor TTL.</td><td>7 days server-side.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section data-spec-section="authorization" data-spec-required="true">
+        <h2 id="authorization"><span class="h2-num">§6</span>Authorization &amp; permissions</h2>
+        <p>API key per <a href="../../_shared/auth.html">shared auth</a>. Learner resolved from query. Cross-tenant reads collapse to <code>404 CONS_404</code>.</p>
+      </section>
+
+      <section data-spec-section="request-contract" data-spec-required="true">
+        <h2 id="request-contract"><span class="h2-num">§7</span>Request contract</h2>
+
+        <h3>Headers</h3>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head">
+            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>X-API-Key</code></td><td><code>string</code></td><td><span class="spec-req">required</span></td><td>Tenant API key.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Path parameters</h3>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head">
+            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>conspectus_uuid</code></td><td><code>string · uuid</code></td><td><span class="spec-req">required</span></td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Query parameters</h3>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head">
+            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>system_user_id</code></td><td><code>string · 1..128</code></td><td><span class="spec-req">required</span></td><td>Owner composite key.</td></tr>
+              <tr><td><code>system_uuid</code></td><td><code>string · uuid</code></td><td><span class="spec-req">required</span></td><td>Owner composite key.</td></tr>
+              <tr><td><code>event_type</code></td><td><code>string · enum</code></td><td><span class="spec-opt">optional</span></td><td><code>review</code>·<code>content_patch</code>·<code>all</code> (default).</td></tr>
+              <tr><td><code>since</code></td><td><code>string · date-time</code></td><td><span class="spec-opt">optional</span></td><td>Inclusive lower bound on event <code>created_at</code>.</td></tr>
+              <tr><td><code>limit</code></td><td><code>integer · 1..100</code></td><td><span class="spec-opt">optional</span></td><td>Default <code>50</code>.</td></tr>
+              <tr><td><code>cursor</code></td><td><code>string · 1..512</code></td><td><span class="spec-opt">optional</span></td><td>Opaque forward cursor.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Example request</h3>
+        <div class="spec-terminal" role="img" aria-label="HTTP request example">
+          <div class="spec-terminal__chrome">
+            <span class="spec-terminal__dot"></span>
+            <span class="spec-terminal__dot"></span>
+            <span class="spec-terminal__dot"></span>
+            <span class="spec-terminal__file">GET /api/v1/conspectuses/{conspectus_uuid}/history</span>
+            <span class="spec-terminal__actions">
+              <span class="spec-terminal__lang">HTTP</span>
+              <button class="spec-terminal__copy" type="button" onclick="navigator.clipboard&amp;&amp;navigator.clipboard.writeText(this.closest('.spec-terminal').querySelector('.spec-terminal__body').innerText);this.textContent='✓ Copied';setTimeout(()=>this.textContent='Copy',1200)">Copy</button>
+            </span>
+          </div>
+          <pre class="spec-terminal__body"><span class="ln">1</span><span class="lc"><span class="tk-m">GET</span> <span class="tk-path">/api/v1/conspectuses/8fa2c8b0-…/history?system_user_id=learner-01&amp;system_uuid=b2c3d4e5-…&amp;event_type=review&amp;limit=50</span> <span class="tk-ver">HTTP/1.1</span></span><span class="ln">2</span><span class="lc"><span class="tk-h">X-API-Key:</span> <span class="tk-v">sk_live_***</span></span></pre>
+        </div>
+      </section>
+
+      <section data-spec-section="response-contract" data-spec-required="true">
+        <h2 id="response-contract"><span class="h2-num">§8</span>Response contract</h2>
+
+        <h3>200 OK — a page of history events</h3>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head">
+            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>conspectus_uuid</code></td><td><code>string · uuid</code></td><td><span class="spec-req">always</span></td><td>Echo of the path parameter.</td></tr>
+              <tr><td><code>items</code></td><td><code>array&lt;ConspectusHistoryEvent&gt;</code></td><td><span class="spec-req">always</span></td><td><code>maxItems: 100</code>.</td></tr>
+              <tr><td><code>next_cursor</code></td><td><code>string</code></td><td><span class="spec-opt">nullable</span></td><td>Forward cursor; <code>null</code> on last page.</td></tr>
+              <tr><td><code>count</code></td><td><code>integer · int32</code></td><td><span class="spec-req">always</span></td><td>Equal to <code>items.length</code>.</td></tr>
+              <tr><td><code>has_more</code></td><td><code>boolean</code></td><td><span class="spec-req">always</span></td><td>Mirror of <code>next_cursor != null</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3><code>ConspectusHistoryEvent</code> — discriminated union</h3>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head">
+            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>event_type</code></td><td><code>string · enum</code></td><td><span class="spec-req">always</span></td><td>Discriminator: <code>review</code>·<code>content_patch</code>.</td></tr>
+              <tr><td><code>event_id</code></td><td><code>string · 1..64</code></td><td><span class="spec-req">always</span></td><td>Stable per-event identifier.</td></tr>
+              <tr><td><code>created_at</code></td><td><code>string · date-time</code></td><td><span class="spec-req">always</span></td><td>Server timestamp.</td></tr>
+              <tr><td><code>actor.system_user_id</code></td><td><code>string</code></td><td><span class="spec-req">always</span></td><td>Caller who triggered the event.</td></tr>
+              <tr><td><code>actor.system_uuid</code></td><td><code>string · uuid</code></td><td><span class="spec-req">always</span></td><td>Caller's tenant.</td></tr>
+              <tr><td><code>review</code></td><td><code>object</code></td><td><span class="spec-opt">iff event_type=review</span></td><td>See fields below.</td></tr>
+              <tr><td><code>review.tag</code></td><td><code>enum</code></td><td><span class="spec-req">iff review</span></td><td><code>easy</code>·<code>hard</code>·<code>forgot</code>.</td></tr>
+              <tr><td><code>review.slot_from</code></td><td><code>enum</code></td><td><span class="spec-req">iff review</span></td><td>Slot before the transition.</td></tr>
+              <tr><td><code>review.slot_to</code></td><td><code>enum</code></td><td><span class="spec-req">iff review</span></td><td>Slot after the transition.</td></tr>
+              <tr><td><code>review.slot_d_ladder_index_from</code></td><td><code>integer</code></td><td><span class="spec-req">iff review</span></td><td>D-ladder position before.</td></tr>
+              <tr><td><code>review.slot_d_ladder_index_to</code></td><td><code>integer</code></td><td><span class="spec-req">iff review</span></td><td>D-ladder position after.</td></tr>
+              <tr><td><code>review.schedule_revision_after</code></td><td><code>integer · int64</code></td><td><span class="spec-req">iff review</span></td><td>Row's <code>schedule_revision</code> after this review.</td></tr>
+              <tr><td><code>review.next_review_at_after</code></td><td><code>string · date-time</code></td><td><span class="spec-req">iff review</span></td><td>Scheduled next review after this event.</td></tr>
+              <tr><td><code>content_patch</code></td><td><code>object</code></td><td><span class="spec-opt">iff event_type=content_patch</span></td><td>See fields below.</td></tr>
+              <tr><td><code>content_patch.changed_fields</code></td><td><code>array&lt;enum&gt;</code></td><td><span class="spec-req">iff patch</span></td><td>Subset of <code>title</code>·<code>cue_sheet</code>·<code>dense_paragraph</code>·<code>bullets</code>.</td></tr>
+              <tr><td><code>content_patch.content_version_after</code></td><td><code>integer · int64</code></td><td><span class="spec-req">iff patch</span></td><td><code>content_version</code> after this patch.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Example response</h3>
+        <div class="spec-terminal" role="img" aria-label="HTTP response example">
+          <div class="spec-terminal__chrome">
+            <span class="spec-terminal__dot"></span>
+            <span class="spec-terminal__dot"></span>
+            <span class="spec-terminal__dot"></span>
+            <span class="spec-terminal__file">200 OK · application/json</span>
+            <span class="spec-terminal__actions">
+              <span class="spec-terminal__lang">JSON</span>
+              <button class="spec-terminal__copy" type="button" onclick="navigator.clipboard&amp;&amp;navigator.clipboard.writeText(this.closest('.spec-terminal').querySelector('.spec-terminal__body').innerText);this.textContent='✓ Copied';setTimeout(()=>this.textContent='Copy',1200)">Copy</button>
+            </span>
+          </div>
+          <pre class="spec-terminal__body"><span class="ln"> 1</span><span class="lc">HTTP/1.1 <span class="tk-k">200 OK</span></span><span class="ln"> 2</span><span class="lc">Content-Type: application/json</span><span class="ln"> 3</span><span class="lc"> </span><span class="ln"> 4</span><span class="lc"><span class="tk-p">{</span></span><span class="ln"> 5</span><span class="lc">  <span class="tk-k">"conspectus_uuid"</span><span class="tk-p">:</span> <span class="tk-s">"8fa2c8b0-…"</span><span class="tk-p">,</span></span><span class="ln"> 6</span><span class="lc">  <span class="tk-k">"items"</span><span class="tk-p">:</span> <span class="tk-p">[</span></span><span class="ln"> 7</span><span class="lc">    <span class="tk-p">{</span></span><span class="ln"> 8</span><span class="lc">      <span class="tk-k">"event_type"</span><span class="tk-p">:</span> <span class="tk-s">"review"</span><span class="tk-p">,</span></span><span class="ln"> 9</span><span class="lc">      <span class="tk-k">"event_id"</span><span class="tk-p">:</span>   <span class="tk-s">"cev-000001"</span><span class="tk-p">,</span></span><span class="ln">10</span><span class="lc">      <span class="tk-k">"created_at"</span><span class="tk-p">:</span> <span class="tk-s">"2026-07-09T09:00:00+00:00"</span><span class="tk-p">,</span></span><span class="ln">11</span><span class="lc">      <span class="tk-k">"actor"</span><span class="tk-p">:</span> <span class="tk-p">{</span><span class="tk-k">"system_user_id"</span><span class="tk-p">:</span> <span class="tk-s">"learner-01"</span><span class="tk-p">,</span> <span class="tk-k">"system_uuid"</span><span class="tk-p">:</span> <span class="tk-s">"b2c3d4e5-…"</span><span class="tk-p">}</span><span class="tk-p">,</span></span><span class="ln">12</span><span class="lc">      <span class="tk-k">"review"</span><span class="tk-p">:</span> <span class="tk-p">{</span></span><span class="ln">13</span><span class="lc">        <span class="tk-k">"tag"</span><span class="tk-p">:</span> <span class="tk-s">"easy"</span><span class="tk-p">,</span> <span class="tk-k">"slot_from"</span><span class="tk-p">:</span> <span class="tk-s">"A"</span><span class="tk-p">,</span> <span class="tk-k">"slot_to"</span><span class="tk-p">:</span> <span class="tk-s">"B"</span><span class="tk-p">,</span></span><span class="ln">14</span><span class="lc">        <span class="tk-k">"schedule_revision_after"</span><span class="tk-p">:</span> <span class="tk-v">2</span></span><span class="ln">15</span><span class="lc">      <span class="tk-p">}</span></span><span class="ln">16</span><span class="lc">    <span class="tk-p">}</span><span class="tk-p">,</span></span><span class="ln">17</span><span class="lc">    <span class="tk-p">{</span></span><span class="ln">18</span><span class="lc">      <span class="tk-k">"event_type"</span><span class="tk-p">:</span> <span class="tk-s">"content_patch"</span><span class="tk-p">,</span> <span class="tk-k">"event_id"</span><span class="tk-p">:</span> <span class="tk-s">"cev-000002"</span><span class="tk-p">,</span></span><span class="ln">19</span><span class="lc">      <span class="tk-k">"content_patch"</span><span class="tk-p">:</span> <span class="tk-p">{</span><span class="tk-k">"changed_fields"</span><span class="tk-p">:</span> <span class="tk-p">[</span><span class="tk-s">"title"</span><span class="tk-p">]</span><span class="tk-p">,</span> <span class="tk-k">"content_version_after"</span><span class="tk-p">:</span> <span class="tk-v">2</span><span class="tk-p">}</span></span><span class="ln">20</span><span class="lc">    <span class="tk-p">}</span></span><span class="ln">21</span><span class="lc">  <span class="tk-p">]</span><span class="tk-p">,</span> <span class="tk-k">"next_cursor"</span><span class="tk-p">:</span> <span class="tk-s">"eyJzZXEiOjJ9"</span><span class="tk-p">,</span> <span class="tk-k">"count"</span><span class="tk-p">:</span> <span class="tk-v">2</span><span class="tk-p">,</span> <span class="tk-k">"has_more"</span><span class="tk-p">:</span> <span class="tk-v">true</span></span><span class="ln">22</span><span class="lc"><span class="tk-p">}</span></span></pre>
+        </div>
+      </section>
+
+      <section data-spec-section="side-effects" data-spec-required="true">
+        <h2 id="side-effects"><span class="h2-num">§10</span>Side effects</h2>
+        <p>None. Read-only.</p>
+      </section>
+
+      <section data-spec-section="idempotency-concurrency" data-spec-required="true">
+        <h2 id="idempotency-concurrency"><span class="h2-num">§11</span>Idempotency &amp; concurrency</h2>
+        <p>Not applicable — read-only. Cursor stable under concurrent writes because events are append-only + monotonic <code>sequence</code>.</p>
+      </section>
+
+      <section data-spec-section="error-catalog" data-spec-required="true">
+        <h2 id="error-catalog"><span class="h2-num">§12</span>Error catalog</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra docs-table--sticky-head">
+            <thead><tr><th>HTTP</th><th>Code</th><th>Key</th><th>When</th><th>Log event (level)</th></tr></thead>
+            <tbody>
+              <tr><td><code>401</code></td><td><code>COMMON_401</code></td><td><code>SECURITY_AUTH_REQUIRED</code></td><td>Missing/invalid API key.</td><td>middleware</td></tr>
+              <tr><td><code>404</code></td><td><code>USER_404</code></td><td><code>USER_NOT_FOUND</code></td><td>No user for composite key.</td><td><code>conspectus_history_user_not_found</code> (info)</td></tr>
+              <tr><td><code>404</code></td><td><code>CONS_404</code></td><td><code>CONSPECTUS_NOT_FOUND</code></td><td>Row not owned by caller.</td><td><code>conspectus_history_not_found</code> (info)</td></tr>
+              <tr><td><code>422</code></td><td><code>COMMON_000</code></td><td><code>COMMON_VALIDATION_ERROR</code></td><td>Bad event_type, bad cursor, malformed <code>since</code>, out-of-range <code>limit</code>.</td><td><code>validation_error</code> (warn)</td></tr>
+              <tr><td><code>429</code></td><td><code>COMMON_429</code></td><td><code>SECURITY_RATE_LIMIT_EXCEEDED</code></td><td>Rate limit.</td><td>middleware</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section data-spec-section="edge-cases" data-spec-required="true">
+        <h2 id="edge-cases"><span class="h2-num">§13</span>Edge cases checklist</h2>
+        <ul>
+          <li><strong>Simultaneous review + patch.</strong> Ordered by <code>sequence</code> — the write that acquired the DB lock first gets the earlier sequence.</li>
+          <li><strong>Soft-deleted parent.</strong> History still returns. Client rendering may need to badge the events as «historical».</li>
+          <li><strong>Filter matches zero.</strong> <code>200 OK</code>; not a 404.</li>
+          <li><strong>Cursor from a different conspectus.</strong> <code>422 COMMON_000</code> — the cursor encodes conspectus_uuid; mismatch is a client bug.</li>
+          <li><strong>Very old history (&gt; 1 year).</strong> Pagination still walks; no retention truncation in v1.</li>
+          <li><strong>New event_type shows up.</strong> Client must switch on <code>event_type</code>; unknown discriminator is a client bug (see §16).</li>
+        </ul>
+      </section>
+
+      <section data-spec-section="observability" data-spec-required="true">
+        <h2 id="observability"><span class="h2-num">§14</span>Observability requirements</h2>
+        <h3>Log events</h3>
+        <ul>
+          <li>Standard middleware <code>request_done</code>.</li>
+          <li><code>conspectus_history_user_not_found</code> (info) on <code>USER_404</code>.</li>
+          <li><code>conspectus_history_not_found</code> (info) on <code>CONS_404</code>.</li>
+        </ul>
+        <h3>Metrics</h3>
+        <ul>
+          <li><code>conspectus_history_total</code> (counter, labels: event_type_filter).</li>
+          <li><code>conspectus_history_duration_seconds</code> (histogram).</li>
+          <li><code>conspectus_history_page_size</code> (histogram).</li>
+          <li><code>conspectus_history_events_returned</code> (histogram, per-request event count).</li>
+        </ul>
+        <h3>Alerts</h3>
+        <ul>
+          <li><strong>Page:</strong> 5xx rate &gt; 1 % over 5 min.</li>
+          <li><strong>Ticket:</strong> P95 &gt; 400 ms over 30 min.</li>
+        </ul>
+      </section>
+
+      <section data-spec-section="test-plan" data-spec-required="true">
+        <h2 id="test-plan"><span class="h2-num">§15</span>Test plan</h2>
+        <ul>
+          <li><strong>Unit:</strong> UNION query planner uses both indexes; discriminator marshalling.</li>
+          <li><strong>Integration:</strong> AC-001..AC-009. Include a case with 30 mixed events and paginate through.</li>
+          <li><strong>Contract:</strong> Schemathesis on <code>getConspectusHistory</code>; assert discriminator invariant (exactly one union arm per item).</li>
+          <li><strong>End-to-end:</strong> create → patch → review easy → patch → review hard → history returns 4 events in order with correct slot transitions.</li>
+          <li><strong>Property:</strong> for any interleaving of writes and history reads, per-conspectus <code>sequence</code> is strictly monotonic.</li>
+        </ul>
+      </section>
+
+      <section data-spec-section="openapi-authoring-hints" data-spec-required="true">
+        <h2 id="openapi-authoring-hints"><span class="h2-num">§16</span>OpenAPI authoring hints</h2>
+        <ul>
+          <li><strong>operationId:</strong> <code>getConspectusHistory</code>.</li>
+          <li><strong>Tags:</strong> <code>Conspectus</code>.</li>
+          <li><strong>Response schema:</strong> <code>ConspectusHistoryPage</code> — object with <code>conspectus_uuid</code>, <code>items</code>, <code>next_cursor</code>, <code>count</code>, <code>has_more</code>.</li>
+          <li><strong>Item schema:</strong> <code>ConspectusHistoryEvent</code> — discriminated union with <code>event_type</code> as discriminator. Consider <code>oneOf</code> + <code>discriminator</code> in v2 for stronger client codegen; v1 keeps both optional-object branches for forward-compat.</li>
+          <li><strong>Examples:</strong> mixed_events, only_reviews, empty.</li>
+          <li><strong>Canon fragment:</strong> <code>openapi/etr_study_app/fragments/conspectus/getConspectusHistory.yaml</code> — already authored, <code>x-implementation-status: pending</code>.</li>
+        </ul>
+      </section>
+
+      <section data-spec-section="open-questions" data-spec-required="true">
+        <h2 id="open-questions"><span class="h2-num">§17</span>Open questions</h2>
+        <ul>
+          <li><strong>Q1.</strong> Do we include a diff blob (<code>before</code>/<code>after</code>) on <code>content_patch</code> events? Deferred — expensive to compute, few consumers today. Revisit when the analytics team asks.</li>
+          <li><strong>Q2.</strong> Should we also emit lifecycle events for <code>createConspectus</code> and <code>deleteConspectus</code>? Deferred — for now, «existence» is derivable from <code>getConspectusById</code>.</li>
+          <li><strong>Q3.</strong> Reverse-chronological order option (<code>?order=desc</code>) — deferred until UI needs it.</li>
+        </ul>
+      </section>
+
+      <section data-spec-section="out-of-scope" data-spec-required="true">
+        <h2 id="out-of-scope"><span class="h2-num">§18</span>Out of scope</h2>
+        <ul>
+          <li>Cross-conspectus history queries.</li>
+          <li>Backward cursors / reverse-chronological pagination (Q3).</li>
+          <li>Diff blobs on patches (Q1).</li>
+          <li>Lifecycle events for create/delete (Q2).</li>
+          <li>Webhook / streaming push — polling only in v1.</li>
+        </ul>
+      </section>
+
+      <section data-spec-section="traceability" data-spec-required="true">
+        <h2 id="traceability"><span class="h2-num">§19</span>Traceability</h2>
+        <ul>
+          <li><strong>Methodology:</strong> traceability + audit lens on the ETR loop.</li>
+          <li><strong>System design:</strong> event-sourcing pattern for conspectus mutations; discriminated union representation.</li>
+          <li><strong>ADRs:</strong> <a href="../../../../../governance/adr/0003-error-contract-governance.html">0003 errors</a>, <a href="../../../../../governance/adr/0005-api-security-defaults.html">0005 security</a>, <a href="../../../../../governance/adr/0023-structured-logging-and-local-elasticsearch.html">0023 logging</a>, <a href="../../../../../governance/adr/0036-api-first-openapi-fragments-as-source-of-truth.html">0036 API-first canon</a>.</li>
+          <li><strong>OpenAPI:</strong> <code>operationId = getConspectusHistory</code>. Canon fragment at <code>openapi/etr_study_app/fragments/conspectus/getConspectusHistory.yaml</code> (pending).</li>
+          <li><strong>Cross-cutting:</strong> <code>_shared/auth.html</code>, <code>_shared/pagination.html</code>, <code>_shared/error-envelope.html</code>, <code>_shared/error-catalog.html</code>.</li>
+        </ul>
+      </section>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-09</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial draft — analyst-authored companion to the canon fragment landed in commit <code>0327ccc</code>. Documents the discriminated-union event shape, the immutability decision, and the cursor pagination anchored on <code>(created_at, sequence)</code>. Status: <code>draft</code>.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#overview-h">Overview</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#business-context">§1. Business context</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#user-stories">§2. User stories</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#acceptance-criteria">§3. Acceptance criteria</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#functional-requirements">§4. Functional</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#non-functional-requirements">§5. Non-functional</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#authorization">§6. Authorization</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#request-contract">§7. Request</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#response-contract">§8. Response</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#side-effects">§10. Side effects</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#idempotency-concurrency">§11. Idempotency</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#error-catalog">§12. Error catalog</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#edge-cases">§13. Edge cases</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#observability">§14. Observability</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#test-plan">§15. Test plan</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#openapi-authoring-hints">§16. OpenAPI hints</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#open-questions">§17. Open questions</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#out-of-scope">§18. Out of scope</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#traceability">§19. Traceability</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
