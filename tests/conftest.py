@@ -14,14 +14,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-# Configure test DBs before importing app modules. The main app and the
-# docs-search telemetry store live in two separate sqlite files in production
-# (env/dev TELEMETRY_SQLITE_DB_PATH=var/tech/telemetry.db); mirror the split
-# in tests so the app's wiring exercises the same code path.
+# Configure test DB before importing app modules.
 TEST_DB_PATH = Path(__file__).resolve().parent / "test_app.sqlite3"
-TEST_TELEMETRY_DB_PATH = Path(__file__).resolve().parent / "test_telemetry.sqlite3"
 os.environ["SQLITE_DB_PATH"] = str(TEST_DB_PATH)
-os.environ["TELEMETRY_SQLITE_DB_PATH"] = str(TEST_TELEMETRY_DB_PATH)
 os.environ.setdefault("APP_NAME", "ETR Study App API (tests)")
 os.environ["APP_ENV"] = "qa"
 os.environ.setdefault("APP_HOST", "127.0.0.1")
@@ -45,7 +40,7 @@ from tests.api.v1.user_test_utils import (
 
 
 def _seed_reference_data() -> None:
-    """Insert minimal ``timezones``, ``systems``, and ``invalidation_reasons`` for user FKs.
+    """Insert minimal ``timezones``, ``systems``, ``invalidation_reasons``, and ``schedule_policies`` for FKs.
 
     Replaces existing rows so tests start from a known reference set.
     """
@@ -53,6 +48,7 @@ def _seed_reference_data() -> None:
         session.execute(text("DELETE FROM timezones"))
         session.execute(text("DELETE FROM systems"))
         session.execute(text("DELETE FROM invalidation_reasons"))
+        session.execute(text("DELETE FROM schedule_policies"))
         session.execute(
             text(
                 "INSERT INTO systems (system_uuid, code, name) VALUES "
@@ -79,6 +75,13 @@ def _seed_reference_data() -> None:
             text(
                 "INSERT INTO timezones (code, utc_offset) VALUES "
                 "('UTC', 0), ('Europe/Moscow', 180), ('America/New_York', -300)"
+            )
+        )
+        session.execute(
+            text(
+                "INSERT INTO schedule_policies "
+                "(schedule_policy_id, version, algorithm_version, description) VALUES "
+                "('etr_methodology_four_slot', '1.0.0', 'v1', 'Reference ETR four-slot review policy.')"
             )
         )
         session.commit()
@@ -108,6 +111,11 @@ def clean_users_table() -> None:
     """
     with SessionLocal() as session:
         session.execute(text("DELETE FROM idempotency_keys"))
+        session.execute(text("DELETE FROM learning_errors"))
+        session.execute(text("DELETE FROM conspectus_review_logs"))
+        session.execute(text("DELETE FROM conspectus_events"))
+        session.execute(text("DELETE FROM conspectus_schedules"))
+        session.execute(text("DELETE FROM conspectuses"))
         session.execute(text("DELETE FROM users"))
         session.commit()
 
