@@ -105,6 +105,37 @@ def _save_fingerprint(input_hash: str) -> None:
     )
 
 
+def _require_node_for_pdoc_search() -> None:
+    """Fail loudly when ``node`` isn't on ``PATH`` — pdoc silently degrades otherwise.
+
+    pdoc's ``search.js`` has two shapes:
+
+      * With a JS runtime available it precompiles the lunr index and emits
+        ``docs = {"_isPrebuiltIndex": true, …}``.
+      * Without one it falls back to shipping the raw document array
+        ``docs = [{"doc": …}, …]`` and expects the client to build the
+        index on page load.
+
+    The two shapes are byte-different. CI's GH Actions runner always has
+    ``node`` (image comes with it preinstalled); a stock ``python:3.11-slim``
+    docker image does not. Regenerating pdoc without ``node`` on a
+    contributor's machine therefore produces the raw-array form, commits
+    it, then CI regenerates the prebuilt form and fails ``docs-check``
+    with a full-file drift.
+
+    Fail here with a clear error so nobody discovers this by pushing.
+    """
+    import shutil as _shutil
+
+    if _shutil.which("node") is None and _shutil.which("nodejs") is None:
+        raise SystemExit(
+            "pdoc regen requires node (or nodejs) on PATH to precompile the lunr "
+            "search index — otherwise `search.js` will drift against CI. "
+            "Install node.js locally, or run this inside a container that has it "
+            "(e.g. `docker run … node:20-slim …`)."
+        )
+
+
 def _run_pdoc() -> None:
     """Execute pdoc + normalize into a temp tree, then sync only files that actually changed.
 
@@ -114,6 +145,7 @@ def _run_pdoc() -> None:
     in a temp dir and comparing content byte-for-byte before writing lets us keep
     the disk quiet on the common no-change path.
     """
+    _require_node_for_pdoc_search()
     env = os.environ.copy()
     env.setdefault("PYTHONHASHSEED", "0")
     env["PYTHONPATH"] = f"services/api{os.pathsep}{env.get('PYTHONPATH', '')}"
