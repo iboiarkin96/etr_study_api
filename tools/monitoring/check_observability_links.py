@@ -59,7 +59,7 @@ def _build_default_urls() -> list[str]:
     prom_host = os.getenv("OBS_PROM_HOST", "127.0.0.1").strip() or "127.0.0.1"
     prom_port = int(os.getenv("OBS_PROM_PORT", "9090"))
     graf_host = os.getenv("OBS_GRAF_HOST", "127.0.0.1").strip() or "127.0.0.1"
-    graf_port = int(os.getenv("OBS_GRAF_PORT", "3001"))
+    graf_port = int(os.getenv("OBS_GRAF_PORT", "3010"))
 
     api_base = f"http://{api_host}:{api_port}"
     prom_base = f"http://{prom_host}:{prom_port}"

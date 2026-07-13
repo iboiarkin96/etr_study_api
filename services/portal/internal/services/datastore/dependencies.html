@@ -35,16 +35,15 @@
       <header class="page-head">
         <div class="docs-chip-row">
           <span class="docs-pill docs-pill--accent">Reference</span>
-          <span class="docs-pill docs-pill--info">SQLite (dev)</span>
-          <span class="docs-pill docs-pill--neutral">Postgres (prod, planned)</span>
+          <span class="docs-pill docs-pill--info">PostgreSQL 16 (containerized)</span>
         </div>
         <h1>datastore · Dependencies</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">
           What the datastore depends on (build-time and runtime) and who depends on it. The datastore is not a
-          standalone process — it lives inside the <a href="../api/index.html">api</a> service as the persistence
-          layer (SQLAlchemy session, Alembic migrations, an embedded SQLite file in dev). The Postgres swap for
-          production is wired but not yet active.
+          standalone service — it's a persistence layer inside the <a href="../api/index.html">api</a> service
+          (SQLAlchemy session, Alembic migrations) backed by a neighbouring PostgreSQL 16 container across
+          dev/qa/prod (see <a href="../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>).
         </p>
       </header>
 
@@ -70,17 +69,17 @@
         <table class="docs-table docs-table--zebra docs-table--sticky-head">
           <thead><tr><th>Component</th><th>Role</th></tr></thead>
           <tbody>
-            <tr><td>SQLite (embedded, dev)</td><td>Single file under <code>services/api/var/study_app.sqlite</code> served via SQLAlchemy. Single-writer semantics — see the <a href="postmortems/2026-04-02-sqlite-write-lock-burst.html">2026-04-02 write-lock burst postmortem</a>.</td></tr>
-            <tr><td>Postgres (planned, prod)</td><td>Planned production engine per the <a href="index.html">datastore entity card</a>. The SQLAlchemy URL is the only switch — no app-level code changes anticipated.</td></tr>
+            <tr><td>PostgreSQL 16 (container)</td><td>Sidecar <code>postgres:16-alpine</code> service brought up via <code>docker compose</code>; data persists in <code>./var/postgres/</code>. Multi-writer safe (see <a href="../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>); the 2026-04-02 <a href="postmortems/2026-04-02-sqlite-write-lock-burst.html">write-lock burst postmortem</a> was one of the drivers.</td></tr>
+            <tr><td>psycopg 3 driver</td><td>Async-capable PostgreSQL driver used by SQLAlchemy under the <code>postgresql+psycopg://</code> URL scheme; installed via <code>psycopg[binary]</code>.</td></tr>
             <tr><td>SQLAlchemy engine + session</td><td>The api process owns one engine and short-lived per-request sessions. Pool size: default (5 + overflow); a dedicated <code>datastore/architecture.html</code> page will hold the rationale once stood up.</td></tr>
           </tbody>
         </table>
       </div>
       <p class="small">
-        There is no separate database process in development — SQLite is opened in-process by the api on
-        request. Production Postgres will be a network dependency over TCP; the SLO and on-call rules in that
-        case fall under the <a href="../api/on-call.html">api on-call</a> rotation by default until the data
-        team owns a separate slot.
+        PostgreSQL runs in a neighbouring container reached over TCP (<code>postgres:5432</code> inside the
+        compose network); the api opens the connection at request time and pools it via SQLAlchemy. SLO and
+        on-call rules fall under the <a href="../api/on-call.html">api on-call</a> rotation by default until
+        the data team owns a separate slot.
       </p>
 
       <h2 id="downstream">Downstream — who consumes the datastore</h2>

@@ -12,31 +12,29 @@ A FastAPI service plus a Docs-as-Code portal, laid out as a service-rooted monor
 | Understand the UI Kit / Pagefind / favicon layout                                | [`services/frontend/portal/CHANGELOG.md`](services/frontend/portal/CHANGELOG.md)                 |
 | Read about architectural decisions                                               | [`services/portal/internal/governance/adr/`](services/portal/internal/governance/adr/index.html) |
 
-## Quick start (API)
+## Quick start
 
 ```bash
-make venv && source .venv/bin/activate
-make install
-make env-init
-make migrate
-make run
+make setup   # .venv + deps + .env (first-time only)
+make up      # start EVERYTHING — api (with migrations), monitoring, portal
 ```
 
-`make setup` does the first three at once; `make dev` is the daily driver. See [`services/api/README.md`](services/api/README.md) for environment variables, container image, and HTTP endpoint details.
+`make up` prints all URLs at the end (API :8000, Portal :8080, Grafana :3010, Prometheus :9090, Blackbox :9115). Stop with `make down`; inspect with `make status` / `make logs`. See [`services/api/README.md`](services/api/README.md) for environment variables, container image, and HTTP endpoint details.
 
 ## Local make targets at a glance
 
 The Makefile sits at the repo root and orchestrates the gates that apply across services.
 
-| Command                             | Where it lives                                        | What it does                              |
-| ----------------------------------- | ----------------------------------------------------- | ----------------------------------------- |
-| `make fix`                          | root                                                  | format + lint auto-fix + docs autogen     |
-| `make check`                        | root                                                  | lint + types + openapi + contract + tests |
-| `make verify`                       | root                                                  | the full pre-push gate                    |
-| `make stack-up` / `make stack-down` | root → calls `services/monitoring/docker-compose.yml` | api + observability stack                 |
-| `make -C services/api run`          | api                                                   | uvicorn dev server                        |
-| `make -C services/portal docs-fix`  | portal                                                | docs autogen pipeline                     |
-| `make -C services/monitoring up`    | monitoring                                            | observability standalone                  |
+| Command                            | Where it lives                                        | What it does                              |
+| ---------------------------------- | ----------------------------------------------------- | ----------------------------------------- |
+| `make up` / `make down`            | root                                                  | one-shot start/stop of the whole stack    |
+| `make logs` / `make status`        | root                                                  | tail docker logs / show state + endpoints |
+| `make fix`                         | root                                                  | format + lint auto-fix + docs autogen     |
+| `make check`                       | root                                                  | lint + types + openapi + contract + tests |
+| `make verify`                      | root                                                  | the full pre-push gate                    |
+| `make -C services/api run`         | api                                                   | uvicorn dev server (local, --reload)      |
+| `make -C services/portal docs-fix` | portal                                                | docs autogen pipeline                     |
+| `make -C services/monitoring up`   | monitoring                                            | observability standalone                  |
 
 Full inventory: [`internal/handbook/sa/authoring/make-commands-and-workflows.html`](services/portal/internal/handbook/sa/authoring/make-commands-and-workflows.html).
 
@@ -45,53 +43,54 @@ Full inventory: [`internal/handbook/sa/authoring/make-commands-and-workflows.htm
 <!-- BEGIN:REPO_LAYOUT -->
 ```text
 study_app/
-└── services/  # Service-rooted layout per ADR 0028
-    ├── api/  # Python API service (FastAPI)
-    │   ├── alembic/  # Migration environment
-    │   │   └── versions/  # Migration scripts
-    │   ├── app/  # Application package
-    │   │   ├── api/  # HTTP layer
-    │   │   ├── core/  # Settings, DB session
-    │   │   ├── domain/
-    │   │   ├── errors/
-    │   │   ├── models/  # ORM models
-    │   │   ├── openapi/
-    │   │   ├── repositories/  # Data-access layer
-    │   │   ├── schemas/  # Pydantic request/response models
-    │   │   ├── services/  # Business logic
-    │   │   └── validation/
-    │   └── scripts/
-    ├── frontend/  # Frontend artifacts (portal, future admin / dashboard)
-    │   └── portal/  # Static documentation portal — public + internal IA
-    │       └── assets_v2/
-    ├── monitoring/  # Prometheus, Grafana, Filebeat configs + compose stacks
-    │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
-    │   ├── grafana/  # Dashboards and provisioning
-    │   │   ├── dashboards/
-    │   │   └── provisioning/
-    │   └── prometheus/  # Scrape config, rules, Blackbox
-    │       └── rules/
-    └── portal/
-        ├── internal/
-        │   ├── blog/
-        │   ├── catalog/
-        │   ├── explanation/
-        │   ├── governance/
-        │   ├── handbook/
-        │   ├── how-to/
-        │   ├── onboarding/
-        │   ├── operating-model/
-        │   ├── reference/
-        │   ├── services/
-        │   ├── team/
-        │   └── tutorials/
-        ├── public/
-        │   ├── explanation/
-        │   ├── how-to/
-        │   ├── reference/
-        │   └── tutorials/
-        └── ui-kit/
-            └── pages/
+├── services/  # Service-rooted layout per ADR 0028
+│   ├── api/  # Python API service (FastAPI)
+│   │   ├── alembic/  # Migration environment
+│   │   │   └── versions/  # Migration scripts
+│   │   ├── app/  # Application package
+│   │   │   ├── api/  # HTTP layer
+│   │   │   ├── core/  # Settings, DB session
+│   │   │   ├── domain/
+│   │   │   ├── errors/
+│   │   │   ├── models/  # ORM models
+│   │   │   ├── openapi/
+│   │   │   ├── repositories/  # Data-access layer
+│   │   │   ├── schemas/  # Pydantic request/response models
+│   │   │   ├── services/  # Business logic
+│   │   │   └── validation/
+│   │   └── scripts/
+│   ├── frontend/  # Frontend artifacts (portal, future admin / dashboard)
+│   │   └── portal/  # Static documentation portal — public + internal IA
+│   │       └── assets_v2/
+│   ├── monitoring/  # Prometheus, Grafana, Filebeat configs + compose stacks
+│   │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
+│   │   ├── grafana/  # Dashboards and provisioning
+│   │   │   ├── dashboards/
+│   │   │   └── provisioning/
+│   │   └── prometheus/  # Scrape config, rules, Blackbox
+│   │       └── rules/
+│   └── portal/
+│       ├── internal/
+│       │   ├── blog/
+│       │   ├── catalog/
+│       │   ├── explanation/
+│       │   ├── governance/
+│       │   ├── handbook/
+│       │   ├── how-to/
+│       │   ├── onboarding/
+│       │   ├── operating-model/
+│       │   ├── reference/
+│       │   ├── services/
+│       │   ├── team/
+│       │   └── tutorials/
+│       ├── public/
+│       │   ├── explanation/
+│       │   ├── how-to/
+│       │   ├── reference/
+│       │   └── tutorials/
+│       └── ui-kit/
+│           └── pages/
+└── ops/
 ```
 <!-- END:REPO_LAYOUT -->
 

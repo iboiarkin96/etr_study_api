@@ -61,8 +61,9 @@
                         <div class="docstring"><p>Database engine and session configuration.</p>
 
 <p>Attributes:
-    engine: Shared SQLAlchemy <code>~sqlalchemy.engine.Engine</code> for SQLite
-        (<code>check_same_thread=False</code> for use with FastAPI/async).
+    engine: Shared SQLAlchemy <code>~sqlalchemy.engine.Engine</code> for PostgreSQL
+        (per ADR 0037). <code>pool_pre_ping=True</code> guards against stale connections
+        the container's Postgres restart may leave behind.
     SessionLocal: Session factory bound to <code><a href="#engine">engine</a></code> for request-scoped work.</p>
 </div>
 
@@ -73,44 +74,45 @@
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="sd">&quot;&quot;&quot;Database engine and session configuration.</span>
 </span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a>
 </span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a><span class="sd">Attributes:</span>
-</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a><span class="sd">    engine: Shared SQLAlchemy :class:`~sqlalchemy.engine.Engine` for SQLite</span>
-</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a><span class="sd">        (``check_same_thread=False`` for use with FastAPI/async).</span>
-</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a><span class="sd">    SessionLocal: Session factory bound to ``engine`` for request-scoped work.</span>
-</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a>
-</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
-</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a>
-</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Generator</span>
-</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a>
-</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_engine</span>
-</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span><span class="p">,</span> <span class="n">sessionmaker</span>
-</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a>
-</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">app.core.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_settings</span>
-</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a>
-</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="n">settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
-</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a>
-</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span>
-</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a>    <span class="n">settings</span><span class="o">.</span><span class="n">sqlite_url</span><span class="p">,</span>
-</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a>    <span class="n">future</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a>    <span class="n">connect_args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;check_same_thread&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span>
-</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="p">)</span>
-</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a><span class="n">SessionLocal</span> <span class="o">=</span> <span class="n">sessionmaker</span><span class="p">(</span><span class="n">bind</span><span class="o">=</span><span class="n">engine</span><span class="p">,</span> <span class="n">autoflush</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">class_</span><span class="o">=</span><span class="n">Session</span><span class="p">)</span>
-</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a>
+</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a><span class="sd">    engine: Shared SQLAlchemy :class:`~sqlalchemy.engine.Engine` for PostgreSQL</span>
+</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a><span class="sd">        (per ADR 0037). ``pool_pre_ping=True`` guards against stale connections</span>
+</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a><span class="sd">        the container&#39;s Postgres restart may leave behind.</span>
+</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a><span class="sd">    SessionLocal: Session factory bound to ``engine`` for request-scoped work.</span>
+</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a>
+</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a>
+</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Generator</span>
+</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a>
+</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_engine</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span><span class="p">,</span> <span class="n">sessionmaker</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">app.core.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_settings</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a>
+</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="n">settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a>
+</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a><span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a>    <span class="n">settings</span><span class="o">.</span><span class="n">database_url</span><span class="p">,</span>
+</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a>    <span class="n">future</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a>    <span class="n">pool_pre_ping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a><span class="p">)</span>
+</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a><span class="n">SessionLocal</span> <span class="o">=</span> <span class="n">sessionmaker</span><span class="p">(</span><span class="n">bind</span><span class="o">=</span><span class="n">engine</span><span class="p">,</span> <span class="n">autoflush</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">class_</span><span class="o">=</span><span class="n">Session</span><span class="p">)</span>
 </span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>
-</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a><span class="k">def</span><span class="w"> </span><span class="nf">get_db_session</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">Session</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
-</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Provide a SQLAlchemy :class:`~sqlalchemy.orm.Session` for one request scope.</span>
-</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a>
-</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a><span class="sd">    Yields:</span>
-</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a><span class="sd">        Open ORM session.</span>
-</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a>
-</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a><span class="sd">    Note:</span>
-</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a><span class="sd">        The session is always closed after the consumer finishes (success or error).</span>
-</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a>    <span class="n">session</span> <span class="o">=</span> <span class="n">SessionLocal</span><span class="p">()</span>
-</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a>    <span class="k">try</span><span class="p">:</span>
-</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a>        <span class="k">yield</span> <span class="n">session</span>
-</span><span id="L-40"><a href="#L-40"><span class="linenos">40</span></a>    <span class="k">finally</span><span class="p">:</span>
-</span><span id="L-41"><a href="#L-41"><span class="linenos">41</span></a>        <span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a>
+</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a><span class="k">def</span><span class="w"> </span><span class="nf">get_db_session</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">Session</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Provide a SQLAlchemy :class:`~sqlalchemy.orm.Session` for one request scope.</span>
+</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>
+</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a><span class="sd">    Yields:</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a><span class="sd">        Open ORM session.</span>
+</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>
+</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a><span class="sd">    Note:</span>
+</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a><span class="sd">        The session is always closed after the consumer finishes (success or error).</span>
+</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a>    <span class="n">session</span> <span class="o">=</span> <span class="n">SessionLocal</span><span class="p">()</span>
+</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="L-40"><a href="#L-40"><span class="linenos">40</span></a>        <span class="k">yield</span> <span class="n">session</span>
+</span><span id="L-41"><a href="#L-41"><span class="linenos">41</span></a>    <span class="k">finally</span><span class="p">:</span>
+</span><span id="L-42"><a href="#L-42"><span class="linenos">42</span></a>        <span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </span></pre></div>
 
 
@@ -119,7 +121,7 @@
                     <div class="attr variable">
             <span class="name">settings</span>        =
 <input id="settings-view-value" class="view-value-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-            <label class="view-value-button pdoc-button" for="settings-view-value"></label><span class="default_value">Settings(app_name=&#39;ETR Study App API&#39;, app_env=&#39;dev&#39;, app_host=&#39;127.0.0.1&#39;, app_port=8000, sqlite_db_path=&#39;var/api/study_app.db&#39;, telemetry_sqlite_db_path=&#39;var/tech/telemetry.db&#39;, log_dir=&#39;logs&#39;, log_file_name=&#39;app.log&#39;, log_level=&#39;DEBUG&#39;, log_format=&#39;json&#39;, log_service_name=&#39;study-app-api&#39;, cors_allow_origins=(&#39;http://127.0.0.1:3000&#39;, &#39;http://localhost:3000&#39;, &#39;http://127.0.0.1:8765&#39;, &#39;http://localhost:8765&#39;), cors_allow_methods=(&#39;GET&#39;, &#39;POST&#39;, &#39;PUT&#39;, &#39;PATCH&#39;, &#39;DELETE&#39;, &#39;OPTIONS&#39;), cors_allow_headers=(&#39;Authorization&#39;, &#39;Content-Type&#39;, &#39;X-API-Key&#39;, &#39;Idempotency-Key&#39;, &#39;X-Request-Id&#39;), cors_expose_headers=(&#39;X-Request-Id&#39;, &#39;X-RateLimit-Limit&#39;, &#39;X-RateLimit-Remaining&#39;, &#39;Retry-After&#39;), cors_allow_credentials=False, api_body_max_bytes=1048576, api_rate_limit_requests=60, api_rate_limit_window_seconds=60, api_auth_strategy=&#39;mock_api_key&#39;, api_mock_api_key=&#39;local-dev-key&#39;, api_auth_header=&#39;X-API-Key&#39;, api_protected_prefix=&#39;/api/v1&#39;, metrics_enabled=True, metrics_path=&#39;/metrics&#39;, readiness_db_timeout_ms=250, metrics_buckets_http=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0), metrics_buckets_db=(0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25))</span>
+            <label class="view-value-button pdoc-button" for="settings-view-value"></label><span class="default_value">Settings(app_name=&#39;ETR Study App API&#39;, app_env=&#39;dev&#39;, app_host=&#39;127.0.0.1&#39;, app_port=8000, database_url=&#39;postgresql+psycopg://study_app:study_app@127.0.0.1:5432/study_app&#39;, log_dir=&#39;logs&#39;, log_file_name=&#39;app.log&#39;, log_level=&#39;DEBUG&#39;, log_format=&#39;json&#39;, log_service_name=&#39;study-app-api&#39;, cors_allow_origins=(&#39;http://127.0.0.1:3000&#39;, &#39;http://localhost:3000&#39;, &#39;http://127.0.0.1:8765&#39;, &#39;http://localhost:8765&#39;), cors_allow_methods=(&#39;GET&#39;, &#39;POST&#39;, &#39;PUT&#39;, &#39;PATCH&#39;, &#39;DELETE&#39;, &#39;OPTIONS&#39;), cors_allow_headers=(&#39;Authorization&#39;, &#39;Content-Type&#39;, &#39;X-API-Key&#39;, &#39;Idempotency-Key&#39;, &#39;X-Request-Id&#39;), cors_expose_headers=(&#39;X-Request-Id&#39;, &#39;X-RateLimit-Limit&#39;, &#39;X-RateLimit-Remaining&#39;, &#39;Retry-After&#39;), cors_allow_credentials=False, api_body_max_bytes=1048576, api_rate_limit_requests=60, api_rate_limit_window_seconds=60, api_auth_strategy=&#39;mock_api_key&#39;, api_mock_api_key=&#39;local-dev-key&#39;, api_auth_header=&#39;X-API-Key&#39;, api_protected_prefix=&#39;/api/v1&#39;, metrics_enabled=True, metrics_path=&#39;/metrics&#39;, readiness_db_timeout_ms=250, metrics_buckets_http=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0), metrics_buckets_db=(0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25))</span>
 
         
     </div>
@@ -131,7 +133,7 @@
                 <section id="engine">
                     <div class="attr variable">
             <span class="name">engine</span>        =
-<span class="default_value">Engine(sqlite:////Users/ivan_boyarkin/Desktop/projects/study_app/var/api/study_app.db)</span>
+<span class="default_value">Engine(postgresql+psycopg://study_app:***@127.0.0.1:5432/study_app)</span>
 
         
     </div>
@@ -144,7 +146,7 @@
                     <div class="attr variable">
             <span class="name">SessionLocal</span>        =
 <input id="SessionLocal-view-value" class="view-value-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-            <label class="view-value-button pdoc-button" for="SessionLocal-view-value"></label><span class="default_value">sessionmaker(class_=&#39;Session&#39;, autocommit=False, bind=Engine(sqlite:////Users/ivan_boyarkin/Desktop/projects/study_app/var/api/study_app.db), autoflush=False, expire_on_commit=True)</span>
+            <label class="view-value-button pdoc-button" for="SessionLocal-view-value"></label><span class="default_value">sessionmaker(class_=&#39;Session&#39;, autocommit=False, bind=Engine(postgresql+psycopg://study_app:***@127.0.0.1:5432/study_app), autoflush=False, expire_on_commit=True)</span>
 
         
     </div>
@@ -164,20 +166,20 @@
 
     </div>
     <a class="headerlink" href="#get_db_session"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="get_db_session-29"><a href="#get_db_session-29"><span class="linenos">29</span></a><span class="k">def</span><span class="w"> </span><span class="nf">get_db_session</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">Session</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
-</span><span id="get_db_session-30"><a href="#get_db_session-30"><span class="linenos">30</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Provide a SQLAlchemy :class:`~sqlalchemy.orm.Session` for one request scope.</span>
-</span><span id="get_db_session-31"><a href="#get_db_session-31"><span class="linenos">31</span></a>
-</span><span id="get_db_session-32"><a href="#get_db_session-32"><span class="linenos">32</span></a><span class="sd">    Yields:</span>
-</span><span id="get_db_session-33"><a href="#get_db_session-33"><span class="linenos">33</span></a><span class="sd">        Open ORM session.</span>
-</span><span id="get_db_session-34"><a href="#get_db_session-34"><span class="linenos">34</span></a>
-</span><span id="get_db_session-35"><a href="#get_db_session-35"><span class="linenos">35</span></a><span class="sd">    Note:</span>
-</span><span id="get_db_session-36"><a href="#get_db_session-36"><span class="linenos">36</span></a><span class="sd">        The session is always closed after the consumer finishes (success or error).</span>
-</span><span id="get_db_session-37"><a href="#get_db_session-37"><span class="linenos">37</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="get_db_session-38"><a href="#get_db_session-38"><span class="linenos">38</span></a>    <span class="n">session</span> <span class="o">=</span> <span class="n">SessionLocal</span><span class="p">()</span>
-</span><span id="get_db_session-39"><a href="#get_db_session-39"><span class="linenos">39</span></a>    <span class="k">try</span><span class="p">:</span>
-</span><span id="get_db_session-40"><a href="#get_db_session-40"><span class="linenos">40</span></a>        <span class="k">yield</span> <span class="n">session</span>
-</span><span id="get_db_session-41"><a href="#get_db_session-41"><span class="linenos">41</span></a>    <span class="k">finally</span><span class="p">:</span>
-</span><span id="get_db_session-42"><a href="#get_db_session-42"><span class="linenos">42</span></a>        <span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="get_db_session-30"><a href="#get_db_session-30"><span class="linenos">30</span></a><span class="k">def</span><span class="w"> </span><span class="nf">get_db_session</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">Session</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span id="get_db_session-31"><a href="#get_db_session-31"><span class="linenos">31</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Provide a SQLAlchemy :class:`~sqlalchemy.orm.Session` for one request scope.</span>
+</span><span id="get_db_session-32"><a href="#get_db_session-32"><span class="linenos">32</span></a>
+</span><span id="get_db_session-33"><a href="#get_db_session-33"><span class="linenos">33</span></a><span class="sd">    Yields:</span>
+</span><span id="get_db_session-34"><a href="#get_db_session-34"><span class="linenos">34</span></a><span class="sd">        Open ORM session.</span>
+</span><span id="get_db_session-35"><a href="#get_db_session-35"><span class="linenos">35</span></a>
+</span><span id="get_db_session-36"><a href="#get_db_session-36"><span class="linenos">36</span></a><span class="sd">    Note:</span>
+</span><span id="get_db_session-37"><a href="#get_db_session-37"><span class="linenos">37</span></a><span class="sd">        The session is always closed after the consumer finishes (success or error).</span>
+</span><span id="get_db_session-38"><a href="#get_db_session-38"><span class="linenos">38</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="get_db_session-39"><a href="#get_db_session-39"><span class="linenos">39</span></a>    <span class="n">session</span> <span class="o">=</span> <span class="n">SessionLocal</span><span class="p">()</span>
+</span><span id="get_db_session-40"><a href="#get_db_session-40"><span class="linenos">40</span></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="get_db_session-41"><a href="#get_db_session-41"><span class="linenos">41</span></a>        <span class="k">yield</span> <span class="n">session</span>
+</span><span id="get_db_session-42"><a href="#get_db_session-42"><span class="linenos">42</span></a>    <span class="k">finally</span><span class="p">:</span>
+</span><span id="get_db_session-43"><a href="#get_db_session-43"><span class="linenos">43</span></a>        <span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </span></pre></div>
 
 

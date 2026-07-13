@@ -163,9 +163,9 @@ class ConspectusListResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[ConspectusResponse]
-    next_cursor: str | None = None
+    next_cursor: str | None
     count: int = Field(..., ge=0)
-    has_more: bool = False
+    has_more: bool
 
 
 class ConspectusHistoryReviewPayload(BaseModel):
@@ -212,6 +212,6 @@ class ConspectusHistoryResponse(BaseModel):
 
     conspectus_uuid: str
     items: list[ConspectusHistoryEvent]
-    next_cursor: str | None = None
+    next_cursor: str | None
     count: int = Field(..., ge=0)
-    has_more: bool = False
+    has_more: bool

@@ -28,11 +28,11 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 # scripts live under tools/. The delegate targets below forward common verbs to
 # the owning service so habits like `make run` / `make docs-fix` keep working.
 
-.PHONY: help setup dev fix check verify verify-all verify-api verify-portal verify-monitoring verify-frontend ci docs ship release-check release \
+.PHONY: help setup up down logs status down-volumes logging-up logging-down \
+        fix check verify verify-api verify-portal verify-monitoring verify-frontend release-check release \
         venv install env-init env-check clean-cache \
         format-fix format-check lint-check lint-fix dead-code-check type-check \
         pre-commit-install pre-commit-check pre-commit-validate \
-        stack-up stack-down stack-down-volumes stack-logs logging-up logging-down \
         run migrate test test-one deps-audit \
         openapi-check openapi-regen api-mock build \
         docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check \
@@ -44,78 +44,55 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 # ──────────────────────────────────────────────
 help:
 	@echo ""
-	@echo "  Study App — root Makefile (cross-cutting orchestrator)"
-	@echo "  ------------------------------------------------------"
+	@echo "  Study App — root Makefile"
+	@echo "  ─────────────────────────"
 	@echo ""
-	@echo "  Common entry points (recommended)"
-	@echo "    make setup                  # first-time local setup (.venv + install deps + .env)"
-	@echo "    make dev                    # run local API (delegates → services/api)"
-	@echo "    make fix                    # auto-fix code + docs"
-	@echo "    make check                  # fast checks (lint/types/openapi/contract/tests)"
-	@echo "    make verify-all             # full pre-push gate (cross-cutting + all four services)"
-	@echo "    make verify                 # alias for verify-all (kept for habits / CI)"
-	@echo "    make docs                   # regenerate docs artifacts (delegates → services/portal)"
-	@echo "    make ship                   # full pre-release gate"
+	@echo "  ★ One-shot lifecycle (start / stop the whole thing)"
+	@echo "    make up                     Start EVERYTHING — api (docker, with migrations),"
+	@echo "                                prometheus, grafana, blackbox + local portal server."
+	@echo "                                Prints all URLs at the end."
+	@echo "    make down                   Stop everything (preserves docker volumes)"
+	@echo "    make down-volumes           Same as down, but WIPES prometheus/grafana data"
+	@echo "    make logs                   Tail api + monitoring docker logs (Ctrl+C to stop)"
+	@echo "    make status                 Show which services are up and where to reach them"
+	@echo "    make logging-up             Optional heavy stack: ES + Kibana + Filebeat"
+	@echo "    make logging-down           Stop the heavy logging stack"
 	@echo ""
-	@echo "  Per-service verify (one gate per service in the monorepo)"
-	@echo "    make verify-api             → services/api/verify    (deps-audit · openapi-check · test)"
-	@echo "    make verify-portal          → services/portal/verify (docs-check drift gate + docs-a11y)"
-	@echo "    make verify-monitoring      → services/monitoring/verify (compose-config smoke for both stacks)"
-	@echo "    make verify-frontend        # no own gate yet — assets consumed and exercised by portal"
+	@echo "  First-time setup"
+	@echo "    make setup                  .venv + install deps + .env from template"
+	@echo ""
+	@echo "  Quality gates (day-to-day)"
+	@echo "    make fix                    Auto-fix code + docs"
+	@echo "    make check                  Fast checks (lint/types/openapi/tests)"
+	@echo "    make verify                 Full pre-push gate (cross-cutting + all four services)"
+	@echo "    make verify-api             → services/api/verify"
+	@echo "    make verify-portal          → services/portal/verify"
+	@echo "    make verify-monitoring      → services/monitoring/verify"
+	@echo "    make verify-frontend        (no own gate — exercised by verify-portal)"
 	@echo ""
 	@echo "  Cross-cutting code quality (scans every .py)"
-	@echo "    make format-fix             ruff format ."
-	@echo "    make format-check           ruff format --check ."
-	@echo "    make lint-check             ruff check ."
-	@echo "    make lint-fix               ruff check --fix ."
-	@echo "    make dead-code-check        vulture"
-	@echo "    make type-check             mypy services/api/app tests tools"
+	@echo "    make format-fix / format-check   ruff format [--check] ."
+	@echo "    make lint-check   / lint-fix     ruff check [--fix] ."
+	@echo "    make dead-code-check             vulture"
+	@echo "    make type-check                  mypy services/api/app tests tools"
 	@echo ""
 	@echo "  Environment"
-	@echo "    make venv                   Create .venv"
-	@echo "    make install                pip install -r services/api/requirements.txt"
-	@echo "    make env-init               Copy env/example → .env"
-	@echo "    make env-check              Delegates → services/api"
-	@echo "    make clean-cache            Remove tool caches"
-	@echo ""
-	@echo "  Docker compose orchestration"
-	@echo "    make stack-up               api + observability via root docker-compose.yml"
-	@echo "    make stack-down             stop, preserve volumes"
-	@echo "    make stack-down-volumes     stop + wipe persistent volumes"
-	@echo "    make stack-logs             tail compose logs"
-	@echo "    make logging-up             optional ES + Kibana + Filebeat (heavy)"
-	@echo "    make logging-down           stop the logging stack"
+	@echo "    make venv / install / env-init / env-check / clean-cache"
 	@echo ""
 	@echo "  Pre-commit"
-	@echo "    make pre-commit-install     Install hooks"
-	@echo "    make pre-commit-check       Run all hooks against working tree"
-	@echo "    make pre-commit-validate    Deep validation (asset/css/path checkers + verify)"
+	@echo "    make pre-commit-install / pre-commit-check / pre-commit-validate"
 	@echo ""
-	@echo "  Per-service delegates (forward to services/<svc>/Makefile)"
-	@echo "    make run                    → services/api/Makefile"
-	@echo "    make migrate                → services/api/Makefile"
-	@echo "    make test [path=…]          → services/api/Makefile"
-	@echo "    make openapi-check          → services/api/Makefile"
-	@echo "    make openapi-regen          → services/api/Makefile"
-	@echo "    make api-mock               → services/api/Makefile (mock every canon on its own port)"
-	@echo "    make build                  → services/api/Makefile (docker build)"
-	@echo "    make deps-audit             → services/api/Makefile"
-	@echo "    make docs-fix               → services/portal/Makefile"
-	@echo "    make docs-check             → services/portal/Makefile"
-	@echo "    make docs-html-check        → services/portal/Makefile"
-	@echo "    make docs-design-check      → services/portal/Makefile"
-	@echo "    make docs-a11y-check        → services/portal/Makefile"
-	@echo "    make docs-feedback-check    → services/portal/Makefile"
-	@echo "    make docs-spec-check        → services/portal/Makefile"
-	@echo "    make docs-nav-check         → services/portal/Makefile (sidebar coverage)"
-	@echo "    make catalog-render         → services/portal/Makefile"
-	@echo "    make catalog-render-check   → services/portal/Makefile"
-	@echo "    make serve [PORTAL_PORT=N]  → services/portal/Makefile (static preview)"
-	@echo "    make open  [PORTAL_PORT=N]  → services/portal/Makefile (open in browser)"
-	@echo "    make visual-test            → services/portal/Makefile (UI Kit pixel-diff, BL-047)"
-	@echo "    make visual-test-update     → services/portal/Makefile (refresh visual baselines)"
-	@echo "    make api-check              → services/portal/Makefile (validate ALL canons)"
-	@echo "    make api-check <resource>   → services/portal/Makefile (validate one resource across every canon)"
+	@echo "  Per-service delegates"
+	@echo "    make run                    → services/api (local uvicorn --reload; use 'make up' for full stack)"
+	@echo "    make migrate                → services/api"
+	@echo "    make test [path=…]          → services/api"
+	@echo "    make openapi-check / openapi-regen / api-mock / build / deps-audit → services/api"
+	@echo "    make docs-fix / docs-check / docs-html-check / docs-design-check   → services/portal"
+	@echo "    make docs-a11y-check / docs-feedback-check / docs-spec-check       → services/portal"
+	@echo "    make docs-nav-check / catalog-render / catalog-render-check        → services/portal"
+	@echo "    make serve / open [PORTAL_PORT=N]  → services/portal (portal preview only, no api)"
+	@echo "    make visual-test / visual-test-update → services/portal (BL-047 pixel-diff)"
+	@echo "    make api-check [<resource>]         → services/portal (canon validation)"
 	@echo ""
 	@echo "  Release pipeline (ADR 0034 dual-Pages)"
 	@echo "    make sync-staging           Reset staging branch to origin/main after a promo merge"
@@ -130,11 +107,6 @@ setup: venv install
 	else \
 		printf "$(ICON_OK) %s\n" ".env already exists"; \
 	fi
-
-dev: run
-ci: verify
-docs: docs-fix
-ship: release-check
 
 # ──────────────────────────────────────────────
 # Environment
@@ -210,25 +182,102 @@ type-check:
 	@printf "$(COLOR_GREEN)== TYPE-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
 # ──────────────────────────────────────────────
-# Docker compose orchestration
+# One-shot lifecycle — start / stop the whole thing
 # ──────────────────────────────────────────────
-stack-up:
-	@printf "$(ICON_STEP) %s\n" "Starting api + monitoring stack…"
+# `up` brings up the full local stack in one shot:
+#   1. api + prometheus + grafana + blackbox via docker compose (detached).
+#      The api image runs `alembic upgrade head` on start (see services/api/
+#      Dockerfile entrypoint), so migrations are handled automatically.
+#   2. Portal static server via python http.server, launched in the background
+#      with its PID stored under .runtime/portal.pid so `down` can stop it.
+#      Portal logs go to .runtime/portal.log (gitignored).
+#
+# `down` is the mirror image: stops the portal server, then docker compose down.
+# `logs` tails the docker side (portal writes to a file — `tail -f .runtime/portal.log`).
+# `status` inspects both worlds and prints the URL cheat-sheet.
+#
+# The heavy logging stack (ES + Kibana + Filebeat, ~2 GiB RAM) is intentionally
+# NOT part of `up` — bring it up manually with `make logging-up` when needed.
+
+up:
+	@mkdir -p .runtime
+	@printf "$(COLOR_CYAN)== UP: START ==$(COLOR_RESET)\n"
+	@printf "$(ICON_INFO) %s\n" "[1/2] api + monitoring (docker compose up -d --build; migrations run in the api container)"
 	@docker compose up -d --build
-	@printf "$(ICON_OK) %s\n" "Stack up — api :8000  ·  prom :9090  ·  grafana :3001  ·  blackbox :9115"
+	@printf "$(ICON_INFO) %s\n" "[2/2] portal static server (background)"
+	@if [ -f .runtime/portal.pid ] && kill -0 $$(cat .runtime/portal.pid) 2>/dev/null; then \
+		printf "  $(ICON_OK) portal already running (PID $$(cat .runtime/portal.pid))\n"; \
+	elif lsof -nP -iTCP:8080 -sTCP:LISTEN >/dev/null 2>&1; then \
+		holder=$$(lsof -nP -iTCP:8080 -sTCP:LISTEN -Fp 2>/dev/null | sed -n 's/^p//p' | head -1); \
+		printf "  $(ICON_ERR) port 8080 busy (PID $$holder) — portal NOT started. Free the port or run 'make serve PORTAL_PORT=8081' separately.\n"; \
+	else \
+		nohup python3 -m http.server -d services 8080 > .runtime/portal.log 2>&1 & \
+		echo $$! > .runtime/portal.pid; \
+		sleep 0.5; \
+		printf "  $(ICON_OK) portal started (PID $$(cat .runtime/portal.pid), log: .runtime/portal.log)\n"; \
+	fi
+	@printf "\n"
+	@printf "  $(COLOR_GREEN)Stack is up.$(COLOR_RESET) Open any of these in a browser:\n\n"
+	@printf "    $(COLOR_CYAN)API$(COLOR_RESET)       http://127.0.0.1:8000        (Swagger UI at /docs, ReDoc at /redoc)\n"
+	@printf "    $(COLOR_CYAN)Portal$(COLOR_RESET)    http://127.0.0.1:8080/portal/\n"
+	@printf "    $(COLOR_CYAN)Grafana$(COLOR_RESET)   http://127.0.0.1:3010        (login and password: in env file GRAFANA_ADMIN_USER и GRAFANA_ADMIN_PASSWORD)\n"
+	@printf "    $(COLOR_CYAN)Prometheus$(COLOR_RESET) http://127.0.0.1:9090\n"
+	@printf "    $(COLOR_CYAN)Blackbox$(COLOR_RESET)  http://127.0.0.1:9115\n\n"
+	@printf "  Next: $(COLOR_CYAN)make logs$(COLOR_RESET) tails api+monitoring  ·  $(COLOR_CYAN)make status$(COLOR_RESET) shows state  ·  $(COLOR_CYAN)make down$(COLOR_RESET) stops everything\n"
+	@printf "$(COLOR_GREEN)== UP: SUCCESS ==$(COLOR_RESET)\n"
 
-stack-down:
-	@printf "$(ICON_STEP) %s\n" "Stopping stack…"
+down:
+	@printf "$(COLOR_CYAN)== DOWN: START ==$(COLOR_RESET)\n"
+	@printf "$(ICON_INFO) %s\n" "[1/2] portal static server"
+	@if [ -f .runtime/portal.pid ]; then \
+		pid=$$(cat .runtime/portal.pid); \
+		if kill -0 $$pid 2>/dev/null; then \
+			kill $$pid 2>/dev/null && printf "  $(ICON_OK) portal stopped (PID $$pid)\n"; \
+		else \
+			printf "  $(ICON_INFO) portal PID file stale — nothing to stop\n"; \
+		fi; \
+		rm -f .runtime/portal.pid; \
+	else \
+		printf "  $(ICON_INFO) portal not running\n"; \
+	fi
+	@printf "$(ICON_INFO) %s\n" "[2/2] api + monitoring (docker compose down)"
 	@docker compose down
-	@printf "$(ICON_OK) %s\n" "Stack down"
+	@printf "$(COLOR_GREEN)== DOWN: SUCCESS ==$(COLOR_RESET)\n"
 
-stack-down-volumes:
-	@printf "$(ICON_STEP) %s\n" "Stopping stack and wiping persistent volumes…"
+down-volumes:
+	@printf "$(COLOR_CYAN)== DOWN-VOLUMES: START ==$(COLOR_RESET)\n"
+	@printf "$(ICON_INFO) %s\n" "[1/2] portal static server"
+	@if [ -f .runtime/portal.pid ]; then \
+		pid=$$(cat .runtime/portal.pid); \
+		kill $$pid 2>/dev/null && printf "  $(ICON_OK) portal stopped (PID $$pid)\n" || printf "  $(ICON_INFO) nothing to stop\n"; \
+		rm -f .runtime/portal.pid; \
+	fi
+	@printf "$(ICON_INFO) %s\n" "[2/2] api + monitoring — WIPING volumes (prometheus/grafana data will be lost)"
 	@docker compose down -v
-	@printf "$(ICON_OK) %s\n" "Stack down (volumes wiped)"
+	@printf "$(COLOR_GREEN)== DOWN-VOLUMES: SUCCESS ==$(COLOR_RESET)\n"
 
-stack-logs:
+logs:
 	@docker compose logs -f --tail=100
+
+status:
+	@printf "$(COLOR_CYAN)== STATUS ==$(COLOR_RESET)\n"
+	@printf "$(ICON_INFO) %s\n" "docker services (api + monitoring)"
+	@docker compose ps 2>/dev/null | sed 's/^/    /' || printf "    $(ICON_ERR) docker daemon not reachable\n"
+	@printf "\n$(ICON_INFO) %s\n" "portal static server"
+	@if [ -f .runtime/portal.pid ] && kill -0 $$(cat .runtime/portal.pid) 2>/dev/null; then \
+		printf "    $(ICON_OK) running (PID $$(cat .runtime/portal.pid), log: .runtime/portal.log)\n"; \
+	elif lsof -nP -iTCP:8080 -sTCP:LISTEN >/dev/null 2>&1; then \
+		holder=$$(lsof -nP -iTCP:8080 -sTCP:LISTEN -Fp 2>/dev/null | sed -n 's/^p//p' | head -1); \
+		printf "    $(ICON_INFO) something else is on :8080 (PID $$holder) — not managed by 'make up'\n"; \
+	else \
+		printf "    $(ICON_INFO) down\n"; \
+	fi
+	@printf "\n$(ICON_INFO) %s\n" "endpoints (when up)"
+	@printf "    API        http://127.0.0.1:8000\n"
+	@printf "    Portal     http://127.0.0.1:8080/portal/\n"
+	@printf "    Grafana    http://127.0.0.1:3010\n"
+	@printf "    Prometheus http://127.0.0.1:9090\n"
+	@printf "    Blackbox   http://127.0.0.1:9115\n"
 
 logging-up:
 	@docker compose -f services/monitoring/docker-compose.logging.yml up -d
@@ -310,10 +359,10 @@ verify-monitoring:
 verify-frontend:
 	@printf "$(ICON_INFO) %s\n" "services/frontend has no own gate today — UI Kit v2 is consumed and exercised by services/portal (docs-check)."
 
-# verify-all — full pre-push composite: cross-cutting code quality first, then
+# verify — full pre-push composite: cross-cutting code quality first, then
 # every service in declared order. Same composition as ci.yml matrix lanes.
-verify-all:
-	@printf "$(COLOR_CYAN)== VERIFY-ALL: START ==$(COLOR_RESET)\n"
+verify:
+	@printf "$(COLOR_CYAN)== VERIFY: START ==$(COLOR_RESET)\n"
 	@printf "$(ICON_INFO) %s\n" "[1/6] lint-check  (cross-cutting)"
 	@$(MAKE) lint-check
 	@printf "$(ICON_INFO) %s\n" "[2/6] type-check  (cross-cutting)"
@@ -326,11 +375,7 @@ verify-all:
 	@$(MAKE) verify-monitoring
 	@printf "$(ICON_INFO) %s\n" "[6/6] verify-frontend"
 	@$(MAKE) verify-frontend
-	@printf "$(COLOR_GREEN)== VERIFY-ALL: SUCCESS ==$(COLOR_RESET)\n"
-
-# verify — backward-compat alias for verify-all (CI workflows and finger
-# memory both call `make verify`; keeping the name avoids breakage).
-verify: verify-all
+	@printf "$(COLOR_GREEN)== VERIFY: SUCCESS ==$(COLOR_RESET)\n"
 
 release-check:
 	@if [ ! -d ".venv" ]; then printf "$(ICON_ERR) %s\n" ".venv not found."; exit 1; fi

@@ -49,30 +49,161 @@
       </header>
 
       <h2 id="entry-points">Recommended entry points (start here)</h2>
-      <p>Most days you only need one of these. Each one wraps the same atomic targets (format, lint, tests, OpenAPI, docs); they differ in the order and in how the docs are handled at the end.</p>
+      <p>Most days you only need one of these. The lifecycle row (<code>up</code> / <code>down</code> / <code>logs</code> / <code>status</code>) starts and stops the whole running stack; the quality row (<code>fix</code> / <code>verify</code> / <code>release-check</code>) wraps the atomic targets (format, lint, tests, OpenAPI, docs).</p>
       <div class="docs-table-wrap">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th scope="col">Command</th><th scope="col">Use when</th><th scope="col">Outcome</th></tr></thead>
           <tbody>
-            <tr><td><code>make fix</code></td><td>You want quick auto-fixes before committing.</td><td><code>format-fix</code> → <code>lint-fix</code> → <code>docs-fix</code></td></tr>
-            <tr><td><code>make verify</code></td><td>Single strict gate for local and CI.</td><td><code>deps-audit</code> → <code>lint-check</code> → <code>type-check</code> → <code>openapi-check</code> → <code>contract-test</code> → <code>test</code> → <code>docs-check</code> → <code>docs-a11y-check</code></td></tr>
+            <tr><td><code>make up</code></td><td>You want the whole thing running locally — API, monitoring, portal.</td><td>Boots api (docker, migrations applied on start), Prometheus, Grafana, Blackbox, and a portal static server. Prints all URLs at the end.</td></tr>
+            <tr><td><code>make down</code></td><td>Stop everything (preserve docker volumes).</td><td>Kills portal server, then <code>docker compose down</code>. Add <code>-volumes</code> variant to wipe Prometheus/Grafana data.</td></tr>
+            <tr><td><code>make logs</code></td><td>Tail api + monitoring logs.</td><td><code>docker compose logs -f --tail=100</code> (portal logs go to <code>.runtime/portal.log</code>).</td></tr>
+            <tr><td><code>make status</code></td><td>Check what's up, what's down, and the URL cheat-sheet.</td><td>Docker services list + portal PID + endpoints.</td></tr>
+            <tr><td><code>make fix</code></td><td>Quick auto-fixes before committing.</td><td><code>format-fix</code> → <code>lint-fix</code> → <code>docs-fix</code></td></tr>
+            <tr><td><code>make verify</code></td><td>Single strict gate for local and CI.</td><td><code>lint-check</code> → <code>type-check</code> → <code>verify-api</code> (deps-audit · openapi-check · test) → <code>verify-portal</code> (docs-check · docs-a11y-check) → <code>verify-monitoring</code> (compose config) → <code>verify-frontend</code></td></tr>
             <tr><td><code>make release-check</code></td><td>Pre-release or deploy rehearsal.</td><td><code>env-check</code> → <code>make verify</code></td></tr>
             <tr><td><code>make release DEPLOY_CMD='…'</code></td><td>Deploy only after the full gate.</td><td><code>release-check</code> → your shell command</td></tr>
           </tbody>
         </table>
       </div>
 
+      <h2 id="make-up-flow">What <code>make up</code> actually does</h2>
+      <p class="lede">A visual walk-through of the one-shot lifecycle. Two lanes fan out from the same command — a docker lane that builds and boots four containers (with migrations), and a host lane that runs the portal's static server — then converge on a URL banner you can click.</p>
+
+      <figure class="arch-figure">
+        <div class="docs-chip-row arch-figure__chips">
+          <span class="docs-pill docs-pill--info">Lifecycle</span>
+          <strong>What happens between «Enter» and the URL banner</strong>
+        </div>
+
+        <div class="arch-diagram" role="img" aria-label="Business flow of make up: developer types the command; the Makefile plans two lanes; a docker lane builds the api image and boots api plus prometheus plus grafana plus blackbox with migrations; a host lane starts a portal static server on port 8080; both converge on a banner that prints all URLs; developer opens one of them.">
+
+          <div class="arch-node arch-node--actor">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Actor</span>
+            <span class="arch-node__name">You</span>
+            <span class="arch-node__meta">A developer at a terminal in the repo root. Docker Desktop is running; <code>.env</code> exists (created once by <code>make setup</code>).</span>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">type <code>make up</code></span>
+          </div>
+
+          <div class="arch-node arch-node--system">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Step 1 · Orchestrate</span>
+            <span class="arch-node__name">Makefile plans two lanes</span>
+            <span class="arch-node__meta">Reads the root <code>docker-compose.yml</code> (which <code>include</code>s the observability stack) and fans out into a docker lane and a host lane. Both run without blocking each other.</span>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">fan out — two lanes in parallel</span>
+          </div>
+
+          <div class="arch-diagram__row arch-diagram__row--mid" role="group" aria-label="Docker lane and host lane run at the same time">
+            <div class="arch-node arch-node--system">
+              <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Lane A · Docker</span>
+              <span class="arch-node__name">Build image + boot 4 containers</span>
+              <span class="arch-node__meta">Rebuilds <code>study-app-api:local</code> from <code>services/api/Dockerfile</code> (Docker layer cache keeps this quick), then starts all four services detached. The API entrypoint runs <code>alembic upgrade head</code> before Uvicorn, so migrations are always applied on a fresh boot — no separate <code>make migrate</code> needed.</span>
+              <ul class="arch-node__pills arch-node__pills--stack">
+                <li>study-app-api     :8000</li>
+                <li>study-app-prometheus :9090</li>
+                <li>study-app-grafana   :3010</li>
+                <li>study-app-blackbox  :9115</li>
+              </ul>
+            </div>
+
+            <div class="arch-rail arch-rail--horiz" aria-hidden="true">
+              <svg class="arch-rail__svg" viewBox="0 0 144 14" fill="none">
+                <line x1="4" y1="7" x2="140" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 4"></line>
+              </svg>
+              <span class="arch-rail__label">at the same time</span>
+            </div>
+
+            <div class="arch-node arch-node--orbit">
+              <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Lane B · Host</span>
+              <span class="arch-node__name">Portal static server (background)</span>
+              <span class="arch-node__meta">Checks port <code>8080</code> is free, then launches <code>python3 -m http.server -d services 8080</code> via <code>nohup</code>. PID goes to <code>.runtime/portal.pid</code>, logs to <code>.runtime/portal.log</code> (both gitignored). No container — just a plain Python process on the host.</span>
+              <ul class="arch-node__pills arch-node__pills--stack">
+                <li>portal  :8080</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">both lanes converge</span>
+          </div>
+
+          <div class="arch-node arch-node--success arch-node--wide">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Step 2 · Announce</span>
+            <span class="arch-node__name">Print the URL banner</span>
+            <span class="arch-node__meta">The Makefile prints all five endpoints in the terminal so you can click straight into the app — no need to remember ports.</span>
+            <pre class="docs-code" aria-label="Actual terminal banner printed by make up"><code>Stack is up.
+
+  API        http://127.0.0.1:8000
+  Portal     http://127.0.0.1:8080/portal/
+  Grafana    http://127.0.0.1:3010
+  Prometheus http://127.0.0.1:9090
+  Blackbox   http://127.0.0.1:9115</code></pre>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">open a URL</span>
+          </div>
+
+          <div class="arch-node arch-node--actor">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Actor</span>
+            <span class="arch-node__name">You, back in the loop</span>
+            <span class="arch-node__meta">Click any URL from the banner. For active API coding switch to <code>make run</code> — that starts uvicorn locally with <code>--reload</code>, so edits are picked up instantly. Stop the stack with <code>make down</code> when you're done.</span>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 4"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">optional · heavier telemetry</span>
+          </div>
+
+          <div class="arch-node arch-node--orbit">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Sidecar</span>
+            <span class="arch-node__name">Bring up ES + Kibana + Filebeat</span>
+            <span class="arch-node__meta">The full logging stack is intentionally NOT part of <code>make up</code> — it costs ~2 GiB of RAM. Opt in with <code>make logging-up</code> when you need Kibana search over local NDJSON logs; stop it with <code>make logging-down</code>.</span>
+            <ul class="arch-node__pills arch-node__pills--stack">
+              <li>Elasticsearch :9200</li>
+              <li>Kibana        :5601</li>
+            </ul>
+          </div>
+        </div>
+
+        <figcaption class="arch-figure__caption">Docker volumes for Prometheus and Grafana persist across <code>make down</code>; wipe them with <code>make down-volumes</code>. The PostgreSQL data volume (<code>./var/postgres/</code>) is separate from the observability volumes and survives <code>make down</code> by design.</figcaption>
+      </figure>
+
       <h2 id="composite">Composite pipelines (diagram)</h2>
-      <p>The diagram below shows how the composite targets depend on each other. Arrows mark the order.</p>
+      <p>The diagram below shows how the composite quality targets depend on each other. Arrows mark the order.</p>
       <figure>
         <img data-component="diagram-lightbox" src="../../../handbook/uml/rendered/make__composite_pipelines.svg" alt="PlantUML: Makefile composite targets — fix, verify, release-check, release" decoding="async" loading="lazy">
       </figure>
 
-      <h2 id="run-observability">Run and observability (diagram)</h2>
-      <p>For day-to-day development, use <code>make run</code>. Use <code>run-project</code> when you need Compose plus the API in one flow (Docker required).</p>
-      <figure>
-        <img data-component="diagram-lightbox" src="../../../handbook/uml/rendered/make__run_and_observability.svg" alt="PlantUML: local run and optional observability stack via Docker Compose" decoding="async" loading="lazy">
-      </figure>
+      <h2 id="run-observability">When to use <code>make run</code> instead of <code>make up</code></h2>
+      <p>Both start the API. Pick based on what you're doing:</p>
+      <ul>
+        <li><strong><code>make up</code></strong> — «just start everything, I want to poke at Grafana / the portal / the API together». Runs the API from a container image — <em>edits to Python require <code>make down &amp;&amp; make up</code></em> to rebuild.</li>
+        <li><strong><code>make run</code></strong> — active API coding. Runs uvicorn on the host with <code>--reload</code>, so a saved <code>.py</code> file restarts the server in ~1 second. Migrations run first. Monitoring is not started; if you need Grafana too, run <code>make -C services/monitoring up</code> in another shell.</li>
+      </ul>
       <p>Details and ports: <a href="local-development.html">Local development</a>. Load testing: API load testing.</p>
 
       <h2 id="by-theme">Commands by theme (reference)</h2>
@@ -83,10 +214,12 @@
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
           <tbody>
-            <tr><td><code>venv</code>, <code>install</code>, <code>requirements</code></td><td>Create env, install pins, or freeze <code>requirements.txt</code> from <code>.venv</code>.</td></tr>
+            <tr><td><code>setup</code></td><td>One-shot first-time setup — creates <code>.venv</code>, installs deps, copies <code>env/example</code> to <code>.env</code> if missing.</td></tr>
+            <tr><td><code>venv</code>, <code>install</code></td><td>Create <code>.venv</code> or install pinned deps into it (individual steps that <code>setup</code> composes).</td></tr>
             <tr><td><code>env-init</code></td><td>Copy <code>env/example</code> to <code>.env</code> once.</td></tr>
             <tr><td><code>env-check</code></td><td>Quick sanity: venv, <code>.env</code>, config load, DB path.</td></tr>
-            <tr><td><code>deps-audit</code></td><td>OSV scan of pinned requirements.</td></tr>
+            <tr><td><code>deps-audit</code></td><td>pip-audit against the live venv.</td></tr>
+            <tr><td><code>clean-cache</code></td><td>Remove <code>__pycache__</code>, <code>.mypy_cache</code>, <code>.ruff_cache</code>, <code>.pytest_cache</code>, <code>.pip-audit-cache</code>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -96,10 +229,11 @@
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
           <tbody>
-            <tr><td><code>run</code></td><td>Uvicorn with reload, reads <code>.env</code>.</td></tr>
-            <tr><td><code>container-start</code></td><td>Same entrypoint as the image: migrate, then Uvicorn (no reload).</td></tr>
-            <tr><td><code>migrate</code>, <code>migration name=…</code></td><td>Apply or generate Alembic revisions.</td></tr>
-            <tr><td><code>run-loadtest-api</code>, <code>run-loadtest-api-serve</code></td><td>Load-test helper (scripted run vs long-running server for a second terminal).</td></tr>
+            <tr><td><code>up</code>, <code>down</code>, <code>down-volumes</code></td><td>One-shot lifecycle (see <a href="#make-up-flow">Business flow — what make up actually does</a>).</td></tr>
+            <tr><td><code>logs</code>, <code>status</code></td><td>Tail docker logs / show what's running + URL cheat-sheet.</td></tr>
+            <tr><td><code>run</code></td><td>Local uvicorn with <code>--reload</code>. Runs <code>alembic upgrade head</code> first, then serves the API on the host. Reads <code>.env</code>. Best for active API coding — see <a href="#run-observability">run vs up</a>.</td></tr>
+            <tr><td><code>migrate</code></td><td>Apply Alembic revisions (equivalent to what <code>run</code> and the container entrypoint do automatically on start).</td></tr>
+            <tr><td><code>build</code></td><td>Build the API container image locally: <code>docker build -t study-app-api:local services/api/</code> (see <a href="docker-image-and-container.html">Docker image and container</a>). <code>make up</code> does this automatically via <code>docker compose --build</code>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -111,10 +245,12 @@
           <tbody>
             <tr><td><code>format-fix</code> / <code>format-check</code></td><td>Ruff format.</td></tr>
             <tr><td><code>lint-fix</code> / <code>lint-check</code></td><td>Ruff lint.</td></tr>
-            <tr><td><code>type-check</code></td><td>mypy on <code>app</code>, <code>tests</code>, <code>scripts</code>.</td></tr>
+            <tr><td><code>type-check</code></td><td>mypy on <code>services/api/app</code>, <code>tests</code>, <code>tools</code>.</td></tr>
             <tr><td><code>dead-code-check</code></td><td>Vulture (optional; not in default PR gate).</td></tr>
             <tr><td><code>openapi-check</code></td><td>Governance lint + canon-parity guard (code vs <code>etr_study_app/merged-spec.json</code>). See <a href="../../../services/api/runbooks/openapi-contract-test-failing.html">runbook 0007</a>.</td></tr>
-            <tr><td><code>openapi-regen</code></td><td>Refresh <code>public/reference/api/openapi.json</code> from <code>app.openapi()</code>. Auto-run by <code>docs-fix</code>.</td></tr>
+            <tr><td><code>openapi-regen</code></td><td>Refresh the runtime OpenAPI spec from <code>app.openapi()</code>. Auto-run by <code>docs-fix</code>.</td></tr>
+            <tr><td><code>api-mock</code></td><td>Start a mock server for every canon under <code>services/portal/internal/services/api/openapi/*/fragments/</code>, one auto-detected port per canon.</td></tr>
+            <tr><td><code>api-check [&lt;resource&gt;]</code></td><td>Validate all OpenAPI canons (or one resource across every canon that has it).</td></tr>
           </tbody>
         </table>
       </div>
@@ -125,41 +261,47 @@
           <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
           <tbody>
             <tr><td><code>test</code></td><td>Full pytest run (coverage per <code>pyproject.toml</code>).</td></tr>
-            <tr><td><code>test-one path=…</code></td><td>Single file or node.</td></tr>
-            <tr><td><code>test-warnings</code></td><td>Pytest with warning summary for investigation.</td></tr>
+            <tr><td><code>test-one path=…</code></td><td>Single file or node — <code>make test-one path=tests/api/v1/test_user_create.py</code>.</td></tr>
           </tbody>
         </table>
       </div>
 
-      <h3 id="docs-helpers">Documentation and changelog helpers</h3>
+      <h3 id="docs-helpers">Documentation pipeline</h3>
       <div class="docs-table-wrap">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
           <tbody>
-            <tr><td><code>docs-fix</code>, <code>docs-check</code>, <code>uml-check</code>, <code>api-docs</code></td><td>Docs pipeline, drift check, UML-only check, pdoc-only refresh (see Documentation pipeline).</td></tr>
-            <tr><td><code>changelog-draft</code>, <code>llm-ping</code></td><td>Optional LLM draft and API key smoke test.</td></tr>
+            <tr><td><code>docs-fix</code></td><td>Full regeneration pipeline — UML → markers → HTML repair → pdoc → service catalog → Pagefind index (11 steps).</td></tr>
+            <tr><td><code>docs-check</code></td><td>Drift gate — fails if <code>docs-fix</code> would change anything.</td></tr>
+            <tr><td><code>docs-html-check</code> / <code>docs-design-check</code> / <code>docs-a11y-check</code></td><td>Granular checks: HTML structure / design baseline / WCAG a11y.</td></tr>
+            <tr><td><code>docs-feedback-check</code> / <code>docs-spec-check</code> / <code>docs-nav-check</code></td><td>Page-level feedback / spec lint / sidebar coverage.</td></tr>
+            <tr><td><code>catalog-render</code> / <code>catalog-render-check</code></td><td>Regenerate per-service catalog from <code>catalog-info.yaml</code> / drift gate for it.</td></tr>
+            <tr><td><code>visual-test</code> / <code>visual-test-update</code></td><td>UI Kit pixel-diff (BL-047) / refresh baselines.</td></tr>
+            <tr><td><code>serve</code> / <code>open</code> [<code>PORTAL_PORT=N</code>]</td><td>Portal-only static preview (<code>make up</code> already includes it — use these when you don't want the docker stack).</td></tr>
           </tbody>
         </table>
       </div>
 
-      <h3 id="observability">Observability, logging, container</h3>
+      <h3 id="observability">Observability and logging</h3>
       <div class="docs-table-wrap">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
           <tbody>
-            <tr><td><code>observability-up</code>, <code>observability-down</code>, <code>observability-smoke</code></td><td>Prometheus/Grafana stack and link checks.</td></tr>
-            <tr><td><code>logging-up</code>, <code>logging-down</code>, <code>logging-reset</code>, <code>logging-smoke</code>, <code>logging-es-query</code></td><td>Optional Elasticsearch + Kibana + Filebeat for local NDJSON search (<code>services/monitoring/docker-compose.logging.yml</code>); <code>QUERY=&lt;uuid&gt;</code> for CLI search.</td></tr>
-            <tr><td><code>docker-build</code></td><td>Build <code>study-app-api:local</code> (see <a href="docker-image-and-container.html">Docker image and container</a>).</td></tr>
+            <tr><td><code>up</code>, <code>down</code></td><td>The observability stack (Prometheus + Grafana + Blackbox) is bundled into <code>make up</code>; standalone: <code>make -C services/monitoring up</code>.</td></tr>
+            <tr><td><code>logging-up</code>, <code>logging-down</code></td><td>Optional Elasticsearch + Kibana + Filebeat for local NDJSON search (<code>services/monitoring/docker-compose.logging.yml</code>, ~2 GiB RAM).</td></tr>
           </tbody>
         </table>
       </div>
 
-      <h3 id="git-hooks">Git hooks</h3>
+      <h3 id="git-hooks">Git hooks and per-service gates</h3>
       <div class="docs-table-wrap">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th scope="col">Target</th><th scope="col">Role</th></tr></thead>
           <tbody>
-            <tr><td><code>pre-commit-install</code>, <code>pre-commit-check</code></td><td>Install or run all hooks on the tree.</td></tr>
+            <tr><td><code>pre-commit-install</code>, <code>pre-commit-check</code></td><td>Install hooks / run all hooks on the tree.</td></tr>
+            <tr><td><code>pre-commit-validate</code></td><td>Deep validation: CSS-var / asset-ref / path-literal checkers + <code>verify</code>.</td></tr>
+            <tr><td><code>verify-api</code>, <code>verify-portal</code>, <code>verify-monitoring</code>, <code>verify-frontend</code></td><td>Per-service gates (each service in the monorepo owns its own <code>Makefile:verify</code>).</td></tr>
+            <tr><td><code>sync-staging</code></td><td>Reset local + remote <code>staging</code> to <code>origin/main</code> after a promo-PR merge (ADR 0034 dual-Pages).</td></tr>
           </tbody>
         </table>
       </div>
@@ -169,25 +311,28 @@
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th scope="col">If you…</th><th scope="col">Then…</th></tr></thead>
           <tbody>
-            <tr><td>Just cloned the repo</td><td><code>make venv &amp;&amp; make install &amp;&amp; make env-init</code>, edit <code>.env</code>, <code>make migrate</code>, <code>make run</code></td></tr>
+            <tr><td>Just cloned the repo</td><td><code>make setup</code>, edit <code>.env</code> if needed, then <code>make up</code>.</td></tr>
+            <tr><td>Want the whole stack running (api + monitoring + portal)</td><td><code>make up</code> — prints all URLs. Stop with <code>make down</code>.</td></tr>
+            <tr><td>Coding on the API (want hot-reload)</td><td><code>make run</code> for the API; <code>make -C services/monitoring up</code> in a second shell if you also need Grafana.</td></tr>
             <tr><td>Want auto-fixes before commit</td><td><code>make fix</code></td></tr>
-            <tr><td>Want full local gate and regenerated docs</td><td><code>make verify</code></td></tr>
+            <tr><td>Want the full local gate</td><td><code>make verify</code> (same composition as CI).</td></tr>
             <tr><td>Changed the API intentionally</td><td>Update the canon fragment under <code>openapi/etr_study_app/fragments/</code>, update the code, <code>make openapi-check</code>, then <code>make verify</code>. The public <code>openapi.json</code> refreshes on <code>make docs-fix</code>.</td></tr>
             <tr><td>Debug one test</td><td><code>make test-one path=tests/…</code></td></tr>
-            <tr><td>Run like production Docker entrypoint locally</td><td><code>docker run … study-app-api:local</code> (see Docker guide)</td></tr>
-            <tr><td>Need metrics dashboards locally</td><td><code>docker compose -f services/monitoring/docker-compose.observability.yml up -d</code> plus <code>make run</code></td></tr>
-            <tr><td>Want logs in Kibana / Elasticsearch locally</td><td><code>docker compose -f services/monitoring/docker-compose.logging.yml up -d</code>, run the API with NDJSON to <code>./logs</code> (default <code>LOG_FORMAT</code> is <code>json</code>), create Kibana data view <code>*study-app-logs*</code> — see <a href="local-development.html">Local development</a>.</td></tr>
-            <tr><td>Prepare a release</td><td><code>make release-check</code>; deploy with <code>make release DEPLOY_CMD='…'</code></td></tr>
+            <tr><td>Run like the production Docker entrypoint locally</td><td>Just <code>make up</code> — the api container uses the same entrypoint as the shipped image (see <a href="docker-image-and-container.html">Docker image and container</a>).</td></tr>
+            <tr><td>Want logs in Kibana / Elasticsearch locally</td><td><code>make logging-up</code> (~2 GiB RAM), keep <code>LOG_FORMAT=json</code> in <code>.env</code>, create Kibana data view <code>*study-app-logs*</code> — see <a href="local-development.html">Local development</a>.</td></tr>
+            <tr><td>Wipe Prometheus / Grafana data</td><td><code>make down-volumes</code> (Postgres data at <code>./var/postgres/</code> is untouched).</td></tr>
+            <tr><td>Prepare a release</td><td><code>make release-check</code>; deploy with <code>make release DEPLOY_CMD='…'</code>.</td></tr>
           </tbody>
         </table>
       </div>
 
       <h2 id="verify">Verify</h2>
       <ul>
-        <li>The target you ran exited 0; the last log line is the target's documented success line (e.g. <code>verify: OK</code>, <code>== DOCS-FIX: SUCCESS ==</code>, <code>release-check: OK</code>).</li>
+        <li>The target you ran exited 0; the last log line is the target's documented success banner (e.g. <code>== VERIFY: SUCCESS ==</code>, <code>== DOCS-FIX: SUCCESS ==</code>, <code>== UP: SUCCESS ==</code>).</li>
         <li><code>make help</code> still lists every target you used — drift between this page and <code>make help</code> means the page is stale (open an ADR).</li>
         <li><code>git status</code> after the target shows only files the target is documented to touch; anything else means the target reached outside its scope.</li>
-        <li>For composite pipelines (<code>verify</code>, <code>fix</code>, <code>release-check</code>), every constituent atomic target also passed — the composite is no greener than its weakest link.</li>
+        <li>For composite pipelines (<code>up</code>, <code>verify</code>, <code>fix</code>, <code>release-check</code>), every constituent atomic target also passed — the composite is no greener than its weakest link.</li>
+        <li>After <code>make up</code>: <code>make status</code> shows all four docker services as <code>running</code> and the portal PID; <code>curl -fsS http://127.0.0.1:8000/live</code> returns <code>200</code>.</li>
       </ul>
 
     </article>
@@ -213,8 +358,9 @@
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
       <li class="docs-toc__item"><a class="docs-toc__link" href="#entry-points">Entry points</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#make-up-flow">Business flow — make up</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#composite">Composite pipelines</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#run-observability">Run and observability</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#run-observability">Run vs up</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#by-theme">Commands by theme</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#scenarios">If → then</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>

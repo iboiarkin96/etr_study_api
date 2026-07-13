@@ -15,6 +15,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 revision: str = "20260712_0002"
@@ -61,10 +62,10 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("title", sa.String(length=256), nullable=True),
-        sa.Column("cue_sheet", sa.JSON(), nullable=False),
+        sa.Column("cue_sheet", postgresql.JSONB(), nullable=False),
         sa.Column("cue_sheet_schema_version", sa.Integer(), nullable=False),
         sa.Column("dense_paragraph", sa.Text(), nullable=False),
-        sa.Column("bullets", sa.JSON(), nullable=False),
+        sa.Column("bullets", postgresql.JSONB(), nullable=False),
         sa.Column("content_version", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -162,7 +163,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("event_type", sa.String(length=32), nullable=False),
-        sa.Column("payload", sa.JSON(), nullable=True),
+        sa.Column("payload", postgresql.JSONB(), nullable=True),
         sa.Column("content_version_after", sa.Integer(), nullable=True),
         sa.Column("actor_system_user_id", sa.String(length=36), nullable=False),
         sa.Column("actor_system_uuid", sa.String(length=36), nullable=False),

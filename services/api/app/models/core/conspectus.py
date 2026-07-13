@@ -6,7 +6,8 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -42,14 +43,14 @@ class Conspectus(Base):
         index=True,
     )
     title: Mapped[str] = mapped_column(String(256), nullable=True)
-    cue_sheet: Mapped[Any] = mapped_column(JSON, nullable=False)
+    cue_sheet: Mapped[Any] = mapped_column(JSONB, nullable=False)
     cue_sheet_schema_version: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=1,
     )
     dense_paragraph: Mapped[str] = mapped_column(Text, nullable=False)
-    bullets: Mapped[Any] = mapped_column(JSON, nullable=False)
+    bullets: Mapped[Any] = mapped_column(JSONB, nullable=False)
     content_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -135,7 +136,7 @@ class ConspectusEvent(Base):
         nullable=False,
     )
     event_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    payload: Mapped[Any] = mapped_column(JSON, nullable=True)
+    payload: Mapped[Any] = mapped_column(JSONB, nullable=True)
     content_version_after: Mapped[int] = mapped_column(Integer, nullable=True)
     actor_system_user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     actor_system_uuid: Mapped[str] = mapped_column(String(36), nullable=False)

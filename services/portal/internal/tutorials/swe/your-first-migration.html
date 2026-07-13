@@ -42,10 +42,11 @@
         <h1>Your first migration — Alembic up and down</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">
-          Generate a trivial migration, apply it, verify it in SQLite, then roll it
-          back to a clean state. The point is the <em>upgrade/downgrade loop</em> —
-          not the column itself. Real schema work uses the same shape with thicker
-          <code>upgrade()</code> / <code>downgrade()</code> bodies.
+          Generate a trivial migration, apply it, verify it against the running
+          PostgreSQL container, then roll it back to a clean state. The point is
+          the <em>upgrade/downgrade loop</em> — not the column itself. Real schema
+          work uses the same shape with thicker <code>upgrade()</code> /
+          <code>downgrade()</code> bodies.
 
         </p>
         <div class="docs-chip-row docs-chip-row--mt-3">
@@ -63,9 +64,10 @@
         </h2>
         <ul>
           <li><code>make venv &amp;&amp; make install</code> ran successfully.</li>
-          <li>SQLite CLI (<code>sqlite3</code>) on PATH.</li>
+          <li><code>psql</code> CLI on PATH (any 15+ client works; the server is Postgres 16).</li>
+          <li><code>docker compose up postgres</code> — the Postgres container is <code>Up (healthy)</code>.</li>
           <li><code>.env</code> present (so <code>make migrate</code> can resolve
-            <code>SQLITE_DB_PATH</code>).
+            <code>DATABASE_URL</code>).
 
           </li>
           <li>You've applied the baseline at least once:
@@ -86,7 +88,7 @@
 
           </li>
           <li><code>alembic upgrade head</code> applies it cleanly.</li>
-          <li><code>sqlite3 .schema timezones</code> shows the column.</li>
+          <li><code>psql "$DATABASE_URL" -c '\d timezones'</code> shows the column.</li>
           <li><code>alembic downgrade -1</code> removes it and the DB matches baseline again.</li>
         </ul>
         <p>
@@ -141,10 +143,11 @@ def downgrade() -&gt; None:
  batch.drop_column("tutorial_note")
  </code></pre>
         <p>
-          The <code>batch_alter_table</code> wrapper is the SQLite-safe way to drop
-          a column (SQLite cannot drop columns in-place; Alembic rewrites the table
-          for you). On PostgreSQL <code>op.drop_column</code> alone would work — the
-          batch form is portable.
+          On PostgreSQL <code>op.drop_column</code> alone would work fine; the
+          <code>batch_alter_table</code> wrapper here is habit-forming rather than
+          strictly needed. It's kept because it's the portable spelling — if you
+          ever run migrations against a database that can't drop columns in-place,
+          this shape still works.
 
         </p>
         <div class="docs-card docs-card--ghost">
@@ -167,15 +170,15 @@ def downgrade() -&gt; None:
         <pre class="docs-code"><code class="language-bash">make migrate</code></pre>
         <p>
           Last log line reads <code>✓ Migrations applied</code>. Now verify the
-          column exists on the live SQLite DB (path comes from <code>.env</code>'s
-          <code>SQLITE_DB_PATH</code> — replace <code>&lt;db&gt;</code> with that path):
+          column exists on the running Postgres container (DSN comes from
+          <code>.env</code>'s <code>DATABASE_URL</code>):
 
         </p>
-        <pre class="docs-code"><code class="language-bash">sqlite3 &lt;db&gt; ".schema timezones"</code></pre>
+        <pre class="docs-code"><code class="language-bash">psql "$DATABASE_URL" -c '\d timezones'</code></pre>
         <p>
           Output lists the table definition and includes a
-          <code>tutorial_note VARCHAR(120)</code> line. Alembic's revision pointer
-          should also have advanced:
+          <code>tutorial_note character varying(120)</code> row. Alembic's revision
+          pointer should also have advanced:
 
         </p>
         <pre class="docs-code"><code class="language-bash">.venv/bin/alembic current</code></pre>
@@ -184,7 +187,7 @@ def downgrade() -&gt; None:
           <h3 class="docs-card__title">✓ Check your progress</h3>
           <p>
             All three commands succeed in order: <code>make migrate</code> ends with
-            ✓, <code>.schema</code> shows the new column, <code>alembic current</code>
+            ✓, <code>\d timezones</code> shows the new column, <code>alembic current</code>
             reports your revision as head.
 
           </p>
@@ -199,7 +202,7 @@ def downgrade() -&gt; None:
         <p>Tutorial done — now undo the migration so the repo is clean:</p>
         <pre class="docs-code"><code class="language-bash">.venv/bin/alembic downgrade -1</code></pre>
         <p>Alembic re-runs <code>downgrade()</code>. Confirm the column is gone:</p>
-        <pre class="docs-code"><code class="language-bash">sqlite3 &lt;db&gt; ".schema timezones"</code></pre>
+        <pre class="docs-code"><code class="language-bash">psql "$DATABASE_URL" -c '\d timezones'</code></pre>
         <p>
           The <code>tutorial_note</code> line should be absent.
           <code>.venv/bin/alembic current</code> now reports
@@ -210,7 +213,7 @@ def downgrade() -&gt; None:
           <h3 class="docs-card__title">✓ You're done</h3>
           <ol>
             <li><code>alembic current</code> shows the baseline as head.</li>
-            <li><code>.schema timezones</code> has no <code>tutorial_note</code>.</li>
+            <li><code>\d timezones</code> has no <code>tutorial_note</code>.</li>
             <li>The revision file you created is the only untracked change.</li>
           </ol>
           <p>That is the migration loop —
@@ -226,9 +229,9 @@ def downgrade() -&gt; None:
 rm services/api/alembic/versions/*tutorial_add_note_to_timezones.py
  </code></pre>
           <p>
-            If something went sideways and you can't downgrade cleanly, delete the
-            SQLite file at <code>SQLITE_DB_PATH</code> and run <code>make migrate</code>
-            again — the baseline rebuilds the schema and re-seeds <code>timezones</code>.
+            If something went sideways and you can't downgrade cleanly, recreate the
+            Postgres volume (<code>docker compose down -v postgres &amp;&amp; docker compose up -d postgres</code>)
+            and run <code>make migrate</code> again — the baseline rebuilds the schema and re-seeds <code>timezones</code>.
 
           </p>
         </div>

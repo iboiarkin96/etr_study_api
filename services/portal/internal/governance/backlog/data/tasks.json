@@ -1858,6 +1858,63 @@
       ]
     },
     {
+      "id": "BL-067",
+      "title": "Runtime migration: SQLite → containerized PostgreSQL 16",
+      "professions": [
+        "sa",
+        "architect",
+        "dev",
+        "sre"
+      ],
+      "group": "backend",
+      "tags": [
+        "tech-debt",
+        "feature"
+      ],
+      "sprint": "2026-W28",
+      "status": "in-progress",
+      "priority": "P1",
+      "eta_hours": 20,
+      "owner": "ivan",
+      "blocked_by": null,
+      "updated": "2026-07-12",
+      "summary": "Replace SQLite with PostgreSQL 16 running as a docker-compose service. Ratifies ADR 0037; supersedes the SQLite + single-replica clause of ADR 0015; unblocks BL-005 (integration tests against a real DB) by collapsing test-DB and runtime-DB onto the same engine.",
+      "problem": "SQLite has served since day one but three triggers have landed: (1) the 2026-04-02 SEV-2 postmortem named `SQLITE_BUSY` as the write-lock ceiling under concurrent-write pressure; (2) BL-071 (conspectus / schedule / error-log domain) introduced three JSON columns (cue_sheet, bullets, payload) that SQLite stores as TEXT with no indexed access; (3) BL-005 scoped a CI job that boots a throwaway Postgres to catch migration + concurrency regressions — running one DB in tests and a different one at runtime is the exact mock/prod divergence BL-005 exists to eliminate. Moving runtime to Postgres clears all three at once.",
+      "actions": [
+        "Wave 0 — Governance: BL-067 in tasks.json, new ADR 0037 (Proposed → Accepted on merge), inline partial-supersession banner on ADR 0015",
+        "Wave 1 — Compose: add `postgres:16-alpine` service to docker-compose.yml with `pg_isready` healthcheck + `var/postgres/` volume (gitignored); api gains `depends_on: {postgres: {condition: service_healthy}}` + `DATABASE_URL`; api loses `SQLITE_DB_PATH` env and `./var/api:/data` volume",
+        "Wave 2 — Config refactor: `sqlite_db_path` + `sqlite_url` property in `services/api/app/core/config.py` → `database_url`; drop `check_same_thread=False` from `services/api/app/core/database.py`; env/dev, env/qa, env/prod, env/example flipped to `DATABASE_URL`; container_entrypoint.sh replaces `SQLITE_DB_PATH` defaulting + mkdir with a `pg_isready` wait loop (30 s)",
+        "Wave 3 — Alembic + models: alembic.ini + env.py read `settings.database_url`; edit migration `20260712_0002` in place to swap `sa.JSON()` → `postgresql.JSONB()` in three columns (cue_sheet, bullets, payload) — the migration has never run against Postgres, no history to preserve; `app/models/core/conspectus.py` matches; pyproject.toml adds `psycopg[binary]>=3.2` and `testcontainers[postgres]>=4.8`",
+        "Wave 4 — Tests: replace file-SQLite fixtures in `tests/conftest.py` and `tests/core/test_config_profiles.py` with a session-scope `PostgresContainer` from testcontainers-python; per-test `TRUNCATE ... RESTART IDENTITY CASCADE` cleanup",
+        "Wave 5 — Catalog + tools cleanup: remove SQLite tag/chip/stack from `services/portal/internal/services/{api,datastore}/catalog-info.yaml`; drop SQLite from `tools/docs/build_catalog.py` datastore description; `tools/api/openapi_governance.py` stops writing a temp SQLite file at import time",
+        "Wave 6 — Docs: `services/api/README.md` and CHANGELOG.md flipped from SQLite → Postgres; sweep `rg -i sqlite` over internal/handbook + internal/dev prose and reword surviving mentions to «SQLite (historical, until 2026-07-12)» or delete",
+        "Wave 7 — Smoke: `docker compose up postgres -d`, `alembic upgrade head` locally against Postgres, full pytest suite, `docker compose up --build`, curl /live + smoke of POST/GET /v1/conspectuses (JSONB round-trip), `make docs-check`; final `rg -i sqlite -g '!var'` returns only history-of-record hits"
+      ],
+      "acceptance": [
+        "`docker compose up -d` yields a healthy `postgres` service; `api` starts after the healthcheck flips green; entrypoint runs `alembic upgrade head` to completion",
+        "`pytest tests/` boots a testcontainers-python `PostgresContainer`, migrates the schema, exercises the suite, and tears the container down — no local `.sqlite3` file created anywhere",
+        "POST /v1/conspectuses with a non-trivial `cue_sheet` followed by GET /v1/conspectuses/{id} returns the JSON payload byte-for-byte (JSONB round-trip)",
+        "`rg -i 'sqlite' -g '!var' -g '!*.bak'` in the repo returns only history-of-record hits: this ADR 0037, ADR 0015's superseded clause, CHANGELOG entries dated ≤ 2026-07-11, and the 2026-04-02 postmortem",
+        "ADR 0037 status pill flips Proposed → Accepted on merge; ADR 0015 carries the partial-supersession banner + history row",
+        "`make docs-check` passes — catalog build, search index, nav-tree consistent after the SQLite chip removal",
+        "BL-005 acceptance criteria simplify from «add Postgres service container to .github/workflows/test.yml + bootstrap schema via migration» to «CI just runs `pytest`» — update BL-005 in a follow-up edit"
+      ],
+      "links": [
+        {
+          "href": "../../governance/adr/0037-postgres-runtime-database.html",
+          "label": "ADR 0037 — PostgreSQL as runtime database (containerized)"
+        },
+        {
+          "href": "../../governance/adr/0015-container-image.html",
+          "label": "ADR 0015 — Container image (partially superseded here)"
+        },
+        {
+          "href": "../../governance/adr/0029-database-table-documentation.html",
+          "label": "ADR 0029 — Database table documentation"
+        }
+      ]
+    },
+    {
       "id": "BL-066",
       "title": "Portal staging stand on GitHub Pages (dual-repo pattern)",
       "professions": [
