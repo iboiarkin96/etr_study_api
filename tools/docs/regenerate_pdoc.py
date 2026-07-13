@@ -149,6 +149,14 @@ def _run_pdoc() -> None:
     env = os.environ.copy()
     env.setdefault("PYTHONHASHSEED", "0")
     env["PYTHONPATH"] = f"services/api{os.pathsep}{env.get('PYTHONPATH', '')}"
+    # Pin the workspace-root the app package reports at import time. ``config.py``
+    # otherwise builds ``ENV_DIR = ROOT / "env"`` from ``Path(__file__).resolve()``,
+    # which encodes the runner's CWD in every rendered ``PosixPath(...)`` repr and
+    # — worse — in the pdoc search index's per-field character counts (which
+    # ``normalize_pdoc_output.py`` cannot fix in retrospect because pdoc has
+    # already frozen them before we run). Pinning to a fixed short path yields
+    # a byte-identical index on every runner.
+    env["STUDY_APP_ROOT"] = "/study_app"
 
     with tempfile.TemporaryDirectory(prefix="pdoc-regen-") as tmp:
         stage_dir = Path(tmp) / "code-reference"

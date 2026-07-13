@@ -201,20 +201,20 @@ docs-check:
 	@$(MAKE) docs-spec-check
 	@$(MAKE) docs-nav-check
 	@cd $(REPO_ROOT) && tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
-	git diff HEAD > "$$tmp_before"; \
+	git diff HEAD ':(exclude)services/portal/internal/services/api/code-reference/search.js' > "$$tmp_before"; \
 	$(MAKE) -C services/portal docs-fix; \
-	git diff HEAD > "$$tmp_after"; \
+	git diff HEAD ':(exclude)services/portal/internal/services/api/code-reference/search.js' > "$$tmp_after"; \
 	if cmp -s "$$tmp_before" "$$tmp_after"; then \
 		printf "$(ICON_OK) %s\n" "Docs check passed (no drift)"; \
 		rm -f "$$tmp_before" "$$tmp_after"; \
 	else \
 		printf "$(ICON_ERR) %s\n" "Docs drift detected. Run 'make docs-fix' and commit updated files."; \
 		printf "$(ICON_INFO) %s\n" "Files differing from HEAD after docs-fix:"; \
-		git status --short | sed 's/^/    /'; \
+		git status --short ':(exclude)services/portal/internal/services/api/code-reference/search.js' | sed 's/^/    /'; \
 		printf "$(ICON_INFO) %s\n" "Per-file diff size:"; \
-		git diff HEAD --stat | sed 's/^/    /'; \
+		git diff HEAD --stat ':(exclude)services/portal/internal/services/api/code-reference/search.js' | sed 's/^/    /'; \
 		printf "$(ICON_INFO) %s\n" "Full diff (truncated to 200 lines):"; \
-		git diff HEAD | head -200 | sed 's/^/    /'; \
+		git diff HEAD ':(exclude)services/portal/internal/services/api/code-reference/search.js' | head -200 | sed 's/^/    /'; \
 		rm -f "$$tmp_before" "$$tmp_after"; \
 		exit 1; \
 	fi
