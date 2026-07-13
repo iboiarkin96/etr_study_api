@@ -147,10 +147,8 @@ docs-fix:
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/ensure_docs_maintainers.py
 	@printf "$(ICON_INFO) %s\n" "[8/11] regenerate runtime OpenAPI spec (public Scalar source)"
 	@cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) tools/api/openapi_governance.py regen
-	@printf "$(ICON_INFO) %s\n" "[9/11] Python API reference (pdoc)"
-	@rm -rf $(REPO_ROOT)/services/portal/internal/services/api/code-reference
-	@cd $(REPO_ROOT) && PYTHONHASHSEED=0 PYTHONPATH=services/api $(PYTHON) -m pdoc app -o services/portal/internal/services/api/code-reference
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/normalize_pdoc_output.py
+	@printf "$(ICON_INFO) %s\n" "[9/11] Python API reference (pdoc; skipped when app/**.py unchanged)"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/regenerate_pdoc.py
 	@printf "$(ICON_INFO) %s\n" "[10/11] rebuild internal catalog (quadrant / service / topic / recent)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_catalog.py
 	@printf "$(ICON_INFO) %s\n" "[11/11] build pagefind index (ADR-0033)"
@@ -203,21 +201,20 @@ docs-check:
 	@$(MAKE) docs-spec-check
 	@$(MAKE) docs-nav-check
 	@cd $(REPO_ROOT) && tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
-	git diff HEAD > "$$tmp_before"; \
+	git diff HEAD ':(exclude)services/portal/internal/services/api/code-reference/search.js' > "$$tmp_before"; \
 	$(MAKE) -C services/portal docs-fix; \
-	git checkout HEAD -- services/portal/internal/services/api/code-reference 2>/dev/null || true; \
-	git diff HEAD > "$$tmp_after"; \
+	git diff HEAD ':(exclude)services/portal/internal/services/api/code-reference/search.js' > "$$tmp_after"; \
 	if cmp -s "$$tmp_before" "$$tmp_after"; then \
 		printf "$(ICON_OK) %s\n" "Docs check passed (no drift)"; \
 		rm -f "$$tmp_before" "$$tmp_after"; \
 	else \
 		printf "$(ICON_ERR) %s\n" "Docs drift detected. Run 'make docs-fix' and commit updated files."; \
 		printf "$(ICON_INFO) %s\n" "Files differing from HEAD after docs-fix:"; \
-		git status --short | sed 's/^/    /'; \
+		git status --short ':(exclude)services/portal/internal/services/api/code-reference/search.js' | sed 's/^/    /'; \
 		printf "$(ICON_INFO) %s\n" "Per-file diff size:"; \
-		git diff HEAD --stat | sed 's/^/    /'; \
+		git diff HEAD --stat ':(exclude)services/portal/internal/services/api/code-reference/search.js' | sed 's/^/    /'; \
 		printf "$(ICON_INFO) %s\n" "Full diff (truncated to 200 lines):"; \
-		git diff HEAD | head -200 | sed 's/^/    /'; \
+		git diff HEAD ':(exclude)services/portal/internal/services/api/code-reference/search.js' | head -200 | sed 's/^/    /'; \
 		rm -f "$$tmp_before" "$$tmp_after"; \
 		exit 1; \
 	fi

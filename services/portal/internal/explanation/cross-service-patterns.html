@@ -52,7 +52,7 @@
       <ul>
         <li><strong>No distributed tracing.</strong> Spans live within one process; <a href="../handbook/sre/observability.html">observability</a> is structured logs + request IDs, not OpenTelemetry spans crossing a wire. Reason: one process means causality is reconstructable from the log stream alone; OTLP would add a collector dependency for zero present-day benefit.</li>
         <li><strong>No service-to-service auth.</strong> There is no «service B calls service A» surface. Internal calls are function calls. Reason: introducing mTLS or service-account JWTs before they have a caller is the canonical premature-design failure.</li>
-        <li><strong>No distributed transactions.</strong> Writes are single-database; SQLite's <a href="../services/datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">single-writer model</a> is the consistency boundary. Reason: sagas, two-phase commits, and outbox patterns each add operational complexity that we don't yet pay rent for.</li>
+        <li><strong>No distributed transactions.</strong> Writes are single-database; the containerized PostgreSQL 16 instance (<a href="../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>) is the consistency boundary. Reason: sagas, two-phase commits, and outbox patterns each add operational complexity that we don't yet pay rent for.</li>
       </ul>
 
       <h2 id="triggers">What ends each non-decision</h2>
@@ -89,7 +89,7 @@
       <p>When filled, this section will document the rejected alternatives explicitly: <strong>(a)</strong> mTLS-only with no application-layer identity — rejected because operations like rate-limit and authz cannot read «which service is calling» from a cert; <strong>(b)</strong> long-lived API keys reused across internal callers — rejected because rotation becomes a fleet operation; <strong>(c)</strong> SPIFFE / SPIRE workload identity — rejected unless we already run a service mesh that issues the SVIDs for free. The default landing decision is short-lived JWTs signed by a shared secret, with mTLS as transport hardening when the call crosses a network boundary outside our trust zone.</p>
 
       <h2 id="sagas">Distributed transactions / sagas — stub</h2>
-      <p class="pa-tldr"><span class="pa-tldr__label">Not yet relevant</span><span class="pa-tldr__text">All writes go to one SQLite file. The day a second store enters the write path, the outbox-pattern decision is forced.</span></p>
+      <p class="pa-tldr"><span class="pa-tldr__label">Not yet relevant</span><span class="pa-tldr__text">All writes go to a single PostgreSQL instance. The day a second store enters the write path, the outbox-pattern decision is forced.</span></p>
       <p>When filled, this section will document the contract for atomic-across-stores writes: a transactional outbox table local to the primary store, an idempotent consumer reading the outbox and applying side effects (search-index update, cache invalidation, downstream event publish). Rejected alternatives: <strong>(a)</strong> two-phase commit across stores — rejected because most modern stores don't expose the XA protocol; <strong>(b)</strong> compensating sagas without idempotency keys — rejected because compensation is unsound without exactly-once application; <strong>(c)</strong> «eventually consistent and hope» — rejected by name, because that is not a pattern, it is a missing design.</p>
 
       <h2 id="tradeoffs">Tradeoffs of keeping this page as a stub</h2>

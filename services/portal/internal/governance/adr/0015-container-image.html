@@ -75,6 +75,11 @@
           Provide a single Dockerfile aligned with <code>make install</code> so the bits CI tests
           can run on a laptop, a VM, or a cloud host without depending on a specific account.
         </p>
+        <aside class="docs-card" data-tone="warn" role="note" aria-label="Partial supersession">
+          <div class="docs-card__body">
+            <p><strong>Partially superseded by <a href="0037-postgres-runtime-database.html">ADR 0037</a>.</strong> The «SQLite + single replica» clause of the Decision, and the matching Scope exclusion, are superseded: runtime persistence is now containerized PostgreSQL 16. The packaging-artifact scope of this ADR (single Dockerfile, entrypoint-driven migration, non-root user, <code>docker run</code> ergonomics) stays in force.</p>
+          </div>
+        </aside>
       </header>
 
       <section aria-labelledby="metadata-h">
@@ -103,8 +108,8 @@
         <h2 id="decision-h">Decision</h2>
         <ul>
           <li>Provide a <strong>Dockerfile</strong> at <code>services/api/Dockerfile</code> that installs dependencies from the same <code>requirements.txt</code> as <code>make install</code>, copies application and Alembic assets, runs as non-root user <code>uid 1000</code>, and sets <code>ENTRYPOINT</code> to the in-container <code>/app/scripts/container_entrypoint.sh</code> (copied from the host at <code>services/api/scripts/container_entrypoint.sh</code>): <code>alembic upgrade head</code> then Uvicorn. The image does not run <code>make</code> (no venv layout in-container).</li>
-          <li>Default container paths: SQLite file under <code>/data</code> (configurable via <code>SQLITE_DB_PATH</code>), logs under <code>/tmp/logs</code> when not overridden, to avoid permission issues on read-only layers.</li>
-          <li>Keep <strong>SQLite + single replica</strong> for this ADR's scope; document that scaling out requires a shared database.</li>
+          <li>Default container paths: logs under <code>/tmp/logs</code> when not overridden, to avoid permission issues on read-only layers. <em>(Original SQLite-file default under <code>/data</code> superseded by <a href="0037-postgres-runtime-database.html">ADR 0037</a> — the API reads <code>DATABASE_URL</code> and reaches PostgreSQL in the compose network.)</em></li>
+          <li><span class="docs-pill docs-pill--neutral">Superseded by ADR 0037</span> Original clause: «Keep <strong>SQLite + single replica</strong> for this ADR's scope». Now: runtime persistence is PostgreSQL 16 in a compose service, per <a href="0037-postgres-runtime-database.html">ADR 0037</a>. Multi-replica is still deferred to a separate ADR.</li>
           <li>Add Makefile helper <code>docker-build</code> and developer guide <code>services/portal/internal/handbook/sa/authoring/docker-image-and-container.html</code>.</li>
         </ul>
       </section>
@@ -113,7 +118,7 @@
         <h2 id="scope-h">Scope</h2>
         <ul>
           <li>In scope: image layout, entrypoint behavior, <code>docker run</code> documentation.</li>
-          <li>Out of scope: hosted registry promotion (see <a href="0021-continuous-delivery-github-actions-and-ghcr.html">ADR 0021</a>), production ingress/TLS, replacing SQLite with PostgreSQL.</li>
+          <li>Out of scope: hosted registry promotion (see <a href="0021-continuous-delivery-github-actions-and-ghcr.html">ADR 0021</a>), production ingress/TLS. <em>(«Replacing SQLite with PostgreSQL» is no longer out of scope — that decision is now the subject of <a href="0037-postgres-runtime-database.html">ADR 0037</a>, which supersedes the SQLite-runtime clauses above.)</em></li>
         </ul>
       </section>
 
@@ -205,6 +210,11 @@
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-07-12</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Partial supersession by <a href="0037-postgres-runtime-database.html">ADR 0037</a>. The «SQLite + single replica» clause of the Decision, the matching Scope exclusion, and the SQLite <code>/data</code> path default are superseded — runtime persistence is now PostgreSQL 16 in the compose stack. The packaging-artifact scope (single Dockerfile, entrypoint-driven <code>alembic upgrade head</code> then Uvicorn, non-root <code>uid 1000</code>, <code>docker run</code> ergonomics) is untouched and remains Accepted. Inline supersession banner added under the lede; the SQLite bullet in Decision and the SQLite exclusion in Scope carry pointer pills to ADR 0037.</span>
+          </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-06-01</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

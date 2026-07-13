@@ -46,9 +46,12 @@ def iter_docs_pages(candidates: list[str] | None = None) -> list[Path]:
         rel = path.relative_to(DOCS_ROOT)
         if rel.parts and rel.parts[0] in {"pdoc", "assets"}:
             continue
+        # pdoc-generated Python API reference — path renamed during the IA
+        # migration; must match the actual `services/portal/internal/services/api/code-reference/`
+        # tree, not the legacy `internal/catalog/api/code-reference/` one.
         if len(rel.parts) >= 4 and rel.parts[0:4] == (
             "internal",
-            "catalog",
+            "services",
             "api",
             "code-reference",
         ):

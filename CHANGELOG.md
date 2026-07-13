@@ -65,8 +65,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`x-build-history: code-first` provenance tag** on the first back-fill
   fragment (`createUser.yaml`), plus `x-portal-spec` link to the paired
   human view. Both pages coexist per ADR 0036 D6.
+- **services/api — Conspectus, Schedule, Error-log endpoints (12 total)**
+  matching the internal specs at
+  `services/portal/internal/services/api/reference/`. Conspectus CRUD +
+  history + due-list + `POST .../actions/review`; Schedule
+  `/summary` + `/preview`; Error-log `POST` + `GET`. State machine for
+  the ETR review ladder in `app/domain/scheduling.py` (pure logic, no
+  ORM); optimistic concurrency on `review` via
+  `expected_schedule_revision`; cursor pagination on list + history;
+  soft-delete of `conspectus` nulls `learning_errors.conspectus_uuid`
+  so errors survive their parent; deterministic Fisher-Yates shuffle
+  seeded by `(random_seed, current-minute)` for `preview`. Shared
+  `IdempotencyGuard` (`app/api/v1/_idempotency.py`) removes ~150 lines
+  of duplicated guard/replay/save boilerplate across five write
+  endpoints. 43 stable validation codes (`CONS_*`, `ERR_*`, `SCHED_*`)
+  with per-endpoint `(field, error_type) → StableError` mapping in
+  `app/validation/dispatch.py`; fallback is `COMMON_000`.
+- **Alembic — one migration for the new domain:**
+  `20260712_0002_add_conspectus_schedule_errorlog.py` creates six
+  tables (`conspectuses`, `conspectus_schedules`, `conspectus_events`,
+  `conspectus_review_logs`, `learning_errors`, `schedule_policies`)
+  and seeds `schedule_policies`. Edited in place to use
+  `postgresql.JSONB()` for `cue_sheet`, `bullets`, `payload` (see
+  ADR 0037 below) — safe because the migration was shipped on this
+  same feature branch and has never run against Postgres.
+- **infra — one-shot `make up` / `make down` (root):** brings up
+  api + monitoring + portal in a single command; `alembic upgrade head`
+  runs on api-container start; `make down-volumes` also drops the
+  Postgres data directory. Replaces the split `stack-up` / `stack-down`
+  verbs.
+- **tools/docs — `atomic_io.write_if_changed()`:** byte-level compare-
+  and-skip wrapper used by every autogen tool
+  (`build_catalog.py`, `normalize_pdoc_output.py`, `repair_docs_html.py`);
+  IDE / git-status no longer flashes files that end up byte-identical
+  after `docs-check`.
+- **tools/docs — `regenerate_pdoc.py`:** small orchestrator that hashes
+  every `services/api/app/**.py` source file and only re-runs `pdoc` +
+  `normalize` when the digest changed. Cached digest under
+  `services/portal/internal/services/api/code-reference/.pdoc-input-hashes.json`
+  (gitignored). Cuts a no-change `docs-fix` run from ~15 s to ~50 ms
+  and lets `docs-check` drop its old `git checkout` post-step.
 
 ### Changed
+
+- **services/api / infra — runtime DB is now containerized
+  PostgreSQL 16 (ADR 0037 / BL-067).** `Settings.database_url` is the
+  only DB knob; SQLite (`Settings.sqlite_db_path`, `sqlite_url`,
+  `SQLITE_DB_PATH` env) is gone from the app. Engine drops
+  `check_same_thread=False`, adds `pool_pre_ping=True` so
+  compose-Postgres restarts don't surface as stale-connection
+  errors. `docker-compose.yml` grows a `postgres:16-alpine` service
+  with a `pg_isready` healthcheck + host-mounted `var/postgres/`
+  (gitignored); the `api` service gains
+  `depends_on: {postgres: {condition: service_healthy}}`; container
+  entrypoint drops the SQLite `mkdir` and adds a `pg_isready` wait-
+  loop as a defensive backstop. Env profiles (`env/example`,
+  `env/dev`, `env/qa`, `env/prod`) replace `SQLITE_DB_PATH` with
+  `DATABASE_URL` + `POSTGRES_USER/PASSWORD/DB/PORT` bootstrap vars.
+- **services/api — tests on testcontainers-python:** `tests/conftest.py`
+  boots a session-scoped `PostgresContainer` (`postgres:16-alpine`,
+  driver `psycopg`), sets `DATABASE_URL` before importing app
+  modules, and switches per-test cleanup to a single
+  `TRUNCATE … RESTART IDENTITY CASCADE` — one round-trip and every
+  serial (`conspectus_events.id` etc.) resets to 1 so assertions on
+  generated IDs stay stable.
+- **services/api — dependencies:** added `psycopg[binary]==3.2.10`
+  and `testcontainers[postgres]==4.14.2` to `services/api/requirements.txt`.
+- **ADR 0015 — partial supersession:** the «SQLite + single replica»
+  clause is superseded by ADR 0037; ADR 0015 stays Accepted for its
+  packaging-artifact scope. Banner + pointer pill + history row
+  added in place.
+- **catalog — SQLite chips removed:** the `SQLite` chip / tag / stack
+  line drops out of `services/api/catalog-info.yaml` and
+  `services/datastore/catalog-info.yaml`; replaced with a single
+  `postgres` chip using a new `plug` SVG icon in
+  `render_service_descriptors.py`.
 
 - **ci:** `changelog` job in `.github/workflows/ci.yml` now runs on PRs into
   `staging` (and pushes to `staging`), not only into `main`/`master`. Closes
@@ -92,6 +165,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   demoted; a single article is an Explanation, not a series. Content moved
   to `handbook/sa/explanation/from-yaml-to-mock.html` and the `team/101/`
   tree deleted.
+- **services/api — docs-search telemetry sink** (`app/core/docs_search_telemetry.py`,
+  `app/schemas/telemetry.py`, the two `/internal/telemetry/docs-search*`
+  endpoints, and both matching test modules). The sink stored to its
+  own SQLite at `var/tech/telemetry.db`; with SQLite gone from the
+  runtime image (ADR 0037) the surface retires cleanly. RFC 0002
+  (`governance/rfc/0002-docs-search-kpi-policy-and-slo.html`) is
+  removed; ADRs 0027 + 0033 note the retirement.
+- **runtime — SQLite as the app database.** `SQLITE_DB_PATH` env,
+  `Settings.sqlite_db_path`, `Settings.sqlite_url`, and the
+  SQLite-only `check_same_thread=False` engine flag are removed. The
+  `./var/api:/data` mount in compose is gone. Old `stack-up` /
+  `stack-down` Make verbs replaced by `make up` / `make down` /
+  `make down-volumes`.
 
 ### Removed
 

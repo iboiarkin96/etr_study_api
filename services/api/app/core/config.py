@@ -75,10 +75,13 @@ def _normalize_log_format(raw: str) -> str:
 
 # Variables already set in the environment before import (e.g. `export` before uvicorn)
 # must not be overwritten by `env/<APP_ENV>` — otherwise local load-testing script loses
-# API_RATE_LIMIT_REQUESTS_LOADTEST when env/dev sets 60 again.
+# API_RATE_LIMIT_REQUESTS_LOADTEST when env/dev sets 60 again. Same rule for DATABASE_URL:
+# the testcontainers-python fixture in tests/conftest.py sets a dynamic DSN before import;
+# the static value in env/qa must not clobber it.
 _PARENT_WINS_KEYS = (
     "API_RATE_LIMIT_REQUESTS",
     "API_RATE_LIMIT_WINDOW_SECONDS",
+    "DATABASE_URL",
 )
 
 
@@ -131,11 +134,8 @@ class Settings:
         app_env: Deployment profile: ``dev``, ``qa``, or ``prod``.
         app_host: Bind address for the HTTP server.
         app_port: Bind port for the HTTP server.
-        sqlite_db_path: Path to the main application SQLite database file (relative or absolute).
-        telemetry_sqlite_db_path: Path to the dedicated docs-search telemetry SQLite
-            database. Separated from ``sqlite_db_path`` so high-volume append-only event
-            traffic does not contend with transactional API writes on the same WAL.
-            Relative paths are anchored at the repo root (same convention as sqlite_url).
+        database_url: SQLAlchemy URL for the runtime database. Per ADR 0037 this is a
+            PostgreSQL DSN of the shape ``postgresql+psycopg://user:pass@host:port/db``.
         log_dir: Directory for rotating application log files.
         log_file_name: Log file basename inside ``log_dir``.
         log_level: Root logging level (e.g. ``INFO``, ``DEBUG``).
@@ -164,8 +164,7 @@ class Settings:
     app_env: str
     app_host: str
     app_port: int
-    sqlite_db_path: str
-    telemetry_sqlite_db_path: str
+    database_url: str
     log_dir: str
     log_file_name: str
     log_level: str
@@ -189,19 +188,6 @@ class Settings:
     metrics_buckets_http: tuple[float, ...]
     metrics_buckets_db: tuple[float, ...]
 
-    @property
-    def sqlite_url(self) -> str:
-        """SQLAlchemy connection URL for the configured SQLite file.
-
-        Relative ``SQLITE_DB_PATH`` values are anchored at the repo root so the
-        DB location is stable regardless of the cwd `make run` / alembic / pytest
-        happen to launch from.
-        """
-        db_path = Path(self.sqlite_db_path).expanduser()
-        if db_path.is_absolute():
-            return f"sqlite:///{db_path}"
-        return f"sqlite:///{ROOT / db_path}"
-
 
 def get_settings() -> Settings:
     """Build a validated :class:`Settings` instance from the current process environment.
@@ -210,14 +196,20 @@ def get_settings() -> Settings:
         Frozen settings snapshot.
 
     Raises:
-        ValueError: If ``SQLITE_DB_PATH`` is missing, ``qa``/``prod`` invariants fail,
-            or ``prod`` forbids localhost CORS / ``DEBUG`` logging.
+        ValueError: If ``DATABASE_URL`` is missing or malformed, ``qa``/``prod``
+            invariants fail, or ``prod`` forbids localhost CORS / ``DEBUG`` logging.
     """
     app_env = _normalize_app_env(os.getenv("APP_ENV", "dev"))
-    db_path = os.getenv("SQLITE_DB_PATH", "").strip()
-    if not db_path:
-        raise ValueError("Missing SQLITE_DB_PATH in environment.")
-    telemetry_db_path = os.getenv("TELEMETRY_SQLITE_DB_PATH", "var/tech/telemetry.db").strip()
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if not database_url:
+        raise ValueError(
+            "Missing DATABASE_URL in environment. "
+            "Expected e.g. postgresql+psycopg://user:pass@host:port/db (ADR 0037)."
+        )
+    if not database_url.startswith(
+        ("postgresql://", "postgresql+psycopg://", "postgresql+psycopg2://")
+    ):
+        raise ValueError(f"DATABASE_URL must be a PostgreSQL DSN (ADR 0037). Got: {database_url!r}")
 
     def _split_csv(value: str, default: tuple[str, ...]) -> tuple[str, ...]:
         """Parse a comma-separated env value into stripped non-empty parts.
@@ -269,8 +261,7 @@ def get_settings() -> Settings:
         app_env=app_env,
         app_host=os.getenv("APP_HOST", "127.0.0.1").strip() or "127.0.0.1",
         app_port=int(os.getenv("APP_PORT", "8000")),
-        sqlite_db_path=db_path,
-        telemetry_sqlite_db_path=telemetry_db_path,
+        database_url=database_url,
         log_dir=os.getenv("LOG_DIR", "logs").strip() or "logs",
         log_file_name=os.getenv("LOG_FILE_NAME", "app.log").strip() or "app.log",
         log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",

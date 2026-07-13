@@ -23,7 +23,7 @@
 #
 # Sections in this file
 # ---------------------
-#   Application bind / SQLite
+#   Application bind / Database
 #   Logging
 #   CORS and API security (body size, rate limits, auth)
 #   Load testing helpers (Makefile / tools.load_testing)
@@ -66,15 +66,20 @@ APP_PORT=8000
 # Path: relative to project root or absolute.
 # ENV_FILE=
 
-# SQLite database file: relative path (anchored at the repo root) or absolute path.
-# Convention: per-service persistent state lives under var/<svc>/ (gitignored).
-SQLITE_DB_PATH=var/api/study_app.db
+# Database URL (ADR 0037). PostgreSQL 16 running in the compose stack as
+# service `postgres`; from the api container the hostname is `postgres`, from the
+# host machine it is `127.0.0.1`. psycopg3 is the driver.
+#   Compose (api → postgres):  postgresql+psycopg://study_app:study_app@postgres:5432/study_app
+#   Host (make run / pytest):  postgresql+psycopg://study_app:study_app@127.0.0.1:5432/study_app
+DATABASE_URL=postgresql+psycopg://study_app:study_app@127.0.0.1:5432/study_app
 
-# Dedicated SQLite for docs-search telemetry events (high-volume, append-only).
-# Kept separate from SQLITE_DB_PATH so event write traffic does not contend
-# with transactional API writes on the same WAL. Relative paths are anchored at
-# the repo root.
-TELEMETRY_SQLITE_DB_PATH=var/tech/telemetry.db
+# Bootstrap credentials for the compose `postgres` service (used only by the
+# Postgres container's official entrypoint on first boot; the API reads
+# DATABASE_URL above).
+POSTGRES_USER=study_app
+POSTGRES_PASSWORD=study_app
+POSTGRES_DB=study_app
+POSTGRES_PORT=5432
 
 # --- Logging ---------------------------------------------------------------
 
@@ -153,7 +158,7 @@ OBS_API_PORT=8000
 OBS_PROM_HOST=127.0.0.1
 OBS_PROM_PORT=9090
 OBS_GRAF_HOST=127.0.0.1
-OBS_GRAF_PORT=3001
+OBS_GRAF_PORT=3010
 # Elasticsearch + Kibana (make logging-up / scripts/check_logging_links.py)
 OBS_ES_HOST=127.0.0.1
 OBS_ES_PORT=9200
@@ -163,7 +168,10 @@ OBS_KIB_PORT=5601
 # --- Docker: Prometheus, Grafana, Blackbox (docker-compose.observability) ---
 
 PROMETHEUS_PORT=9090
-GRAFANA_PORT=3001
+# 3010 not 3000/3001 — VS Code Helper on macOS commonly binds 3000-3009 on the
+# IPv4 loopback, which causes browsers to hit VS Code (426 Upgrade Required)
+# instead of the Grafana container that Docker binds on the same port via IPv6.
+GRAFANA_PORT=3010
 # Target the API from inside Docker (macOS/Windows Docker Desktop).
 PROMETHEUS_SCRAPE_TARGET=host.docker.internal:8000
 

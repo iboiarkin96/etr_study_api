@@ -54,7 +54,7 @@
         <li><strong>Build and test in CI.</strong> The pipeline runs lint and tests, and usually builds the Docker image and tags it (for example <code>:1.4.2</code> or <code>:&lt;git-sha&gt;</code>).</li>
         <li><strong>Push to a registry.</strong> <code>docker push</code> uploads the image to a URL your servers can read (authentication required). Nothing is uploaded automatically by <code>git push</code> unless a workflow is wired up.</li>
         <li><strong>Roll out to an environment.</strong> The platform or the ops process updates running services to the new image tag (for example, on a VM with Docker or on a managed container service).</li>
-        <li><strong>Configuration and data.</strong> Production <code>APP_ENV</code>, secrets, database URL, and scaling are set in the environment, not in the image. SQLite is fine for demos. Multi-instance setups typically use a shared database such as PostgreSQL.</li>
+        <li><strong>Configuration and data.</strong> Production <code>APP_ENV</code>, secrets, database URL, and scaling are set in the environment, not in the image. The runtime uses a containerized PostgreSQL 16 instance (see <a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>); a single database can serve multiple API replicas.</li>
         <li><strong>Traffic.</strong> DNS points at a load balancer or a reverse proxy, TLS terminates at the edge, and requests reach the service on port 8000 (or behind a reverse proxy).</li>
       </ol>
 
@@ -66,19 +66,18 @@
       <ul>
         <li><strong>Image name</strong> used in this repo: <code>study-app-api:local</code> (tag is arbitrary).</li>
         <li><strong>Build</strong>: <code>docker build -t study-app-api:local .</code></li>
-        <li><strong>Run</strong> (example): mount a volume for SQLite so data survives container removal:
+        <li><strong>Run</strong> (example): point the API at the containerized PostgreSQL via <code>DATABASE_URL</code>:
           <pre class="docs-code"><code class="language-bash">docker run --rm -p 8000:8000 \
 -e APP_ENV=dev \
--e SQLITE_DB_PATH=/data/study_app.db \
+-e DATABASE_URL=postgresql+psycopg://study_app:study_app@postgres:5432/study_app \
 -e API_MOCK_API_KEY=local-dev-key \
--v study-app-data:/data \
  study-app-api:local</code></pre>
           Then open <code>http://127.0.0.1:8000/live</code>. For <code>qa</code>/<code>prod</code> rules, non-default API keys and stricter CORS apply (<code>services/api/app/core/config.py</code>). Pass secrets via <code>-e</code> or your platform's secret mechanism — not committed files.
         </li>
       </ul>
 
-      <h2 id="sqlite">SQLite and replicas</h2>
-      <p>This API uses SQLite. A single container with a mounted data directory is fine for demos. Do not assume multiple replicas can share one SQLite file. Horizontal scaling moves the data to a shared database such as PostgreSQL, which is a future architectural change.</p>
+      <h2 id="postgres">PostgreSQL and replicas</h2>
+      <p>The API talks to a containerized PostgreSQL 16 instance (see <a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>). A shared database means multiple API replicas can point at the same <code>DATABASE_URL</code> — horizontal scaling is straightforward. In local dev the whole stack (API + Postgres) is brought up via <code>docker compose</code>; the Postgres data volume (<code>var/postgres/</code>) survives <code>docker compose down</code> unless <code>-v</code> is passed.</p>
 
       <h2 id="steps">Steps</h2>
       <ol>
@@ -89,11 +88,10 @@
         <li><strong>Run the container.</strong>
           <pre class="docs-code"><code class="language-bash">docker run --rm -p 8000:8000 \
  -e APP_ENV=dev \
- -e SQLITE_DB_PATH=/data/study_app.db \
+ -e DATABASE_URL=postgresql+psycopg://study_app:study_app@postgres:5432/study_app \
  -e API_MOCK_API_KEY=local-dev-key \
- -v study-app-data:/data \
  study-app-api:local</code></pre>
-          The named volume <code>study-app-data</code> survives container removal; the SQLite file lives inside it. Pass any other env vars (<code>API_RATE_LIMIT_*</code>, CORS settings) via additional <code>-e</code> flags.
+          The API expects a reachable PostgreSQL at <code>DATABASE_URL</code>. In compose the neighbouring <code>postgres</code> service handles this; standalone runs need a running Postgres to point at. Pass any other env vars (<code>API_RATE_LIMIT_*</code>, CORS settings) via additional <code>-e</code> flags.
         </li>
         <li><strong>Hit the live probe.</strong>
           <pre class="docs-code"><code class="language-bash">curl -i http://127.0.0.1:8000/live</code></pre>
@@ -118,8 +116,8 @@ docker stop &lt;id&gt;
       <h2 id="troubleshoot">Troubleshooting</h2>
       <ul class="rail-list" data-tone="rose">
         <li><strong>«Bind for 0.0.0.0:8000 failed: port is already allocated.»</strong> Something else is bound to 8000. Either stop the conflicting process (<code>lsof -i :8000</code> to find it) or pick a different host port: <code>-p 8001:8000</code>.</li>
-        <li><strong>Container exits immediately with «alembic.util.exc.CommandError: Can't locate revision identified by ...».</strong> The mounted volume contains a DB from a different schema version. Either drop the volume (<code>docker volume rm study-app-data</code>) or downgrade Alembic to match the schema.</li>
-        <li><strong>Permission denied writing to <code>/data</code>.</strong> The volume was created with different UID/GID. <code>docker volume rm study-app-data</code> then re-run; Docker will recreate the volume with the container user's permissions.</li>
+        <li><strong>Container exits immediately with «alembic.util.exc.CommandError: Can't locate revision identified by ...».</strong> Postgres holds a schema at a version this image doesn't know. Either downgrade Alembic to match, or (dev only) recreate the Postgres volume: <code>docker compose down -v</code> then <code>docker compose up</code>.</li>
+        <li><strong>«connection refused» / <code>psycopg.OperationalError</code> on startup.</strong> Postgres wasn't ready when the entrypoint gave up waiting. Check the <code>postgres</code> service is <code>Up (healthy)</code> via <code>docker compose ps</code>; if it's flapping, look at <code>docker compose logs postgres</code>.</li>
         <li><strong>Health probes return 503.</strong> Check <code>docker logs &lt;id&gt;</code> — usually a missing env var (<code>APP_ENV</code> / <code>API_MOCK_API_KEY</code>) or a config check that didn't pass. Restart with the missing var passed via <code>-e</code>.</li>
       </ul>
 
@@ -149,7 +147,7 @@ docker stop &lt;id&gt;
       <li class="docs-toc__item"><a class="docs-toc__link" href="#deployment">Real-deployment shape</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#prereq">Prerequisites</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#one-minute">Docker in one minute</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#sqlite">SQLite and replicas</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#postgres">PostgreSQL and replicas</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#steps">Steps</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#verify">Verify</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshoot">Troubleshooting</a></li>

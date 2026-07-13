@@ -3,9 +3,21 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import html5lib
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atomic_io import write_if_changed
+from format_docs_html import (
+    _normalize_indentation,
+    _normalize_main,
+    _normalize_nav,
+    _normalize_nav_script,
+    _normalize_newlines,
+    _normalize_stylesheet,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS_ROOT = ROOT / "services" / "portal"
@@ -56,16 +68,38 @@ def _repair_html(text: str) -> str:
         alphabetical_attributes=False,
         inject_meta_charset=False,
     )
-    # Collapse "\n\n+" before </body> into a single blank line so repeated
-    # repair passes converge.
+    # Apply the same newline normalisation that ``format_docs_html`` uses, so
+    # the two tools converge to a single fixed point in one pass and neither
+    # rewrites the file when its content already matches. Without this, repair
+    # emitted a blank line before ``</body>`` that format then stripped, so
+    # every ``make docs-check`` bumped the mtime of every HTML page twice.
     import re as _re
 
-    repaired = _re.sub(r"\n{3,}(?=</body>)", "\n\n", repaired)
-    if not repaired.endswith("\n"):
-        repaired += "\n"
+    repaired = repaired.replace("\r\n", "\n").replace("\r", "\n")
+    repaired = _re.sub(r"\n{3,}", "\n\n", repaired)
+    repaired = repaired.rstrip() + "\n"
     if not repaired.lower().startswith("<!doctype html>"):
         repaired = "<!doctype html>\n" + repaired.lstrip()
     return repaired
+
+
+def _finalize(html_text: str, path: Path) -> str:
+    """Apply :mod:`format_docs_html`'s normalisers on top of the repaired HTML.
+
+    ``html5lib.serialize`` re-emits a valid but slightly different byte pattern
+    (extra newline before ``</body>``, indentation nudges, etc.) that
+    ``format_docs_html`` then strips right back to the original form. Applying
+    the same normalisers here converges to a single fixed point in one pass,
+    so ``repair`` only rewrites files whose *structural* HTML actually needs
+    fixing rather than every page in the tree.
+    """
+    text = _normalize_stylesheet(html_text, path)
+    text = _normalize_nav_script(text, path)
+    text = _normalize_main(text)
+    text = _normalize_nav(text)
+    text = _normalize_indentation(text)
+    text = _normalize_newlines(text)
+    return text
 
 
 def _collect_drifted_files() -> list[Path]:
@@ -73,7 +107,7 @@ def _collect_drifted_files() -> list[Path]:
     drifted: list[Path] = []
     for html_path in _iter_target_files():
         original = html_path.read_text(encoding="utf-8")
-        repaired = _repair_html(original)
+        repaired = _finalize(_repair_html(original), html_path)
         if repaired != original:
             drifted.append(html_path)
     return drifted
@@ -84,9 +118,8 @@ def _apply_fixes() -> int:
     updated_count = 0
     for html_path in _iter_target_files():
         original = html_path.read_text(encoding="utf-8")
-        repaired = _repair_html(original)
-        if repaired != original:
-            html_path.write_text(repaired, encoding="utf-8")
+        repaired = _finalize(_repair_html(original), html_path)
+        if write_if_changed(html_path, repaired):
             updated_count += 1
     return updated_count
 

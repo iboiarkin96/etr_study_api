@@ -17,9 +17,13 @@ Outputs under services/portal/internal/catalog/:
 from __future__ import annotations
 
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import NamedTuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atomic_io import write_if_changed
 
 ROOT = Path(__file__).resolve().parents[2]
 INT = ROOT / "services" / "portal" / "internal"
@@ -452,9 +456,8 @@ def write_lens(
         body_groups=body_groups,
         body_rows=body_rows,
     )
-    target.parent.mkdir(parents=True, exist_ok=True)
     html = "\n".join(line.rstrip() for line in html.splitlines()) + "\n"
-    target.write_text(html, encoding="utf-8")
+    write_if_changed(target, html)
 
 
 def _by_group_section(group_id: str, group_title: str, pages: list[Page], depth: int) -> str:
@@ -490,7 +493,7 @@ SERVICES_META = {
         "FastAPI runtime — the only artefact an external integrator interacts with at runtime.",
     ),
     "portal": ("portal", "The internal & public documentation portal itself."),
-    "datastore": ("datastore", "SQLite / Postgres persistence + Alembic migrations."),
+    "datastore": ("datastore", "PostgreSQL 16 persistence + Alembic migrations."),
     "monitoring": ("monitoring", "Observability stack — Prometheus, Grafana, structured logging."),
     "ui-kit": ("UI Kit", "Shared frontend component library (UI Kit v2)."),
 }
@@ -870,14 +873,14 @@ def build_index(pages: list[Page]):
     )
 
     target = CATALOG / "index.html"
-    target.write_text(
+    write_if_changed(
+        target,
         CATALOG_INDEX_SHELL.format(
             total=len(pages),
             quad_tiles=quad_tiles,
             svc_tiles=svc_tiles,
             topic_tiles=topic_tiles,
         ),
-        encoding="utf-8",
     )
 
 

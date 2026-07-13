@@ -72,7 +72,7 @@
         <h1>High-relevance client-side docs search (inverted index, IDF, and ranking boosts)</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">
-          Replace the simple field-presence scorer with an inverted-index lexical model — IDF, length-normalized TF, and precision boosts — plus append-only telemetry for query and click events.
+          Replace the simple field-presence scorer with an inverted-index lexical model — IDF, length-normalized TF, and precision boosts.
         </p>
       </header>
 
@@ -108,7 +108,6 @@
           <li>High-precision boosts for exact phrase, all-token coverage, and title prefix matches.</li>
           <li>Prefix expansion only for the last query token for good type-ahead UX.</li>
         </ol>
-        <p>We also add <strong>search telemetry</strong> (append-only) in the app SQLite database so local runs stay simple and we can verify behavior.</p>
       </section>
 
       <section aria-labelledby="scope-h">
@@ -173,10 +172,7 @@
           </article>
         </div>
         <h3>Revisit — would we do this again?</h3>
-        <p><strong>Yes — the precision improvement is the single most-cited UX win since the portal redesign.</strong> One refinement we would commit to on day one if starting today:</p>
-        <ul class="rail-list" data-tone="info">
-          <li><strong>Wire the search-telemetry events into a per-query «zero-results» dashboard.</strong> Today the events stream into SQLite but nobody graphs them; queries that returned zero results would be the highest-signal input for «what content is missing?» — they are the user telling us, in their own words, what they expected to find.</li>
-        </ul>
+        <p><strong>Yes — the precision improvement is the single most-cited UX win since the portal redesign.</strong></p>
 
       </section>
 
@@ -196,10 +192,6 @@
           <li>Runtime search and reranking: <code>services/frontend/portal/assets/docs-nav.js</code></li>
           <li>UI styling and snippets: <code>services/frontend/portal/assets/docs.css</code></li>
           <li>Artifact: <code>services/frontend/portal/assets/search-index.json</code> (schema version 2)</li>
-          <li>Telemetry ingest API: <code>POST /internal/telemetry/docs-search</code></li>
-          <li>Telemetry metrics API: <code>GET /internal/telemetry/docs-search/metrics</code></li>
-          <li>Telemetry store module: <code>services/api/app/core/docs_search_telemetry.py</code></li>
-          <li>Telemetry database file: same SQLite file configured by <code>SQLITE_DB_PATH</code></li>
         </ul>
       </section>
 
@@ -210,8 +202,6 @@
           <li>Smoke-test queries across ADR/internal/developer/runbooks/api paths.</li>
           <li>Verify keyboard UX: up/down/enter/escape.</li>
           <li>Track payload size and first-query latency after docs growth.</li>
-          <li>Send a search event and verify row creation in telemetry DB (<code>docs_search_events</code>).</li>
-          <li>Call <code>GET /internal/telemetry/docs-search/metrics</code> and verify non-zero aggregates.</li>
         </ul>
       </section>
 
@@ -271,43 +261,13 @@ Query: O(sum_postings_for_query_terms + rerank_candidates)
         <p>This is substantially faster than scanning every document on each query.</p>
       </section>
 
-      <section aria-labelledby="telemetry-h">
-        <h2 id="telemetry-h">Telemetry events and storage</h2>
-        <h3>Client events</h3>
-        <ul>
-          <li><code>search_query</code>: one emitted query execution with query length, token count, result count, latency, and top-N impressions.</li>
-          <li><code>search_result_click</code>: click-through on a result (mouse/keyboard), including rank and URL.</li>
-          <li><code>search_success</code>: first successful click in a search session; includes time-to-success and time-to-click.</li>
-          <li><code>search_query_error</code>: client-side index-load failure for observability and diagnostics.</li>
-        </ul>
-        <h3>Persistence model</h3>
-        <ul>
-          <li>All events are written append-only to <code>docs_search_events</code> in the current application SQLite DB.</li>
-          <li>Telemetry data and business data share one DB file to simplify local setup.</li>
-          <li>SQLite runs in WAL mode to reduce writer contention for frequent event inserts.</li>
-        </ul>
-      </section>
-
-      <section aria-labelledby="metrics-h">
-        <h2 id="metrics-h">Metric definitions (canonical formulas)</h2>
-        <p>Let <code>Q</code> be all <code>search_query</code> events in a time window, and <code>S</code> be first <code>search_success</code> per session in the same window.</p>
-        <h3>Zero-result rate</h3>
-        <pre><code>zero_result_rate = count(q in Q where q.results_count = 0) / count(Q)</code></pre>
-        <h3>Query CTR</h3>
-        <pre><code>query_ctr = count(distinct query_id in Q with at least one search_result_click) / count(Q)</code></pre>
-        <h3>Time-to-first-success</h3>
-        <pre><code>TTFS = distribution of s.time_to_success_ms for s in S
-        reported as p50 and p75</code></pre>
-        <p>For this ADR, dashboard defaults are: <strong>p50</strong> and <strong>p75</strong> over the selected rolling window.</p>
-      </section>
-
       <footer class="docs-history" aria-label="History">
         <h2 class="docs-history__title">History</h2>
         <ul class="docs-history__list">
           <li class="docs-history__row">
             <span class="docs-history__date">2026-06-01</span>
             <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten to «Why considered / Why rejected» template; <code>§ Trade-offs</code> restructured into canonical entries (larger index · lexical-only); new <code>§ Would we do this again?</code> proposing zero-results telemetry dashboard. Inline <code>style</code> stripped.</span>
+            <span class="docs-history__note">Substance audit-pass. Status pill → <code>.lifecycle-popover</code>; thin pros/cons <code>§ Alternatives</code> rewritten to «Why considered / Why rejected» template; <code>§ Trade-offs</code> restructured into canonical entries (larger index · lexical-only). Inline <code>style</code> stripped.</span>
           </li>
           <li class="docs-history__row">
             <span class="docs-history__date">2026-05-17</span>
