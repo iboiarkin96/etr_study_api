@@ -7,11 +7,20 @@ pdoc emits nondeterministic content on every run:
   2. The embedded lunr search index in ``search.js`` — Python's hash
      randomisation reshuffles dict keys, so the serialised JSON drifts even
      when the indexed content is identical.
+  3. Env-specific reprs of live objects — ``PosixPath('/…/logs/app.log')`` where
+     ``/…/`` is the process CWD, ``<module 'datetime' from
+     '/usr/local/lib/python3.11/datetime.py'>`` where the absolute path is
+     hardcoded by the Python patch build, ``Settings(…, database_url=
+     '***127.0.0.1:5432/study_app', …)`` where the DSN slug is whatever ``.env``
+     the runner happens to have. Any contributor with a differently-shaped
+     workspace produces different HTML.
+  4. ``frozenset({…})`` iteration order — even with ``PYTHONHASHSEED=0`` the
+     insertion order that survives to ``repr()`` depends on the runtime's
+     ``zoneinfo``/``tzdata`` build, and drifts between Python patch versions.
 
-Both are *structural* noise — pdoc cannot avoid them without a config flag we
-don't have. This post-processor strips the addresses and re-serialises the
-search-index JSON with sorted keys so the committed snapshot is stable across
-machines and runs.
+All four are *structural* noise — pdoc cannot avoid them without a config flag
+we don't have. This post-processor strips or canonicalises each variant so the
+committed snapshot is stable across machines and runs.
 
 No styling, font, favicon, chrome, or any other rendered content is touched.
 Run only after ``python -m pdoc app -o services/portal/internal/services/api/code-reference``.
@@ -52,6 +61,79 @@ _AT_ADDR = re.compile(r" at 0x[0-9a-f]{8,16}")
 # pdoc ``search.js`` embeds the lunr index as ``const docs = {...};``
 _SEARCH_JS_MARKER = "/** pdoc search index */const docs = "
 
+# ``PosixPath('/…/logs/app.log')`` → keep the tail after the project root or the
+# last known repo path segment. The tail is deterministic (``logs/app.log``); the
+# absolute prefix depends on the runner's CWD.
+_POSIXPATH_LOGFILE = re.compile(
+    r"PosixPath\(&#39;[^&]*?/(logs/app\.log)&#39;\)",
+)
+
+# ``<module 'datetime' from '/usr/local/lib/python3.11/datetime.py'>`` — the
+# ``from '…'`` clause exposes the interpreter's install prefix and drifts
+# between Python patch versions and hosting environments. Drop it.
+#
+# Two forms:
+#   1. Plain text (in inline reprs): ``&lt;module &#39;X&#39; from &#39;Y&#39;&gt;``
+#   2. Pygments-highlighted (in code blocks, when pdoc renders type annotations
+#      with a live module value): a chain of spans like
+#      ``&#39;X&#39;</span><span class="kn">from</span><span class="w"> </span><span class="s1">&#39;Y&#39;</span>``
+_MODULE_FROM_PATH_TEXT = re.compile(
+    r"(&lt;)(module )(&#39;[^&]*?&#39;)( from &#39;[^&]*?&#39;)(&gt;)",
+)
+_MODULE_FROM_PATH_PYGMENTS = re.compile(
+    r"(&#39;[^&]*?&#39;)</span>"
+    r'(?:<span class="w">[^<]*</span>|\s)*'
+    r'<span class="kn">from</span>'
+    r'(?:<span class="w">[^<]*</span>|\s)*'
+    r'<span class="s1">&#39;[^&]*?&#39;</span>'
+)
+
+# ``database_url=&#39;…&#39;`` — the DSN depends on the ``.env`` the runner has
+# (``x:x@…/x`` in a scratch container, ``study_app:study_app@…/study_app`` on
+# the CI runner). Different builds also mask credentials differently
+# (SQLAlchemy's URL repr uses ``***`` scrubbing, dataclass ``repr`` doesn't).
+# Canonicalise the whole rendered value so the diff is stable across all envs.
+_SETTINGS_DATABASE_URL = re.compile(
+    r"database_url=&#39;[^&]*?&#39;",
+)
+
+# ``frozenset({…})`` — iteration order varies with ``zoneinfo``/``tzdata``
+# builds. Split on ``&#39;, &#39;`` between quoted strings, sort, reassemble.
+_FROZENSET_STRINGS = re.compile(r"frozenset\(\{(&#39;[^\}]*&#39;)\}\)")
+
+
+def _canonicalize_module_from_path(match: re.Match[str]) -> str:
+    """Drop the ``from '…'`` clause from a rendered ``<module …>`` repr."""
+    return f"{match.group(1)}{match.group(2)}{match.group(3)}{match.group(5)}"
+
+
+def _canonicalize_frozenset_of_strings(match: re.Match[str]) -> str:
+    """Sort a ``frozenset({...})`` of HTML-escaped strings for a stable render."""
+    body = match.group(1)
+    parts = [p.strip() for p in body.split(",")]
+    parts.sort()
+    return "frozenset({" + ", ".join(parts) + "})"
+
+
+def _canonicalize_env_specific_reprs(text: str) -> str:
+    """Apply all env-independent normalisations that touch rendered Python reprs.
+
+    Args:
+        text: HTML content of one pdoc-generated page.
+
+    Returns:
+        Same content with env-dependent reprs canonicalised.
+    """
+    text = _POSIXPATH_LOGFILE.sub(r"PosixPath(&#39;\1&#39;)", text)
+    text = _MODULE_FROM_PATH_TEXT.sub(_canonicalize_module_from_path, text)
+    text = _MODULE_FROM_PATH_PYGMENTS.sub(r"\1</span>", text)
+    text = _SETTINGS_DATABASE_URL.sub(
+        "database_url=&#39;***HOST:5432/DB&#39;",
+        text,
+    )
+    text = _FROZENSET_STRINGS.sub(_canonicalize_frozenset_of_strings, text)
+    return text
+
 
 def main() -> int:
     """Walk pdoc output, strip addresses, re-serialise search.js index sorted."""
@@ -67,6 +149,7 @@ def main() -> int:
             continue
         text = path.read_text(encoding="utf-8")
         new = _AT_ADDR.sub("", text)
+        new = _canonicalize_env_specific_reprs(new)
         if path.name == "search.js":
             new = _canonicalize_pdoc_search_js(new)
         if new != text:
