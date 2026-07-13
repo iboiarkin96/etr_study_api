@@ -61,12 +61,26 @@ _AT_ADDR = re.compile(r" at 0x[0-9a-f]{8,16}")
 # pdoc ``search.js`` embeds the lunr index as ``const docs = {...};``
 _SEARCH_JS_MARKER = "/** pdoc search index */const docs = "
 
-# ``PosixPath('/…/logs/app.log')`` → keep the tail after the project root or the
-# last known repo path segment. The tail is deterministic (``logs/app.log``); the
-# absolute prefix depends on the runner's CWD.
+# ``PosixPath('/…/<repo-relative>')`` → keep only the last N segments after the
+# repo root. The tail (``logs/app.log``, ``env``, etc.) is deterministic; the
+# absolute prefix depends on the runner's CWD (``/work`` in a scratch
+# container, ``/home/runner/work/etr_study_api/etr_study_api`` on GH Actions).
 _POSIXPATH_LOGFILE = re.compile(
     r"PosixPath\(&#39;[^&]*?/(logs/app\.log)&#39;\)",
 )
+# Repo-root scalars — ``ENV_DIR``, project-level directories rendered as the
+# ``PosixPath`` of their absolute location. Anything containing a segment
+# that names a well-known repo folder gets normalised to the trailing segment.
+_POSIXPATH_REPO_ROOT = re.compile(
+    r"PosixPath\(&#39;/[^&]*?/(env|services|tests|tools|logs|var)&#39;\)"
+)
+
+# ``Engine(…)`` + ``sessionmaker(bind=Engine(…), …)`` — SQLAlchemy's URL repr
+# scrubs credentials differently across builds (``***…host…/db`` in one
+# version, ``user:***@host…/db`` in another), and even after scrubbing the
+# DSN suffix (host + DB name) depends on ``.env`` on the runner. Normalise
+# any ``Engine(…)`` to a canonical placeholder.
+_ENGINE_REPR = re.compile(r"Engine\([^)]*?\)")
 
 # ``<module 'datetime' from '/usr/local/lib/python3.11/datetime.py'>`` — the
 # ``from '…'`` clause exposes the interpreter's install prefix and drifts
@@ -125,12 +139,14 @@ def _canonicalize_env_specific_reprs(text: str) -> str:
         Same content with env-dependent reprs canonicalised.
     """
     text = _POSIXPATH_LOGFILE.sub(r"PosixPath(&#39;\1&#39;)", text)
+    text = _POSIXPATH_REPO_ROOT.sub(r"PosixPath(&#39;\1&#39;)", text)
     text = _MODULE_FROM_PATH_TEXT.sub(_canonicalize_module_from_path, text)
     text = _MODULE_FROM_PATH_PYGMENTS.sub(r"\1</span>", text)
     text = _SETTINGS_DATABASE_URL.sub(
         "database_url=&#39;***HOST:5432/DB&#39;",
         text,
     )
+    text = _ENGINE_REPR.sub("Engine(***HOST:5432/DB)", text)
     text = _FROZENSET_STRINGS.sub(_canonicalize_frozenset_of_strings, text)
     return text
 

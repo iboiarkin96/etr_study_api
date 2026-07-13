@@ -43,54 +43,53 @@ Full inventory: [`internal/handbook/sa/authoring/make-commands-and-workflows.htm
 <!-- BEGIN:REPO_LAYOUT -->
 ```text
 study_app/
-├── services/  # Service-rooted layout per ADR 0028
-│   ├── api/  # Python API service (FastAPI)
-│   │   ├── alembic/  # Migration environment
-│   │   │   └── versions/  # Migration scripts
-│   │   ├── app/  # Application package
-│   │   │   ├── api/  # HTTP layer
-│   │   │   ├── core/  # Settings, DB session
-│   │   │   ├── domain/
-│   │   │   ├── errors/
-│   │   │   ├── models/  # ORM models
-│   │   │   ├── openapi/
-│   │   │   ├── repositories/  # Data-access layer
-│   │   │   ├── schemas/  # Pydantic request/response models
-│   │   │   ├── services/  # Business logic
-│   │   │   └── validation/
-│   │   └── scripts/
-│   ├── frontend/  # Frontend artifacts (portal, future admin / dashboard)
-│   │   └── portal/  # Static documentation portal — public + internal IA
-│   │       └── assets_v2/
-│   ├── monitoring/  # Prometheus, Grafana, Filebeat configs + compose stacks
-│   │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
-│   │   ├── grafana/  # Dashboards and provisioning
-│   │   │   ├── dashboards/
-│   │   │   └── provisioning/
-│   │   └── prometheus/  # Scrape config, rules, Blackbox
-│   │       └── rules/
-│   └── portal/
-│       ├── internal/
-│       │   ├── blog/
-│       │   ├── catalog/
-│       │   ├── explanation/
-│       │   ├── governance/
-│       │   ├── handbook/
-│       │   ├── how-to/
-│       │   ├── onboarding/
-│       │   ├── operating-model/
-│       │   ├── reference/
-│       │   ├── services/
-│       │   ├── team/
-│       │   └── tutorials/
-│       ├── public/
-│       │   ├── explanation/
-│       │   ├── how-to/
-│       │   ├── reference/
-│       │   └── tutorials/
-│       └── ui-kit/
-│           └── pages/
-└── ops/
+└── services/  # Service-rooted layout per ADR 0028
+    ├── api/  # Python API service (FastAPI)
+    │   ├── alembic/  # Migration environment
+    │   │   └── versions/  # Migration scripts
+    │   ├── app/  # Application package
+    │   │   ├── api/  # HTTP layer
+    │   │   ├── core/  # Settings, DB session
+    │   │   ├── domain/
+    │   │   ├── errors/
+    │   │   ├── models/  # ORM models
+    │   │   ├── openapi/
+    │   │   ├── repositories/  # Data-access layer
+    │   │   ├── schemas/  # Pydantic request/response models
+    │   │   ├── services/  # Business logic
+    │   │   └── validation/
+    │   └── scripts/
+    ├── frontend/  # Frontend artifacts (portal, future admin / dashboard)
+    │   └── portal/  # Static documentation portal — public + internal IA
+    │       └── assets_v2/
+    ├── monitoring/  # Prometheus, Grafana, Filebeat configs + compose stacks
+    │   ├── filebeat/  # Filebeat → Elasticsearch (local logging stack)
+    │   ├── grafana/  # Dashboards and provisioning
+    │   │   ├── dashboards/
+    │   │   └── provisioning/
+    │   └── prometheus/  # Scrape config, rules, Blackbox
+    │       └── rules/
+    └── portal/
+        ├── internal/
+        │   ├── blog/
+        │   ├── catalog/
+        │   ├── explanation/
+        │   ├── governance/
+        │   ├── handbook/
+        │   ├── how-to/
+        │   ├── onboarding/
+        │   ├── operating-model/
+        │   ├── reference/
+        │   ├── services/
+        │   ├── team/
+        │   └── tutorials/
+        ├── public/
+        │   ├── explanation/
+        │   ├── how-to/
+        │   ├── reference/
+        │   └── tutorials/
+        └── ui-kit/
+            └── pages/
 ```
 <!-- END:REPO_LAYOUT -->
 
