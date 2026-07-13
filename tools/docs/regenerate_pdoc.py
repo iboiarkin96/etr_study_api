@@ -157,6 +157,15 @@ def _run_pdoc() -> None:
     # already frozen them before we run). Pinning to a fixed short path yields
     # a byte-identical index on every runner.
     env["STUDY_APP_ROOT"] = "/study_app"
+    # The pinned root has no ``env/<APP_ENV>`` file, so ``config.get_settings()``
+    # falls through to reading the parent environment. It still raises on a
+    # missing ``DATABASE_URL`` (the only required knob per ADR 0037), so pass a
+    # placeholder DSN that satisfies the format check without pointing at a
+    # real database — pdoc never opens a connection during import.
+    env.setdefault(
+        "DATABASE_URL",
+        "postgresql+psycopg://pdoc:pdoc@127.0.0.1:5432/pdoc",
+    )
 
     with tempfile.TemporaryDirectory(prefix="pdoc-regen-") as tmp:
         stage_dir = Path(tmp) / "code-reference"
