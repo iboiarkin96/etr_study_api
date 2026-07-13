@@ -171,40 +171,104 @@
           <li>
             <div>
               <strong>W1 · Backend: auth &amp; identity.</strong>
-              ADR 0038 «Telegram initData as primary auth» drafted &amp; accepted. Migration adds <code>users.telegram_user_id BIGINT UNIQUE NULL</code>, <code>telegram_username</code>, <code>telegram_photo_url</code>. Endpoint <code>POST /api/v1/auth/telegram</code> validates the HMAC-SHA256 signature over <code>initData</code> using the bot token as the key, upserts the user, and returns a JWT (24h TTL). Global FastAPI dependency <code>get_current_user</code> attached to every <code>/api/v1/*</code> router. OpenAPI baseline regenerated. Bot token loaded from <code>env/*</code>. <em>Exit criteria:</em> integration tests cover valid initData, tampered initData, expired auth_date, and unknown user.
+              ADR 0038 «Telegram initData as primary auth» drafted &amp; accepted. Migration adds <code>users.telegram_user_id BIGINT UNIQUE NULL</code>, <code>telegram_username</code>, <code>telegram_photo_url</code>, <code>locale</code>, <code>timezone</code>. Endpoint <code>POST /api/v1/auth/telegram</code> validates the HMAC-SHA256 signature over <code>initData</code> using the bot token as the key, checks <code>auth_date</code> is within a 24h skew window, upserts the user, and returns a JWT (24h TTL, PyJWT/HS256). Global FastAPI dependency <code>get_current_user</code> attached to every <code>/api/v1/*</code> router; <code>/live</code> and <code>/ready</code> stay open. OpenAPI baseline regenerated. Bot token loaded from <code>env/*</code>. <em>Exit criteria:</em> integration tests cover valid initData, tampered initData, expired <code>auth_date</code>, unknown user, and JWT rejection on tampered signature.
             </div>
           </li>
           <li>
             <div>
-              <strong>W2 · Frontend skeleton + Today.</strong>
-              <code>services/telegram/</code> created — Vite + React 19 + TypeScript, <code>@telegram-apps/sdk-react</code> and <code>@telegram-apps/telegram-ui</code> installed. Bootstrap includes <code>initData</code> → JWT exchange, TanStack Query client, router, theme provider that maps Telegram <code>themeParams</code> to CSS custom properties. First screen <strong>Today</strong> works end-to-end against a locally-run API through ngrok / Cloudflare Tunnel. BotFather test-bot registered.
+              <strong>W2a · Frontend bootstrap.</strong>
+              <code>services/telegram/</code> created — Vite + React 19 + TypeScript. Deps: <code>@telegram-apps/sdk-react</code>, <code>@telegram-apps/telegram-ui</code>, <code>@tanstack/react-query</code>, <code>@tanstack/react-router</code> (type-safe routing + built-in View Transitions), <code>zustand</code> (UI state), <code>framer-motion</code> (interactions + shared-element), <code>posthog-js</code> (analytics). Providers: <code>QueryClient</code>, <code>Router</code>, <code>ThemeProvider</code> (maps <code>themeParams</code> → semantic CSS vars), <code>ViewportProvider</code> (writes <code>--tma-safe-top / --tma-safe-bottom / --tma-viewport-h</code> from <code>viewportStableHeight</code>). Auth: initData exchanged for JWT once, cached in <code>WebApp.CloudStorage</code> (sync across devices, survives reinstall — never localStorage). <em>Dev</em>: <code>mockTelegramEnv()</code> from SDK for browser-outside-Telegram dev; Cloudflare Tunnel for on-device dev with real Telegram. i18n scaffold — <code>i18next</code> + <code>ru</code> / <code>en</code> from <code>language_code</code>. Storybook boot for TMA components.
             </div>
           </li>
           <li>
             <div>
-              <strong>W3 · Screens: Conspectus, Schedule, Errors.</strong>
-              List + detail for conspectuses (read-only). Schedule strip (14-day count-per-day). Error-log list + add-modal. All screens hooked to real API through the OpenAPI-generated client (<code>openapi-typescript-codegen</code>). Empty and error states shipped for each.
+              <strong>W2b · Today screen (end-to-end).</strong>
+              First working screen against real API — Yesterday-digest strip, streak <code>ProgressRing</code>, Recently-reviewed carousel, 90-day <code>HeatmapCalendar</code>, due list with 4 swipe gestures (mark done · snooze · destructive · star). BotFather test-bot registered.
             </div>
           </li>
           <li>
             <div>
-              <strong>W4 · Polish · P2 subset that fits.</strong>
-              Haptics on action taps. <code>BackButton</code> and <code>MainButton</code> wired via SDK. Loading skeletons. Route transitions. Error toasts. Sentry client (opt-in) — reports live only when <code>SENTRY_DSN</code> is present.
+              <strong>W3 · Screens: Conspectus, Schedule, Errors, Focus, Search, Profile, Onboarding.</strong>
+              Full 8-screen surface — read-only Conspectus with AI micro-actions (Explain differently, Generate quiz), <strong>Focus mode</strong> (SRS review flow — full-screen card, tap to reveal, Again/Hard/Good/Easy grades, SM-2 next-interval preview), Schedule with 90-day heat-map, Errors with timeline + pattern grouping, Profile with achievements + weekly retention chart, first-run <strong>Onboarding</strong>, <strong>Search / Spotlight</strong> (Cmd+K on desktop, pull-down on mobile). All screens hooked to real API via the OpenAPI-generated client (<code>openapi-typescript</code>). Every screen ships loading (content-aware skeleton), empty (with illustration + rotating tip), and error toast states.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>W4 · Polish · motion + delight.</strong>
+              Framer Motion springs on every mount / dismount. View Transitions API for route changes (Today card → Focus card = shared-element). Haptics vocabulary (7 patterns — selection, impact light/med/heavy, notification success/warning/error). BackButton + MainButton + SettingsButton wired via SDK. Content-aware loading skeletons. Toasts with undo. Milestone celebrations (Lottie for streak 7/30/100). Time-aware copies. Sound cues (opt-in, muted by default). Sentry + PostHog with event spec (<code>review_completed</code>, <code>review_snoozed</code>, <code>error_logged</code>, <code>streak_broken</code>, <code>focus_session_ended</code>, <code>search_opened</code>).
             </div>
           </li>
           <li>
             <div>
               <strong>W5 · Bot &amp; deep-linking.</strong>
-              Python <code>aiogram</code> handlers colocated inside <code>services/api</code> (shares models, config, and Postgres session). <code>/start</code> greets and offers the Mini App launch button. Webhook mounted at <code>POST /api/v1/telegram/webhook</code> with a shared-secret header check. Deep-link scheme documented — <code>tg://…?startapp=conspectus_&lt;uuid&gt;</code> opens the Mini App on that record.
+              Python <code>aiogram</code> handlers colocated inside <code>services/api</code> (shares models, config, and Postgres session). aiogram <code>Dispatcher</code> started on FastAPI <code>lifespan</code> startup; dev uses long-poll, prod uses webhook mounted at <code>POST /api/v1/telegram/webhook</code> with <code>X-Telegram-Bot-Api-Secret-Token</code> header check. <code>/start</code> greets and offers the Mini App launch button. Deep-link scheme uses the <em>modern</em> HTTPS format — <code>https://t.me/&lt;bot_username&gt;/&lt;app_short_name&gt;?startapp=conspectus_&lt;uuid&gt;</code>. The <code>startapp</code> payload is exposed to the WebApp via <code>WebApp.initDataUnsafe.start_param</code> and drives router navigation.
             </div>
           </li>
           <li>
             <div>
-              <strong>W6 · Deploy, docs, DoD.</strong>
-              Mini App shipped to Cloudflare Pages (custom domain, HTTPS). Bot webhook served from the API container. Portal gains a service page under <code>services/portal/internal/services/telegram/</code> — one page per Diátaxis quadrant. Backlog cockpit reflects «done». <code>make verify</code> is extended to build the Mini App and typecheck. Epic closed.
+              <strong>W6 · Deploy, docs, perf budget, DoD.</strong>
+              Mini App shipped to Cloudflare Pages (custom domain, HTTPS). Bot webhook served from the API container. Portal gains a service page under <code>services/portal/internal/services/telegram/</code> — one page per Diátaxis quadrant, plus a public design case-study on the blog. Backlog cockpit reflects «done». <code>make verify</code> extended: builds the Mini App, typechecks, runs Vitest + Playwright, and enforces the performance budget via <strong>Lighthouse CI</strong> — <em>LCP ≤ 2.0s</em>, <em>TBT ≤ 200ms</em>, <em>bundle ≤ 200 KB gz</em>, <em>a11y ≥ 95</em>. Epic closed.
             </div>
           </li>
         </ol>
+      </section>
+
+      <section aria-labelledby="nonfunc-h">
+        <h2 id="nonfunc-h">Non-functional guarantees</h2>
+        <p>Ambition: portfolio-grade. Every point below is a hard gate or a first-class design concern — not an afterthought.</p>
+        <div class="docs-card-grid">
+          <article class="docs-card docs-card--rail" data-tone="accent">
+            <h3 class="docs-card__title">Auth &amp; storage</h3>
+            <ul class="docs-card__body">
+              <li>JWT lives in <code>WebApp.CloudStorage</code> (Telegram-managed, cross-device, survives reinstall). Never <code>localStorage</code>.</li>
+              <li><code>BiometricManager</code> is used to gate destructive actions (delete conspectus, reset schedule) and streak-break confirms.</li>
+              <li>PostgreSQL migration is additive-only; existing rows stay untouched.</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="info">
+            <h3 class="docs-card__title">Performance budget</h3>
+            <ul class="docs-card__body">
+              <li>LCP ≤ 2.0s on cold LTE (Moto G Power throttle).</li>
+              <li>JS bundle ≤ 200 KB gz initial + code-split routes.</li>
+              <li>No web fonts loaded from network — system stack only.</li>
+              <li>Lighthouse CI in <code>make verify</code>; PR fails on regression.</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="success">
+            <h3 class="docs-card__title">Motion &amp; a11y</h3>
+            <ul class="docs-card__body">
+              <li>Every animation route through motion tokens; <code>prefers-reduced-motion</code> collapses to instant.</li>
+              <li>Tap targets ≥ 44 × 44 CSS px enforced by the cell primitive.</li>
+              <li>Keyboard navigable end-to-end on Telegram Desktop (J/K/E/? shortcuts + Cmd+K).</li>
+              <li>VoiceOver / TalkBack pass on every screen (rotor + live-region).</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <h3 class="docs-card__title">Observability</h3>
+            <ul class="docs-card__body">
+              <li>PostHog event spec: <code>review_completed</code>, <code>review_snoozed</code>, <code>focus_session_ended</code>, <code>error_logged</code>, <code>streak_broken</code>, <code>search_opened</code>, <code>command_ran</code>.</li>
+              <li>Sentry client (opt-in via <code>VITE_SENTRY_DSN</code>) with Telegram context tags.</li>
+              <li>Bot-side: structured logs with <code>correlation_id</code>, joined to API logs.</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="teal">
+            <h3 class="docs-card__title">Dev environment</h3>
+            <ul class="docs-card__body">
+              <li><code>mockTelegramEnv()</code> lets you develop in a normal browser tab — no Telegram client, no tunnel needed for UI-only work.</li>
+              <li>Cloudflare Tunnel scripts checked in for on-device dev with real Telegram.</li>
+              <li>Storybook for every <code>.tma-*</code> primitive; visual QA lives here, not on the phone.</li>
+              <li>Playwright uses <code>mockTelegramEnv()</code> in CI — no external HTTPS required.</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="rose">
+            <h3 class="docs-card__title">i18n &amp; localisation</h3>
+            <ul class="docs-card__body">
+              <li>All copy through <code>i18next</code>; <code>ru</code> + <code>en</code> at MVP, chosen from Telegram's <code>language_code</code>.</li>
+              <li>Numbers use <code>Intl.NumberFormat</code>; dates use <code>Intl.RelativeTimeFormat</code>.</li>
+              <li>Timezone from <code>Intl.DateTimeFormat().resolvedOptions().timeZone</code>, persisted server-side for reminder scheduling.</li>
+            </ul>
+          </article>
+        </div>
       </section>
 
       <section aria-labelledby="backend-h">
