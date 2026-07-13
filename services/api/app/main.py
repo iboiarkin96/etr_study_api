@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import logging
 import os
-import time
 from time import perf_counter
 from typing import Any
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -21,10 +20,12 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from starlette.responses import Response
 
+from app.api.v1.conspectus import router as conspectus_router
+from app.api.v1.error_log import router as error_log_router
+from app.api.v1.schedule import router as schedule_router
 from app.api.v1.user import router as user_router
 from app.core.config import get_settings
 from app.core.database import SessionLocal, engine
-from app.core.docs_search_telemetry import DocsSearchTelemetryStore
 from app.core.logging import configure_logging
 from app.core.metrics import MetricsCollector, install_sqlalchemy_metrics, metrics_content_type
 from app.core.request_context import (
@@ -42,13 +43,8 @@ from app.core.security import (
     is_protected_api_request,
 )
 from app.errors.common import COMMON_413, COMMON_429
-from app.schemas.errors import ValidationErrorResponse
 from app.schemas.system import LiveResponse, ReadyResponse
-from app.schemas.telemetry import (
-    DocsSearchTelemetryIngestRequest,
-    DocsSearchTelemetryMetricsResponse,
-)
-from app.validation.user import build_validation_error_payload
+from app.validation.dispatch import build_validation_error_payload
 
 settings = get_settings()
 log_file_path = configure_logging(settings)
@@ -62,6 +58,18 @@ OPENAPI_TAGS = [
     {
         "name": "User",
         "description": "User identity lifecycle endpoints with idempotency and contract-driven errors.",
+    },
+    {
+        "name": "Error log",
+        "description": "Append-only learner error records with idempotent create and owner-scoped list.",
+    },
+    {
+        "name": "Schedule",
+        "description": "Read-only projections over the learner's review schedule (load summary + evening preview).",
+    },
+    {
+        "name": "Conspectus",
+        "description": "ETR-note CRUD + review action + history (paired with the review-schedule state machine).",
     },
 ]
 
@@ -87,7 +95,6 @@ metrics = MetricsCollector(
     db_buckets=settings.metrics_buckets_db,
 )
 install_sqlalchemy_metrics(engine=engine, metrics=metrics)
-docs_search_telemetry_store = DocsSearchTelemetryStore(settings.telemetry_sqlite_db_path)
 
 app.add_middleware(
     CORSMiddleware,
@@ -371,107 +378,6 @@ app.add_api_route(
     include_in_schema=False,
 )
 
-DOCS_SEARCH_TELEMETRY_422_EXAMPLES = {
-    "missing_event": {
-        "summary": "Missing required event field",
-        "value": {
-            "error_type": "validation_error",
-            "endpoint": "POST /internal/telemetry/docs-search",
-            "errors": [
-                {
-                    "code": "USER_001",
-                    "key": "field_required",
-                    "message": "Field required",
-                    "field": "event",
-                    "source": "validation",
-                    "details": {
-                        "type": "missing",
-                        "loc": ["body", "event"],
-                        "input": {
-                            "emitted_at_ms": 1776420000000,
-                            "session_id": "s_123",
-                            "query_id": "q_123",
-                        },
-                        "ctx": None,
-                    },
-                }
-            ],
-        },
-    }
-}
-
-
-@app.post(
-    "/internal/telemetry/docs-search",
-    tags=["System"],
-    summary="Ingest docs search telemetry event",
-    operation_id="ingestDocsSearchTelemetryEvent",
-    status_code=202,
-    responses={
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "model": ValidationErrorResponse,
-            "description": "Validation error for malformed telemetry payload.",
-            "content": {
-                "application/json": {
-                    "examples": DOCS_SEARCH_TELEMETRY_422_EXAMPLES,
-                }
-            },
-        }
-    },
-)
-def ingest_docs_search_telemetry(
-    payload: DocsSearchTelemetryIngestRequest,
-) -> dict[str, str]:
-    """Persist one docs-search client telemetry event to the technical SQLite DB.
-
-    Args:
-        payload: Normalized telemetry event body from docs frontend JS.
-
-    Returns:
-        Lightweight acknowledgement body.
-    """
-    persisted_payload = payload.model_dump(mode="json")
-    extra_payload = persisted_payload.pop("payload", {})
-    if isinstance(extra_payload, dict):
-        persisted_payload.update(extra_payload)
-    docs_search_telemetry_store.insert_event(persisted_payload)
-    return {"status": "accepted"}
-
-
-@app.get(
-    "/internal/telemetry/docs-search/metrics",
-    tags=["System"],
-    summary="Get docs search KPI summary",
-    operation_id="getDocsSearchTelemetryMetrics",
-    response_model=DocsSearchTelemetryMetricsResponse,
-)
-def get_docs_search_telemetry_metrics(
-    window_minutes: int = 24 * 60,
-) -> DocsSearchTelemetryMetricsResponse:
-    """Return docs-search KPI aggregates for the requested rolling time window.
-
-    Args:
-        window_minutes: Rolling aggregation horizon (default 24 hours).
-
-    Returns:
-        KPI summary with zero-result rate, query CTR, and time-to-first-success percentiles.
-    """
-    bounded_window = min(max(1, int(window_minutes)), 30 * 24 * 60)
-    snapshot = docs_search_telemetry_store.metrics(
-        now_ms=int(time.time() * 1000),
-        window_minutes=bounded_window,
-    )
-    return DocsSearchTelemetryMetricsResponse(
-        window_minutes=snapshot.window_minutes,
-        total_queries=snapshot.total_queries,
-        zero_result_queries=snapshot.zero_result_queries,
-        zero_result_rate=snapshot.zero_result_rate,
-        queries_with_click=snapshot.queries_with_click,
-        query_ctr=snapshot.query_ctr,
-        median_time_to_first_success_ms=snapshot.median_time_to_first_success_ms,
-        p75_time_to_first_success_ms=snapshot.p75_time_to_first_success_ms,
-    )
-
 
 @app.get("/docs", include_in_schema=False)
 def custom_swagger_ui() -> Response:
@@ -489,6 +395,9 @@ def custom_swagger_ui() -> Response:
 
 
 app.include_router(user_router, prefix="/api/v1")
+app.include_router(error_log_router, prefix="/api/v1")
+app.include_router(schedule_router, prefix="/api/v1")
+app.include_router(conspectus_router, prefix="/api/v1")
 
 
 def custom_openapi() -> dict[str, Any]:

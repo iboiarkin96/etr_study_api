@@ -18,6 +18,29 @@ include:
   - path: services/monitoring/docker-compose.observability.yml
 
 services:
+  postgres:
+    # ADR 0037: runtime persistence. Single-node Postgres 16 in a compose service.
+    # Data volume lives at ./var/postgres on the host (gitignored via `var/`).
+    image: postgres:16-alpine
+    container_name: study-app-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-study_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-study_app}
+      POSTGRES_DB: ${POSTGRES_DB:-study_app}
+    volumes:
+      - ./var/postgres:/var/lib/postgresql/data
+    ports:
+      # Exposed for local psql / dev tools. Not consumed by the api service —
+      # api reaches Postgres over the compose network as `postgres:5432`.
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-study_app} -d ${POSTGRES_DB:-study_app}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
   api:
     build:
       context: ./services/api
@@ -27,20 +50,20 @@ services:
       APP_ENV: ${APP_ENV:-dev}
       APP_HOST: 0.0.0.0
       APP_PORT: "8000"
-      SQLITE_DB_PATH: /data/study_app.db
+      # ADR 0037: single DB knob. Points at the compose postgres service.
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://study_app:study_app@postgres:5432/study_app}
       LOG_DIR: /var/log/study-app
       LOG_FORMAT: ${LOG_FORMAT:-json}
       LOG_SERVICE_NAME: study-app-api
     volumes:
-      # Persistent DB lives under repo-root var/api/ on the host so it survives
-      # `docker compose down`. Mounted at /data in the container; SQLITE_DB_PATH
-      # above points uvicorn/alembic at that location.
-      - ./var/api:/data
       # Logs land in repo-root logs/ on the host (gitignored) so they are visible
       # to filebeat when the optional logging stack runs.
       - ./logs:/var/log/study-app
     ports:
       - "${APP_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     # Prometheus scrapes the API at host.docker.internal:8000 (configured in
     # services/monitoring/prometheus/prometheus.yml). We don't depends_on
     # prometheus here because the API can come up before observability.

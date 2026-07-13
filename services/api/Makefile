@@ -72,7 +72,7 @@ run:
 
 migrate:
 	@if [ ! -f "$(ENV)" ]; then \
-		printf "$(ICON_ERR) %s\n" "$(ENV) not found. Cannot resolve SQLITE_DB_PATH."; exit 1; \
+		printf "$(ICON_ERR) %s\n" "$(ENV) not found. Cannot resolve DATABASE_URL."; exit 1; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Applying migrations…"
 	@cd $(REPO_ROOT)/services/api && PYTHONPATH=. $(PYTHON) -m alembic upgrade head && printf "$(ICON_OK) %s\n" "Migrations applied"
@@ -150,7 +150,7 @@ env-check:
 	@printf "  $(ICON_INFO) APP_ENV=%s\n" "$${APP_ENV:-<not set>}"
 	@printf "  $(ICON_INFO) ENV_FILE=%s\n" "$${ENV_FILE:-<not set>}"
 	@if [ -d "$(REPO_ROOT)/.venv" ] && [ -f "$(ENV)" ]; then \
-		cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) -c "from app.core.config import get_settings; s=get_settings(); print('  $(ICON_OK) Config OK - DB:', s.sqlite_db_path)" 2>/dev/null \
+		cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) -c "from app.core.config import get_settings; s=get_settings(); print('  $(ICON_OK) Config OK - DB:', s.database_url)" 2>/dev/null \
 		|| printf "  $(ICON_ERR) %s\n" "Config load failed (check .env values)"; \
 	fi
 	@printf "$(ICON_STEP) %s\n" "Done"

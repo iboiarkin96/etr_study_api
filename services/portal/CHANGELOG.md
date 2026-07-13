@@ -4,6 +4,27 @@ All notable changes to the **documentation tree** under `services/portal/` (and 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-07-13
+
+### Added
+
+- **ADR 0037 — PostgreSQL as runtime database, containerized (Proposed):** [`internal/governance/adr/0037-postgres-runtime-database.html`](internal/governance/adr/0037-postgres-runtime-database.html). Codifies the runtime-DB switch from SQLite to `postgres:16-alpine` behind compose, `psycopg[binary]` v3 as sync driver, `DATABASE_URL` as the single config knob, `JSONB` for the three JSON columns on the conspectus tree, testcontainers-python for the test harness. Supersedes the «SQLite + single-replica» clause of [ADR 0015](internal/governance/adr/0015-container-image.html) (ADR 0015 stays Accepted for its packaging-artifact scope). Drives [BL-067](internal/governance/backlog/plans.html).
+- **API reference — new endpoints regenerated:** [`internal/services/api/reference/`](internal/services/api/reference/) picks up 12 new operation pages for the Conspectus + Schedule + Error-log surfaces, and `reference/index.html` gains a Business-flow section with a CSS diagram + two PlantUML SVGs (sequence + activity). `services/portal/public/reference/api/openapi.json` regenerated to reflect the new endpoints and the removed docs-search telemetry pair.
+
+### Changed
+
+- **ADR 0015 partial-supersession banner + history row** — the SQLite + single-replica clause is now marked superseded by ADR 0037; ADR index row + ticker + full-table entry updated (37 Total / 31 Accepted / 3 Proposed / 3 Superseded).
+- **Portal service-cards refreshed for ADR 0037:** [`internal/services/api/catalog-info.yaml`](internal/services/api/catalog-info.yaml) + [`internal/services/datastore/catalog-info.yaml`](internal/services/datastore/catalog-info.yaml) drop the SQLite chip / tag / stack line — a single `postgres` chip stays, drawn with a new `plug` SVG icon added to `tools/docs/render_service_descriptors.py`. Every page that mentioned SQLite as a runtime choice rewritten: `internal/services/api/architecture.html`, `internal/services/api/dependencies.html`, `internal/services/api/index.html`, `internal/services/datastore/{index,dependencies}.html`, `internal/services/datastore/runbooks/migrations-failing.html`, `internal/services/portal/on-call.html`, `internal/services/portal/runbooks/index.html`, `internal/services/monitoring/runbooks/scrape-failing.html`, `internal/explanation/{architecture-narrative,cross-service-patterns}.html`, `internal/operating-model/{lifecycle-of-a-change,page-type-contract,quality-gates-map}.html`, `internal/handbook/qa/test-environments.html`, `internal/handbook/sa/authoring/{docker-image-and-container,local-development,make-commands-and-workflows}.html`, `internal/handbook/security/threat-model.html`, `internal/handbook/sre/runbooks/error-budget-exhaustion.html`, `internal/handbook/swe/business-logic.html`, `internal/tutorials/{index,swe/your-first-migration,sre/your-first-capacity-drill,sa/your-first-system-sketch,swe/your-first-endpoint}.html`, `public/explanation/architecture.html`.
+- **Backlog — [BL-067](internal/governance/backlog/plans.html) added** to `internal/governance/backlog/data/tasks.json` (seven-commit roll-out for the SQLite → Postgres switch); [`internal/governance/backlog/api-analytics-epic.html`](internal/governance/backlog/api-analytics-epic.html) closer refreshed.
+- **PlantUML — architecture diagrams touched-up:** `internal/handbook/uml/architecture/system_context_view.puml` and `internal/handbook/uml/architecture/internal_readme_layer_boundaries.puml` now name PostgreSQL 16 directly.
+- **UI Kit — `.services-catalog.css`** gains a small `plug` chip variant to render the postgres icon used by every service card.
+
+### Removed
+
+- **RFC 0002 — Docs-search KPI policy and SLO:** [`internal/governance/rfc/0002-docs-search-kpi-policy-and-slo.html`](internal/governance/rfc/) retired alongside the docs-search telemetry sink (ADR 0037 killed SQLite; the telemetry surface required its own SQLite). RFC index refreshed; the SQLite-search branch on `internal/governance/adr/0027-client-side-docs-search-index-and-ranking.html` + `internal/governance/adr/0033-portal-search-engine-pagefind.html` marked as retired.
+- **pdoc code-reference:** `internal/services/api/code-reference/app/core/docs_search_telemetry.html`, `internal/services/api/code-reference/app/schemas/telemetry.html`, and `internal/services/api/code-reference/app/validation/user.html` fell out of the regeneration after the code deletions.
+- **`nav-tree-internal.json`:** entries for the retired RFC + telemetry code-reference pages removed.
+
 ## 2026-06-06
 
 ### Added

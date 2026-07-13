@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from app.core.config import _normalize_app_env, get_settings
 
 
 def _set_base_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SQLITE_DB_PATH", str(Path("tests/test_app.sqlite3")))
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+psycopg://study_app:study_app@127.0.0.1:5432/study_app",
+    )
     monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://example.com")
     monkeypatch.setenv("API_AUTH_STRATEGY", "mock_api_key")
     monkeypatch.setenv("API_MOCK_API_KEY", "secure-key-value")

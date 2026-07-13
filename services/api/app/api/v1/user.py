@@ -10,9 +10,9 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path, Secur
 from fastapi.security.api_key import APIKeyHeader
 from sqlalchemy.orm import Session
 
+from app.api.v1._idempotency import IdempotencyGuard
 from app.core.database import get_db_session
-from app.core.idempotency import build_payload_hash
-from app.errors.common import COMMON_400, COMMON_409
+from app.errors.common import COMMON_400
 from app.openapi.examples import (
     USER_CREATE_REQUEST_EXAMPLES,
     USER_CREATE_VALIDATION_ERROR_EXAMPLES,
@@ -31,7 +31,6 @@ from app.openapi.responses import (
     build_common_business_400_response,
     common_protected_route_responses,
 )
-from app.repositories.idempotency_repository import IdempotencyRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.errors import ApiErrorResponse, ValidationErrorResponse
 from app.schemas.user import (
@@ -128,42 +127,27 @@ def create_user(
     """
     _ = api_key  # represented in OpenAPI; runtime validation is handled by middleware
     if not idempotency_key:
-        raise HTTPException(
-            status_code=400,
-            detail=COMMON_400.as_detail("business"),
-        )
+        raise HTTPException(status_code=400, detail=COMMON_400.as_detail("business"))
 
-    payload_dump = payload.model_dump(mode="json")
-    payload_hash = build_payload_hash(payload_dump)
-    idempotency_repository = IdempotencyRepository(session)
-    endpoint_path = "/api/v1/user"
-    record = idempotency_repository.get(
-        endpoint_path=endpoint_path, idempotency_key=idempotency_key
+    guard = IdempotencyGuard(
+        session=session,
+        endpoint_path="/api/v1/user",
+        idempotency_key=idempotency_key,
+        payload=payload.model_dump(mode="json"),
     )
-    if record is not None:
-        if record.payload_hash != payload_hash:
-            raise HTTPException(
-                status_code=409,
-                detail=COMMON_409.as_detail("business"),
-            )
+    replayed = guard.replay_or_none(UserCreateResponse)
+    if replayed is not None:
         logger.info("create_user_idempotent_replay key=%s", idempotency_key)
-        return UserCreateResponse.model_validate(record.response_body)
+        return replayed
 
     logger.info(
         "create_user_requested system_user_id=%s system_uuid=%s",
         payload.system_user_id,
         payload.system_uuid,
     )
-    service = UserService(UserRepository(session))
-    user = service.create(payload)
+    user = UserService(UserRepository(session)).create(payload)
     response_model = UserCreateResponse.model_validate(user)
-    idempotency_repository.save(
-        endpoint_path=endpoint_path,
-        idempotency_key=idempotency_key,
-        payload_hash=payload_hash,
-        status_code=status.HTTP_201_CREATED,
-        response_body=response_model.model_dump(mode="json"),
-    )
+    guard.save(status_code=status.HTTP_201_CREATED, response=response_model)
     logger.info(
         "create_user_succeeded system_user_id=%s client_uuid=%s",
         user.system_user_id,
@@ -317,47 +301,32 @@ def update_user(
     """
     _ = api_key
     if not idempotency_key:
-        raise HTTPException(
-            status_code=400,
-            detail=COMMON_400.as_detail("business"),
-        )
+        raise HTTPException(status_code=400, detail=COMMON_400.as_detail("business"))
 
-    payload_dump = payload.model_dump(mode="json")
-    payload_hash = build_payload_hash(payload_dump)
-    idempotency_repository = IdempotencyRepository(session)
     su_str = str(system_uuid)
-    endpoint_path = f"/api/v1/user/{su_str}/{system_user_id}"
-    record = idempotency_repository.get(
-        endpoint_path=endpoint_path, idempotency_key=idempotency_key
+    guard = IdempotencyGuard(
+        session=session,
+        endpoint_path=f"/api/v1/user/{su_str}/{system_user_id}",
+        idempotency_key=idempotency_key,
+        payload=payload.model_dump(mode="json"),
     )
-    if record is not None:
-        if record.payload_hash != payload_hash:
-            raise HTTPException(
-                status_code=409,
-                detail=COMMON_409.as_detail("business"),
-            )
+    replayed = guard.replay_or_none(UserCreateResponse)
+    if replayed is not None:
         logger.info("update_user_idempotent_replay key=%s", idempotency_key)
-        return UserCreateResponse.model_validate(record.response_body)
+        return replayed
 
     logger.info(
         "update_user_requested system_user_id=%s system_uuid=%s",
         system_user_id,
         su_str,
     )
-    service = UserService(UserRepository(session))
-    user = service.update(
+    user = UserService(UserRepository(session)).update(
         system_user_id=system_user_id,
         system_uuid=su_str,
         payload=payload,
     )
     response_model = UserCreateResponse.model_validate(user)
-    idempotency_repository.save(
-        endpoint_path=endpoint_path,
-        idempotency_key=idempotency_key,
-        payload_hash=payload_hash,
-        status_code=status.HTTP_200_OK,
-        response_body=response_model.model_dump(mode="json"),
-    )
+    guard.save(status_code=status.HTTP_200_OK, response=response_model)
     return response_model
 
 
@@ -453,45 +422,30 @@ def patch_user(
     """
     _ = api_key
     if not idempotency_key:
-        raise HTTPException(
-            status_code=400,
-            detail=COMMON_400.as_detail("business"),
-        )
+        raise HTTPException(status_code=400, detail=COMMON_400.as_detail("business"))
 
-    payload_dump = payload.model_dump(mode="json", exclude_unset=True)
-    payload_hash = build_payload_hash(payload_dump)
-    idempotency_repository = IdempotencyRepository(session)
     su_str = str(system_uuid)
-    endpoint_path = f"PATCH {USER_HTTP_BASE_PATH}/{su_str}/{system_user_id}"
-    record = idempotency_repository.get(
-        endpoint_path=endpoint_path, idempotency_key=idempotency_key
+    guard = IdempotencyGuard(
+        session=session,
+        endpoint_path=f"PATCH {USER_HTTP_BASE_PATH}/{su_str}/{system_user_id}",
+        idempotency_key=idempotency_key,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
     )
-    if record is not None:
-        if record.payload_hash != payload_hash:
-            raise HTTPException(
-                status_code=409,
-                detail=COMMON_409.as_detail("business"),
-            )
+    replayed = guard.replay_or_none(UserCreateResponse)
+    if replayed is not None:
         logger.info("patch_user_idempotent_replay key=%s", idempotency_key)
-        return UserCreateResponse.model_validate(record.response_body)
+        return replayed
 
     logger.info(
         "patch_user_requested system_user_id=%s system_uuid=%s",
         system_user_id,
         su_str,
     )
-    service = UserService(UserRepository(session))
-    user = service.patch(
+    user = UserService(UserRepository(session)).patch(
         system_user_id=system_user_id,
         system_uuid=su_str,
         payload=payload,
     )
     response_model = UserCreateResponse.model_validate(user)
-    idempotency_repository.save(
-        endpoint_path=endpoint_path,
-        idempotency_key=idempotency_key,
-        payload_hash=payload_hash,
-        status_code=status.HTTP_200_OK,
-        response_body=response_model.model_dump(mode="json"),
-    )
+    guard.save(status_code=status.HTTP_200_OK, response=response_model)
     return response_model

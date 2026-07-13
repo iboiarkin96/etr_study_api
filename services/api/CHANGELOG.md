@@ -4,6 +4,58 @@ Per-service changelog for the Python FastAPI service. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the root `CHANGELOG.md` keeps
 the cross-cutting headline entries.
 
+## 2026-07-12 — Runtime DB: SQLite → containerized PostgreSQL 16 (ADR 0037 / BL-067)
+
+- **Runtime database swapped.** SQLite is gone from the runtime path. The API
+  reads a single new env var — `DATABASE_URL` (PostgreSQL DSN, driver
+  `psycopg` v3) — and talks to a `postgres:16-alpine` service in the root
+  `docker-compose.yml`. See [ADR 0037](../portal/internal/governance/adr/0037-postgres-runtime-database.html).
+- **Compose topology.** New `postgres` service with `pg_isready` healthcheck
+  and a host-mounted volume at `var/postgres/` (gitignored). The `api` service
+  gains `depends_on: {postgres: {condition: service_healthy}}`; the old
+  `./var/api:/data` mount and `SQLITE_DB_PATH` env are removed.
+- **Alembic on Postgres.** `alembic.ini` default DSN and `alembic/env.py`
+  flipped to `settings.database_url`. Migration `20260712_0002` edited in
+  place: the three `sa.JSON()` columns (`conspectuses.cue_sheet`,
+  `conspectuses.bullets`, `conspectus_events.payload`) are now
+  `postgresql.JSONB()`. In-place edit is safe here — the migration was
+  shipped one commit earlier on this same feature branch and has never run
+  against Postgres.
+- **Model matches.** `app/models/core/conspectus.py`: `JSON` → `JSONB` on the
+  same three columns; `JSONB` imported from `sqlalchemy.dialects.postgresql`.
+- **Engine.** `app/core/database.py` no longer passes `check_same_thread=False`
+  (SQLite-only quirk); adds `pool_pre_ping=True` so restarts of the compose
+  Postgres do not surface as stale-connection errors on the first request.
+- **Config.** `Settings.sqlite_db_path` + `sqlite_url` property removed;
+  `Settings.database_url` added. `get_settings()` requires a PostgreSQL DSN
+  and rejects anything else at startup.
+- **Container entrypoint.** `services/api/scripts/container_entrypoint.sh`
+  drops `SQLITE_DB_PATH` defaulting + `mkdir` for the DB parent; adds a
+  `pg_isready` wait loop (30 s ceiling) as a defensive backstop for the
+  compose healthcheck. Then `alembic upgrade head` → `uvicorn`, unchanged.
+- **Tests on testcontainers-python.** `tests/conftest.py` boots a
+  session-scope `PostgresContainer` (`postgres:16-alpine`, driver `psycopg`),
+  sets `DATABASE_URL` before `app` import, and switches per-test cleanup to
+  a single `TRUNCATE … RESTART IDENTITY CASCADE` — faster and it resets the
+  serial sequences so `id` assertions stay stable. `tests/core/test_config_profiles.py`
+  drops its `SQLITE_DB_PATH` fixture.
+- **Dependencies.** `services/api/requirements.txt` gains `psycopg[binary]==3.2.10`
+  and `testcontainers[postgres]==4.14.2`.
+- **Env profiles.** `env/example`, `env/dev`, `env/qa`, `env/prod` replace
+  `SQLITE_DB_PATH` with `DATABASE_URL` (+ `POSTGRES_USER/PASSWORD/DB/PORT`
+  in the example for compose bootstrap).
+- **Governance.** New backlog task [BL-067](../portal/internal/governance/backlog/index.html);
+  new [ADR 0037](../portal/internal/governance/adr/0037-postgres-runtime-database.html);
+  [ADR 0015](../portal/internal/governance/adr/0015-container-image.html)
+  carries a partial-supersession banner + history row for its «SQLite +
+  single replica» clause. Catalog: SQLite chip/tag/stack removed from
+  `datastore/catalog-info.yaml` and `api/catalog-info.yaml`.
+
+**Behaviour:** HTTP contract unchanged. Schema unchanged (JSONB is a
+storage-level swap invisible to Pydantic). Boot order changes — Postgres
+must be up before the API accepts traffic; compose's `depends_on.condition:
+service_healthy` handles this automatically.
+
 ## 2026-06-10 — tools/ consolidation + telemetry DB split restored
 
 - **Tooling moved to `tools/api/`.** API-side helpers `openapi_governance` and

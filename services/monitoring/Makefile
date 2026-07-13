@@ -22,7 +22,7 @@ help:
 
 up:
 	@docker compose -f docker-compose.observability.yml up -d
-	@echo "✓ Observability up — prom :9090  ·  grafana :3001  ·  blackbox :9115"
+	@echo "✓ Observability up — prom :9090  ·  grafana :3010  ·  blackbox :9115"
 
 down:
 	@docker compose -f docker-compose.observability.yml down
