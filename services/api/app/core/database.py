@@ -1,8 +1,9 @@
 """Database engine and session configuration.
 
 Attributes:
-    engine: Shared SQLAlchemy :class:`~sqlalchemy.engine.Engine` for SQLite
-        (``check_same_thread=False`` for use with FastAPI/async).
+    engine: Shared SQLAlchemy :class:`~sqlalchemy.engine.Engine` for PostgreSQL
+        (per ADR 0037). ``pool_pre_ping=True`` guards against stale connections
+        the container's Postgres restart may leave behind.
     SessionLocal: Session factory bound to ``engine`` for request-scoped work.
 """
 
@@ -18,9 +19,9 @@ from app.core.config import get_settings
 settings = get_settings()
 
 engine = create_engine(
-    settings.sqlite_url,
+    settings.database_url,
     future=True,
-    connect_args={"check_same_thread": False},
+    pool_pre_ping=True,
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, class_=Session)
 

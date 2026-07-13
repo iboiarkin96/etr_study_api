@@ -53,6 +53,7 @@ ICONS: dict[str, str] = {
     "grid": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>',
     "file": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><polyline points="14 3 14 8 19 8"/><path d="M9 14h6"/><path d="M12 11v6"/></svg>',
     "containers": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="13" width="5" height="5"/><rect x="9" y="13" width="5" height="5"/><rect x="15" y="13" width="5" height="5"/><rect x="6" y="8" width="5" height="5"/><rect x="12" y="8" width="5" height="5"/><rect x="9" y="3" width="5" height="5"/></svg>',
+    "plug": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-6 6h0a6 6 0 0 1-6-6V8z"/><path d="M12 17v5"/></svg>',
 }
 
 # `spec.owner` lookups: "user:<id>" → display + portal-relative href fragments.

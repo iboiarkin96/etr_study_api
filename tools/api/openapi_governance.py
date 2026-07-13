@@ -20,7 +20,6 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -46,27 +45,26 @@ CANON_PATH = (
 # Operations that live in the FastAPI runtime spec but are intentionally *not*
 # in the product canon:
 #   - `/live`, `/ready`: Kubernetes-style health probes, no client contract.
-#   - `/internal/telemetry/*`: portal-internal telemetry surface (see ADR 0033).
 # Every entry here is a red flag reviewable in each PR. Shrinks as canon grows.
 KNOWN_NON_CANON_OPERATIONS: set[tuple[str, str]] = {
     ("get", "/live"),
     ("get", "/ready"),
-    ("post", "/internal/telemetry/docs-search"),
-    ("get", "/internal/telemetry/docs-search/metrics"),
 }
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 
 
 def _ensure_minimal_env_for_app_import() -> None:
-    """Set ``SQLITE_DB_PATH`` to a temp SQLite file if unset so ``app.main`` can import.
+    """Set a placeholder ``DATABASE_URL`` if unset so ``app.main`` can import.
+
+    The SQLAlchemy engine is lazy — this DSN never gets connected during import.
+    Per ADR 0037; SQLite temp-file handling was removed here.
 
     Side effects:
-        Mutates ``os.environ`` when ``SQLITE_DB_PATH`` is empty.
+        Mutates ``os.environ`` when ``DATABASE_URL`` is empty.
     """
-    if os.environ.get("SQLITE_DB_PATH", "").strip():
+    if os.environ.get("DATABASE_URL", "").strip():
         return
-    tmp_db = Path(tempfile.gettempdir()) / "study_app_openapi_governance.sqlite"
-    os.environ["SQLITE_DB_PATH"] = str(tmp_db)
+    os.environ["DATABASE_URL"] = "postgresql+psycopg://study_app:study_app@127.0.0.1:5432/study_app"
 
 
 def _load_current_openapi() -> dict[str, Any]:

@@ -1,0 +1,54 @@
+@startuml
+title ETR Study API — Learner decision flow (analyst view)
+
+skinparam ActivityDiamondFontSize 13
+
+start
+
+if (Does the learner have a new note to add?) then (yes)
+  :Write title + cue sheet + dense paragraph + bullets;
+  :**POST /api/v1/conspectuses**\nfirst review scheduled ~1h later;
+endif
+
+:Open the app;
+:**GET /api/v1/schedule/summary**\n(load badge for the day);
+
+if (How to build tonight's queue?) then (curated evening batch)
+  :**GET /api/v1/schedule/preview**\ndeterministic shuffle;
+else (full due list)
+  :**GET /api/v1/conspectuses/due**;
+endif
+
+repeat
+  :Tap one card;
+  :**GET /api/v1/conspectuses/{id}**\nreads the note;
+  :Try to recall from memory;
+
+  if (How well did the learner recall?) then (easy)
+    :**POST .../actions/review** tag=easy\nnext review pushed further out;
+  elseif (remembered with effort) then (hard)
+    :**POST .../actions/review** tag=hard\nstep back one slot;
+  else (forgot)
+    :**POST .../actions/review** tag=forgot\nback to slot A;
+  endif
+
+  if (Noticed a specific mistake to remember later?) then (yes)
+    :**POST /api/v1/errors**\noptionally linked to this card;
+  else (no)
+  endif
+
+repeat while (More cards in the batch?) is (yes)
+->no;
+
+if (Need to update or archive a note?) then (edit)
+  :**PATCH /api/v1/conspectuses/{id}**\ncontent-only update;
+elseif (review the past) then (history)
+  :**GET /api/v1/conspectuses/{id}/history**;
+elseif (archive) then (archive)
+  :**DELETE /api/v1/conspectuses/{id}**\nrelated mistakes stay,\ntheir link is cleared;
+else (done for today)
+endif
+
+stop
+
+@enduml

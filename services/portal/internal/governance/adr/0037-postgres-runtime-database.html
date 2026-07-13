@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0037 · PostgreSQL as runtime database (containerized) · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-07-12" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0037</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0037</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--warn" href="0018-adr-lifecycle-ratification-and-badges.html">Proposed</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li class="is-current">Proposed</li>
+                    <li>Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li class="is-current">Draft</li>
+                    <li>Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li class="is-current">In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
+        <h1>PostgreSQL as the runtime database (containerized)</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          Replace SQLite with <strong>PostgreSQL 16 running in a <code>docker-compose</code> service</strong>
+          as the runtime database for the API. Same schema, same Alembic migrations, same sync
+          SQLAlchemy session; new driver (<code>psycopg[binary]</code> v3), new URL contract
+          (<code>DATABASE_URL</code>), new JSON storage (<code>JSONB</code>). Supersedes the
+          «SQLite + single replica» clause of <a href="0015-container-image.html">ADR 0015</a>.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0037</code> — PostgreSQL as runtime database (containerized)</dd>
+          <dt>Category</dt>
+          <dd>architecture · workflow</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-07-12">2026-07-12</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-07-12">2026-07-12</time></dd>
+          <dt>Related</dt>
+          <dd>
+            <a href="0015-container-image.html">ADR-0015</a> (container image — SQLite clause superseded here),
+            <a href="0028-monorepo-with-service-boundaries.html">ADR-0028</a> (monorepo with service boundaries),
+            <a href="0029-database-table-documentation.html">ADR-0029</a> (database table documentation),
+            <a href="0010-env-profiles-and-config-governance.html">ADR-0010</a> (env profiles &amp; config).
+          </dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p>The API has run on <strong>SQLite</strong> since day one, mounted as a file under <code>var/api/study_app.db</code> and consumed via SQLAlchemy 2.x with <code>check_same_thread=False</code>. It was the right call at the start — zero-install, zero-ops, one file to copy. The <a href="0015-container-image.html">container-image ADR</a> explicitly kept SQLite + single-replica in scope and pushed multi-replica to «a Postgres-swap concern, gated by trigger, not date».</p>
+        <p>Three triggers have now landed:</p>
+        <ul>
+          <li><strong>Concurrent-write pressure.</strong> The 2026-04-02 SEV-2 postmortem («SQLite write-lock burst») cited <code>SQLITE_BUSY</code> as the saturation signal; capacity snapshot (<a href="../../services/api/reference/capacity-snapshot.html">BL-056</a>) locked that in as the ceiling. Every write path — <code>/v1/conspectuses</code>, <code>/v1/schedule</code>, <code>/v1/errors</code>, event-log inserts — competes for the same file lock.</li>
+          <li><strong>Growing JSON payloads.</strong> BL-071 (conspectus / schedule / error-log domain, shipped 2026-07-11) introduced three JSON columns (<code>cue_sheet</code>, <code>bullets</code>, <code>payload</code>). SQLite stores them as TEXT; there is no indexed access, no partial update, no operator to query «all conspectuses whose <code>cue_sheet.section</code> equals X». Postgres <code>JSONB</code> + GIN indices solve this at the storage layer.</li>
+          <li><strong>Integration-test parity with prod.</strong> <a href="../backlog/plans.html">BL-005</a> already scoped a CI job that boots a throwaway Postgres to catch migration + concurrency regressions. Running one database in tests and a different one at runtime is the exact «mock/prod divergence» the ticket exists to eliminate. Moving runtime to Postgres collapses the two.</li>
+        </ul>
+        <p>The cost of the swap is bounded: schema is generic SQL, Alembic already drives migrations, SQLAlchemy already abstracts the dialect. What changes: the URL, the driver, three column types, the test-boot fixture, and the compose topology. What does <em>not</em> change: the API surface, the models, the request/response contracts, the entrypoint shape.</p>
+      </section>
+
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <p>Adopt PostgreSQL 16 as the runtime database. The decision has seven clauses.</p>
+        <ol>
+          <li><strong>D1 — Postgres 16 in <code>docker-compose</code>.</strong> A dedicated <code>postgres</code> service in the root <code>docker-compose.yml</code>, image <code>postgres:16-alpine</code>, healthcheck via <code>pg_isready</code>, host-mounted data volume at <code>var/postgres/</code> (gitignored). The <code>api</code> service depends on it with <code>condition: service_healthy</code>.</li>
+          <li><strong>D2 — <code>DATABASE_URL</code> is the single config knob.</strong> The application reads exactly one env var to reach the database: <code>DATABASE_URL=postgresql+psycopg://user:pass@host:port/db</code>. No <code>SQLITE_DB_PATH</code>, no legacy fallback. Env profiles (<code>env/dev</code>, <code>env/qa</code>, <code>env/prod</code>) each carry their own URL.</li>
+          <li><strong>D3 — Driver: psycopg 3, binary wheel.</strong> Dependency <code>psycopg[binary]&gt;=3.2</code>. Chosen over <code>psycopg2</code> (unmaintained roadmap) and <code>asyncpg</code> (would force an async rewrite of the whole SQLAlchemy layer — out of scope). The SQLAlchemy session stays sync; the API layer stays sync-Depends. Async is a follow-up ADR if ever needed.</li>
+          <li><strong>D4 — Alembic stays the migration engine, migrations stay in place.</strong> The two shipped migrations (<code>20260411_0001_initial_schema</code>, <code>20260712_0002_add_conspectus_schedule_errorlog</code>) run unchanged on Postgres with two type-level edits: <code>sa.JSON()</code> → <code>postgresql.JSONB()</code> on the three JSON columns (<code>conspectuses.cue_sheet</code>, <code>conspectuses.bullets</code>, <code>conspectus_events.payload</code>). Edited in-place because the migration was shipped one commit ago on this same feature branch and has never run against Postgres — no history to preserve.</li>
+          <li><strong>D5 — Tests use <code>testcontainers-python</code>.</strong> The pytest session fixture spins up a fresh <code>postgres:16-alpine</code> container, sets <code>DATABASE_URL</code>, runs <code>Base.metadata.create_all()</code>, then <code>TRUNCATE … RESTART IDENTITY CASCADE</code> between tests. Rejected: shared docker-compose service (leaks state), in-memory SQLite (defeats the purpose), <code>pytest-postgresql</code> (needs a system-installed <code>pg_ctl</code>).</li>
+          <li><strong>D6 — Entrypoint waits for Postgres, then migrates, then serves.</strong> The container entrypoint (<code>services/api/scripts/container_entrypoint.sh</code>) loops on <code>pg_isready</code> (30 s timeout, ~1 s cadence) as a defensive backstop to the compose healthcheck, then runs <code>alembic upgrade head</code>, then <code>exec uvicorn</code>. Same shape as before; SQLite-specific mkdir removed.</li>
+          <li><strong>D7 — SQLite is removed, not deprecated.</strong> No dual-mode config, no fallback branch. Contributors upgrade in one commit; the <code>var/api/study_app.db</code> path is dropped from all env files and docs. Local dev-data loss is acceptable: the file has always been gitignored dev-scratch. A one-shot dump-and-load recipe lives in the how-to for anyone with dev data worth keeping.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li><strong>In scope:</strong> runtime persistence for the FastAPI service; the compose topology used for local dev, CI, and release smoke; the test harness; every env-file and docs page that names SQLite.</li>
+          <li><strong>In scope:</strong> the JSON → JSONB type swap in the three shipped columns (<code>cue_sheet</code>, <code>bullets</code>, <code>payload</code>). Rationale: correctness at the storage layer — indexed access, in-place update, operator support — with no schema change visible to the API.</li>
+          <li><strong>Out of scope:</strong> HA / read replicas / connection pooler (PgBouncer). Single-node Postgres matches single-node deploy today; multi-node is a separate ADR when the trigger fires.</li>
+          <li><strong>Out of scope:</strong> Async SQLAlchemy migration. The <a href="0015-container-image.html">container-image ADR</a>'s «shell entrypoint same as host run» property still holds; async is orthogonal.</li>
+          <li><strong>Out of scope:</strong> Data migration of prod-tier SQLite (there is no prod-tier Postgres to migrate <em>to</em> either — this ADR builds the destination).</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered <span class="docs-pill docs-pill--rose docs-pill--inline">MANDATORY · MIN 2</span></h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Keep SQLite; add WAL + connection-serialisation shim</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> zero infrastructure change. Turning on WAL mode and serialising writes through a single connection would blunt the <code>SQLITE_BUSY</code> problem at some capacity.</p>
+              <p><strong>Why rejected:</strong> it delays the swap, it does not remove it. The JSON-column problem stays (no indexed access), the mock/prod divergence in BL-005 stays, and the write-lock ceiling only moves — it does not disappear. Every hour spent on the SQLite tuning is an hour not spent on the swap that is coming anyway.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Managed Postgres (Neon / Supabase / RDS)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> zero ops, backups included, one-click branching.</p>
+              <p><strong>Why rejected:</strong> the project deploys through <code>docker-compose</code> per <a href="0015-container-image.html">ADR 0015</a> and publishes to GHCR per <a href="0021-continuous-delivery-github-actions-and-ghcr.html">ADR 0021</a>. Reaching a managed vendor adds a network dependency to the «one <code>docker compose up</code> and it works» promise, splits the ops story between two consoles, and would need per-contributor credentials the project has no story for. Reconsidered when we outgrow single-node; not before.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Async SQLAlchemy + asyncpg in the same ADR</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> Postgres unlocks async patterns anyway; do both at once.</p>
+              <p><strong>Why rejected:</strong> bundling two independent decisions doubles the review surface and the blast radius. Async touches every route handler, every dependency, every test fixture; sync-Postgres is the smallest atomic change that clears the three triggers. Async waits for its own ADR with its own load-bearing reason.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li><strong>Concurrent writes hold.</strong> Row-level MVCC replaces file-level locking; the <code>SQLITE_BUSY</code> ceiling is gone.</li>
+                <li><strong>JSON becomes first-class.</strong> <code>JSONB</code> + GIN indices on <code>cue_sheet</code>, <code>bullets</code>, <code>payload</code> enable the query shapes BL-071 documented but could not implement on SQLite.</li>
+                <li><strong>Tests and runtime share a database engine.</strong> BL-005's raison d'être — «catch migration + concurrency regressions before merge» — becomes automatic; the testcontainer runs the same Postgres image that runs in prod.</li>
+                <li><strong>Standard tooling.</strong> <code>psql</code>, <code>pg_dump</code>, <code>pg_stat_statements</code>, <code>EXPLAIN (ANALYZE, BUFFERS)</code> — every DBA reflex works.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Docker becomes a hard dev-loop dependency.</strong> The «one-file SQLite» rescue path is gone. We gain a shared engine across dev / CI / prod; we lose the ability to run the API against a laptop-local file with no daemon. We accept it because Docker is already assumed by <a href="0015-container-image.html">ADR 0015</a> and by the observability compose.</li>
+                <li><strong>Cold-start latency ~5–8 s.</strong> Postgres container boot + healthcheck + migration takes visibly longer than «open a file». We gain correctness; we lose the sub-second boot. Mitigation: keep the compose stack up between iterations; <code>docker compose start postgres</code> reuses the volume.</li>
+                <li><strong>Test suite fires up a container.</strong> First <code>pytest</code> after a clean docker registry pulls ~150 MB. We gain runtime-parity tests; we lose the pure-Python test suite. Mitigation: session-scoped container fixture (one boot per <code>pytest</code> invocation), TRUNCATE-based per-test cleanup.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+        <h3>Revisit — would we do this again?</h3>
+        <p><strong>Yes.</strong> One refinement we would land on day one:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Ship a make target for the compose lifecycle.</strong> <code>make db-up / db-down / db-reset</code> aliases in the root Makefile so contributors do not have to memorise <code>docker compose up postgres -d</code>. The current plan tucks this into <code>make dev</code>; standalone targets keep the mental model cleaner.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="compatibility-h">
+        <h2 id="compatibility-h">Compatibility and migration</h2>
+        <ul>
+          <li><strong>Backward compatibility.</strong> None with SQLite. Existing dev-tier <code>var/api/study_app.db</code> files are dropped; the API surface, response shapes, and error contracts are unchanged.</li>
+          <li><strong>Migration plan for contributor dev data.</strong> One-shot: <code>sqlite3 var/api/study_app.db .dump | pgloader /path/to/dump postgresql://user:pass@localhost/study_app</code> (recipe lives in the how-to). Nobody is expected to have irreplaceable dev data; the fallback is a fresh migrate.</li>
+          <li><strong>Rollback.</strong> Revert the seven implementation commits. Because the schema-DDL edits are in-place edits of a never-run-against-Postgres migration, rolling back re-installs the SQLite-side <code>sa.JSON()</code> type without any ALTER. Contributors reconstruct dev data from seeds.</li>
+          <li><strong>Old ADR pointer.</strong> <a href="0015-container-image.html">ADR 0015</a>'s Decision-list clause «Default container paths: SQLite file under <code>/data</code>…» and Scope clause «Keep SQLite + single replica for this ADR's scope» are superseded by clauses D1–D2 above. ADR 0015 stays Accepted for its packaging-artifact scope.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="implementation-h">
+        <h2 id="implementation-h">Implementation in this repository</h2>
+        <p>Roll-out is scoped as <a href="../backlog/plans.html">BL-067</a> (seven commits, ~20 h). The table below records every file that changes, keyed by category.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead><tr><th>Category</th><th>Path</th><th>Note</th></tr></thead>
+            <tbody>
+              <tr><td>Compose topology</td><td><code>docker-compose.yml</code></td><td>New <code>postgres</code> service (postgres:16-alpine + <code>pg_isready</code> healthcheck + <code>var/postgres/</code> volume). <code>api</code> gains <code>depends_on: {postgres: {condition: service_healthy}}</code> and <code>DATABASE_URL</code>; loses <code>SQLITE_DB_PATH</code> and <code>./var/api:/data</code>.</td></tr>
+              <tr><td>Gitignore</td><td><code>.gitignore</code></td><td><code>var/postgres/</code> added.</td></tr>
+              <tr><td>App config</td><td><code>services/api/app/core/config.py</code></td><td><code>sqlite_db_path</code> field + <code>sqlite_url</code> property → <code>database_url</code>; <code>get_settings()</code> reads <code>DATABASE_URL</code>.</td></tr>
+              <tr><td>App engine</td><td><code>services/api/app/core/database.py</code></td><td><code>create_engine(settings.database_url, future=True, pool_pre_ping=True)</code>. <code>check_same_thread</code> arg removed.</td></tr>
+              <tr><td>Env profiles</td><td><code>env/example</code>, <code>env/dev</code>, <code>env/qa</code>, <code>env/prod</code></td><td><code>SQLITE_DB_PATH</code> → <code>DATABASE_URL</code>. Docstrings updated.</td></tr>
+              <tr><td>Container entrypoint</td><td><code>services/api/scripts/container_entrypoint.sh</code></td><td><code>SQLITE_DB_PATH</code> defaulting + <code>mkdir -p</code> replaced with <code>pg_isready</code> wait loop (30 s timeout).</td></tr>
+              <tr><td>Alembic config</td><td><code>services/api/alembic.ini</code>, <code>services/api/alembic/env.py</code></td><td><code>sqlalchemy.url</code> default flipped to a Postgres DSN; <code>env.py</code> reads <code>settings.database_url</code>.</td></tr>
+              <tr><td>Alembic migration</td><td><code>services/api/alembic/versions/20260712_0002_add_conspectus_schedule_errorlog.py</code></td><td><code>sa.JSON()</code> → <code>postgresql.JSONB()</code> in three columns (edited in place — this branch has never run against Postgres).</td></tr>
+              <tr><td>Model</td><td><code>services/api/app/models/core/conspectus.py</code></td><td><code>JSON</code> → <code>JSONB</code> for <code>cue_sheet</code>, <code>bullets</code>, <code>payload</code>.</td></tr>
+              <tr><td>Dependencies</td><td><code>services/api/pyproject.toml</code></td><td>Adds <code>psycopg[binary]&gt;=3.2</code> and <code>testcontainers[postgres]&gt;=4.8</code>.</td></tr>
+              <tr><td>Test harness</td><td><code>tests/conftest.py</code>, <code>tests/core/test_config_profiles.py</code></td><td>SQLite path fixtures replaced with testcontainers-python <code>PostgresContainer</code> + TRUNCATE-based cleanup.</td></tr>
+              <tr><td>Governance tools</td><td><code>tools/api/openapi_governance.py</code></td><td><code>_ensure_minimal_env_for_app_import</code> stops creating a temp SQLite file; sets a dummy DSN (engine is lazy).</td></tr>
+              <tr><td>Catalog metadata</td><td><code>services/portal/internal/services/{api,datastore}/catalog-info.yaml</code>, <code>tools/docs/build_catalog.py</code></td><td>SQLite chip / tag / stack removed; PostgreSQL becomes current.</td></tr>
+              <tr><td>Docs</td><td><code>services/api/README.md</code>, <code>services/api/CHANGELOG.md</code></td><td>SQLite references replaced with Postgres; CHANGELOG entry for 2026-07-12.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li><strong>Boot:</strong> <code>docker compose up -d</code> results in a healthy <code>postgres</code> service; <code>api</code> starts after the healthcheck flips green; <code>alembic upgrade head</code> completes as part of the entrypoint.</li>
+          <li><strong>Round-trip:</strong> smoke of <code>POST /v1/conspectuses</code> with a non-trivial <code>cue_sheet</code>, then <code>GET /v1/conspectuses/{id}</code> — <code>JSONB</code> survives the round-trip byte-for-byte.</li>
+          <li><strong>Test suite:</strong> <code>pytest tests/</code> boots the testcontainer, migrates, exercises the suite, and tears the container down. First run pulls the image; subsequent runs reuse it.</li>
+          <li><strong>Grep hygiene:</strong> <code>rg -i 'sqlite' -g '!var'</code> returns only history-of-record references (this ADR, ADR 0015's superseded clause, CHANGELOG entries).</li>
+          <li><strong>Docs check:</strong> <code>make docs-check</code> passes — catalog, search index, nav-tree consistent.</li>
+        </ul>
+      </section>
+
+      <footer class="docs-history" aria-label="History">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-07-12</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Proposed. Adopts PostgreSQL 16 (containerized) as the runtime database, driven by three landed triggers: SQLite write-lock ceiling (SEV-2 2026-04-02), JSON-column pressure from BL-071, and BL-005's mock/prod divergence. Seven-clause decision covers compose topology, driver, migration engine, test harness, entrypoint, and SQLite removal (no dual-mode). Three alternatives (SQLite+WAL, managed Postgres, async in same ADR) considered and rejected. Supersedes the SQLite + single-replica clause of <a href="0015-container-image.html">ADR 0015</a> — 0015 stays Accepted for its packaging scope, with an inline supersession pointer.</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#context-h">Context</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#decision-h">Decision</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scope-h">Scope</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#alternatives-h">Alternatives</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#consequences-h">Consequences</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#compatibility-h">Compatibility</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#implementation-h">Implementation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#validation-h">Validation</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

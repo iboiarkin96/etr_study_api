@@ -1,6 +1,6 @@
 # services/api — FastAPI service
 
-Python 3.11 + FastAPI runtime exposing the `/api/v1` HTTP surface. Owns the persistent state (SQLite at `var/api/study_app.db`) and the docs-search telemetry sink (separate SQLite at `var/tech/telemetry.db`).
+Python 3.11 + FastAPI runtime exposing the `/api/v1` HTTP surface. Owns the persistent state (PostgreSQL 16, containerized — see [ADR 0037](../portal/internal/governance/adr/0037-postgres-runtime-database.html)); the API talks to Postgres over the compose network as `postgres:5432`.
 
 ## Contents
 
@@ -23,7 +23,7 @@ make migrate
 make run
 ```
 
-`make setup` does the first three at once; `make dev` is the day-to-day driver. The Makefile sits at the repo root; `make -C services/api <target>` is supported but currently delegates to the root for the shared gates.
+`make setup` does the first three at once; `make run` gives you a local uvicorn with `--reload` (best for coding on the API), and `make up` (root) starts the full containerised stack — api + monitoring + portal — in one shot. The Makefile sits at the repo root; `make -C services/api <target>` is supported but currently delegates to the root for the shared gates.
 
 ## Environment
 
@@ -33,8 +33,8 @@ The app reads **`APP_ENV`** (`dev`, `qa`, or `prod`) — set it in **`.env`** or
 | ---- | ---- |
 | `env/example` | Template you copy to `.env` (`make env-init`). **All variables, defaults, and meanings are documented only here.** |
 | `env/dev`, `env/qa`, `env/prod` | Optional profile files merged on top of the base |
-| `var/api/study_app.db` | Main app SQLite (path set by `SQLITE_DB_PATH`; gitignored) |
-| `var/tech/telemetry.db` | Docs-search events SQLite (path set by `TELEMETRY_SQLITE_DB_PATH`; gitignored; separate WAL from main DB) |
+| `DATABASE_URL` | PostgreSQL DSN — the only DB knob the app reads (ADR 0037) |
+| `var/postgres/` | Compose Postgres data directory (gitignored; persists across `docker compose down`) |
 
 **Order of loading (last wins):** root `.env` → `env/<APP_ENV>` → optional `ENV_FILE`.
 

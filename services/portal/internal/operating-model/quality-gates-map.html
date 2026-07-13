@@ -66,7 +66,7 @@
               <span class="spine-tile__index">B · On demand, with one command</span>
             </div>
             <h3 class="spine-tile__title">Make targets (14 total)</h3>
-            <p class="spine-tile__body">Run when you ask, with a <code>make</code> command. Two tables: <strong>Table B</strong> — portal-specific targets (the drift check, granular checks, <code>verify</code> = CI gate, <code>verify-local</code> = full pre-push gate that adds <code>visual-test</code>). <strong>Table B2</strong> — five top-level shortcuts (<code>verify-api</code>, <code>verify-portal</code>, <code>verify-monitoring</code>, <code>verify-frontend</code>, <code>verify-all</code>): one shortcut per service, one composer.</p>
+            <p class="spine-tile__body">Run when you ask, with a <code>make</code> command. Two tables: <strong>Table B</strong> — portal-specific targets (the drift check, granular checks, <code>verify</code> = CI gate, <code>verify-local</code> = full pre-push gate that adds <code>visual-test</code>). <strong>Table B2</strong> — five top-level entries (<code>verify-api</code>, <code>verify-portal</code>, <code>verify-monitoring</code>, <code>verify-frontend</code>, and the composer <code>verify</code>): one shortcut per service, one composer.</p>
             <div class="spine-tile__foot"><span class="spine-tile__cta">Table B + B2</span><span class="spine-tile__arrow" aria-hidden="true">→</span></div>
           </a></li>
 
@@ -216,7 +216,7 @@
 
       <section aria-labelledby="make-h">
         <h2 id="make-h">B · Make targets — portal-specific</h2>
-        <p>Portal-side make targets. The granular checks are at the top; the composites at the bottom. Two composites carry distinct contracts: <code>verify</code> is the CI gate (platform-independent), <code>verify-local</code> adds the visual pixel-diff that only runs locally. For the root-level shortcuts that cover every service (<code>verify-api</code>, <code>verify-portal</code>, <code>verify-monitoring</code>, <code>verify-frontend</code>, <code>verify-all</code>), see <a href="#root-verify-h">Table B2 below</a>.</p>
+        <p>Portal-side make targets. The granular checks are at the top; the composites at the bottom. Two composites carry distinct contracts: <code>verify</code> is the CI gate (platform-independent), <code>verify-local</code> adds the visual pixel-diff that only runs locally. For the root-level entries that cover every service (<code>verify-api</code>, <code>verify-portal</code>, <code>verify-monitoring</code>, <code>verify-frontend</code>, and the composer <code>verify</code>), see <a href="#root-verify-h">Table B2 below</a>.</p>
         <div class="docs-table-wrap">
           <table class="docs-table docs-table--zebra">
             <thead>
@@ -316,7 +316,7 @@
 
       <section aria-labelledby="root-verify-h">
         <h2 id="root-verify-h">B2 · Top-level shortcuts — one per service</h2>
-        <p>Five make commands at the top level — one shortcut per service, plus the composer. Each one is a thin wrapper around its service's check. <strong><code>verify-all</code> runs all four in order</strong>, with cross-cutting code-quality checks first. <code>verify</code> is kept as an alias for <code>verify-all</code> so older habits keep working. The cloud build runs the same composition on every push.</p>
+        <p>Four per-service gates plus the composer. Each per-service gate is a thin wrapper around its service's own <code>verify</code>. <strong><code>verify</code> at the root runs all four in order</strong>, with cross-cutting code-quality checks (<code>lint-check</code> + <code>type-check</code>) first. The cloud build runs the same composition on every push.</p>
         <div class="docs-table-wrap">
           <table class="docs-table docs-table--zebra">
             <thead>
@@ -331,45 +331,38 @@
             <tbody>
               <tr>
                 <td><code>verify-api</code></td>
-                <td>On demand. Inside <code>verify-all</code>.</td>
+                <td>On demand. Inside <code>verify</code>.</td>
                 <td>Delegates to <code>services/api/verify</code>: <code>deps-audit</code> · <code>openapi-check</code> (canon parity, ADR 0036) · <code>test</code></td>
                 <td>Read the failing sub-step; pip-audit prints CVEs, openapi-check prints canon-parity issues (see <a href="../services/api/runbooks/openapi-contract-test-failing.html">runbook 0007</a>), test prints pytest output</td>
                 <td>—</td>
               </tr>
               <tr>
                 <td><code>verify-portal</code></td>
-                <td>On demand. Inside <code>verify-all</code>.</td>
+                <td>On demand. Inside <code>verify</code>.</td>
                 <td>Delegates to <code>services/portal/verify</code>: <code>docs-check</code> (drift gate, see Table B above) + <code>docs-a11y-check</code> (WCAG baseline)</td>
                 <td>Run <code>make -C services/portal docs-fix</code>; stage everything it changed; retry</td>
                 <td>Same coupling as <code>docs-check</code> — autogen source edits ⇒ <code>docs-fix</code> outputs must be staged</td>
               </tr>
               <tr>
                 <td><code>verify-monitoring</code></td>
-                <td>On demand. Inside <code>verify-all</code>.</td>
+                <td>On demand. Inside <code>verify</code>.</td>
                 <td>Delegates to <code>services/monitoring/verify</code>: <code>docker compose config --quiet</code> on both stacks (<code>docker-compose.observability.yml</code> and <code>docker-compose.logging.yml</code>). No Docker daemon needed — parse-only.</td>
                 <td>Read the YAML parse error or the bad bind-mount path the compose binary printed</td>
                 <td>Edit a compose file ⇒ this gate catches typos before they reach the smoke test in CI</td>
               </tr>
               <tr>
                 <td><code>verify-frontend</code></td>
-                <td>On demand. Inside <code>verify-all</code>.</td>
+                <td>On demand. Inside <code>verify</code>.</td>
                 <td>No-op today — prints a one-line note that the UI Kit v2 assets are consumed and exercised by <code>services/portal</code> (every page renders the kit, so <code>docs-check</code> already covers the kit too)</td>
                 <td>Nothing to fix — the target exists so the monorepo map names every service uniformly</td>
                 <td>If frontend ever grows its own pipeline (visual regression baseline, kit CSS lint), wire it here</td>
               </tr>
               <tr>
-                <td><code>verify-all</code> <span class="docs-pill docs-pill--accent">pre-push gate</span></td>
+                <td><code>verify</code> <span class="docs-pill docs-pill--accent">pre-push gate</span></td>
                 <td>Before push; CI default entrypoint</td>
                 <td>Composite in declared order: cross-cutting <code>lint-check</code> + <code>type-check</code>, then <code>verify-api</code>, <code>verify-portal</code>, <code>verify-monitoring</code>, <code>verify-frontend</code>. Same shape as the <code>ci.yml</code> matrix.</td>
-                <td>Resolve whichever inner slot failed (the slot name is printed in the failure header); re-run just that slot to iterate; re-run <code>verify-all</code> to confirm</td>
+                <td>Resolve whichever inner slot failed (the slot name is printed in the failure header); re-run just that slot to iterate; re-run <code>verify</code> to confirm</td>
                 <td>Adding a new service ⇒ add its <code>verify-&lt;svc&gt;</code> slot here and one row to this table</td>
-              </tr>
-              <tr>
-                <td><code>verify</code> (root alias)</td>
-                <td>Backward compat for CI and finger memory</td>
-                <td>Alias for <code>verify-all</code> — same behaviour, same exit code</td>
-                <td>Same as <code>verify-all</code></td>
-                <td>—</td>
               </tr>
             </tbody>
           </table>

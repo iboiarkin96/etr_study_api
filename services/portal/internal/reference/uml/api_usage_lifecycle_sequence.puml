@@ -1,0 +1,74 @@
+@startuml
+title ETR Study API — Business flow (analyst view)
+
+autonumber
+hide footbox
+
+actor    "Learner"       as Learner
+boundary "Client app\n(web / mobile)" as ClientApp
+control  "Study API"     as Api
+
+== Authoring a new note (one-off) ==
+
+Learner  -> ClientApp: writes a note\n(title, cue sheet, dense paragraph, bullets)
+ClientApp -> Api: POST /api/v1/conspectuses
+Api --> ClientApp: note accepted, first review\nscheduled ~1 hour later
+ClientApp --> Learner: "Note saved"
+
+== Daily study loop ==
+
+Learner  -> ClientApp: opens the app
+ClientApp -> Api: GET /api/v1/schedule/summary
+Api --> ClientApp: workload counts per slot,\ndue now, due in the next 24h
+ClientApp --> Learner: shows the load badge
+
+Learner  -> ClientApp: starts a session
+alt evening batch (curated)
+  ClientApp -> Api: GET /api/v1/schedule/preview\n(window, deterministic seed)
+  Api --> ClientApp: compact shuffled list
+else full due queue
+  ClientApp -> Api: GET /api/v1/conspectuses/due
+  Api --> ClientApp: up to 100 due notes, oldest first
+end
+
+loop for each note in the batch
+  Learner  -> ClientApp: taps a card
+  ClientApp -> Api: GET /api/v1/conspectuses/{id}
+  Api --> ClientApp: full note (cue sheet + dense paragraph + bullets)
+  ClientApp --> Learner: renders the card
+  Learner  -> ClientApp: recalls the material,\npicks a verdict
+
+  alt recalled effortlessly
+    ClientApp -> Api: POST /conspectuses/{id}/actions/review\ntag = easy
+    Api --> ClientApp: next review pushed further out\n(slot advances)
+  else remembered with effort
+    ClientApp -> Api: POST /conspectuses/{id}/actions/review\ntag = hard
+    Api --> ClientApp: next review sooner\n(step back one slot)
+  else forgot
+    ClientApp -> Api: POST /conspectuses/{id}/actions/review\ntag = forgot
+    Api --> ClientApp: back to the front of the queue\n(slot = A)
+  end
+
+  opt learner noticed a specific mistake
+    Learner  -> ClientApp: writes a short note about the mistake
+    ClientApp -> Api: POST /api/v1/errors\n(optionally linked to this card)
+    Api --> ClientApp: mistake recorded
+  end
+end
+
+== Occasional stewardship ==
+
+Learner  -> ClientApp: edits an old note
+
+ClientApp -> Api: PATCH /api/v1/conspectuses/{id}
+Api --> ClientApp: note updated (review schedule untouched)
+
+Learner  -> ClientApp: opens the note's history
+ClientApp -> Api: GET /api/v1/conspectuses/{id}/history
+Api --> ClientApp: past reviews + edits, oldest first
+
+Learner  -> ClientApp: archives the note
+ClientApp -> Api: DELETE /api/v1/conspectuses/{id}
+Api --> ClientApp: note archived, related mistakes\nkept but unlinked
+
+@enduml

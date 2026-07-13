@@ -53,7 +53,7 @@
       </ul>
 
       <h2 id="overall">Overall service capacity</h2>
-      <p>The api service runs as a single Uvicorn process today. SQLite is the storage backend; the planned swap to Postgres changes the write-side ceiling (single-writer constraint goes away) but not the read-side.</p>
+      <p>The api service runs as a single Uvicorn process today. Storage is a containerized PostgreSQL 16 instance (<a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>); the numbers below still cite the pre-ADR 0037 SQLite measurements, marked <em>historic</em> — they'll be re-measured against Postgres in the next capacity review.</p>
       <div class="docs-table-wrap" role="region" aria-label="Service capacity">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Signal</th><th>Measured number</th><th>Saturation signal</th><th>Source</th></tr></thead>
@@ -61,7 +61,7 @@
             <tr>
               <td>Sustained write RPS (single endpoint, single instance)</td>
               <td><strong>~50 RPS</strong> (clean), ~95 RPS with brief contention</td>
-              <td><code>SQLITE_BUSY</code> rate on <code>OperationalError</code> log + <code>db_operation_duration_seconds</code> P99 climbing past ~200 ms</td>
+              <td><em>historic (pre-ADR 0037):</em> <code>SQLITE_BUSY</code> rate on <code>OperationalError</code> log + <code>db_operation_duration_seconds</code> P99 climbing past ~200 ms</td>
               <td><a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">Postmortem 2026-04-02</a></td>
             </tr>
             <tr>
@@ -133,22 +133,22 @@
       </div>
 
       <h2 id="storage">Storage ceiling</h2>
-      <p>SQLite has a single-writer constraint: at any moment exactly one process holds the write lock, and concurrent writers serialise on it. This is acceptable at the current scale; it is the reason a retry storm crashed the write path during the <a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">2026-04-02 load test</a> and the reason Postgres is named as the planned swap.</p>
+      <p>The runtime is now containerized PostgreSQL 16 (<a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>), which uses row-level locks and lifts the single-writer constraint the service had under SQLite. The row-level ceiling now moves to connection-pool size and DB CPU, which have not yet been re-measured; the SQLite row below is kept as historical baseline (the <a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">2026-04-02 write-lock burst</a> was the empirical input for it).</p>
       <div class="docs-table-wrap" role="region" aria-label="Storage ceiling">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Backend</th><th>Write ceiling</th><th>Read ceiling</th><th>Concurrency model</th></tr></thead>
           <tbody>
             <tr>
-              <td>SQLite (today)</td>
+              <td>PostgreSQL 16 (today)</td>
+              <td>row-level locks; ceiling moves to connection pool size and DB CPU (<em>not yet re-measured</em>)</td>
+              <td>same as historical, plus replica fan-out when added</td>
+              <td>row-level locks; multi-writer</td>
+            </tr>
+            <tr>
+              <td>SQLite (historic, pre-ADR 0037)</td>
               <td>~50 sustained write RPS against a single hot row; higher against distinct rows</td>
               <td><em>not measured</em>, expected ~1000+ RPS in WAL mode</td>
               <td>single writer, many readers</td>
-            </tr>
-            <tr>
-              <td>Postgres (planned)</td>
-              <td>row-level locks; ceiling moves to connection pool size and DB CPU</td>
-              <td>same as today, plus replica fan-out when added</td>
-              <td>row-level locks; multi-writer</td>
             </tr>
           </tbody>
         </table>
@@ -185,7 +185,7 @@
 
       <h2 id="what-changes-the-numbers">What changes these numbers</h2>
       <ul>
-        <li><strong>Storage swap to Postgres.</strong> The single-writer ceiling disappears; the new ceiling is connection-pool × DB CPU. The read-side stays the same. Postmortem 2026-04-02 will become historical.</li>
+        <li><strong>Re-measurement against Postgres.</strong> The single-writer ceiling is gone (<a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>); the new ceiling is connection-pool × DB CPU. Once a fresh load run lands, the historic SQLite row can be dropped from the storage-ceiling table.</li>
         <li><strong>Horizontal scale of the api process.</strong> Multi-instance deployment requires moving the rate limiter out of process (currently in <code>services/api/app/core/security.py</code>); see <a href="../../../explanation/architecture-narrative.html#not-built">architectural narrative § what we deliberately did not build</a>.</li>
         <li><strong>A new endpoint family that does heavy reads.</strong> Adds a new row here, with its own NFR latency in the spec. Default to "inherited" until measured.</li>
         <li><strong>Observability pipeline goes live.</strong> Today the metrics that would prove these numbers are scraped but not dashboarded. The 2026-04-02 postmortem named this as a gap; until it closes, "we know what to measure" is not the same as "we are measuring".</li>

@@ -92,6 +92,193 @@
         </table>
       </div>
 
+      <h2 id="business-flow">Business flow — what the learner actually does</h2>
+      <p class="lede">Two views of the same story: a plain-language map for product / business folks, and a UML sequence for analysts who need the wire-level order of calls. Neither view is about migrations or database internals — those live in per-operation specs.</p>
+
+      <figure class="arch-figure">
+        <div class="docs-chip-row arch-figure__chips">
+          <span class="docs-pill docs-pill--info">Business view</span>
+          <strong>The learner's day, mapped to endpoints</strong>
+        </div>
+
+        <div class="arch-diagram" role="img" aria-label="Business flow of the ETR Study API: a learner opens the app, checks today's workload, picks a batch, reviews one card at a time, marks mistakes, and occasionally edits or archives notes.">
+          <div class="arch-node arch-node--actor">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Actor</span>
+            <span class="arch-node__name">Learner</span>
+            <span class="arch-node__meta">Uses a client app (web / mobile). Signs in once; every following step is scoped to their own notes.</span>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">opens the app</span>
+          </div>
+
+          <div class="arch-node arch-node--system">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Step 1 · Overview</span>
+            <span class="arch-node__name">See today's workload</span>
+            <span class="arch-node__meta">The dashboard shows how many notes are queued and how the review load is spread across slots A–D.</span>
+            <ul class="arch-node__pills arch-node__pills--stack">
+              <li>GET /schedule/summary</li>
+            </ul>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">picks a batch</span>
+          </div>
+
+          <div class="arch-node arch-node--system">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Step 2 · Batch</span>
+            <span class="arch-node__name">Pick what to study now</span>
+            <span class="arch-node__meta">Two ways to build the queue: a compact evening batch shuffled to prevent same-slot cramming, or the full list of everything already due.</span>
+            <ul class="arch-node__pills arch-node__pills--stack">
+              <li>GET /schedule/preview</li>
+              <li>GET /conspectuses/due</li>
+            </ul>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">opens one card</span>
+          </div>
+
+          <div class="arch-node arch-node--system">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Step 3 · Recall</span>
+            <span class="arch-node__name">Read the card, try to recall</span>
+            <span class="arch-node__meta">The learner reads the cue sheet, tries to recall from memory, then reveals the dense paragraph and bullets to check themselves.</span>
+            <ul class="arch-node__pills arch-node__pills--stack">
+              <li>GET /conspectuses/{id}</li>
+            </ul>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">marks the outcome</span>
+          </div>
+
+          <div class="arch-node arch-node--system">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Step 4 · Verdict</span>
+            <span class="arch-node__name">Grade the recall: easy · hard · forgot</span>
+            <span class="arch-node__meta">One tap picks one of three verdicts. The verdict decides what happens to the card next — the same endpoint handles all three.</span>
+            <ul class="arch-node__pills arch-node__pills--stack">
+              <li>POST /conspectuses/{id}/actions/review</li>
+            </ul>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">branch on the verdict</span>
+          </div>
+
+          <div class="arch-diagram__row arch-diagram__row--mid" role="group" aria-label="Branch on the recall verdict">
+            <div class="arch-node arch-node--success">
+              <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Verdict = easy</span>
+              <span class="arch-node__name">Recalled → moves along the ladder</span>
+              <span class="arch-node__meta">The card climbs one slot on the A → B → C → D ladder (or one rung inside D). Next review is pushed further out — from an hour to a day to a week and beyond.</span>
+              <ul class="arch-node__pills arch-node__pills--stack">
+                <li>slot advances</li>
+                <li>next review later</li>
+              </ul>
+            </div>
+
+            <div class="arch-rail arch-rail--horiz" aria-hidden="true">
+              <svg class="arch-rail__svg" viewBox="0 0 144 14" fill="none">
+                <line x1="4" y1="7" x2="140" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 4"></line>
+              </svg>
+              <span class="arch-rail__label">or</span>
+            </div>
+
+            <div class="arch-node arch-node--warn">
+              <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Verdict = hard · forgot</span>
+              <span class="arch-node__name">Didn't recall → back to the recap queue</span>
+              <span class="arch-node__meta">The card is put on a short leash: <em>hard</em> steps back one slot, <em>forgot</em> returns it to slot A. Either way the learner will see it again soon — within a day at the latest.</span>
+              <ul class="arch-node__pills arch-node__pills--stack">
+                <li>slot steps back</li>
+                <li>next review soon</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 4"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">optional · noticed a mistake</span>
+          </div>
+
+          <div class="arch-node arch-node--orbit">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Step 5 · Reflect</span>
+            <span class="arch-node__name">Log the mistake</span>
+            <span class="arch-node__meta">If the learner spotted where they were wrong, they add a free-text note to their personal error log — optionally linked to the card that triggered it.</span>
+            <ul class="arch-node__pills arch-node__pills--stack">
+              <li>POST /api/v1/errors</li>
+            </ul>
+          </div>
+
+          <div class="arch-rail arch-rail--vert" aria-hidden="true">
+            <svg class="arch-rail__svg" viewBox="0 0 14 56" fill="none">
+              <line x1="7" y1="2" x2="7" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 4"></line>
+              <path d="M3 46 L7 54 L11 46 Z" fill="currentColor"></path>
+            </svg>
+            <span class="arch-rail__label">occasional stewardship</span>
+          </div>
+
+          <div class="arch-node arch-node--orbit">
+            <span class="arch-node__eyebrow"><span class="arch-node__dot"></span>Step 6 · Steward</span>
+            <span class="arch-node__name">Edit, revisit, or archive a note</span>
+            <span class="arch-node__meta">Rare compared with the daily loop: update the cue sheet as understanding deepens, peek at the history of past reviews and edits, or archive a note that no longer belongs in the queue.</span>
+            <ul class="arch-node__pills arch-node__pills--stack">
+              <li>PATCH /conspectuses/{id}</li>
+              <li>GET /conspectuses/{id}/history</li>
+              <li>DELETE /conspectuses/{id}</li>
+            </ul>
+          </div>
+        </div>
+        <figcaption class="arch-figure__caption">Pretty view — designed to be readable by a product manager or a new team-mate. No headers, no idempotency, no database vocabulary; those belong on the per-operation specs.</figcaption>
+      </figure>
+
+      <aside class="docs-card docs-card--rail" data-tone="info" role="note" aria-labelledby="business-authoring-h">
+        <h3 id="business-authoring-h" class="docs-card__title">The authoring side-track</h3>
+        <div class="docs-card__body">
+          <p>The step-1..6 diagram covers <em>reviewing</em> notes that already exist. A parallel one-off flow — usually right after a lecture or reading — is where the learner <strong>adds a new note</strong>:</p>
+          <ol>
+            <li>The learner writes a title, a cue sheet (short prompts), a dense paragraph (the full recall), and 1–20 bullets → <code>POST /api/v1/conspectuses</code>.</li>
+            <li>The system automatically schedules the first review one hour later; the note enters slot A of the ladder.</li>
+            <li>From then on, the note flows through the daily loop above.</li>
+          </ol>
+        </div>
+      </aside>
+
+      <h3 id="analyst-view">Analyst view — UML sequence</h3>
+      <p>Same business flow, translated into a UML sequence diagram. The audience here is the systems analyst who needs to see the call order, request/response shape, and where the branches sit. No table schemas, no migration steps — that's what the per-operation specs are for.</p>
+      <figure>
+        <img alt="UML sequence diagram: learner and client app interact with the API through onboarding, authoring, daily review loop, and content stewardship." loading="lazy" src="../../../reference/uml/rendered/api_usage_lifecycle_sequence.svg">
+        <figcaption><strong>Source:</strong> <code>services/portal/internal/reference/uml/api_usage_lifecycle_sequence.puml</code> · regenerate with <code>make docs-fix</code>.</figcaption>
+      </figure>
+
+      <h3 id="analyst-decision-flow">Analyst view — decision flow</h3>
+      <p>A UML activity diagram of the same journey — helpful for training material and for onboarding docs where the analyst walks the learner through decision branches (easy / hard / forgot, log a mistake or not, edit a note or not).</p>
+      <figure>
+        <img alt="UML activity diagram of the ETR study loop: overview → batch → recall → verdict → optional reflect → optional steward." loading="lazy" src="../../../reference/uml/rendered/api_usage_lifecycle_flow.svg">
+        <figcaption><strong>Source:</strong> <code>services/portal/internal/reference/uml/api_usage_lifecycle_flow.puml</code>.</figcaption>
+      </figure>
+
       <h2 id="shared">Shared (cross-cutting concerns)</h2>
       <p>The <code>_shared/</code> folder is the single source of truth for rules that span every operation. Per-operation specs link to anchors here instead of duplicating text — when the rule changes, one page changes.</p>
       <ul>
@@ -140,6 +327,8 @@
     <ol class="docs-toc__list">
       <li class="docs-toc__item"><a class="docs-toc__link" href="#layers">Layers</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#resources">Resources</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#business-flow">Business flow</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#analyst-view">Analyst view</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#shared">Shared</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#quality-gates">Quality gates</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#external">External contract</a></li>

@@ -91,20 +91,19 @@
           <tr><th>Port</th><th>Service</th><th>Started by</th><th>Override</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>8000</code></td><td>FastAPI / Uvicorn (the API)</td><td><code>make run</code></td><td><code>APP_PORT</code></td></tr>
-          <tr><td><code>9090</code></td><td>Prometheus (metrics scrape + query)</td><td><code>docker compose -f services/monitoring/docker-compose.observability.yml up -d</code></td><td><code>OBS_PROM_PORT</code> / <code>PROMETHEUS_PORT</code></td></tr>
-          <tr><td><code>3001</code></td><td>Grafana (dashboards)</td><td>same compose file</td><td><code>OBS_GRAF_PORT</code> / <code>GRAFANA_PORT</code></td></tr>
+          <tr><td><code>8000</code></td><td>FastAPI / Uvicorn (the API)</td><td><code>make up</code> or <code>make run</code></td><td><code>APP_PORT</code></td></tr>
+          <tr><td><code>8080</code></td><td>Portal static server (docs)</td><td><code>make up</code> (or <code>make serve</code> standalone)</td><td><code>PORTAL_PORT</code></td></tr>
+          <tr><td><code>9090</code></td><td>Prometheus (metrics scrape + query)</td><td><code>make up</code></td><td><code>OBS_PROM_PORT</code> / <code>PROMETHEUS_PORT</code></td></tr>
+          <tr><td><code>3010</code></td><td>Grafana (dashboards)</td><td><code>make up</code></td><td><code>OBS_GRAF_PORT</code> / <code>GRAFANA_PORT</code></td></tr>
+          <tr><td><code>9115</code></td><td>Blackbox exporter (probes)</td><td><code>make up</code></td><td>—</td></tr>
           <tr><td><code>9200</code></td><td>Elasticsearch (log index)</td><td><code>make logging-up</code></td><td><code>OBS_ES_PORT</code> / <code>ELASTICSEARCH_PORT</code></td></tr>
           <tr><td><code>5601</code></td><td>Kibana (log search UI)</td><td>same compose file</td><td><code>OBS_KIB_PORT</code> / <code>KIBANA_PORT</code></td></tr>
         </tbody>
       </table>
 
-      <h2 id="observability">Observability stack (optional)</h2>
-      <p>For metrics dashboards locally:</p>
-      <pre class="docs-code"><code class="language-bash">docker compose -f services/monitoring/docker-compose.observability.yml up -d
- make run</code></pre>
-      <p>Prometheus comes up at <code>http://127.0.0.1:9090</code> and scrapes the API's <code>/metrics</code> endpoint. Grafana at <code>http://127.0.0.1:3001</code> (default login is documented inside the compose file). The API exposes Prometheus metrics out of the box; no extra config needed.</p>
-      <p>Tear down: <code>docker compose -f services/monitoring/docker-compose.observability.yml down</code> (add <code>-v</code> to wipe volumes).</p>
+      <h2 id="observability">Observability stack (comes with make up)</h2>
+      <p>The observability stack (Prometheus + Grafana + Blackbox) is bundled into <code>make up</code> — no separate command needed. Prometheus at <code>http://127.0.0.1:9090</code> scrapes the API's <code>/metrics</code> endpoint. Grafana at <code>http://127.0.0.1:3010</code> (login: <code>admin</code> / <code>admin</code>). The API exposes Prometheus metrics out of the box; no extra config needed.</p>
+      <p>If you only want the observability containers (no API), run <code>make -C services/monitoring up</code>. Tear-down of the whole stack: <code>make down</code> (add the <code>down-volumes</code> variant to wipe Prometheus/Grafana persisted data).</p>
 
       <h2 id="logging">Logging stack (optional)</h2>
       <p>For log search in Kibana locally:</p>
@@ -123,7 +122,7 @@
           <tr><td><code>make run</code> says <code>.env not found</code></td><td><code>make env-init</code>, then edit <code>.env</code>.</td></tr>
           <tr><td><code>make run</code> says <code>.venv not found</code></td><td><code>make venv &amp;&amp; make install</code>, or just <code>make setup</code>.</td></tr>
           <tr><td>Port <code>8000</code> already in use</td><td>Stop the other process, or set <code>APP_PORT=8001</code> in <code>.env</code>.</td></tr>
-          <tr><td>Migration error on boot</td><td><code>make migrate</code> on its own to see the full Alembic trace; check <code>SQLITE_DB_PATH</code> in <code>.env</code>.</td></tr>
+          <tr><td>Migration error on boot</td><td><code>make migrate</code> on its own to see the full Alembic trace; check <code>DATABASE_URL</code> in <code>.env</code>.</td></tr>
           <tr><td><code>make verify</code> fails on docs drift</td><td><code>make docs-fix</code>, commit the regenerated artifacts, retry.</td></tr>
           <tr><td>Pre-commit hook fails on staged files</td><td>Fix the underlying issue, re-stage, recommit (do not skip with <code>--no-verify</code>).</td></tr>
           <tr><td>Kibana shows zero events</td><td>Confirm <code>LOG_FORMAT=json</code> and the API actually wrote to <code>./logs/app.log</code>; check Filebeat is up via <code>docker compose -f services/monitoring/docker-compose.logging.yml ps</code>.</td></tr>
