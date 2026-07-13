@@ -149,19 +149,13 @@ def _run_pdoc() -> None:
     env = os.environ.copy()
     env.setdefault("PYTHONHASHSEED", "0")
     env["PYTHONPATH"] = f"services/api{os.pathsep}{env.get('PYTHONPATH', '')}"
-    # Pin the workspace-root the app package reports at import time. ``config.py``
-    # otherwise builds ``ENV_DIR = ROOT / "env"`` from ``Path(__file__).resolve()``,
-    # which encodes the runner's CWD in every rendered ``PosixPath(...)`` repr and
-    # — worse — in the pdoc search index's per-field character counts (which
-    # ``normalize_pdoc_output.py`` cannot fix in retrospect because pdoc has
-    # already frozen them before we run). Pinning to a fixed short path yields
-    # a byte-identical index on every runner.
-    env["STUDY_APP_ROOT"] = "/study_app"
-    # The pinned root has no ``env/<APP_ENV>`` file, so ``config.get_settings()``
-    # falls through to reading the parent environment. It still raises on a
-    # missing ``DATABASE_URL`` (the only required knob per ADR 0037), so pass a
+    # ``get_settings()`` raises on a missing ``DATABASE_URL`` (the only
+    # required knob per ADR 0037). ``env/<APP_ENV>`` in a checked-out
+    # workspace supplies one, but callers who invoke this script from a
+    # scratch environment (e.g. a temp container) may not have one — pass a
     # placeholder DSN that satisfies the format check without pointing at a
-    # real database — pdoc never opens a connection during import.
+    # real database. ``setdefault`` leaves any real value the runner
+    # provided alone. Pdoc never opens a connection during import.
     env.setdefault(
         "DATABASE_URL",
         "postgresql+psycopg://pdoc:pdoc@127.0.0.1:5432/pdoc",
