@@ -20,12 +20,31 @@ Run only after ``python -m pdoc app -o services/portal/internal/services/api/cod
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DOCS_API = ROOT / "services" / "portal" / "internal" / "services" / "api" / "code-reference"
+_DEFAULT_DOCS_API = (
+    ROOT / "services" / "portal" / "internal" / "services" / "api" / "code-reference"
+)
+
+
+def _resolve_docs_api() -> Path:
+    """Return the pdoc output tree to normalize.
+
+    Honours ``PDOC_OUTPUT_OVERRIDE`` when set — used by ``regenerate_pdoc.py`` to
+    normalise a staging tree before rsync-style syncing it into the canonical
+    location, so the on-disk files aren't rewritten unless their bytes changed.
+    """
+    override = os.getenv("PDOC_OUTPUT_OVERRIDE")
+    if override:
+        return Path(override)
+    return _DEFAULT_DOCS_API
+
+
+DOCS_API = _resolve_docs_api()
 
 # e.g. ``<function foo at 0x10ab02c40>`` in HTML-escaped form or plain text
 _AT_ADDR = re.compile(r" at 0x[0-9a-f]{8,16}")
