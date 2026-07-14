@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Operational vs analytical data · Explanation · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-07-14" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Operational vs analytical data</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Explanation</span>
+          <span class="docs-pill docs-pill--teal">Data</span>
+          <span class="docs-pill docs-pill--neutral">Architecture</span>
+        </div>
+        <h1>Operational vs analytical data — one database, two workloads</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">The same tables answer two different kinds of question: «what does <em>this user</em> see <em>right now</em>» and «what happened <em>across users, over time</em>». They pull the schema, the latency budget, and the privacy rules in opposite directions. This page names the boundary while it is still cheap to respect.</p>
+      </header>
+
+      <h2 id="two-workloads">The two workloads</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th></th><th>Operational</th><th>Analytical</th></tr></thead>
+          <tbody>
+            <tr><td>Question shape</td><td>«Load conspectus X for user Y» — one row, now</td><td>«How many reviews per week? Which slot transitions dominate?» — many rows, over time</td></tr>
+            <tr><td>Access pattern</td><td>Point lookups via PK / owner index</td><td>Scans and aggregations across owners and dates</td></tr>
+            <tr><td>Latency budget</td><td>P95 in the request path — milliseconds</td><td>Seconds to minutes are fine; nobody is waiting on a spinner</td></tr>
+            <tr><td>Schema preference</td><td>Normalised, current-state rows</td><td>Denormalised, append-only history</td></tr>
+            <tr><td>Privacy posture</td><td>Full PII under the owner's access control</td><td>Identifiers only — aggregates must be safe to share widely</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="today">Where this system stands today — honestly</h2>
+      <p>One PostgreSQL instance serves the operational workload; there is no analytical store, no dashboard fed from these tables, and analytical questions are answered by ad-hoc SQL against production tables. At the current scale (single instance, no external traffic) this is the correct amount of infrastructure — a warehouse for a system with no users would be resume-driven architecture.</p>
+      <p>But the schema already takes sides, and took them deliberately:</p>
+      <ul>
+        <li><strong>The append-only audit tables are proto-analytical surfaces.</strong> <code>conspectus_review_logs</code> stores before/after state per review — exactly the shape a retention or learning-curve analysis needs, without touching the mutable rows. <code>conspectus_events</code> does the same for content changes.</li>
+        <li><strong>Policy pinning keeps history replayable.</strong> Because every review row pins <code>schedule_policy_version</code>, an analysis over old reviews is not silently corrupted when the algorithm changes.</li>
+        <li><strong>Mutable rows hold only current state.</strong> <code>conspectus_schedules</code> is overwritten per review — any metric computed from it answers «what is», never «what happened». Metrics belong on the logs.</li>
+      </ul>
+
+      <h2 id="boundary">The boundary artifact: events, not queries</h2>
+      <p>The clean seam between the two worlds is an <a href="../handbook/sa/templates/event-contract.html">event contract</a>: the operational side emits a named, versioned, PII-free record at write time; the analytical side consumes events without ever holding a connection to the operational schema. Instrumenting at write time costs one decision per endpoint (§14 of the API spec names its events); reconstructing behaviour later from mutable tables costs an archaeology project.</p>
+
+      <h2 id="when-to-split">When the split becomes physical</h2>
+      <p>Three triggers, any one of which justifies moving the analytical workload off the operational instance:</p>
+      <ol>
+        <li><strong>Scan queries appear in the operational latency profile</strong> — an aggregation holds locks or IO that a user request pays for.</li>
+        <li><strong>Retention rules diverge</strong> — the <a href="../services/datastore/data-lifecycle.html">data lifecycle</a> wants operational rows purged while analysis wants years of history; one table cannot obey both.</li>
+        <li><strong>A consumer who must not see PII needs query access</strong> — a dashboard, an experiment framework, a second person.</li>
+      </ol>
+      <p>The first physical step is deliberately small: a read replica or a periodic export of the append-only tables — not a warehouse, not a pipeline team. Each step after that should be pulled by a query that hurts, never pushed by architecture fashion.</p>
+
+      <h2 id="anti-patterns">Forbidden patterns</h2>
+      <ul>
+        <li><strong>BI-style queries against operational tables in the request path's hours.</strong> The cheap version of the split is temporal before it is physical.</li>
+        <li><strong>PII fan-out into analytics.</strong> Events carry <code>client_uuid</code>, never <code>full_name</code> or free-text content — the join back to a person happens only under the operational side's access control.</li>
+        <li><strong>Metrics computed from mutable rows.</strong> A metric on <code>conspectus_schedules</code> changes retroactively as rows are overwritten; metrics read the append-only logs.</li>
+        <li><strong>Building the analytical stack before the analytical question.</strong> The trigger list above is the gate; «we might need it» is not on it.</li>
+      </ul>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li><a href="../services/datastore/schema.html">Schema reference</a> — the tables and the append-only conventions this page leans on.</li>
+          <li><a href="../handbook/sa/templates/event-contract.html">Event contract template</a> — the boundary artifact, ready to instantiate.</li>
+          <li><a href="../services/datastore/data-lifecycle.html">Data lifecycle</a> — classification and retention rules on both sides of the boundary.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created. Names the operational/analytical boundary that the schema already respects implicitly (append-only logs, policy pinning), the event contract as the seam, and the three triggers for a physical split.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#two-workloads">The two workloads</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#today">Where we stand today</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#boundary">The boundary artifact</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#when-to-split">When the split becomes physical</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anti-patterns">Forbidden patterns</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

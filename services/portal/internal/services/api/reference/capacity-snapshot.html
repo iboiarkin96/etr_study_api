@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-06-12" data-role="">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-07-14" data-role="">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
@@ -53,16 +53,16 @@
       </ul>
 
       <h2 id="overall">Overall service capacity</h2>
-      <p>The api service runs as a single Uvicorn process today. Storage is a containerized PostgreSQL 16 instance (<a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>); the numbers below still cite the pre-ADR 0037 SQLite measurements, marked <em>historic</em> — they'll be re-measured against Postgres in the next capacity review.</p>
+      <p>The api service runs as a single Uvicorn process today. Storage is a containerized PostgreSQL 16 instance (<a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>); the write-side cells are <em>targets, not measurements</em> — the SQLite-era figures were retired on 2026-07-14 together with the synthetic postmortem that cited them, and no formal load run against Postgres has happened yet.</p>
       <div class="docs-table-wrap" role="region" aria-label="Service capacity">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Signal</th><th>Measured number</th><th>Saturation signal</th><th>Source</th></tr></thead>
           <tbody>
             <tr>
               <td>Sustained write RPS (single endpoint, single instance)</td>
-              <td><strong>~50 RPS</strong> (clean), ~95 RPS with brief contention</td>
-              <td><em>historic (pre-ADR 0037):</em> <code>SQLITE_BUSY</code> rate on <code>OperationalError</code> log + <code>db_operation_duration_seconds</code> P99 climbing past ~200 ms</td>
-              <td><a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">Postmortem 2026-04-02</a></td>
+              <td><em>not measured</em> (target ≥ 50 RPS)</td>
+              <td><code>db_operation_duration_seconds</code> P99 climbing past ~200 ms</td>
+              <td><a href="../how-to/api-load-testing.html">pending load run</a></td>
             </tr>
             <tr>
               <td>Sustained read RPS (single endpoint, single instance)</td>
@@ -72,9 +72,9 @@
             </tr>
             <tr>
               <td>P99 latency, write happy path</td>
-              <td><strong>~60 ms</strong> at baseline; ~250 ms under load</td>
+              <td><em>not measured</em> (target ≤ 200 ms)</td>
               <td><code>http_request_duration_seconds</code> P99 bucket</td>
-              <td><a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">Postmortem 2026-04-02</a></td>
+              <td><a href="../how-to/api-load-testing.html">pending load run</a></td>
             </tr>
             <tr>
               <td>P99 latency, read happy path</td>
@@ -133,7 +133,7 @@
       </div>
 
       <h2 id="storage">Storage ceiling</h2>
-      <p>The runtime is now containerized PostgreSQL 16 (<a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>), which uses row-level locks and lifts the single-writer constraint the service had under SQLite. The row-level ceiling now moves to connection-pool size and DB CPU, which have not yet been re-measured; the SQLite row below is kept as historical baseline (the <a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">2026-04-02 write-lock burst</a> was the empirical input for it).</p>
+      <p>The runtime is now containerized PostgreSQL 16 (<a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>), which uses row-level locks and lifts the single-writer constraint the service had under SQLite. The row-level ceiling now moves to connection-pool size and DB CPU, which have not yet been measured; the SQLite row below is kept as an architectural note only — its RPS figure was an estimate, never a formal measurement.</p>
       <div class="docs-table-wrap" role="region" aria-label="Storage ceiling">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Backend</th><th>Write ceiling</th><th>Read ceiling</th><th>Concurrency model</th></tr></thead>
@@ -172,7 +172,7 @@
             <tr>
               <td>Connection pool (SQLAlchemy)</td>
               <td><em>not declared</em> — default pool size of 5</td>
-              <td>Requests queue on <code>pool.timeout</code>; observed during 2026-04-02 incident</td>
+              <td>Requests queue on <code>pool.timeout</code>; not yet observed under load</td>
             </tr>
             <tr>
               <td>Disk space (DB file + WAL)</td>
@@ -188,7 +188,7 @@
         <li><strong>Re-measurement against Postgres.</strong> The single-writer ceiling is gone (<a href="../../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>); the new ceiling is connection-pool × DB CPU. Once a fresh load run lands, the historic SQLite row can be dropped from the storage-ceiling table.</li>
         <li><strong>Horizontal scale of the api process.</strong> Multi-instance deployment requires moving the rate limiter out of process (currently in <code>services/api/app/core/security.py</code>); see <a href="../../../explanation/architecture-narrative.html#not-built">architectural narrative § what we deliberately did not build</a>.</li>
         <li><strong>A new endpoint family that does heavy reads.</strong> Adds a new row here, with its own NFR latency in the spec. Default to "inherited" until measured.</li>
-        <li><strong>Observability pipeline goes live.</strong> Today the metrics that would prove these numbers are scraped but not dashboarded. The 2026-04-02 postmortem named this as a gap; until it closes, "we know what to measure" is not the same as "we are measuring".</li>
+        <li><strong>Observability pipeline goes live.</strong> Today the metrics that would prove these numbers are scraped but not dashboarded; until that closes, "we know what to measure" is not the same as "we are measuring".</li>
       </ul>
 
       <h2 id="anti-patterns">Forbidden patterns</h2>
@@ -204,8 +204,7 @@
         <ul>
           <li><a href="../../../explanation/architecture-narrative.html">Architectural narrative</a> — the shape these numbers describe.</li>
           <li><a href="../../../handbook/sre/slos.html">SLOs</a> — when these numbers convert into customer-visible commitments.</li>
-          <li><a href="../../datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">Postmortem 2026-04-02</a> — empirical input for the write-side ceiling.</li>
-          <li><a href="../how-to/api-load-testing.html">How-to · API load testing</a> — procedure for re-measuring these numbers.</li>
+          <li><a href="../how-to/api-load-testing.html">How-to · API load testing</a> — procedure for measuring these numbers.</li>
         </ul>
       </aside>
     </article>
@@ -213,6 +212,11 @@
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Write-side numbers downgraded from "measured" to honest targets. The figures cited the 2026-04-02 postmortem, which was retired as synthetic; per this page's own Forbidden patterns, a number without a real measurement run behind it is a target. Re-measurement via the load-testing how-to is the open follow-up.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-06-12</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

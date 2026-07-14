@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deployment topology &amp; failure cascade · Services · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-07-14" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Deployment topology</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Reference</span>
+          <span class="docs-pill docs-pill--teal">Deployment</span>
+          <span class="docs-pill docs-pill--warn">Failure cascade</span>
+        </div>
+        <h1>Deployment topology &amp; failure cascade</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">What actually runs, where, and what breaks when each piece dies. The per-service C4 L3 views describe internals; this page is the missing top floor — the runtime layout across all stacks, and the blast radius of each component, stated honestly for a system with no cloud production yet.</p>
+      </header>
+
+      <h2 id="topology">Topology — three compose stacks on one host</h2>
+      <figure>
+        <!-- Diagram pending render — regenerator scans only reference/uml today; run make docs-fix once handbook/uml is picked up. -->
+        <!-- <img class="diagram" alt="Deployment topology: app stack (api + postgres), observability stack (prometheus, grafana, blackbox), log stack (filebeat, elasticsearch, kibana), nginx portal, GitHub CI and Pages staging" loading="lazy" src="../handbook/uml/rendered/architecture__deployment_view.svg" data-component="diagram-lightbox"> -->
+        <figcaption>Regenerate with <code>make docs-fix</code>. Source: <code>services/portal/internal/handbook/uml/architecture/deployment_view.puml</code>.</figcaption>
+      </figure>
+
+      <h2 id="environments">Environments</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Environment</th><th>What runs there</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td>Local stand</td><td>All three compose stacks: app (<code>api</code> + <code>postgres:16-alpine</code>), observability (Prometheus, Grafana, Blackbox), logging (Filebeat, Elasticsearch, Kibana); portal served by nginx-alpine</td><td><span class="docs-pill docs-pill--success">real</span></td></tr>
+            <tr><td>CI (GitHub Actions)</td><td>Quality gates — tests, OpenAPI parity, docs-check; nothing long-running</td><td><span class="docs-pill docs-pill--success">real</span></td></tr>
+            <tr><td>Staging (GitHub Pages)</td><td>Published copy of the portal via <code>make sync-staging</code> (ADR 0034); static only, no API runtime</td><td><span class="docs-pill docs-pill--success">real</span></td></tr>
+            <tr><td>Production</td><td>—</td><td><span class="docs-pill docs-pill--neutral">does not exist yet</span> — the honest row; nothing below pretends otherwise</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="cascade">Failure cascade — what breaks what</h2>
+      <p>Read each row as: this component dies → this is what a user or operator actually experiences → this is the first move. The api → postgres edge is the only hard runtime dependency in the system; everything else degrades independently.</p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Fails</th><th>Immediate effect</th><th>What keeps working</th><th>First action</th></tr></thead>
+          <tbody>
+            <tr><td><code>postgres</code></td><td>Every write and read 5xx; <code>/ready</code> flips 503 within its check interval</td><td>Portal, dashboards, log search — everything static or already scraped</td><td>Compose status → container logs; if mid-migration, <a href="datastore/runbooks/migrations-failing.html">0002 · migrations failing</a></td></tr>
+            <tr><td><code>api</code></td><td>Integrator requests fail; Prometheus targets go down; Blackbox probe fires</td><td>Postgres (data safe), portal, historical dashboards</td><td><code>/ready</code> by hand → container logs → <a href="api/on-call.html">api on-call</a> symptom table</td></tr>
+            <tr><td>Observability stack</td><td>No scrape, no dashboards, no burn-rate signal — the system is <em>blind but healthy</em></td><td>The product path end-to-end; logs still ship to Elasticsearch</td><td><a href="monitoring/runbooks/scrape-failing.html">0008 · scrape failing</a></td></tr>
+            <tr><td>Log stack</td><td>Kibana empty, log-based triage degraded to <code>docker logs</code></td><td>Product path, metrics, dashboards</td><td><a href="../handbook/sre/runbooks/logging-failing.html">0003 · logging failing</a></td></tr>
+            <tr><td>Portal (nginx)</td><td>Docs unreachable locally; staging copy on Pages still serves</td><td>Everything else — the portal is not in any runtime path</td><td>Container restart; build-time issues route to <a href="portal/runbooks/index.html">portal runbooks</a></td></tr>
+            <tr><td>Docker host</td><td>Everything above at once — the whole system shares one host</td><td>GitHub staging copy of the docs; the git repo</td><td>Host restart; this single point of failure is accepted at current scale and revisited when production exists</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="honest-limits">Honest limits of this topology</h2>
+      <ul>
+        <li><strong>One host, one volume, no backups.</strong> A disk failure loses the database; ADR 0037's backup follow-up is the open mitigation. Until a restore drill has run, recovery time is unknown, not "fast".</li>
+        <li><strong>Blind-but-healthy is a real mode.</strong> The observability stack is optional by design, which means the system can run unmonitored without anything failing loudly. Acceptable while the operator and the user are the same person; the first external user changes that calculus.</li>
+        <li><strong>No horizontal path yet.</strong> The in-process rate limiter pins the api to one instance (see <a href="../explanation/architecture-narrative.html">architecture narrative</a>); this is a documented constraint, not an oversight.</li>
+      </ul>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li><a href="index.html#architecture">Service catalog · Architecture</a> — the C4 L1/L2 views this topology deploys.</li>
+          <li><a href="../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a> — the storage decision and its unfinished operational surface.</li>
+          <li><a href="../handbook/sre/slos.html">SLOs</a> — the promises this topology must eventually be able to keep.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created. First deployment-level (C4 L4) view: three compose stacks, environments table with an honest "production does not exist" row, and the per-component failure cascade with blast radius and first actions.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#topology">Topology</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#environments">Environments</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#cascade">Failure cascade</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#honest-limits">Honest limits</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

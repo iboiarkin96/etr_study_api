@@ -1,0 +1,65 @@
+@startuml
+title Study App — deployment topology (what actually runs today)
+$Subtitle("Three compose stacks on one host; no cloud production environment yet — honest by design")
+
+top to bottom direction
+
+actor "Developer /\nintegrator" as Dev
+
+node "Docker host (laptop / stand)" as Host {
+
+  package "app stack\n(docker-compose.yml)" as AppStack {
+    [api\nFastAPI · Uvicorn\n:8000] as Api
+    database "postgres\npostgres:16-alpine\nvolume ./var/postgres" as Pg
+  }
+
+  package "observability stack\n(docker-compose.observability.yml)" as ObsStack {
+    [prometheus] as Prom
+    [grafana] as Graf
+    [blackbox-exporter] as Bbx
+  }
+
+  package "log stack\n(docker-compose.logging.yml)" as LogStack {
+    [filebeat] as FB
+    [elasticsearch 8.15] as ES
+    [kibana] as Kib
+  }
+
+  [portal\nnginx-alpine\nstatic HTML] as Portal
+}
+
+cloud "GitHub" as GH {
+  [Actions CI\nquality gates] as CI
+  [Pages staging\nsync-staging] as Staging
+}
+
+Dev --> Api : HTTPS / JSON
+Dev --> Portal : browse docs
+Dev --> Graf : dashboards
+Dev --> Kib : logs
+
+Api --> Pg : SQL (psycopg3)
+Prom ..> Api : scrape /metrics
+Bbx ..> Api : probe /ready
+Graf --> Prom
+Api ..> FB : NDJSON log file
+FB --> ES
+Kib --> ES
+
+CI ..> Portal : build gate (docs-check)
+CI ..> Api : tests + openapi parity
+Staging ..> Portal : published copy
+
+note bottom of Pg
+  Single instance, single volume.
+  No replica, no automated backup yet
+  (ADR 0037 follow-ups).
+end note
+
+note bottom of Host
+  Blast radius: everything shares one host.
+  Any stack can be down independently;
+  only api+postgres are load-bearing for the product.
+end note
+
+@enduml

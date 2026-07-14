@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture vision — the 12-month horizon · Explanation · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-07-14" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Architecture vision</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Explanation</span>
+          <span class="docs-pill docs-pill--teal">Vision</span>
+          <span class="docs-pill docs-pill--neutral">Horizon: 2027-07</span>
+        </div>
+        <h1>Architecture vision — where this system is going in 12 months</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">The <a href="architecture-narrative.html">narrative</a> explains how the system got its current shape and names the next three moves; this page holds the longer arc — the target state one year out, per theme, each with the trigger that starts it. Concrete work items live in the <a href="../governance/backlog/plans.html">backlog</a>; technology stances live on the <a href="../governance/tech-radar.html">tech radar</a>.</p>
+      </header>
+
+      <h2 id="end-state">The end-state in one paragraph</h2>
+      <p>Twelve months out this is still <strong>one modular monolith, one Postgres, one host</strong> — deliberately. What changes is not the shape but the trustworthiness: burn-rate alerts that actually fire and page, a database that has survived a rehearsed restore, capacity numbers backed by a real load run, a user-facing Telegram surface exercising the API with real traffic, and analytics events flowing across the <a href="operational-vs-analytical-data.html">operational/analytical seam</a> so product decisions stop being guesses. Explicitly <em>not</em> in this vision: microservices, Kubernetes, multi-region, a data warehouse. Each of those has a named trigger, and none of the triggers is close.</p>
+
+      <h2 id="themes">Four themes, each with its trigger</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Theme</th><th>Today (honest)</th><th>12-month target</th><th>First move</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>1 · Reliability becomes real</strong></td>
+              <td>SLOs written, rules committed, but no live alert has ever fired; restore untested; exhaustion runbook retired as theatre</td>
+              <td>Burn-rate alerts live (backlog item-48); one rehearsed DR drill with a written report; the exhaustion runbook returns <em>with</em> the alerts; a production-readiness checklist gates any future "this is live" claim</td>
+              <td>Wire the Prometheus rules to a notification channel — the smallest change that makes the system able to interrupt its operator</td>
+            </tr>
+            <tr>
+              <td><strong>2 · The data seam opens</strong></td>
+              <td>Append-only logs exist; no analytics events, no product metrics; ad-hoc SQL answers analytical questions</td>
+              <td>Write endpoints emit contracted events (<a href="../handbook/sa/templates/event-contract.html">event contract</a>); a small set of product metrics (activation, review streak, retention cohort) computed from the logs, published on a page that is re-generated, not hand-edited</td>
+              <td>Instantiate the first event contract for <code>conspectus.reviewed</code> — the highest-signal action in the product</td>
+            </tr>
+            <tr>
+              <td><strong>3 · A real user surface</strong></td>
+              <td>API is complete but has no consumer besides tests; Telegram Mini App is a UI-kit prototype on a feature branch</td>
+              <td>One end-to-end user flow (create → review → error log) shipped in the TMA against the real API, used by at least one person who is not the author</td>
+              <td>Promote TMA from Trial by wiring its first screen to a live endpoint — product-direction decisions route through the backlog, not this page</td>
+            </tr>
+            <tr>
+              <td><strong>4 · Security grows adversary tiers</strong></td>
+              <td>Controls exist (auth, rate limit, error envelope) and a STRIDE table per component, but no named adversary model; single DB role owns DDL</td>
+              <td>Threat model names the adversary tiers and the accepted-out-of-scope attacks; DML/DDL role split done; encrypted backups as part of theme 1's drill</td>
+              <td>Split the migration role — smallest change with the largest blast-radius reduction</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="non-goals">Standing non-goals — and what would change them</h2>
+      <ul>
+        <li><strong>No second service</strong> until a component needs an independent release cadence or failure domain — the triggers named in <a href="cross-service-patterns.html">cross-service patterns</a>.</li>
+        <li><strong>No horizontal api scale</strong> until a load run shows a single instance saturating inside the SLO — which first requires theme 1's measurement discipline.</li>
+        <li><strong>No warehouse</strong> until an analytical query measurably hurts the operational path — the three triggers in <a href="operational-vs-analytical-data.html">operational vs analytical data</a>.</li>
+      </ul>
+
+      <h2 id="falsify">What would falsify this vision</h2>
+      <p>A vision that cannot be wrong is decoration. This one is falsified if: the TMA direction is abandoned (theme 3 collapses and the API needs a different first consumer); real usage arrives faster than reliability work (themes reorder — 1 jumps ahead of everything); or a second regular contributor joins (the solo-maintainer constraints in <a href="../governance/decision-process.html">the decision process</a> relax, and the review model upgrades before any of the above). The quarterly radar review is also this page's review.</p>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li><a href="architecture-narrative.html">Architectural narrative</a> — how the current shape was reached, and the next three moves in detail.</li>
+          <li><a href="../governance/tech-radar.html">Tech radar</a> — per-technology stances the themes above depend on.</li>
+          <li><a href="../governance/backlog/plans.html">Backlog</a> — the concrete, dated version of everything here.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created. First explicit 12-month horizon: four themes with honest current-state and triggers, standing non-goals, and a falsifiability section so the vision is re-testable each quarter rather than aspirational prose.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#end-state">The end-state</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#themes">Four themes</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#non-goals">Standing non-goals</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#falsify">What would falsify this</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
