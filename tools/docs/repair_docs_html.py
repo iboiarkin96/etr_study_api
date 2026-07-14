@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -50,6 +51,9 @@ def _iter_target_files() -> list[Path]:
     return targets
 
 
+_SVG_BLOCK_RE = re.compile(r"<svg\b[^>]*>.*?</svg>", flags=re.DOTALL | re.IGNORECASE)
+
+
 def _repair_html(text: str) -> str:
     """Parse and re-serialize HTML5 to fix broken nesting/closing tags.
 
@@ -57,9 +61,25 @@ def _repair_html(text: str) -> str:
     closing tags, so each parse-serialize cycle would grow the blank-line gap
     before ``</body></html>``. Collapse runs of >=2 newlines back to exactly one
     blank line before ``</body>`` so a clean file is a fixed point.
+
+    Note on inline SVG: html5lib expands self-closing SVG children (``<path .../>``
+    → ``<path ...></path>``) because its void-tag set doesn't include foreign
+    (SVG) elements. That's technically HTML5-conformant but rewrites every inline
+    icon on every run against source that uses the short form. Mask every
+    ``<svg>…</svg>`` block with a comment placeholder before serialization and
+    reinsert the original text afterwards — SVG bytes stay exactly as authored.
     """
+    svg_blocks: list[str] = []
+
+    def _stash_svg(match: re.Match[str]) -> str:
+        idx = len(svg_blocks)
+        svg_blocks.append(match.group(0))
+        return f"<!--SVG_PLACEHOLDER_{idx}-->"
+
+    masked = _SVG_BLOCK_RE.sub(_stash_svg, text)
+
     parser = html5lib.HTMLParser(tree=html5lib.getTreeBuilder("etree"))
-    document = parser.parse(text)
+    document = parser.parse(masked)
     repaired = html5lib.serialize(
         document,
         tree="etree",
@@ -68,15 +88,20 @@ def _repair_html(text: str) -> str:
         alphabetical_attributes=False,
         inject_meta_charset=False,
     )
+
+    if svg_blocks:
+
+        def _restore_svg(match: re.Match[str]) -> str:
+            return svg_blocks[int(match.group(1))]
+
+        repaired = re.sub(r"<!--SVG_PLACEHOLDER_(\d+)-->", _restore_svg, repaired)
     # Apply the same newline normalisation that ``format_docs_html`` uses, so
     # the two tools converge to a single fixed point in one pass and neither
     # rewrites the file when its content already matches. Without this, repair
     # emitted a blank line before ``</body>`` that format then stripped, so
     # every ``make docs-check`` bumped the mtime of every HTML page twice.
-    import re as _re
-
     repaired = repaired.replace("\r\n", "\n").replace("\r", "\n")
-    repaired = _re.sub(r"\n{3,}", "\n\n", repaired)
+    repaired = re.sub(r"\n{3,}", "\n\n", repaired)
     repaired = repaired.rstrip() + "\n"
     if not repaired.lower().startswith("<!doctype html>"):
         repaired = "<!doctype html>\n" + repaired.lstrip()

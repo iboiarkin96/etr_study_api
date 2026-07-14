@@ -137,20 +137,20 @@ docs-fix:
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/sync_docs.py
 	@printf "$(ICON_INFO) %s\n" "[3/11] render docs markdown to html companions"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[4/11] repair docs html structure"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/repair_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[5/11] normalize docs html template"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/format_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[6/11] render service catalog (YAML → HTML)"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_service_descriptors.py
-	@printf "$(ICON_INFO) %s\n" "[7/11] ensure docs body maintainers"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/ensure_docs_maintainers.py
-	@printf "$(ICON_INFO) %s\n" "[8/11] regenerate runtime OpenAPI spec (public Scalar source)"
-	@cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) tools/api/openapi_governance.py regen
-	@printf "$(ICON_INFO) %s\n" "[9/11] Python API reference (pdoc; skipped when app/**.py unchanged)"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/regenerate_pdoc.py
-	@printf "$(ICON_INFO) %s\n" "[10/11] rebuild internal catalog (quadrant / service / topic / recent)"
+	@printf "$(ICON_INFO) %s\n" "[4/11] rebuild internal catalog (quadrant / service / topic / recent)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_catalog.py
+	@printf "$(ICON_INFO) %s\n" "[5/11] render service catalog (YAML → HTML)"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_service_descriptors.py
+	@printf "$(ICON_INFO) %s\n" "[6/11] repair docs html structure"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/repair_docs_html.py
+	@printf "$(ICON_INFO) %s\n" "[7/11] normalize docs html template"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/format_docs_html.py
+	@printf "$(ICON_INFO) %s\n" "[8/11] ensure docs body maintainers"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/ensure_docs_maintainers.py
+	@printf "$(ICON_INFO) %s\n" "[9/11] regenerate runtime OpenAPI spec (public Scalar source)"
+	@cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) tools/api/openapi_governance.py regen
+	@printf "$(ICON_INFO) %s\n" "[10/11] Python API reference (pdoc; skipped when app/**.py unchanged)"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/regenerate_pdoc.py
 	@printf "$(ICON_INFO) %s\n" "[11/11] build pagefind index (ADR-0033)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_pagefind_index.py
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_pagefind_visibility.py

@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **tools/docs — kill the `docs-fix` flicker cycle:** three ordering + serialization
+  bugs made every `make docs-check` rewrite a rolling set of files (catalog pages,
+  service hub, api dep-lanes) that CI then rewrote back on push. Fixes:
+  1. `services/portal/Makefile` — reorder so autogen (`build_catalog`,
+     `render_service_descriptors`) runs BEFORE `repair_docs_html` and
+     `format_docs_html`. The committed shape is now the normalized one; the
+     autogen output is the transient shape that gets normalized in the same
+     pass. Steps renumbered `[4/11]…[11/11]`.
+  2. `tools/docs/repair_docs_html.py` — mask every `<svg>…</svg>` block with a
+     comment placeholder before `html5lib.serialize`. html5lib expanded
+     self-closing SVG children (`<path .../>` → `<path ...></path>`) because
+     its void-tag set doesn't include foreign elements; the placeholder round-
+     trip preserves the original SVG bytes exactly.
+  3. Follow-up to the earlier pdoc pin: three converged flicker sources
+     documented, one-time re-normalization of 15 catalog pages + one service
+     hub committed here. After this commit, `make docs-fix` leaves 0 dirty
+     files across repeated runs.
+
 - **services/api — auth simplification (ADR 0038):** dropped the
   `API_AUTH_STRATEGY` switch (only `mock_api_key` was ever wired) and renamed
   `API_MOCK_API_KEY` → `API_AUTH_KEY`. The middleware collapses to a single
