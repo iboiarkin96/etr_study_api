@@ -24,10 +24,22 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from repair_docs_html import _finalize, _repair_html
+
 ROOT = Path(__file__).resolve().parents[2]
 SERVICES_DIR = ROOT / "services/portal/internal/services"
 HUB_HTML = SERVICES_DIR / "index.html"
 NAV_TREE = ROOT / "services/frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json"
+
+
+def _normalized(html_text: str, path: Path) -> str:
+    """Apply the same normalization pipeline that ``make docs-fix`` runs after
+    rendering — so ``--check`` compares apples to apples with the committed
+    (post-normalization) shape, not against the transient render output.
+    """
+    return _finalize(_repair_html(html_text), path)
+
 
 START = "<!-- catalog:start"
 END = "<!-- catalog:end -->"
@@ -655,23 +667,32 @@ def render_all(*, check: bool) -> int:
     diffs: list[str] = []
 
     # Per-service entity cards — indent 6 (inside <article class="docs-prose"> at 4).
+    # Compare the render+normalize output against the committed shape so drift
+    # picks up only real content changes, not the transient render indent.
     for svc in services:
         path = SERVICES_DIR / svc["_name"] / "index.html"
         src = path.read_text()
         new = _replace_region(src, "entity-card", render_entity_card(svc), indent=6)
-        if new != src:
+        if check:
+            if _normalized(new, path) != src:
+                diffs.append(str(path.relative_to(ROOT)))
+        elif new != src:
             diffs.append(str(path.relative_to(ROOT)))
-            if not check:
-                path.write_text(new)
+            path.write_text(new)
 
-    # Hub: grid (8-col indent) + tickers (10-col indent).
+    # Hub: grid + tickers — both at 10-col indent (matches the shape
+    # `repair_docs_html.py` normalizes the surrounding markup to; keeping
+    # both in sync means the downstream normalizer is a no-op and neither
+    # pass makes the file diff-dirty on repeated docs-check runs).
     hub_src = HUB_HTML.read_text()
-    new_hub = _replace_region(hub_src, "catalog-grid", render_hub_grid(services), indent=8)
+    new_hub = _replace_region(hub_src, "catalog-grid", render_hub_grid(services), indent=10)
     new_hub = _replace_region(new_hub, "catalog-tickers", render_hub_tickers(services), indent=10)
-    if new_hub != hub_src:
+    if check:
+        if _normalized(new_hub, HUB_HTML) != hub_src:
+            diffs.append(str(HUB_HTML.relative_to(ROOT)))
+    elif new_hub != hub_src:
         diffs.append(str(HUB_HTML.relative_to(ROOT)))
-        if not check:
-            HUB_HTML.write_text(new_hub)
+        HUB_HTML.write_text(new_hub)
 
     # Sidebar nav: rewrite the `services` subtree only, preserve all siblings.
     nav = json.loads(NAV_TREE.read_text())
