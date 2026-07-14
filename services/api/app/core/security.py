@@ -11,7 +11,7 @@ from fastapi import Request
 from starlette.responses import JSONResponse, Response
 
 from app.core.config import Settings
-from app.errors.common import COMMON_401, COMMON_500
+from app.errors.common import COMMON_401
 from app.errors.types import StableError
 
 
@@ -156,40 +156,25 @@ def is_protected_api_request(request: Request, settings: Settings) -> bool:
 
 
 def authenticate_request(request: Request, settings: Settings) -> JSONResponse | None:
-    """Validate credentials according to ``settings.api_auth_strategy``.
+    """Validate the API key carried in the ``settings.api_auth_header`` header.
 
     Args:
         request: Incoming ASGI request (headers inspected).
-        settings: Auth strategy and secret configuration.
+        settings: Auth header name and expected key.
 
     Returns:
-        ``None`` if the request is allowed, otherwise a ready-to-send error
-        :class:`~starlette.responses.JSONResponse` (401 or 500).
+        ``None`` if the request is allowed, otherwise a ready-to-send 401
+        :class:`~starlette.responses.JSONResponse`.
     """
-    strategy = settings.api_auth_strategy.strip().lower()
-    if strategy in {"disabled", "none", "off"}:
+    provided_key = request.headers.get(settings.api_auth_header)
+    if provided_key == settings.api_auth_key:
         return None
-
-    if strategy == "mock_api_key":
-        provided_key = request.headers.get(settings.api_auth_header)
-        if provided_key == settings.api_mock_api_key:
-            return None
-        return JSONResponse(
-            status_code=401,
-            content={
-                "detail": build_security_error_payload(
-                    COMMON_401,
-                    message=(f"Missing or invalid API key in header `{settings.api_auth_header}`."),
-                )
-            },
-        )
-
     return JSONResponse(
-        status_code=500,
+        status_code=401,
         content={
             "detail": build_security_error_payload(
-                COMMON_500,
-                message=f"Unsupported auth strategy: `{settings.api_auth_strategy}`.",
+                COMMON_401,
+                message=(f"Missing or invalid API key in header `{settings.api_auth_header}`."),
             )
         },
     )

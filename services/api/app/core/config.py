@@ -149,10 +149,11 @@ class Settings:
         api_body_max_bytes: Maximum accepted HTTP request body size in bytes.
         api_rate_limit_requests: Request cap per client identifier per window for protected routes.
         api_rate_limit_window_seconds: Duration of the rate-limit window in seconds.
-        api_auth_strategy: Authentication strategy identifier (e.g. ``mock_api_key``).
-        api_mock_api_key: Expected secret when using the mock API key strategy.
+        api_auth_key: Expected API key value for protected routes.
         api_auth_header: HTTP header name that carries the API key.
         api_protected_prefix: URL path prefix that requires authentication and rate limiting.
+        telegram_bot_token: Telegram bot token from BotFather (empty when the bot is disabled).
+        telegram_chat_id: Maintainer's Telegram chat id for bot pushes (empty when unused).
         metrics_enabled: Whether Prometheus metrics collection and ``/metrics`` are enabled.
         metrics_path: HTTP path exposing Prometheus text exposition.
         readiness_db_timeout_ms: Maximum acceptable database ping duration for readiness.
@@ -178,10 +179,11 @@ class Settings:
     api_body_max_bytes: int
     api_rate_limit_requests: int
     api_rate_limit_window_seconds: int
-    api_auth_strategy: str
-    api_mock_api_key: str
+    api_auth_key: str
     api_auth_header: str
     api_protected_prefix: str
+    telegram_bot_token: str
+    telegram_chat_id: str
     metrics_enabled: bool
     metrics_path: str
     readiness_db_timeout_ms: int
@@ -297,10 +299,11 @@ def get_settings() -> Settings:
         api_body_max_bytes=max(1024, int(os.getenv("API_BODY_MAX_BYTES", "1048576"))),
         api_rate_limit_requests=max(1, int(os.getenv("API_RATE_LIMIT_REQUESTS", "60"))),
         api_rate_limit_window_seconds=max(1, int(os.getenv("API_RATE_LIMIT_WINDOW_SECONDS", "60"))),
-        api_auth_strategy=os.getenv("API_AUTH_STRATEGY", "mock_api_key").strip() or "mock_api_key",
-        api_mock_api_key=os.getenv("API_MOCK_API_KEY", "local-dev-key").strip() or "local-dev-key",
+        api_auth_key=os.getenv("API_AUTH_KEY", "local-dev-key").strip() or "local-dev-key",
         api_auth_header=os.getenv("API_AUTH_HEADER", "X-API-Key").strip() or "X-API-Key",
         api_protected_prefix=os.getenv("API_PROTECTED_PREFIX", "/api/v1").strip() or "/api/v1",
+        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", "").strip(),
+        telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", "").strip(),
         metrics_enabled=_as_bool(os.getenv("METRICS_ENABLED", "true"), True),
         metrics_path=os.getenv("METRICS_PATH", "/metrics").strip() or "/metrics",
         readiness_db_timeout_ms=max(50, int(os.getenv("READINESS_DB_TIMEOUT_MS", "250"))),
@@ -315,10 +318,8 @@ def get_settings() -> Settings:
     )
 
     if settings.app_env in {"qa", "prod"}:
-        if settings.api_auth_strategy == "disabled":
-            raise ValueError("API_AUTH_STRATEGY=disabled is not allowed in qa/prod.")
-        if settings.api_mock_api_key == "local-dev-key":
-            raise ValueError("Set a non-default API_MOCK_API_KEY for qa/prod.")
+        if settings.api_auth_key == "local-dev-key":
+            raise ValueError("Set a non-default API_AUTH_KEY for qa/prod.")
         if not settings.metrics_enabled:
             raise ValueError("METRICS_ENABLED must be true in qa/prod.")
 

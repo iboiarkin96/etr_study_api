@@ -6,9 +6,11 @@ import logging
 from typing import Any, cast
 
 from fastapi import HTTPException
+from sqlalchemy import select
 
-from app.errors.user import USER_101, USER_102, USER_404
+from app.errors.user import USER_101, USER_102, USER_103, USER_404
 from app.models.core.user import User
+from app.models.reference.system import System
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreateRequest, UserPatchRequest, UserUpdateRequest
 
@@ -50,10 +52,26 @@ class UserService:
             Persisted :class:`~app.models.core.user.User` after save.
 
         Raises:
-            fastapi.HTTPException: 400 with ``USER_CREATE_ALREADY_EXISTS`` when the composite key exists.
+            fastapi.HTTPException: 422 with ``USER_CREATE_SYSTEM_NOT_FOUND`` when the
+                referenced ``system_uuid`` is not in the ``systems`` table; 400 with
+                ``USER_CREATE_ALREADY_EXISTS`` when the composite key exists.
         """
         su_id = str(payload.system_user_id)
         sys_uuid = str(payload.system_uuid)
+
+        system_exists = self.repository.session.execute(
+            select(System.system_uuid).where(System.system_uuid == sys_uuid)
+        ).scalar_one_or_none()
+        if system_exists is None:
+            logger.warning(
+                "create_user_unknown_system system_user_id=%s system_uuid=%s",
+                su_id,
+                sys_uuid,
+            )
+            raise HTTPException(
+                status_code=422,
+                detail=USER_103.as_detail("business"),
+            )
 
         if self.repository.get_by_system_user_id_and_system_uuid(su_id, sys_uuid) is not None:
             logger.warning(

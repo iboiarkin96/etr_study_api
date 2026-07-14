@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from starlette.responses import Response
 
 from app.api.v1.conspectus import router as conspectus_router
@@ -42,7 +43,7 @@ from app.core.security import (
     extract_client_id,
     is_protected_api_request,
 )
-from app.errors.common import COMMON_413, COMMON_429
+from app.errors.common import COMMON_413, COMMON_422, COMMON_429
 from app.schemas.system import LiveResponse, ReadyResponse
 from app.validation.dispatch import build_validation_error_payload
 
@@ -263,6 +264,29 @@ async def request_context_middleware(request: Request, call_next) -> Response:
         reset_request_context(token)
     response.headers["X-Request-Id"] = rid
     return response
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:
+    """Map SQLAlchemy integrity errors (FK / unique / check) to a 422 envelope.
+
+    Args:
+        request: Incoming request whose write violated a DB constraint.
+        exc: SQLAlchemy exception; the driver detail is logged, not surfaced to clients.
+
+    Returns:
+        JSON response with status 422 and the ``COMMON_422`` envelope.
+    """
+    logger.warning(
+        "persistence_integrity_violation method=%s path=%s detail=%s",
+        request.method,
+        request.url.path,
+        getattr(exc.orig, "diag", None) or str(exc.orig),
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": COMMON_422.as_detail("business")},
+    )
 
 
 @app.exception_handler(RequestValidationError)
