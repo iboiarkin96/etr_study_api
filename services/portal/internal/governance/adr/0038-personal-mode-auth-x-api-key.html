@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADR 0038 · Personal-mode auth — reuse X-API-Key, defer JWT · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="api" data-lifecycle="published" data-updated="2026-07-14" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">ADR</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0038</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <div class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">ADR · 0038</span>
+          <div class="lifecycle-popover">
+            <a class="docs-pill docs-pill--success" href="0018-adr-lifecycle-ratification-and-badges.html">Accepted</a>
+            <div class="lifecycle-popover__panel" role="tooltip">
+              <span class="lifecycle-popover__title">Lifecycle · this ADR</span>
+              <ol class="lifecycle-popover__stages">
+                <li class="lifecycle-popover__stage" data-stage="decision">
+                  <span class="lifecycle-popover__stage-label">Decision</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Proposed</li>
+                    <li class="is-current">Accepted</li>
+                    <li>Superseded</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="documentation">
+                  <span class="lifecycle-popover__stage-label">Documentation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Draft</li>
+                    <li class="is-current">Ready</li>
+                  </ul>
+                </li>
+                <li class="lifecycle-popover__stage" data-stage="implementation">
+                  <span class="lifecycle-popover__stage-label">Implementation</span>
+                  <ul class="lifecycle-popover__states">
+                    <li>Not started</li>
+                    <li class="is-current">In progress</li>
+                    <li>Done</li>
+                  </ul>
+                </li>
+              </ol>
+              <a class="lifecycle-popover__link" href="0018-adr-lifecycle-ratification-and-badges.html">Open ADR 0018 →</a>
+            </div>
+          </div>
+        </div>
+        <h1>Personal-mode auth — reuse <code>X-API-Key</code>, defer Telegram initData → JWT</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          The Telegram Mini App epic ships in personal mode — one maintainer, one identity. Keep the API's existing
+          <code>X-API-Key</code> header check as the auth. Drop the <code>API_AUTH_STRATEGY</code> switch, keep a plain
+          <code>API_AUTH_HEADER</code> + <code>API_AUTH_KEY</code> pair. The Telegram
+          <code>initData</code> HMAC → JWT path (originally the top clause of the epic's «Locked decisions») is
+          deferred to the multi-user epic and becomes mandatory before any second user reaches the app.
+          Amends <a href="0005-api-security-defaults.html">ADR 0005</a>'s auth-strategy clause; amends
+          <a href="0010-env-profiles-and-config-governance.html">ADR 0010</a>'s env-profile guard rule.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>ADR</dt>
+          <dd><code>0038</code> — Personal-mode auth (X-API-Key)</dd>
+          <dt>Category</dt>
+          <dd>security · api</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Decided on</dt>
+          <dd><time datetime="2026-07-14">2026-07-14</time></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-07-14">2026-07-14</time></dd>
+          <dt>Related</dt>
+          <dd>
+            <a href="0005-api-security-defaults.html">ADR-0005</a> (API security defaults — auth-strategy clause amended here),
+            <a href="0010-env-profiles-and-config-governance.html">ADR-0010</a> (env profiles — guard rule amended here),
+            <a href="../backlog/telegram-mini-app-epic.html">Telegram Mini App epic</a> (drives this ADR).
+          </dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="context-h">
+        <h2 id="context-h">Context</h2>
+        <p>The Telegram Mini App epic was drafted with «JWT (stateless) issued from Telegram <code>initData</code>» as a locked auth decision — HMAC-verify the payload the WebApp SDK provides, upsert the user, mint a 24 h JWT, guard every <code>/api/v1/*</code> route. The rationale: no session table, no revocation ceremony, and the day one identity (the Telegram user) equals the day one account.</p>
+        <p>Three facts changed the calculus when the plan was audited against the shipped code:</p>
+        <ul>
+          <li><strong>The API already enforces auth.</strong> A middleware in <code>app/main.py</code> gates every <code>/api/v1/*</code> path on <code>X-API-Key</code>. Reusing it is zero code; adding a JWT layer beside it is a new dependency (<code>PyJWT</code>), a new endpoint (<code>POST /api/v1/auth/telegram</code>), a new schema migration (five columns on <code>users</code>), and a new client-side token-storage story (<code>CloudStorage</code> — not <code>localStorage</code>).</li>
+          <li><strong>The MVP audience is one person.</strong> Every scope choice in the epic's «Locked decisions» collapses to «maintainer only». Anything the JWT layer would buy — cross-user identity mapping, revocation, per-user rate limits — has no consumer in this epic.</li>
+          <li><strong>Dev-loop cost of initData.</strong> The Vite-in-browser dev path (the primary loop this week) has no signed <code>initData</code>. Making it real means either running through a Cloudflare Tunnel with a real Telegram client on every keystroke, or a dev-only signing helper that adds another surface to keep in sync with the verifier. Header-key auth is agnostic to how the page was opened.</li>
+        </ul>
+        <p>The already-shipped auth also carries dead ceremony from a time when we planned multiple strategies: <code>API_AUTH_STRATEGY</code> is a switch between <code>mock_api_key</code> (the only implemented option), <code>disabled</code>, and a placeholder branch that returns 500 for anything else. Simplifying it — one header, one key, one guard — costs less than keeping it around.</p>
+      </section>
+
+      <section aria-labelledby="decision-h">
+        <h2 id="decision-h">Decision</h2>
+        <p>Keep the existing header-key auth, simplified. Defer initData → JWT to the multi-user epic. Four clauses.</p>
+        <ol>
+          <li><strong>D1 — <code>X-API-Key</code> is the only auth for <code>/api/v1/*</code>.</strong> Middleware compares the header value against a single expected key. <code>/live</code> and <code>/ready</code> stay open, matching <a href="0009-health-readiness-and-observability.html">ADR 0009</a>. The Mini App client (<code>services/telegram/web/</code>) injects <code>VITE_API_KEY</code> into every request via an OpenAPI-generated interceptor; every write also carries a fresh <code>Idempotency-Key</code> per <a href="0006-idempotency-write-operations.html">ADR 0006</a>.</li>
+          <li><strong>D2 — Drop <code>API_AUTH_STRATEGY</code>.</strong> The switch had one working branch (<code>mock_api_key</code>) and two dead branches (<code>disabled</code>, unknown). It is removed from <code>app/core/security.py</code> and <code>app/core/config.py</code>. Two env vars survive: <code>API_AUTH_HEADER</code> (default <code>X-API-Key</code>) and <code>API_AUTH_KEY</code> (renamed from <code>API_MOCK_API_KEY</code>, same semantics). The qa/prod invariant flips from «strategy ≠ <code>disabled</code>» to «<code>API_AUTH_KEY</code> ≠ <code>local-dev-key</code>».</li>
+          <li><strong>D3 — The Telegram identity migration is not shipped now.</strong> The <code>users.telegram_user_id / telegram_username / telegram_photo_url / locale</code> columns, the <code>POST /api/v1/auth/telegram</code> endpoint, the <code>PyJWT</code> dependency, the <code>WebApp.CloudStorage</code> token dance — all deferred to the multi-user epic. Nothing about them is written in a way that blocks the future migration; when it lands, both auth paths coexist for the switchover window.</li>
+          <li><strong>D4 — Key ships in the bundle; documented, not hidden.</strong> Because there is no token-exchange step, <code>VITE_API_KEY</code> is baked into the Mini App bundle at build time. Anyone who opens the deployed URL can read it. This is acceptable in personal mode — the key guards one user's data, the rotation surface is one file, and the exposure disappears entirely when D3 unwinds. It is <em>not</em> acceptable the day another human logs in; that day the multi-user epic starts.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="scope-h">
+        <h2 id="scope-h">Scope</h2>
+        <ul>
+          <li><strong>In scope:</strong> the auth middleware and its config knobs, the qa/prod guard, the env-profile files (<code>env/example</code>, <code>env/dev</code>), the two test files that exercise the auth flow, and the portal doc pages that named the old vars.</li>
+          <li><strong>In scope:</strong> the <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code> settings surface — introduced now so the bot half of the epic (<a href="../backlog/telegram-mini-app-epic.html">W5</a>) has somewhere to read them. Both empty by default; the bot is disabled until they are set.</li>
+          <li><strong>Out of scope:</strong> the Telegram <code>initData</code> HMAC verifier, the JWT mint/verify path, the CloudStorage token layer, and the identity migration. These belong to the multi-user epic and are gated by its opening.</li>
+          <li><strong>Out of scope:</strong> the OpenAPI security scheme change — the shipped baseline already models the key as <code>apiKey / header / X-API-Key</code>; nothing to edit beyond regenerating the baseline after the config-var rename.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="alternatives-h">
+        <h2 id="alternatives-h">Alternatives considered <span class="docs-pill docs-pill--rose docs-pill--inline">MANDATORY · MIN 2</span></h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Ship initData → JWT now, as originally planned</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the epic's own «Locked decisions» table put JWT there for a reason — it makes the day-one identity equal the Telegram user, and it kills the «key ships in the bundle» risk before it exists.</p>
+              <p><strong>Why rejected:</strong> in personal mode the JWT gets nothing done that the header key does not. The costs — new dependency, new endpoint, five-column schema migration, a token-exchange step that has to work in three dev topologies (plain browser, tunnel, real Telegram) — buy a property (multi-identity) that the epic explicitly forbids in its «Audience: maintainer only» clause. Correct move: build the property when the constraint changes, not before.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Keep the strategy switch, only defer initData</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the smallest patch — keep <code>API_AUTH_STRATEGY=mock_api_key</code> as-is, don't touch the dead branches, defer JWT alone. Zero risk of regressions in the existing tests.</p>
+              <p><strong>Why rejected:</strong> the strategy switch is dead ceremony. <code>disabled</code> is explicitly forbidden in qa/prod already; unknown branches return 500. Nothing chooses between them at runtime. Every doc page that mentions it — three ADRs, two runbooks, two authoring pages — is teaching contributors a knob that does not turn. Removing it is one commit and clears the concept from the codebase; keeping it is drag on every reader.</p>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Signed shared secret in a <code>Bearer</code> header (custom JWT-lite)</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> reuse the <code>Authorization: Bearer …</code> shape so the eventual JWT swap is a client-side no-op (same header, richer payload).</p>
+              <p><strong>Why rejected:</strong> re-implements the shape without reimplementing the safety. A HS256 JWT with a shared secret in the bundle offers no additional security over a raw shared key — you still ship the key, you still can't revoke, and you now have a new signature verifier to maintain. The eventual JWT swap is one interceptor edit away from the header-key setup; there is nothing to «prepare» here.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="consequences-h">
+        <h2 id="consequences-h">Consequences</h2>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card" data-tone="success">
+            <div class="docs-card__head"><h3 class="docs-card__title">Positive</h3><span class="docs-pill docs-pill--success">wins</span></div>
+            <div class="docs-card__body">
+              <ul>
+                <li><strong>Zero new auth machinery.</strong> The middleware, tests, and doc pages already exist. The change is a rename plus a switch removal — smaller blast radius than a fresh integration.</li>
+                <li><strong>Browser-tab dev works out of the box.</strong> Vite on <code>localhost:5173</code> reaches the API with a header set from <code>VITE_API_KEY</code>. No tunnel, no signed <code>initData</code>, no bot-token dependency for UI work.</li>
+                <li><strong>Config surface shrinks.</strong> Two env vars become one; the strategy branch and its qa/prod guard collapse into a single non-default-key check.</li>
+                <li><strong>The epic's cut line is achievable.</strong> W1 becomes «config tidy + ADR + baseline», not «new endpoint + migration + JWT integration». The 2026-07-17 local-test checkpoint stays reachable.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Trade-offs</h3><span class="docs-pill docs-pill--warn">costs</span></div>
+            <div class="docs-card__body">
+              <ul class="rail-list" data-tone="rose">
+                <li><strong>Key ships in the bundle.</strong> Anyone who opens the deployed Mini App URL reads <code>VITE_API_KEY</code>. Acceptable in personal mode; unacceptable the moment audience opens. Mitigation: rotate on suspicion of leak; the rotation cost is a single env write plus a redeploy.</li>
+                <li><strong>No per-user identity yet.</strong> The API cannot answer «who is the caller» beyond «someone with the key». Every existing endpoint already models identity via the <code>(system_user_id, system_uuid)</code> pair in the request payload, so business logic keeps working; observability loses the ability to attribute traffic to a Telegram user until D3 unwinds.</li>
+                <li><strong>Multi-user epic must ship before a second user.</strong> This is a hard invariant, not a soft aspiration. If a second person is about to log in and the JWT swap is not merged, the swap is the blocker — not «we'll add auth later».</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+        <h3>Revisit — would we do this again?</h3>
+        <p><strong>Yes.</strong> One refinement worth noting up-front:</p>
+        <ul class="rail-list" data-tone="info">
+          <li><strong>Write the multi-user auth ADR at the same time as the personal-mode one.</strong> This ADR names its own sunset condition — the day a second user shows up — but the ADR that replaces it does not exist yet. Having the successor drafted (even as Proposed) would make the deferral concrete rather than a promise.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="compatibility-h">
+        <h2 id="compatibility-h">Compatibility and migration</h2>
+        <ul>
+          <li><strong>Backward compatibility.</strong> None with <code>API_AUTH_STRATEGY</code> / <code>API_MOCK_API_KEY</code>. Contributors update their local <code>.env</code> once: replace both lines with <code>API_AUTH_KEY=…</code>. The header name (<code>API_AUTH_HEADER</code>) is unchanged; the wire contract is unchanged; the OpenAPI security scheme is unchanged.</li>
+          <li><strong>Migration path for the future JWT swap.</strong> The multi-user auth ADR will add a <code>POST /api/v1/auth/telegram</code> endpoint and a JWT verifier as a second middleware layer. Both auth methods coexist during the switchover window; the header-key check is removed the day the last client migrates.</li>
+          <li><strong>Rollback.</strong> Revert this commit set. The strategy switch and the old env vars come back; the Mini App keeps working because the header contract did not change. No data-shape rollback needed.</li>
+          <li><strong>Old ADR pointers.</strong> <a href="0005-api-security-defaults.html">ADR 0005</a>'s auth-strategy clause (and the <code>API_AUTH_STRATEGY / API_MOCK_API_KEY</code> row in its config table) is superseded by clauses D1–D2 above. ADR 0005 stays Accepted for its wider security-baseline scope. <a href="0010-env-profiles-and-config-governance.html">ADR 0010</a>'s qa/prod invariant row «<code>API_AUTH_STRATEGY=disabled</code> forbidden» is superseded by «default <code>API_AUTH_KEY</code> forbidden» — same intent, adjusted for the collapsed switch.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="implementation-h">
+        <h2 id="implementation-h">Implementation in this repository</h2>
+        <p>The change is scoped as the T-01…T-04 stripe of the <a href="../backlog/telegram-mini-app-epic.html">Telegram Mini App epic</a> (four dated tasks, all landing 2026-07-14).</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead><tr><th>Category</th><th>Path</th><th>Note</th></tr></thead>
+            <tbody>
+              <tr><td>Middleware</td><td><code>services/api/app/core/security.py</code></td><td><code>authenticate_request()</code> collapses to a single header-key compare; the strategy switch and the 500 «Unsupported strategy» branch are removed.</td></tr>
+              <tr><td>Config</td><td><code>services/api/app/core/config.py</code></td><td><code>api_auth_strategy</code> field removed; <code>api_mock_api_key</code> renamed to <code>api_auth_key</code>; qa/prod guard now «key must be non-default». New fields <code>telegram_bot_token</code>, <code>telegram_chat_id</code> (both empty by default).</td></tr>
+              <tr><td>Env profiles</td><td><code>env/example</code>, <code>env/dev</code></td><td><code>API_AUTH_STRATEGY</code> + <code>API_MOCK_API_KEY</code> replaced by <code>API_AUTH_KEY</code>. <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code> plumbed. <code>CORS_ALLOW_ORIGINS</code> gains <code>http://localhost:5173</code> and <code>http://127.0.0.1:5173</code> (Vite dev origin).</td></tr>
+              <tr><td>Tests</td><td><code>tests/conftest.py</code>, <code>tests/core/test_config_profiles.py</code>, <code>tests/api/v1/test_security_defaults.py</code></td><td>Fixture env switches to <code>API_AUTH_KEY</code>; the «qa rejects <code>disabled</code>» test becomes «qa rejects default key»; a new <code>test_protected_route_rejects_wrong_api_key</code> pins the 401 contract on protected routes.</td></tr>
+              <tr><td>Portal docs</td><td><code>services/portal/internal/handbook/sa/authoring/local-development.html</code>, <code>docker-image-and-container.html</code>, <code>services/portal/internal/services/api/runbooks/security-failing.html</code></td><td>Auth-var mentions swapped to <code>API_AUTH_KEY</code>; the strategy-switch step removed from the runbook.</td></tr>
+              <tr><td>ADR amendments</td><td><code>0005-api-security-defaults.html</code>, <code>0010-env-profiles-and-config-governance.html</code></td><td>Inline «Amended by ADR 0038» pointers on the auth-strategy clause and the qa/prod guard row; history rows added.</td></tr>
+              <tr><td>OpenAPI baseline</td><td><code>services/portal/public/reference/api/openapi.json</code></td><td>Regenerated via <code>make openapi-regen</code>; <code>make openapi-check</code> gates canon parity.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li><strong>Auth contract:</strong> <code>curl /live</code> returns 200 without a key; <code>curl /api/v1/conspectuses</code> returns 401 without a key and 401 with a wrong key; <code>curl -H "X-API-Key: local-dev-key" /api/v1/conspectuses?…</code> returns 200 with valid params. Confirmed against dev-tier Postgres on 2026-07-14.</li>
+          <li><strong>Test suite:</strong> <code>make test</code> (pytest, testcontainers-python) green — auth cases exercise valid / missing / wrong key and the qa/prod default-key guard.</li>
+          <li><strong>Config guard:</strong> <code>APP_ENV=qa API_AUTH_KEY=local-dev-key python -c "from app.core.config import get_settings; get_settings()"</code> raises <code>ValueError: Set a non-default API_AUTH_KEY for qa/prod.</code></li>
+          <li><strong>OpenAPI parity:</strong> <code>make openapi-check</code> passes; <code>services/portal/public/reference/api/openapi.json</code> regenerated with no diff beyond the config field rename in the security scheme's documentation.</li>
+          <li><strong>Docs check:</strong> <code>make docs-check</code> passes — nav, catalog, and search index consistent with the ADR addition.</li>
+          <li><strong>Grep hygiene:</strong> <code>rg 'API_AUTH_STRATEGY|API_MOCK_API_KEY'</code> returns only history-of-record references (this ADR, ADR 0005's amendment banner, ADR 0010's amendment row, CHANGELOG entry).</li>
+        </ul>
+      </section>
+
+      <footer class="docs-history" aria-label="History">
+        <h2 class="docs-history__title">History</h2>
+        <ul class="docs-history__list">
+          <li class="docs-history__row">
+            <span class="docs-history__date">2026-07-14</span>
+            <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+            <span class="docs-history__note">Proposed &amp; same-day Accepted. Personal-mode auth reuses the existing <code>X-API-Key</code> header; the <code>API_AUTH_STRATEGY</code> switch is dropped, <code>API_MOCK_API_KEY</code> becomes <code>API_AUTH_KEY</code>, and the qa/prod invariant flips from «strategy ≠ disabled» to «key ≠ default». Telegram <code>initData</code> → JWT and the <code>users.telegram_*</code> identity migration are deferred to the multi-user epic and become mandatory before a second user reaches the app. Amends <a href="0005-api-security-defaults.html">ADR 0005</a> (auth-strategy clause) and <a href="0010-env-profiles-and-config-governance.html">ADR 0010</a> (qa/prod guard row). Drives the T-01…T-04 stripe of the <a href="../backlog/telegram-mini-app-epic.html">Telegram Mini App epic</a>.</span>
+          </li>
+        </ul>
+      </footer>
+
+    </article>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#context-h">Context</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#decision-h">Decision</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#scope-h">Scope</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#alternatives-h">Alternatives</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#consequences-h">Consequences</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#compatibility-h">Compatibility</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#implementation-h">Implementation</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#validation-h">Validation</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
