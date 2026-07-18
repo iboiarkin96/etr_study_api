@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="architect">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -45,6 +45,17 @@
           <li><strong>PII:</strong> zero. Never send conspectus content, never send free-text errors, never send usernames. Server-generated UUIDs are OK.</li>
           <li><strong>Timing:</strong> emitted synchronously with the user action, not after the resulting API response. Optimistic UX means the analytics is optimistic too.</li>
         </ul>
+      </section>
+
+      <section aria-labelledby="identity-h">
+        <h2 id="identity-h">Identity model</h2>
+        <p>PostHog attributes every event to a <code>distinct_id</code>. Under the multi-user JWT flow (W1) the answer is <code>users.client_uuid</code> — the same value the JWT carries as its <code>sub</code> claim, non-PII, stable across devices.</p>
+        <p>The wrinkle: <code>app_opened</code> fires on cold mount, <em>before</em> <code>POST /auth/telegram</code> returns. Two-step handling:</p>
+        <ol class="numbered-step-list">
+          <li><div><strong>Cold mount → anonymous session.</strong> PostHog auto-generates a <code>distinct_id</code> for the visitor. <code>app_opened</code> + any pre-bootstrap event is attached to it. Do not call <code>identify()</code> yet — the client has no verified user id.</div></li>
+          <li><div><strong>Post-bootstrap → link the anonymous session.</strong> Once <code>/auth/telegram</code> returns <code>{ jwt, user }</code>, call <code>posthog.identify(user.client_uuid, { locale: user.locale })</code>. PostHog's built-in aliasing merges the anonymous session into the identified one — the pre-bootstrap <code>app_opened</code> row now attributes to the real user in dashboards.</div></li>
+        </ol>
+        <p><strong>Never send</strong> <code>telegram_user_id</code>, <code>telegram_username</code>, or <code>first_name</code> as event properties or as the <code>distinct_id</code>. The Telegram-side identifiers stay server-side in <code>telegram_users</code>; PostHog only ever sees the internal UUID.</p>
       </section>
 
       <section aria-labelledby="events-h">
@@ -174,6 +185,11 @@
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
         <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Added an «Identity model» subsection. Under W1's multi-user JWT flow every session has a verified <code>users.client_uuid</code> that PostHog can attribute to — but <code>app_opened</code> fires <em>before</em> the auth bootstrap returns, so events start on an anonymous <code>distinct_id</code> and get merged when <code>identify(client_uuid)</code> is called post-bootstrap. Also pinned the «never send Telegram-side identifiers» invariant (<code>telegram_user_id</code> / <code>telegram_username</code> / <code>first_name</code> stay server-side in <code>telegram_users</code>). T-26 (PostHog + Sentry ship) will implement this exactly as spelled out here.</span>
+        </li>
+        <li class="docs-history__row">
           <span class="docs-history__date">2026-07-15</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
           <span class="docs-history__note">Event spec created. 12 events, 4 funnels, naming + PII conventions, three-step add/deprecate/remove lifecycle.</span>
@@ -186,6 +202,7 @@
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
       <li class="docs-toc__item"><a class="docs-toc__link" href="#conventions-h">Conventions</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#identity-h">Identity model</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#events-h">Events</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#funnels-h">Funnels</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#lifecycle-h">Event lifecycle</a></li>    </ol>

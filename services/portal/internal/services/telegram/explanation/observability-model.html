@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="architect">
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -35,7 +35,7 @@
     <article class="docs-prose">
       <h1>Observability model</h1>
       <div id="docs-top-nav"></div>
-      <p class="lede">Two observability stacks — one for the client, one for the backend — joined by a single <code>correlation_id</code>. This page explains <em>why</em> the split exists, <em>why</em> we don't collapse it to a single tool, and <em>how</em> the two halves connect end-to-end.</p>
+      <p class="lede">Two observability stacks — one for the client, one for the backend — joined by a single <code>request_id</code>. This page explains <em>why</em> the split exists, <em>why</em> we don't collapse it to a single tool, and <em>how</em> the two halves connect end-to-end.</p>
 
       <section aria-labelledby="stacks-h">
         <h2 id="stacks-h">The two stacks</h2>
@@ -94,25 +94,25 @@
 
       <section aria-labelledby="join-h">
         <h2 id="join-h">How the two stacks join</h2>
-        <p>Every request the client makes carries an <code>X-Correlation-ID</code> header — a UUID generated client-side per user gesture. The API middleware logs it on every request; PostHog and Sentry tag every event with the same UUID.</p>
+        <p>Every request the client makes carries an <code>X-Request-Id</code> header — a UUID generated client-side per user gesture. The API middleware logs it on every request; PostHog and Sentry tag every event with the same UUID.</p>
         <p>Result: any incident is triangulable across the split.</p>
         <pre><code>User: "Today screen shows an error"
     │
     ▼
-PostHog:  user_id=42  screen=today  event=screen_error  correlation_id=abc123  ts=14:23:07
+PostHog:  distinct_id=ab12cd34-...  screen=today  event=screen_error  request_id=abc123  ts=14:23:07
     │
     ▼
-Sentry:   correlation_id=abc123  TypeError in useDueList.ts:15  release=v1.2.3
+Sentry:   request_id=abc123  TypeError in useDueList.ts:15  release=v1.2.3
     │
     ▼
 Grafana:  /api/v1/conspectuses/due  p99 latency spike at 14:23  error_rate 12%
     │
     ▼
-Kibana:   correlation_id=abc123  psycopg.OperationalError: connection timeout
+Kibana:   request_id=abc123  psycopg.OperationalError: connection timeout
     │
     ▼
 Root cause: Postgres connection pool exhausted at 14:23 due to a slow migration lock.</code></pre>
-        <p>Four tools, one correlation_id, four minutes from user report to root cause.</p>
+        <p>Four tools, one <code>request_id</code>, four minutes from user report to root cause. The <code>distinct_id</code> ties every event to a <code>users.client_uuid</code>; Telegram-side identifiers stay server-side — see the identity model on <a href="../reference/event-spec.html#identity-h">event-spec</a>.</p>
       </section>
 
       <section aria-labelledby="dashboards-h">
@@ -121,7 +121,7 @@ Root cause: Postgres connection pool exhausted at 14:23 due to a slow migration 
         <ul>
           <li><strong>«API health» dashboard</strong> — Prometheus data.</li>
           <li><strong>«Client analytics» dashboard</strong> — PostHog data (via the Grafana PostHog plugin or PostHog's HTTP API).</li>
-          <li><strong>«Errors end-to-end» dashboard</strong> — Sentry + Elastic side by side, filterable by <code>correlation_id</code>.</li>
+          <li><strong>«Errors end-to-end» dashboard</strong> — Sentry + Elastic side by side, filterable by <code>request_id</code>.</li>
         </ul>
         <p>Sentry and PostHog also have their own product UIs — better than Grafana at what they specialise in (Sentry: exception-triage workflow; PostHog: funnel-building UX). Grafana is the on-call landing page; the specialised UIs are drill-downs.</p>
       </section>
@@ -146,7 +146,7 @@ Root cause: Postgres connection pool exhausted at 14:23 due to a slow migration 
         <ul>
           <li><strong>Two vendors.</strong> PostHog (client analytics) + Sentry (client errors) are external SaaS. Both have free tiers that cover a small tester cohort; paid tiers if usage grows.</li>
           <li><strong>Two on-call habits.</strong> «Check Grafana first» + «check Sentry when the console screams». Documented in <a href="../on-call.html">on-call</a>.</li>
-          <li><strong>Correlation-id discipline.</strong> Every request must carry it; every log must record it; every event must tag it. Enforced by the shared API client — never optional.</li>
+          <li><strong>Request-id discipline.</strong> Every request must carry <code>X-Request-Id</code>; every log must record it; every PostHog and Sentry event must tag it. Enforced by the shared API client — never optional.</li>
         </ul>
         <p>The cost is real. The alternative — pretend one stack fits both, then patch around the mismatch — is worse in every dimension that matters.</p>
       </section>
@@ -156,6 +156,11 @@ Root cause: Postgres connection pool exhausted at 14:23 due to a slow migration 
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Two contract fixes against the shipped W1 code. <em>(1)</em> The join header is <code>X-Request-Id</code>, not <code>X-Correlation-ID</code> — the API middleware (<code>app/main.py</code> <code>request_context_middleware</code>) reads and echoes exactly that; sending a differently-named header wouldn't join the two stacks. <em>(2)</em> Worked example rewritten to use <code>distinct_id</code> (= <code>users.client_uuid</code>) instead of <code>user_id=42</code>, aligning with the identity model just pinned on event-spec: Telegram-side identifiers never leave the server. Cross-link to that section added.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-15</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
