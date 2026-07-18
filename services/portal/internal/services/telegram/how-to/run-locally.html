@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="swe">
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="swe">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -35,7 +35,7 @@
     <article class="docs-prose">
       <h1>Run the Mini App locally</h1>
       <div id="docs-top-nav"></div>
-      <p class="lede">Cold-start recipe: from a fresh clone to the app open in Chrome at <code>http://localhost:5173</code>, connected to a local API. Plain browser tab — no tunnel, no phone, no Telegram, no signed <code>initData</code>. That's the primary dev loop.</p>
+      <p class="lede">Cold-start recipe: from a fresh clone to the app open in Chrome at <code>http://localhost:5173</code>, connected to a local API. Plain browser tab — no tunnel, no phone, no real Telegram. The API still requires a Bearer JWT (per <a href="../architecture.html#request-path-h">architecture · request path</a>), so <code>tools/dev/sign_init_data.py</code> mints a synthetic <code>initData</code> against the local <code>TELEGRAM_BOT_TOKEN</code> and the client feeds it to <code>POST /auth/telegram</code> the same way real Telegram would. That's the primary dev loop.</p>
 
       <section aria-labelledby="before-h">
         <h2 id="before-h">Before you start</h2>
@@ -43,6 +43,8 @@
           <li><strong>Node.js 20+</strong> installed. Check: <code>node --version</code>. Get it via Homebrew (<code>brew install node</code>), <code>mise</code>, or <code>nvm</code>.</li>
           <li><strong>Repo cloned</strong> and <code>.venv</code> set up (<code>make setup</code> from repo root).</li>
           <li><strong>API running locally</strong> at <code>http://localhost:8000</code>. Bring it up with <code>make up</code> from the repo root (starts Postgres + API + monitoring via docker compose). Verify: <code>curl -s http://localhost:8000/ready</code> returns <code>200</code>.</li>
+          <li><strong><code>TELEGRAM_BOT_TOKEN</code> exported</strong> in the shell you'll run the signer from. Same value the API reads from <code>env/dev</code>. Pick anything shape-compatible for local work (e.g. <code>1234567890:AAAA-fake-bot-token-for-tests-only</code>); the token only exists to sign / verify the same <code>initData</code>, no real Telegram round-trip involved.</li>
+          <li><strong>A signed <code>initData</code> ready.</strong> Mint one on demand with <code>python tools/dev/sign_init_data.py --user-id 42 --first-name Dev</code>. Use <code>--format env</code> to get a <code>VITE_DEV_INIT_DATA=…</code> line you can drop straight into <code>services/telegram/.env.local</code>. The scaffold will consume that env var once T-12 wires the auth bootstrap (W3).</li>
         </ul>
       </section>
 
@@ -70,7 +72,9 @@
           </li>
           <li>
             <div>
-              <strong>Verify the API connection.</strong> Open DevTools → Network. Reload the page. You should see one <code>GET /api/v1/schedule/summary</code> (or similar depending on which screen you're on) returning <code>200</code>. If it's <code>401</code>, jump to <em>Troubleshooting</em>. If it's a network error, the API isn't up.
+              <strong>Verify the auth handshake.</strong> Once the client bootstrap wires up (W3 · T-12), DevTools → Network on a fresh load should show <code>POST /api/v1/auth/telegram</code> return <code>200</code> with a JWT body, followed by <code>/api/v1/*</code> calls carrying <code>Authorization: Bearer &lt;jwt&gt;</code>. If step (a) returns <code>401</code>, jump to <em>Troubleshooting</em>. If (a) is <code>200</code> but (b) is <code>401</code>, also <em>Troubleshooting</em>.
+              <br><br>
+              <em>Today (2026-07-19):</em> the scaffold at <code>services/telegram/src/</code> renders a static page and makes no API calls — the auth bootstrap + generated client land in T-12. Steps 1–3 will still work; step 4's Network-tab check becomes real once T-12 ships.
             </div>
           </li>
         </ol>
@@ -137,6 +141,7 @@ make -C services/telegram build       # vite build → dist/</code></pre>
           <li><a href="test-on-device.html">Test on a real phone via Telegram</a> — next step when the browser loop isn't enough.</li>
           <li><a href="../reference/env-vars.html">Env vars reference</a> — every variable the app reads at build time.</li>
           <li><a href="../architecture.html#build-h">Build pipeline</a> — what <code>make verify</code> actually does.</li>
+          <li><a href="../architecture.html#request-path-h">Auth bootstrap</a> — where the signed <code>initData</code> is consumed on cold open.</li>
         </ul>
       </section>
     </article>
@@ -144,6 +149,11 @@ make -C services/telegram build       # vite build → dist/</code></pre>
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Recipe realigned with the shipped W1 auth contract. Lede's «no signed <code>initData</code>» claim was a pre-pivot carry-over and factually wrong — the API rejects any <code>/api/v1/*</code> call without a Bearer JWT, and the JWT is minted from a signed <code>initData</code>. Step 4 rewritten around <code>POST /auth/telegram</code> as the first request; an inline «today» note flags that the scaffold currently makes no API calls (the client bootstrap ships in T-12 · W3). Before-you-start now names <code>tools/dev/sign_init_data.py</code> — the CLI that mints signed payloads for the plain-browser dev loop; shipped alongside this doc (with a 5-case round-trip test suite). Troubleshooting «401» row already covered the divergence causes at the plan-pivot pass.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-15</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

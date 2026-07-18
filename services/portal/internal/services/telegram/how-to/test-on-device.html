@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="swe">
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="swe">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -119,6 +119,7 @@
             </thead>
             <tbody>
               <tr><td>Bot launch button opens Telegram's «Sorry, this Mini App is not available» screen.</td><td>The URL in BotFather is wrong or the tunnel is down. Verify the tunnel URL opens in a normal browser first, then re-set it in BotFather (<em>Configure Mini App</em> → paste the current tunnel URL).</td></tr>
+              <tr><td>App opens on the phone but every request 401s; DevTools shows <code>POST /auth/telegram</code> failing with <code>signature does not match</code>.</td><td>The bot token BotFather signs <code>initData</code> with does not match the <code>TELEGRAM_BOT_TOKEN</code> the API reads from <code>env/dev</code>. They must be the exact same value — the HMAC key is derived from it on both sides. Copy the token from <em>BotFather → API Token</em> into <code>env/dev</code>, restart the API. (Under the plain-browser dev loop, this is why <code>tools/dev/sign_init_data.py</code> reads the same env var — never mint against one token and verify against another.)</td></tr>
               <tr><td>App opens but every request fails with CORS in DevTools.</td><td>The API tunnel URL isn't in <code>CORS_ALLOW_ORIGINS</code>. Update <code>env/dev</code>, restart the API. Cloudflare's tunnel URL changes on every restart, so this bites often.</td></tr>
               <tr><td>App opens on the phone but shows the wrong theme (always light).</td><td>You're likely on <code>mockTelegramEnv()</code> — check <code>src/main.tsx</code>. The shim should be dev-only; in prod it must be off. Also confirm the URL you registered in BotFather is the tunnel, not <code>http://localhost:5173</code>.</td></tr>
               <tr><td>Tunnel URL changes every time you restart <code>cloudflared</code>.</td><td>Expected for the free ephemeral tunnels. For a stable URL, register a Named Tunnel with a Cloudflare-registered domain: see <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/">Cloudflare docs</a>.</td></tr>
@@ -132,6 +133,7 @@
         <h2 id="related-h">Related</h2>
         <ul>
           <li><a href="run-locally.html">Run the Mini App locally</a> — prerequisite.</li>
+          <li><a href="../architecture.html#request-path-h">Auth bootstrap</a> — why bot-token parity across BotFather and <code>env/dev</code> is non-negotiable.</li>
           <li><a href="../design/interactions.html#haptics-h">Haptics vocabulary</a> — what you're verifying by testing on device.</li>
           <li><a href="../design/information-architecture.html#deeplink-h">Deep-link grammar</a> — payloads your bot can push.</li>
         </ul>
@@ -141,6 +143,11 @@
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Added a troubleshooting row for the JWT-flow-specific failure mode: on device, real Telegram signs <code>initData</code> with the bot's token; if that token diverges from the one the API reads (both derive the HMAC secret from it), every request 401s on <code>signature does not match</code>. Under the pre-pivot X-API-Key flow this class of failure didn't exist. Related links now include the architecture · auth bootstrap section so contributors can trace where the bot token gets consumed.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-15</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
