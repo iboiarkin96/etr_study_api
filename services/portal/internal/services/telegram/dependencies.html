@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="architect">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -51,12 +51,12 @@
             <tbody>
               <tr>
                 <td><a href="../api/index.html"><code>services/api</code></a> · <code>/api/v1</code></td>
-                <td>The only backend surface the client consumes. Every screen is a view over this contract.</td>
-                <td>Total. The app shell loads (offline-friendly HTML), but every screen shows an error toast on first fetch. No degraded mode — read-only cache is not in MVP.</td>
+                <td>The only backend surface the client consumes. Cold open first hits <code>POST /api/v1/auth/telegram</code> to exchange <code>initData</code> for a Bearer JWT; every subsequent screen is a view over the <code>/api/v1/*</code> contract.</td>
+                <td>Total. If the API is unreachable the auth bootstrap itself fails — the app shell renders (offline-friendly HTML) but every screen shows an error toast on first fetch. No degraded mode — read-only cache is not in MVP.</td>
               </tr>
               <tr>
                 <td>PostgreSQL (via API)</td>
-                <td>Persistence for every read and write. Client never touches it directly.</td>
+                <td>Persistence for every read and write. Also stores the two identity rows minted at cold open: one in <code>users</code>, one in <code>telegram_users</code> keyed on <code>telegram_user_id</code>. Client never touches Postgres directly.</td>
                 <td>Same as API — surfaced as a 500-family response with an error toast. Retries are automatic (TanStack Query) but bounded.</td>
               </tr>
               <tr>
@@ -190,7 +190,7 @@
         <p>Contracts owned by other services / vendors that this service reads as fixed points. Change to any of them is a coordinated cross-service PR, not a unilateral upgrade.</p>
         <ul>
           <li><strong>OpenAPI canon at <code>services/api/openapi.json</code></strong> — every generated client type comes from here. Drift is caught by <code>make openapi-check</code>. If the API renames a field, the generated client won't compile → immediate loud failure at <code>make typecheck</code>, not a silent runtime bug.</li>
-          <li><strong>Telegram <code>initData</code> signature scheme</strong> — <code>hmac_sha256(bot_token, "WebAppData")</code> is the derivation key; <code>hash</code> field verified server-side. Owned by Telegram; monitored via their Bots API changelog. A silent change here would break the auth bootstrap for every client.</li>
+          <li><strong>Telegram <code>initData</code> signature scheme</strong> — <code>secret_key = HMAC_SHA256(key="WebAppData", msg=bot_token)</code>; the <code>hash</code> field is then compared server-side against <code>HMAC_SHA256(secret_key, data_check_string)</code>. Owned by Telegram; monitored via their Bots API changelog. A silent change here would break the auth bootstrap for every client.</li>
           <li><strong>Telegram WebApp protocol</strong> — <code>window.Telegram.WebApp</code> shape (themeParams, viewport, hapticFeedback, back-button, main-button). Owned by Telegram; monitored via the SDK release notes.</li>
           <li><strong>Cloudflare Pages build API</strong> — the <code>build.command</code> + <code>build.output</code> contract. Change to it is rare; deploy config lives in <code>ops/</code>.</li>
         </ul>
@@ -206,6 +206,11 @@
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Runtime rows + upstream contracts re-aligned with the shipped W1 auth flow. <code>services/api</code> blast radius now names the <code>/auth/telegram</code> bootstrap as the first failure point; Postgres row lists the two identity rows (<code>users</code> + <code>telegram_users</code>). Telegram signature-scheme description fixed — the HMAC key is the literal <code>"WebAppData"</code>, not the bot token (the arguments were reversed).</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-15</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
