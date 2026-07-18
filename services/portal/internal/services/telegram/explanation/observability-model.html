@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Observability model · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Observability model</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Observability model</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Two observability stacks — one for the client, one for the backend — joined by a single <code>correlation_id</code>. This page explains <em>why</em> the split exists, <em>why</em> we don't collapse it to a single tool, and <em>how</em> the two halves connect end-to-end.</p>
+
+      <section aria-labelledby="stacks-h">
+        <h2 id="stacks-h">The two stacks</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Stack</th>
+                <th scope="col">Tools</th>
+                <th scope="col">Runtime it observes</th>
+                <th scope="col">Question it answers</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Client observability</strong></td>
+                <td>Sentry · PostHog</td>
+                <td>Browser / WebView on the user's device.</td>
+                <td>«What happened in the user's session?» — clicks, funnels, uncaught exceptions with source-mapped stack traces.</td>
+              </tr>
+              <tr>
+                <td><strong>Server observability</strong></td>
+                <td>Prometheus · Grafana · Elasticsearch (+ Filebeat)</td>
+                <td>The FastAPI process + Postgres.</td>
+                <td>«What was the backend doing?» — request rate, latency, error rate, per-endpoint counters, structured logs.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="why-split-h">
+        <h2 id="why-split-h">Why not use one tool for both?</h2>
+        <p>The difference isn't «backend vs frontend» in a taxonomic sense. It's a <em>runtime-model</em> mismatch.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Tool</th>
+                <th scope="col">How it works</th>
+                <th scope="col">What that assumes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Prometheus</td><td><em>Pull</em>: polls a URL like <code>http://api:8000/metrics</code> every 15 s.</td><td>Long-lived process with a reachable IP + port.</td></tr>
+              <tr><td>Elasticsearch (via Filebeat)</td><td><em>Log tail</em>: Filebeat reads <code>*.log</code> files, ships to ES.</td><td>Local filesystem where the process writes logs.</td></tr>
+              <tr><td>Grafana</td><td><em>Viewer</em>: dashboards over any data source.</td><td>Data is somewhere queryable.</td></tr>
+              <tr><td>PostHog</td><td><em>Push</em>: browser calls <code>posthog.capture(...)</code>, ships to PostHog HTTP endpoint.</td><td>Runs in a browser, no local storage required.</td></tr>
+              <tr><td>Sentry</td><td><em>Push</em>: browser catches unhandled exceptions, ships stack trace + context to Sentry.</td><td>Runs in a browser, source-maps hosted separately.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>A Mini App running in the user's browser has no long-lived process, no reachable port, and no filesystem. Prometheus can't scrape it. Filebeat can't tail it. You can invert Prometheus (Pushgateway) — but Pushgateway is designed for short-lived batch jobs, not per-user client sessions, and it collapses everything into a single time-series indistinguishable across users.</p>
+        <p>PostHog and Sentry are built the other way around: <em>the browser initiates</em>. Both handle the specifics of the client environment — capturing session context, source-mapping stack traces back to TypeScript, dealing with browser noise (extension errors, network aborts on tab close). Reinventing this on top of ELK is a multi-month project that ends less good.</p>
+      </section>
+
+      <section aria-labelledby="join-h">
+        <h2 id="join-h">How the two stacks join</h2>
+        <p>Every request the client makes carries an <code>X-Correlation-ID</code> header — a UUID generated client-side per user gesture. The API middleware logs it on every request; PostHog and Sentry tag every event with the same UUID.</p>
+        <p>Result: any incident is triangulable across the split.</p>
+        <pre><code>User: "Today screen shows an error"
+    │
+    ▼
+PostHog:  user_id=42  screen=today  event=screen_error  correlation_id=abc123  ts=14:23:07
+    │
+    ▼
+Sentry:   correlation_id=abc123  TypeError in useDueList.ts:15  release=v1.2.3
+    │
+    ▼
+Grafana:  /api/v1/conspectuses/due  p99 latency spike at 14:23  error_rate 12%
+    │
+    ▼
+Kibana:   correlation_id=abc123  psycopg.OperationalError: connection timeout
+    │
+    ▼
+Root cause: Postgres connection pool exhausted at 14:23 due to a slow migration lock.</code></pre>
+        <p>Four tools, one correlation_id, four minutes from user report to root cause.</p>
+      </section>
+
+      <section aria-labelledby="dashboards-h">
+        <h2 id="dashboards-h">One dashboard, four sources</h2>
+        <p>Grafana is source-agnostic. Instead of standing up separate UIs, we compose:</p>
+        <ul>
+          <li><strong>«API health» dashboard</strong> — Prometheus data.</li>
+          <li><strong>«Client analytics» dashboard</strong> — PostHog data (via the Grafana PostHog plugin or PostHog's HTTP API).</li>
+          <li><strong>«Errors end-to-end» dashboard</strong> — Sentry + Elastic side by side, filterable by <code>correlation_id</code>.</li>
+        </ul>
+        <p>Sentry and PostHog also have their own product UIs — better than Grafana at what they specialise in (Sentry: exception-triage workflow; PostHog: funnel-building UX). Grafana is the on-call landing page; the specialised UIs are drill-downs.</p>
+      </section>
+
+      <section aria-labelledby="what-if-h">
+        <h2 id="what-if-h">«What if we just used X for both?»</h2>
+        <p>The two most-asked counter-proposals:</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <h3 class="docs-card__title">«Skip PostHog + Sentry, ship client logs to Elastic»</h3>
+            <p class="docs-card__body">Technically possible — add an HTTP endpoint <code>/api/v1/client-logs</code> that accepts JSON, write a client-side logger. Then reinvent: session replay, source-mapping, funnels, cohort analysis, browser-noise filtering, source-map hosting, release tracking. Estimated 2-3 months to reach parity with what PostHog and Sentry give you in a day. Result is worse across every dimension except «one fewer vendor».</p>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <h3 class="docs-card__title">«Skip Prometheus / ELK, use PostHog for the backend too»</h3>
+            <p class="docs-card__body">Doesn't work at all. PostHog is designed to observe user behaviour, not process health. There's no path to «scrape /metrics» or «join API logs to a request» through PostHog. Backend needs the backend stack; this proposal breaks on architecture.</p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="cost-h">
+        <h2 id="cost-h">Cost of the split</h2>
+        <ul>
+          <li><strong>Two vendors.</strong> PostHog (client analytics) + Sentry (client errors) are external SaaS. Both have free tiers that cover a small tester cohort; paid tiers if usage grows.</li>
+          <li><strong>Two on-call habits.</strong> «Check Grafana first» + «check Sentry when the console screams». Documented in <a href="../on-call.html">on-call</a>.</li>
+          <li><strong>Correlation-id discipline.</strong> Every request must carry it; every log must record it; every event must tag it. Enforced by the shared API client — never optional.</li>
+        </ul>
+        <p>The cost is real. The alternative — pretend one stack fits both, then patch around the mismatch — is worse in every dimension that matters.</p>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Observability-model narrative created. Two-stack split (client vs server) rationalised by runtime-model mismatch (pull vs push). Correlation_id join illustrated with a 4-hop worked example. Counter-proposals («use ELK for the client», «use PostHog for the backend») addressed head-on.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#stacks-h">The two stacks</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why-split-h">Why not one tool</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#join-h">How the two stacks join</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#dashboards-h">One dashboard, four sources</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#what-if-h">What if we just used X</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#cost-h">Cost of the split</a></li>    </ol>
+    </aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

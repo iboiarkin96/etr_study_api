@@ -13,6 +13,7 @@ def _set_base_env(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://example.com")
     monkeypatch.setenv("API_AUTH_KEY", "secure-key-value")
+    monkeypatch.setenv("JWT_SECRET", "secure-jwt-secret-at-least-32-bytes-long")
     monkeypatch.setenv("METRICS_ENABLED", "true")
     monkeypatch.setenv("LOG_LEVEL", "INFO")
 
@@ -45,4 +46,22 @@ def test_prod_profile_rejects_localhost_cors(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("CORS_ALLOW_ORIGINS", "http://127.0.0.1:3000")
 
     with pytest.raises(ValueError, match="must not contain localhost in prod"):
+        get_settings()
+
+
+def test_qa_profile_rejects_default_jwt_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_base_env(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "qa")
+    monkeypatch.setenv("JWT_SECRET", "local-dev-jwt-secret-32-bytes-min")
+
+    with pytest.raises(ValueError, match="non-default JWT_SECRET"):
+        get_settings()
+
+
+def test_qa_profile_rejects_too_short_jwt_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_base_env(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "qa")
+    monkeypatch.setenv("JWT_SECRET", "short")
+
+    with pytest.raises(ValueError, match="at least 32 bytes"):
         get_settings()

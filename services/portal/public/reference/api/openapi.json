@@ -988,6 +988,117 @@
         "title": "ScheduleSummarySlotCounts",
         "type": "object"
       },
+      "TelegramAuthRequest": {
+        "description": "Request body for ``POST /api/v1/auth/telegram``.",
+        "properties": {
+          "init_data": {
+            "description": "Raw `window.Telegram.WebApp.initData` string. Server verifies its HMAC signature against `TELEGRAM_BOT_TOKEN`.",
+            "maxLength": 8192,
+            "minLength": 1,
+            "title": "Init Data",
+            "type": "string"
+          }
+        },
+        "required": [
+          "init_data"
+        ],
+        "title": "TelegramAuthRequest",
+        "type": "object"
+      },
+      "TelegramAuthResponse": {
+        "description": "Response body for ``POST /api/v1/auth/telegram``.",
+        "properties": {
+          "expires_at_epoch": {
+            "description": "Unix seconds when the JWT stops verifying.",
+            "title": "Expires At Epoch",
+            "type": "integer"
+          },
+          "jwt": {
+            "description": "24 h HS256 JWT signed with `JWT_SECRET`.",
+            "title": "Jwt",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "Bearer",
+            "description": "Always `Bearer` (RFC 6750).",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/TelegramAuthUser"
+          }
+        },
+        "required": [
+          "jwt",
+          "expires_at_epoch",
+          "user"
+        ],
+        "title": "TelegramAuthResponse",
+        "type": "object"
+      },
+      "TelegramAuthUser": {
+        "description": "Trusted user block returned alongside the JWT.\n\nValues come from Telegram's ``initData.user`` payload, joined with the\nidentity row persisted in ``telegram_users``.",
+        "properties": {
+          "client_uuid": {
+            "description": "Internal `users.client_uuid`, used as JWT `sub`.",
+            "title": "Client Uuid",
+            "type": "string"
+          },
+          "full_name": {
+            "description": "Concatenated first+last name mirrored on `users`.",
+            "title": "Full Name",
+            "type": "string"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "BCP-47 language code from `initData.user.language_code`.",
+            "title": "Locale"
+          },
+          "telegram_photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Avatar URL from `initData`, if present.",
+            "title": "Telegram Photo Url"
+          },
+          "telegram_user_id": {
+            "description": "Telegram's numeric user id (int64).",
+            "title": "Telegram User Id",
+            "type": "integer"
+          },
+          "telegram_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Public `@handle`, if the account has one.",
+            "title": "Telegram Username"
+          }
+        },
+        "required": [
+          "client_uuid",
+          "telegram_user_id",
+          "full_name"
+        ],
+        "title": "TelegramAuthUser",
+        "type": "object"
+      },
       "UserCreateRequest": {
         "description": "JSON body for ``POST /api/v1/user`` (validated before idempotency and service layer).\n\n``system_user_id`` and ``system_uuid`` form the composite natural key (DB unique constraint).\nField-level rules, OpenAPI examples, and timezone validation live on the ``Field``\ndefinitions and :data:`app.schemas.enums.TimezoneField`.",
         "properties": {
@@ -1502,6 +1613,18 @@
         "in": "header",
         "name": "X-API-Key",
         "type": "apiKey"
+      },
+      "X-API-Key": {
+        "description": "Legacy internal-tools credential; the Mini App uses the `bearerAuth` scheme above.",
+        "in": "header",
+        "name": "X-API-Key",
+        "type": "apiKey"
+      },
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "24 h HS256 JWT minted at `POST /api/v1/auth/telegram` after verifying Telegram Mini App `initData`. Use as `Authorization: Bearer <jwt>` on every subsequent call.",
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
@@ -1512,6 +1635,113 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/auth/telegram": {
+      "post": {
+        "description": "Verifies the HMAC signature of `initData` against `TELEGRAM_BOT_TOKEN`, upserts the caller's identity in `users` + `telegram_users`, and returns a signed JWT for use as `Authorization: Bearer <jwt>` on every subsequent `/api/v1/*` call. Anonymous endpoint \u2014 the Bearer middleware exempts it.",
+        "operationId": "signInWithTelegramInitData",
+        "parameters": [
+          {
+            "description": "Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramAuthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramAuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "initData is missing, tampered, or older than the freshness window.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "missing_init_data": {
+                    "summary": "Missing `init_data` field",
+                    "value": {
+                      "endpoint": "POST /api/v1/auth/telegram",
+                      "error_type": "validation_error",
+                      "errors": [
+                        {
+                          "code": "COMMON_422",
+                          "details": {
+                            "input": {},
+                            "loc": [
+                              "body",
+                              "init_data"
+                            ],
+                            "type": "missing"
+                          },
+                          "field": "init_data",
+                          "key": "PERSISTENCE_INTEGRITY_VIOLATION",
+                          "message": "Request violates a database constraint (foreign key, uniqueness, or check).",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "Request body did not match the expected shape.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Exchange Telegram initData for a 24 h Bearer JWT",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/conspectuses": {
       "get": {
         "description": "GET /conspectuses with keyset cursor pagination.",
@@ -1776,7 +2006,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "List conspectuses (newest first, cursor-paginated)",
@@ -2192,7 +2425,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Create a conspectus",
@@ -2414,7 +2650,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "List conspectuses due for review (bounded top-100)",
@@ -2741,7 +2980,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Soft-delete a conspectus (returns the updated row)",
@@ -2928,7 +3170,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Get one conspectus by uuid",
@@ -3279,7 +3524,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Update conspectus content (at least one ETR field)",
@@ -3677,7 +3925,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Apply a review outcome and advance the schedule",
@@ -3926,7 +4177,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Get an ordered audit trail for a conspectus",
@@ -4132,7 +4386,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "List learner error records",
@@ -4539,7 +4796,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Append a learner error record",
@@ -4850,7 +5110,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Evening-review lookahead batch",
@@ -5077,7 +5340,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Study-load summary counts",
@@ -5737,7 +6003,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Create user",
@@ -5929,7 +6198,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Get user by system_uuid and system_user_id",
@@ -6282,7 +6554,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Partially update user by system_uuid and system_user_id",
@@ -6630,7 +6905,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Update user by system_uuid and system_user_id",
@@ -6674,6 +6952,7 @@
             }
           }
         },
+        "security": [],
         "summary": "Liveness probe",
         "tags": [
           "System"
@@ -6715,6 +6994,7 @@
             }
           }
         },
+        "security": [],
         "summary": "Readiness probe",
         "tags": [
           "System"
@@ -6726,6 +7006,10 @@
     {
       "description": "Operational endpoints (live/ready/metrics and platform metadata).",
       "name": "System"
+    },
+    {
+      "description": "Telegram Mini App sign-in: exchange the WebApp's signed `initData` for a 24 h Bearer JWT.",
+      "name": "Auth"
     },
     {
       "description": "User identity lifecycle endpoints with idempotency and contract-driven errors.",

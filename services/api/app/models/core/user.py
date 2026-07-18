@@ -22,6 +22,7 @@ def _utc_now() -> datetime:
 
 
 if TYPE_CHECKING:
+    from app.models.core.telegram_user import TelegramUser
     from app.models.reference.invalidation_reason import InvalidationReason
     from app.models.reference.system import System
 
@@ -29,8 +30,8 @@ if TYPE_CHECKING:
 class User(Base):
     """End-user row keyed by external ``system_user_id`` and internal ``client_uuid``.
 
-    Relationships: :attr:`system`, :attr:`invalidation_reason`. Timezone must exist in the
-    ``timezones`` reference table.
+    Relationships: :attr:`system`, :attr:`invalidation_reason`, :attr:`telegram_user`.
+    Timezone must exist in the ``timezones`` reference table.
     """
 
     __tablename__ = "users"
@@ -87,4 +88,9 @@ class User(Base):
     system: Mapped[System] = relationship(back_populates="users")
     invalidation_reason: Mapped[InvalidationReason | None] = relationship(
         back_populates="users",
+    )
+    telegram_user: Mapped[TelegramUser | None] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )

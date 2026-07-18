@@ -1,0 +1,101 @@
+@startuml
+title Study App · Telegram Mini App — C4 Level 3 (components)
+
+top to bottom direction
+
+actor "User\n(inside Telegram)" as User
+
+package "Runtime hosts" as Hosts {
+  cloud "Telegram WebView\n(injects window.Telegram.WebApp\n· raw initData signed by bot token)" as WebView
+  cloud "Cloudflare Pages\n(static CDN — HTML/JS/CSS)" as Pages
+}
+
+package "services/telegram/src/" as Bundle {
+
+  package "app/" as AppPkg {
+    [main.tsx\n· read window.Telegram.WebApp\n· mockTelegramEnv() in dev\n· mount <App>] as Main
+    [providers.tsx\n· QueryClient\n· Router\n· ThemeProvider (themeParams → CSS vars)\n· ViewportProvider (safe-area insets)] as Providers
+    [shell.tsx\n· bind BackButton / MainButton / SettingsButton\n  to current route's affordances] as Shell
+  }
+
+  package "screens/" as ScreensPkg {
+    [Today] as ScrToday
+    [Focus] as ScrFocus
+    [Conspectus list / detail] as ScrConspectus
+    [… 6 more screens] as ScrRest
+  }
+
+  package "shared/" as SharedPkg {
+    [shared/api/\n· openapi-typescript client\n· auth bootstrap: POST initData → /auth/telegram\n· JWT cached in CloudStorage, memory hot cache\n· fetch wrapper: Authorization Bearer + Idempotency-Key\n· TanStack Query hooks] as SharedApi
+    [shared/ui/\n· thin wrappers over telegram-ui] as SharedUi
+    [shared/theme.ts\n· themeParams → CSS vars + accent] as SharedTheme
+    [shared/haptics.ts\n· SDK.hapticFeedback shortcuts] as SharedHaptics
+  }
+}
+
+package "External libraries" as Ext {
+  [React DOM] as React
+  [TanStack Query] as TQuery
+  [TanStack Router] as TRouter
+  [@telegram-apps/telegram-ui] as TgUi
+}
+
+cloud "FastAPI · /api/v1/auth/telegram\n(HMAC-verify initData →\nmint 24 h JWT with JWT_SECRET)" as AuthApi
+cloud "FastAPI · /api/v1/*\n(JWT middleware · Bearer only)" as Api
+database "Postgres\n(users.telegram_user_id\nas identity anchor)" as Db
+
+' --- deploy & bootstrap ---
+User --> WebView : tap launch button\nor /start deep-link
+WebView --> Pages : GET index.html + assets
+Pages --> WebView : bundle (once, cached)
+WebView --> Main : evaluate JS
+
+' --- app wiring ---
+Main --> Providers
+Main --> React
+Providers --> TQuery
+Providers --> TRouter
+Providers --> Shell
+Shell --> WebView : BackButton / MainButton bindings
+
+' --- runtime traffic ---
+Providers --> ScrToday
+Providers --> ScrFocus
+Providers --> ScrConspectus
+Providers --> ScrRest
+
+ScrToday --> SharedApi
+ScrFocus --> SharedApi
+ScrConspectus --> SharedApi
+ScrRest --> SharedApi
+
+ScrToday --> SharedUi
+ScrFocus --> SharedUi
+ScrConspectus --> SharedUi
+ScrRest --> SharedUi
+
+SharedUi --> TgUi
+SharedTheme --> WebView : themeParams
+SharedHaptics --> WebView : hapticFeedback
+
+SharedApi --> WebView : read raw initData\n(cold open only)
+SharedApi --> AuthApi : POST initData\n→ { jwt, user }
+AuthApi --> Db : upsert on telegram_user_id
+SharedApi --> Api : HTTPS · JSON\nAuthorization: Bearer <jwt>\n+ Idempotency-Key on writes
+Api --> Db : per-user queries scoped\nby JWT sub claim
+
+note bottom of SharedApi
+  Every mutation carries a fresh
+  Idempotency-Key (UUIDv4) generated
+  once per user gesture; retained
+  through retry.
+end note
+
+note right of Bundle
+  TanStack Query is the only cache.
+  Memory-only — no localStorage,
+  no IndexedDB. Cold open reloads
+  what the current screen needs.
+end note
+
+@enduml

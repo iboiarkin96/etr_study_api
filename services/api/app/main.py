@@ -21,6 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from starlette.responses import Response
 
+from app.api.v1.auth import router as auth_router
 from app.api.v1.conspectus import router as conspectus_router
 from app.api.v1.error_log import router as error_log_router
 from app.api.v1.schedule import router as schedule_router
@@ -55,6 +56,13 @@ OPENAPI_TAGS = [
     {
         "name": "System",
         "description": "Operational endpoints (live/ready/metrics and platform metadata).",
+    },
+    {
+        "name": "Auth",
+        "description": (
+            "Telegram Mini App sign-in: exchange the WebApp's signed `initData`"
+            " for a 24 h Bearer JWT."
+        ),
     },
     {
         "name": "User",
@@ -418,6 +426,7 @@ def custom_swagger_ui() -> Response:
     )
 
 
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(error_log_router, prefix="/api/v1")
 app.include_router(schedule_router, prefix="/api/v1")
@@ -430,6 +439,7 @@ def custom_openapi() -> dict[str, Any]:
         return app.openapi_schema
     from fastapi.openapi.utils import get_openapi
 
+    from app.openapi.bearer_auth_openapi import enrich_openapi_with_bearer_auth
     from app.openapi.request_id_openapi import enrich_openapi_with_request_id
     from app.openapi.validation_error_openapi import (
         enrich_openapi_with_validation_error_descriptions,
@@ -446,6 +456,7 @@ def custom_openapi() -> dict[str, Any]:
     )
     enrich_openapi_with_request_id(openapi_schema)
     enrich_openapi_with_validation_error_descriptions(openapi_schema)
+    enrich_openapi_with_bearer_auth(openapi_schema)
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 

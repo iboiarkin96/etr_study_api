@@ -104,6 +104,7 @@ DIATAXIS_SUBDIRS: tuple[tuple[str, str, str], ...] = (
     ("how-to", "How-to", "🛠"),
     ("reference", "Reference", "📖"),
     ("explanation", "Explanation", "💡"),
+    ("design", "Design", "🎨"),
     ("runbooks", "Runbooks", "🚨"),
     ("postmortems", "Postmortems", "📋"),
 )

@@ -36,6 +36,18 @@ EXCLUDE_PARTS = {
     "pdoc",
     "notes",
     "var",
+    # Vite build output for services/telegram; contents-hashed asset names that
+    # only resolve inside the Cloudflare Pages runtime. Regenerated on every
+    # `vite build`; never committed (see repo-root .gitignore `dist/`).
+    "dist",
+}
+
+# Full path suffixes (relative to the repo root) whose content the checker
+# treats as opaque to the classical `href/src` scan. Used for tiny hand-written
+# entry HTMLs whose module references (e.g. Vite's `/src/main.tsx`) are
+# rewritten at bundler time and never map to a real filesystem asset.
+EXCLUDE_FILES = {
+    "services/telegram/index.html",
 }
 
 HTML_ATTR_RE = re.compile(
@@ -80,8 +92,10 @@ def _iter_files(suffixes: tuple[str, ...]) -> list[Path]:
     out: list[Path] = []
     for suffix in suffixes:
         for path in ROOT.rglob(f"*{suffix}"):
-            rel_parts = path.relative_to(ROOT).parts
-            if any(part in EXCLUDE_PARTS for part in rel_parts):
+            rel = path.relative_to(ROOT)
+            if any(part in EXCLUDE_PARTS for part in rel.parts):
+                continue
+            if rel.as_posix() in EXCLUDE_FILES:
                 continue
             out.append(path)
     return sorted(out)

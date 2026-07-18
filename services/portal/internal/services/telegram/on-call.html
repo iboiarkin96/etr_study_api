@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · On-call · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="sre">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">On-call</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>On-call</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Small tester cohort — no paging, no rotation. This page is the checklist Ivan walks when the Mini App misbehaves. Ordered by frequency, not by severity. Each item names the exact command / URL to check first.</p>
+
+      <section aria-labelledby="triage-h">
+        <h2 id="triage-h">30-second triage</h2>
+        <p>Before diagnosing anything specific, answer three questions in order. Most incidents resolve at question one.</p>
+        <ol class="numbered-step-list">
+          <li><div><strong>Is the API running?</strong> Hit <code>http://localhost:8000/ready</code> (dev) or the production API URL. If not <code>200</code> — the client is fine, the API is down. Jump to <a href="../api/on-call.html">api on-call</a>.</div></li>
+          <li><div><strong>Does the bundle load?</strong> Open DevTools → Network → filter «Doc» and «Script». Missing / 404 / MIME-mismatch → deploy is broken (see <em>Bundle broken</em> below).</div></li>
+          <li><div><strong>Does the console show anything red?</strong> Uncaught exception → open Sentry issue link (once T-21 ships). Before Sentry: expand the stack trace in DevTools, note the file + line, look at the source.</div></li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="failures-h">
+        <h2 id="failures-h">Common failures</h2>
+        <div class="docs-card-grid">
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <h3 class="docs-card__title">Bundle broken (blank screen, MIME-mismatch)</h3>
+            <ul class="docs-card__body">
+              <li><strong>Symptom:</strong> Telegram opens the WebApp, blank screen for &gt; 3 s, DevTools console shows «Failed to load module script».</li>
+              <li><strong>Root cause 90% of the time:</strong> a build with a broken <code>base</code> or a CDN cache serving an old <code>index.html</code> referencing hashed assets that no longer exist.</li>
+              <li><strong>First check:</strong> <code>curl -I https://study-app.pages.dev/</code> — look at <code>etag</code>. Compare with a fresh <code>vite build</code> output locally.</li>
+              <li><strong>Fix:</strong> re-run the Cloudflare Pages deploy from the latest <code>main</code>. CDN purges automatically on new deploy.</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <h3 class="docs-card__title">API unreachable (all screens show error toasts)</h3>
+            <ul class="docs-card__body">
+              <li><strong>Symptom:</strong> Every screen paints its skeleton, then shows an «Retry» toast within 5 s. TanStack Query is retrying in the background.</li>
+              <li><strong>First check:</strong> <code>curl -s https://api.study.example.com/ready</code>. If not <code>200</code> — API is the problem.</li>
+              <li><strong>If dev:</strong> is <code>make -C services/api run</code> still up? Docker containers healthy (<code>docker compose ps</code>)?</li>
+              <li><strong>If prod (once W7 ships):</strong> Cloudflare Tunnel / VPS / Fly.io — depends on the hosting decision. Runbook to be finalised with ADR 0039.</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <h3 class="docs-card__title">CORS-blocked (browser console «CORS policy»)</h3>
+            <ul class="docs-card__body">
+              <li><strong>Symptom:</strong> One specific origin — usually a new tunnel URL or a new port — sees requests fail with a CORS pre-flight error in the browser console.</li>
+              <li><strong>Root cause:</strong> the origin isn't in <code>CORS_ALLOW_ORIGINS</code> in <code>env/</code>.</li>
+              <li><strong>Fix:</strong> add the origin to <code>env/dev</code> (or <code>env/example</code> if it's a documented recipe) and restart the API.</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <h3 class="docs-card__title">Auth-rejected (401 on every request)</h3>
+            <ul class="docs-card__body">
+              <li><strong>Symptom:</strong> Every <code>/api/v1/*</code> call returns <code>401 Unauthorized</code>, error toast reads «Session expired».</li>
+              <li><strong>Root cause A:</strong> <code>POST /api/v1/auth/telegram</code> failed at cold-open — usually mismatched <code>TELEGRAM_BOT_TOKEN</code> between bot and API (the HMAC key must be identical).</li>
+              <li><strong>Root cause B:</strong> <code>JWT_SECRET</code> was rotated on the API without invalidating cached JWTs on the clients; existing tokens fail signature verification.</li>
+              <li><strong>First check:</strong> in DevTools → Network → <code>/auth/telegram</code>. If it's absent, the bootstrap didn't fire — check the SDK loaded. If it's 401, tokens diverged. If it's 200 but subsequent calls are 401, <code>JWT_SECRET</code> mismatch.</li>
+              <li><strong>Fix:</strong> confirm <code>TELEGRAM_BOT_TOKEN</code> parity across bot and API; if <code>JWT_SECRET</code> was rotated, notify clients to re-bootstrap (evict CloudStorage cache).</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <h3 class="docs-card__title">Deep-link opens the wrong screen</h3>
+            <ul class="docs-card__body">
+              <li><strong>Symptom:</strong> Tap a bot notification with <code>startapp=conspectus_&lt;uuid&gt;</code> → Today screen opens instead of that conspectus.</li>
+              <li><strong>Root cause:</strong> Either the payload wasn't parsed, or the router doesn't know the target route.</li>
+              <li><strong>First check:</strong> in DevTools console — <code>window.Telegram.WebApp.initDataUnsafe.start_param</code>. If empty → bot didn't send the payload (bot bug). If present → router bug.</li>
+              <li>Grammar reference: <a href="reference/deep-link-grammar.html">deep-link grammar</a>.</li>
+            </ul>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="warn">
+            <h3 class="docs-card__title">Idempotency violated (duplicate rows)</h3>
+            <ul class="docs-card__body">
+              <li><strong>Symptom:</strong> User marks one review, two <code>conspectus_events</code> rows appear.</li>
+              <li><strong>Root cause:</strong> The client sent two different <code>Idempotency-Key</code> values for what should have been one gesture (retry-loop bug), or the API idempotency middleware didn't see the header.</li>
+              <li><strong>First check:</strong> tail API access log filtered by user's <code>correlation_id</code>. Two request lines with two different keys → client bug in <code>shared/api/</code>. Two lines with the same key returning 200 twice → API-side idempotency bug.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="observability-h">
+        <h2 id="observability-h">Where to look</h2>
+        <p>Client-side signals live in tools designed for browsers; API-side signals live in the backend stack. Both are joined by <code>correlation_id</code> — the client sets it on every request, the API logs it.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Where</th>
+                <th scope="col">What it answers</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Sentry (client, ships W5 · T-21)</td>
+                <td>«What broke inside the browser?» — uncaught exceptions, unhandled rejections, source-mapped to the TypeScript file.</td>
+              </tr>
+              <tr>
+                <td>PostHog (client, ships W5 · T-21)</td>
+                <td>«What did the user do before it broke?» — event stream, funnels, session replay.</td>
+              </tr>
+              <tr>
+                <td>Grafana → Prometheus (API)</td>
+                <td>«Did the backend spike?» — request latency, error rate, per-endpoint counters. Filter by time window.</td>
+              </tr>
+              <tr>
+                <td>Kibana → Elasticsearch (API)</td>
+                <td>«What was the API doing at that exact moment?» — structured logs, joinable by <code>correlation_id</code>.</td>
+              </tr>
+              <tr>
+                <td>DevTools (immediate)</td>
+                <td>«What does <em>my</em> browser see right now?» — Network tab for request/response bodies, Console for JS errors.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="paging-h">
+        <h2 id="paging-h">Paging model</h2>
+        <p>None while the audience is a tester cohort. No alerts, no rotation, no PagerDuty. If the app is broken and nobody's using it, nothing gets escalated — someone will notice next time they open it. Adding paging infrastructure at this scale is over-engineering that will decay before it's ever needed. Revisit once the tester cohort grows beyond a handful of people.</p>
+        <p>The day the audience opens beyond the maintainer (P2 epic), this page gets a rotation table, a real SLO, and links to alert rules in Prometheus. Not before.</p>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">On-call page created. Six common failures, each with a symptom / root cause / first check. Paging model is «none» while the tester cohort is small; revisit once it grows.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#triage-h">30-second triage</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#failures-h">Common failures</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#observability-h">Where to look</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#paging-h">Paging model</a></li>    </ol>
+    </aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Deploy topology · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Explanation</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Deploy topology</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Deploy topology</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Two independent components need to be online for the Mini App to work: the static bundle (frontend) and the API (backend). The frontend story is settled — Cloudflare Pages. The backend has three viable paths on the table; the choice is deferred until on-device testing arrives (W6). This page explains today's setup, tomorrow's options, and how they connect.</p>
+
+      <section aria-labelledby="today-h">
+        <h2 id="today-h">Today: localhost loop</h2>
+        <p>During active development, everything runs on the maintainer's Mac:</p>
+        <pre><code>┌─────────────────────────────────────────────────────────────┐
+│ Chrome / Safari on the Mac                                  │
+│    ↓ loads                                                  │
+│ http://localhost:5173  (Vite dev server)                    │
+│    ↓ serves the Mini App bundle                             │
+│    ↓ fetch(...)                                             │
+│ http://localhost:8000  (FastAPI via docker compose)         │
+│    ↓                                                        │
+│ postgres:16-alpine  (docker container, same compose)        │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+        <p>No cloud, no real Telegram. <code>tools/dev/sign_init_data.py</code> mints a synthetic <code>initData</code> against the same <code>TELEGRAM_BOT_TOKEN</code> the API uses; the app boots, exchanges it for a real JWT at <code>/auth/telegram</code>, and behaves the same as it would on-device. See <a href="../how-to/run-locally.html">Run locally</a>.</p>
+      </section>
+
+      <section aria-labelledby="on-device-h">
+        <h2 id="on-device-h">Today (on-device): tunnel loop</h2>
+        <p>When testing haptics / safe-area insets / real Telegram chrome, both the frontend and the API get temporarily exposed via Cloudflare Tunnel:</p>
+        <pre><code>Telegram WebView (phone)
+    ↓ opens
+https://xxxxx.trycloudflare.com   (Vite tunnel)
+    ↓ fetch(...)
+https://yyyyy.trycloudflare.com   (API tunnel)
+    ↓ still hits the Mac's docker compose stack</code></pre>
+        <p>Same Mac, same processes — just wrapped in HTTPS by <code>cloudflared</code>. Tunnel URLs change on every restart of <code>cloudflared</code>, which is why <a href="../how-to/test-on-device.html">Test on device</a> reads like a checklist.</p>
+      </section>
+
+      <section aria-labelledby="tomorrow-frontend-h">
+        <h2 id="tomorrow-frontend-h">Tomorrow · frontend: Cloudflare Pages</h2>
+        <p>Frontend deploy is settled. In W7 · T-29:</p>
+        <ol class="numbered-step-list">
+          <li><div><code>git push</code> to <code>main</code> triggers Cloudflare Pages via the GitHub integration.</div></li>
+          <li><div>Pages runs <code>make -C services/telegram build</code>, produces <code>services/telegram/dist/</code>.</div></li>
+          <li><div>Pages uploads <code>dist/</code> to its global CDN, gives us a <code>study-app.pages.dev</code> URL (or a custom domain).</div></li>
+          <li><div>The URL is registered in BotFather as the Mini App URL for the bot.</div></li>
+        </ol>
+        <p>Runtime: pure static-file serving. No Node on the CDN edge. The Mini App is HTML + JS + CSS + a handful of assets. Time-to-first-byte is essentially network latency.</p>
+        <p>Why Cloudflare Pages over alternatives (GitHub Pages, Vercel, Netlify): existing Cloudflare relationship, native Vite support, generous free tier, and it composes with Cloudflare Tunnel (same account) for on-device testing.</p>
+      </section>
+
+      <section aria-labelledby="tomorrow-backend-h">
+        <h2 id="tomorrow-backend-h">Tomorrow · backend: three viable paths (undecided)</h2>
+        <p>The API doesn't have a production home yet. The local docker-compose stack carries early dev, but on-device Telegram testing (W6 · T-27 / T-28) needs a public HTTPS endpoint. The three paths on the table:</p>
+        <div class="docs-card-grid docs-card-grid--stack">
+          <article class="docs-card docs-card--rail" data-tone="info">
+            <h3 class="docs-card__title">Cloudflare Tunnel from the Mac ($0/mo)</h3>
+            <p class="docs-card__body">The dev loop, promoted to «production». <code>cloudflared tunnel run</code> alongside <code>docker compose up</code>, backed by a Cloudflare-registered domain. Works when the Mac is on; doesn't when it isn't. Only suitable for the tester cohort while the Mac is available.</p>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="info">
+            <h3 class="docs-card__title">Hetzner CX22 VPS (~€4/mo)</h3>
+            <p class="docs-card__body">Cheapest «install once, forget» option. Copy the <code>docker-compose.yml</code>, add nginx + Let's Encrypt for HTTPS, add a Postgres backup cron. Runs 24/7 independent of the Mac. ~1 hour first setup, ~5 min/mo maintenance after.</p>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="info">
+            <h3 class="docs-card__title">Fly.io ($0-5/mo)</h3>
+            <p class="docs-card__body">PaaS. <code>fly deploy</code> from the Dockerfile, Postgres as a separate managed component, HTTPS + restart + health checks included. Portfolio-friendly. Free tier covers a small tester cohort.</p>
+          </article>
+        </div>
+        <p>ADR 0039 will pick one when we hit W6. Until then, the client's <code>VITE_API_BASE_URL</code> stays parameterised so the switch is a build-config change, not a code change.</p>
+      </section>
+
+      <section aria-labelledby="prod-runtime-h">
+        <h2 id="prod-runtime-h">Runtime shape (target)</h2>
+        <p>Once both halves are deployed:</p>
+        <pre><code>User taps a bot notification in Telegram
+    ↓
+Telegram opens the WebView, loads https://study-app.pages.dev
+    ↓ HTML + JS + CSS from Cloudflare Pages CDN (edge-cached)
+    ↓
+React mounts, reads themeParams + language_code, dispatches to /
+    ↓ fetch("https://api.study.example.com/api/v1/auth/telegram",
+    ↓        body: window.Telegram.WebApp.initData)
+    ↓ Backend: HMAC-verify initData → upsert users row → mint 24 h JWT
+    ↓ Client: cache JWT in WebApp.CloudStorage, keep hot in memory
+    ↓
+    ↓ fetch("https://api.study.example.com/api/v1/conspectuses/due",
+    ↓        headers: { Authorization: "Bearer &lt;jwt&gt;",
+    ↓                   "X-Correlation-ID": "abc123" })
+    ↓
+Backend (wherever it lives): FastAPI → Postgres → JSON scoped by JWT sub
+    ↓
+Response paints on Today screen (&lt; 2 s LCP budget)</code></pre>
+      </section>
+
+      <section aria-labelledby="not-here-h">
+        <h2 id="not-here-h">What this page doesn't decide</h2>
+        <ul>
+          <li><strong>Which backend hosting path wins.</strong> That's ADR 0039 — drafted in W6, accepted before the first on-device test.</li>
+          <li><strong>Custom domain scheme.</strong> Whether the Mini App lives at <code>app.study.example.com</code>, <code>study-app.pages.dev</code>, or something else — pinned when the backend host is chosen (so both are registered at the same time).</li>
+          <li><strong>Bot hosting.</strong> The bot runs inside the API container (aiogram Dispatcher on FastAPI <code>lifespan</code> startup), so it deploys with whatever hosts the API.</li>
+        </ul>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Deploy-topology narrative created. Today (localhost + tunnel) → tomorrow (CF Pages + 3 backend options) → target runtime shape → explicit list of open decisions (backend host, domain, bot hosting).</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#today-h">Today: localhost loop</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#on-device-h">Today (on-device): tunnel loop</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tomorrow-frontend-h">Tomorrow · frontend</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tomorrow-backend-h">Tomorrow · backend</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#prod-runtime-h">Runtime shape (target)</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#not-here-h">What this doesn't decide</a></li>    </ol>
+    </aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

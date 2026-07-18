@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="draft" data-updated="2026-07-14" data-role="sa">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="draft" data-updated="2026-07-15" data-role="sa">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -44,26 +44,29 @@
             <p class="home-hero__tagline">
               A stylish, Telegram-native mobile client for the ETR daily loop —
               Today · Conspectus · Schedule · Errors. Thin React app + tiny Python bot
-              on top of the shipped <code>/api/v1</code> surface. Personal-use only for now.
+              on top of the shipped <code>/api/v1</code> surface. Multi-user by design —
+              every request is authenticated against the Telegram user who opened the app.
             </p>
             <div class="home-hero__stats">
               <span class="docs-pill docs-pill--info" data-tooltip="The visual language &amp; primitives for the Telegram client — separate from the portal UI Kit.">kit · <a href="../../../ui-kit/pages/telegram-mini-app/index.html">TMA design section</a></span>
               <span class="docs-pill docs-pill--info" data-tooltip="Backend contract this client consumes. Every screen maps to canon operations.">contract · <a href="../adr/index.html">/api/v1 canon</a></span>
-              <span class="docs-pill docs-pill--warn" data-tooltip="No shared users, no public onboarding — only the maintainer's Telegram account is allowed.">scope · personal</span>
+              <span class="docs-pill docs-pill--info" data-tooltip="Service page in the portal catalog. Every wave adds a page or promotes a section.">catalog · <a href="../../services/telegram/index.html">services/telegram</a></span>
+              <span class="docs-pill docs-pill--info" data-tooltip="Every Telegram user who opens the app gets an identity row in `users` and a JWT tied to their `telegram_user_id`. Testing surface accepts many concurrent testers from day one.">scope · multi-user</span>
+              <span class="docs-pill docs-pill--success" data-tooltip="Shipped: scaffold (T-05, 2026-07-15) plus W1 backend prep (T-01 telegram_users migration, T-02 initData verifier + POST /api/v1/auth/telegram, T-03 dual-mode Bearer JWT / X-API-Key middleware, T-04 JWT_SECRET config guard + bearerAuth OpenAPI) — all landed 2026-07-19. In progress: T-06 (catalog entry). Next: W2 design contract T-07…T-10.">progress · W2 · 5 / 29 tasks shipped</span>
             </div>
           </div>
           <dl class="home-hero__tickers home-hero__tickers--2col" aria-label="Epic snapshot">
-            <div class="home-hero__ticker" data-tone="accent" data-tooltip="Waves in the sequenced plan — W1 (auth) → W6 (docs &amp; polish).">
-              <dt>Waves</dt><dd>6</dd>
+            <div class="home-hero__ticker" data-tone="accent" data-tooltip="Waves in the sequenced plan — W1 backend prep → W7 deploy.">
+              <dt>Waves</dt><dd>7</dd>
             </div>
-            <div class="home-hero__ticker" data-tone="progress" data-tooltip="Dated tasks T-01…T-24 on the task board — auth simplification, screens, bot, deploy, docs.">
-              <dt>Tasks in scope</dt><dd>24</dd>
+            <div class="home-hero__ticker" data-tone="progress" data-tooltip="Dated tasks T-01…T-29 on the task board — backend prep, service foundation (scaffold + design contract), screens, bot, deploy.">
+              <dt>Tasks in scope</dt><dd>29</dd>
             </div>
             <div class="home-hero__ticker" data-tone="info" data-tooltip="Screens in the Mini App MVP — Today, Focus, Conspectus list &amp; detail, Schedule, Errors, Search, Profile, Onboarding.">
               <dt>MVP screens</dt><dd>9</dd>
             </div>
-            <div class="home-hero__ticker" data-tone="todo" data-tooltip="Backend deltas before frontend can start — auth simplification, bot-token config, CORS origins, ADR; webhook lands in W5.">
-              <dt>Backend changes</dt><dd>6</dd>
+            <div class="home-hero__ticker" data-tone="info" data-tooltip="Design + reference + how-to + explanation pages under services/portal/internal/services/telegram/. Sit alongside the scaffold — they land in W2 together, not as an afterthought.">
+              <dt>Catalog pages</dt><dd>~15</dd>
             </div>
           </dl>
         </div>
@@ -83,7 +86,7 @@
 
       <section aria-labelledby="decisions-h">
         <h2 id="decisions-h">Locked decisions</h2>
-        <p>Five choices ratified up-front. Anything in this table changes only via an explicit follow-up in the History section.</p>
+        <p>Six choices ratified up-front. Anything in this table changes only via an explicit follow-up in the History section.</p>
         <div class="docs-table-wrap">
           <table class="docs-table docs-table--zebra">
             <thead>
@@ -101,23 +104,28 @@
               </tr>
               <tr>
                 <td>Frontend stack</td>
-                <td>React + <code>@telegram-apps/sdk-react</code> + <code>@telegram-apps/telegram-ui</code></td>
-                <td>Official SDK; ready-made iOS/Material components that autoswitch on platform; TS-first; largest ecosystem. Vanilla would mean reimplementing every Cell / Section from scratch.</td>
+                <td>React 18 + <code>@telegram-apps/sdk-react</code> + <code>@telegram-apps/telegram-ui</code></td>
+                <td>Official SDK; ready-made iOS/Material components that autoswitch on platform; TS-first; largest ecosystem. React <strong>18.3.1</strong>, not 19 — <code>@telegram-apps/telegram-ui@2.1.13</code> still peer-locks to <code>^18.2.0</code>; forcing 19 via <code>--legacy-peer-deps</code> would break lockfile reproducibility. Bump the day telegram-ui ships a 19-compatible build.</td>
               </tr>
               <tr>
                 <td>Location in repo</td>
                 <td><code>services/telegram/</code> (own service)</td>
-                <td>Separate ship-unit with its own README, Makefile, Dockerfile, deploy target. Matches <a href="../adr/0028-monorepo-with-service-boundaries.html">ADR 0028</a>.</td>
+                <td>Separate ship-unit with its own README, Makefile, Dockerfile, deploy target. Matches <a href="../adr/0028-monorepo-with-service-boundaries.html">ADR 0028</a>. Single flat package — no <code>web/</code> subdir, no npm workspace root (one package doesn't earn workspace ceremony).</td>
               </tr>
               <tr>
                 <td>Auth</td>
-                <td>Existing <code>X-API-Key</code> header, simplified</td>
-                <td>The API already enforces a key header on <code>/api/v1</code>. We drop the <code>API_AUTH_STRATEGY</code> switch and keep a plain header + key pair (<code>API_AUTH_HEADER</code> / <code>API_AUTH_KEY</code>). Zero new auth machinery, zero token exchange in the client. Telegram initData → JWT is <em>deferred to P2</em> — it becomes mandatory the day the audience opens beyond the maintainer.</td>
+                <td>Telegram <code>initData</code> → JWT · one middleware in front of <code>/api/v1/*</code></td>
+                <td>The Mini App is opened from inside Telegram, which injects a signed <code>initData</code> payload identifying the user. The client POSTs it to <code>POST /api/v1/auth/telegram</code>; the server HMAC-verifies it against <code>TELEGRAM_BOT_TOKEN</code>, upserts a row in <code>users</code> keyed on <code>telegram_user_id</code>, and returns a 24 h JWT signed with <code>JWT_SECRET</code>. Every subsequent <code>/api/v1/*</code> call carries <code>Authorization: Bearer &lt;jwt&gt;</code>. Nothing sensitive ships in the bundle; identity is real per user from day one.</td>
               </tr>
               <tr>
                 <td>Audience</td>
-                <td>Maintainer only</td>
-                <td>Cuts the whole «public onboarding + conspectus editor + moderation» stack. If it ever opens up, that's a separate epic — not a scope creep on this one.</td>
+                <td>Multi-user from launch</td>
+                <td>Real Telegram accounts, real concurrent testers. Every request is attributed to a <code>users</code> row via the JWT's <code>sub</code> claim — schedule, conspectus and error data isolate cleanly per user. Public onboarding and conspectus editing stay out of scope, but multi-user identity is a MVP concern, not a P2 concern.</td>
+              </tr>
+              <tr>
+                <td>Documentation model</td>
+                <td>Service catalog page written <em>alongside</em> code, not after</td>
+                <td>A client with 9 screens, cross-screen shared components, deep-links and event tracking is cheap to design on paper and expensive to refactor once wired. Every wave that adds runtime surface also adds the catalog page that describes it — <code>services/portal/internal/services/telegram/</code> starts as W2 alongside the scaffold and grows one Diátaxis quadrant per subsequent wave. Same discipline the other four services in this repo follow.</td>
               </tr>
             </tbody>
           </table>
@@ -127,28 +135,30 @@
       <section aria-labelledby="phases-h">
         <h2 id="phases-h">Scope by phase</h2>
         <p>MVP is the smallest thing that closes the daily loop end-to-end. P2 and P3 are on the backlog but not part of this epic's Definition of Done.</p>
-        <div class="docs-card-grid">
+        <div class="docs-card-grid docs-card-grid--stack">
           <article class="docs-card docs-card--rail docs-card--rail-tinted" data-tone="accent">
             <span class="docs-card__hint">MVP · in this epic</span>
             <h3 class="docs-card__title">Daily loop, end-to-end</h3>
             <ul class="docs-card__body">
               <li>Bot <code>/start</code> + Mini App launch button.</li>
-              <li>Auth: existing <code>X-API-Key</code> header · one user.</li>
+              <li>Auth: Telegram <code>initData</code> → JWT · <code>users.telegram_*</code> identity per real Telegram account.</li>
               <li>Today screen (due for review) + Focus review flow.</li>
               <li>Conspectus list &amp; detail (read-only).</li>
               <li>Schedule · summary strip + heat-map.</li>
               <li>Error-log · list &amp; add.</li>
               <li>Search, Profile, Onboarding.</li>
-              <li>Swipes, haptics, streak — polish waves W2b–W4.</li>
+              <li>Swipes, haptics, streak — polish waves W3–W5.</li>
+              <li>Service catalog page · one Diátaxis quadrant per wave.</li>
             </ul>
           </article>
           <article class="docs-card docs-card--rail" data-tone="info">
             <span class="docs-card__hint">P2 · after MVP</span>
             <h3 class="docs-card__title">Next epic candidates</h3>
             <ul class="docs-card__body">
-              <li>Telegram initData → JWT auth + <code>users.telegram_*</code> identity migration — mandatory before any second user.</li>
               <li>Bot reminders driven by a scheduler worker (APScheduler vs external cron — decide then).</li>
-              <li>JWT storage in <code>WebApp.CloudStorage</code> (cross-device sync).</li>
+              <li>Public onboarding + conspectus editor (create / edit) — opens the app beyond the tester cohort.</li>
+              <li>Per-user rate limits and abuse controls tied to the <code>telegram_user_id</code> identity.</li>
+              <li>Backend hosting decision (ADR 0039 candidate) — Cloudflare Tunnel from Mac / Hetzner CX22 VPS / Fly.io. Landed in W6 when on-device Telegram testing arrives.</li>
             </ul>
           </article>
           <article class="docs-card docs-card--rail" data-tone="muted">
@@ -166,94 +176,78 @@
 
       <section aria-labelledby="waves-h">
         <h2 id="waves-h">Waves — the work plan</h2>
-        <p>Six waves, one PR per wave (W2 ships as two PRs — bootstrap, then the Today screen). Each wave is independently mergeable — end of a wave means the app compiles, tests are green, and the previous wave's contract is preserved.</p>
+        <p>Seven waves, one PR per wave. Each wave is independently mergeable — end of a wave means the app compiles, tests are green, and the previous wave's contract is preserved. Every wave that adds runtime surface also lands its <a href="../../services/telegram/index.html">catalog page</a>: the entity card and design contract in W2, the deploy-topology page in W7, on-call in the wave that first ships production surface. Docs are wave-scope, not backlog-scope.</p>
         <ol class="numbered-step-list">
           <li>
             <div>
-              <strong>W1 · Backend: auth simplification &amp; Telegram config.</strong>
-              No new auth machinery — the API keeps its existing header-key check, minus the strategy switch. <code>app/core/security.py</code> drops the <code>API_AUTH_STRATEGY</code> branching; config keeps <code>API_AUTH_HEADER</code> (default <code>X-API-Key</code>) + <code>API_AUTH_KEY</code> (renamed from <code>API_MOCK_API_KEY</code>); qa/prod guard changes from «strategy ≠ disabled» to «key must be non-empty». <code>/live</code> and <code>/ready</code> stay open (unchanged). <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code> added to settings and <code>env/*</code> — consumed by the bot in W5; register the BotFather test bot now so the values exist. <code>CORS_ALLOW_ORIGINS</code> extended with the Vite dev origin (<code>http://localhost:5173</code>) and the tunnel origin. ADR 0038 «Personal-mode auth: reuse X-API-Key, defer Telegram initData» drafted &amp; accepted. OpenAPI baseline regenerated; <code>make openapi-check</code> green. <em>Exit criteria:</em> pytest covers valid / missing / wrong key on protected routes, and the config guard for empty key in qa/prod.
+              <strong>W1 · Backend prep — Telegram identity, <code>initData</code> → JWT, JWT middleware.</strong>
+              Every screen from W3 onwards assumes an authenticated user row keyed on <code>telegram_user_id</code>, so this wave is the foundation nothing else can move without. Four deliverables ship together.
+              <br><br>
+              <em>Identity migration</em> — Alembic revision creates <code>telegram_users</code>, a per-provider identity table with columns <code>telegram_user_uuid</code>, <code>client_uuid</code> (FK → <code>users.client_uuid</code>, unique, <code>ON DELETE CASCADE</code>), <code>telegram_user_id</code> (BigInteger, unique), <code>telegram_username</code>, <code>telegram_photo_url</code>, <code>locale</code>, <code>created_at</code>, <code>updated_at</code>. The core <code>users</code> table is left untouched so future auth providers (Google, Apple) can land as sibling tables instead of bloating it. The existing <code>(system_user_id, system_uuid)</code> wire contract is preserved; the JWT's <code>sub</code> claim binds to <code>users.client_uuid</code>, which the middleware resolves to a <code>users</code> row directly.
+              <br><br>
+              <em>Auth endpoint</em> — <code>POST /api/v1/auth/telegram</code>. Body: raw <code>initData</code> string. Verifier follows the Telegram spec exactly: <em>(1)</em> derive <code>secret_key = HMAC_SHA256(key="WebAppData", msg=bot_token)</code>; <em>(2)</em> build the <code>data_check_string</code> — all fields except <code>hash</code>, sorted by key, joined with <code>\n</code>; <em>(3)</em> compare <code>HMAC_SHA256(key=secret_key, msg=data_check_string)</code> against the payload's <code>hash</code>; <em>(4)</em> reject if <code>auth_date</code> is older than 24 h. On pass, upsert on <code>telegram_user_id</code> and mint a 24 h JWT signed with <code>JWT_SECRET</code> (<code>PyJWT</code>, HS256). Response: <code>{ jwt, user }</code>. Endpoint stays anonymous — this is how the client obtains its bearer.
+              <br><br>
+              <em>JWT middleware</em> — <code>app/core/security.py</code> checks <code>Authorization: Bearer &lt;jwt&gt;</code> on every <code>/api/v1/*</code> route except <code>/auth/telegram</code> itself. Invalid, expired or missing token → 401. Valid → <code>request.state.current_user</code> resolves to a <code>users</code> row via the JWT's <code>sub</code> claim. <code>/live</code> and <code>/ready</code> remain open per <a href="../adr/0009-health-readiness-and-observability.html">ADR 0009</a>.
+              <br><br>
+              <em>Config &amp; CORS</em> — <code>TELEGRAM_BOT_TOKEN</code> (HMAC key for initData verification), <code>JWT_SECRET</code> (24-h JWT signing), <code>TELEGRAM_CHAT_ID</code> (bot in W6) added to <code>app/core/config.py</code> and <code>env/*</code>. qa/prod guard: <code>JWT_SECRET</code> must be non-default and ≥ 32 bytes. <code>CORS_ALLOW_ORIGINS</code> extended with the Vite dev origin (<code>http://localhost:5173</code>) and the tunnel origin. OpenAPI baseline regenerated with the <code>bearerAuth</code> security scheme; <code>make openapi-check</code> green.
+              <br><br>
+              <em>Exit criteria:</em> pytest covers <em>(a)</em> valid <code>initData</code> → 200 with JWT, <em>(b)</em> tampered <code>initData</code> → 401, <em>(c)</em> replay of expired <code>initData</code> → 401 (<code>auth_date</code> older than 24 h), <em>(d)</em> valid JWT on a protected route → 200, <em>(e)</em> missing / wrong / expired JWT → 401, <em>(f)</em> config guard rejects default <code>JWT_SECRET</code> in qa/prod.
             </div>
           </li>
           <li>
             <div>
-              <strong>W2a · Frontend bootstrap.</strong>
-              <code>services/telegram/</code> created — Vite + React 19 + TypeScript. Deps: <code>@telegram-apps/sdk-react</code>, <code>@telegram-apps/telegram-ui</code>, <code>@tanstack/react-query</code>, <code>@tanstack/react-router</code> (type-safe routing + built-in View Transitions), <code>zustand</code> (UI state), <code>framer-motion</code> (interactions + shared-element), <code>posthog-js</code> (analytics). Providers: <code>QueryClient</code>, <code>Router</code>, <code>ThemeProvider</code> (maps <code>themeParams</code> → semantic CSS vars), <code>ViewportProvider</code> (writes <code>--tma-safe-top / --tma-safe-bottom / --tma-viewport-h</code> from <code>viewportStableHeight</code>). Auth: the generated client sends <code>X-API-Key</code> from <code>VITE_API_KEY</code> on every request and a fresh <code>Idempotency-Key</code> (uuid v4) on every write — no token exchange, no storage concern in personal mode. <em>Dev</em>: plain browser tab — <code>mockTelegramEnv()</code> stays only as a 3-line dev-only shim so the SDK boots (theme, viewport); auth never touches initData, so no signed payload and no tunnel are needed for UI work. Cloudflare Tunnel only for on-device dev with real Telegram. i18n scaffold — <code>i18next</code> + <code>ru</code> / <code>en</code> from <code>language_code</code>. Storybook boot for TMA components.
+              <strong>W2 · Service foundation — scaffold + design contract.</strong>
+              Two deliverables that carry equal weight in one wave: (a) the empty Vite shell that later waves fill, and (b) the design contract that tells them <em>what</em> to fill it with. Both land before any screen is coded because reshaping a shell already wired to five screens costs an order of magnitude more than editing a design page.
+              <br><br>
+              <em>Scaffold</em> — <code>services/telegram/</code> created as a flat single-package layout (no <code>web/</code> subdir, no workspace root — one package doesn't earn workspace ceremony). Vite 6 + React 18.3 + TypeScript, strict mode. Deps installed in one shot so later waves don't each trigger an install pass: <code>@telegram-apps/sdk-react</code>, <code>@telegram-apps/telegram-ui</code>, <code>@tanstack/react-query</code>, <code>@tanstack/react-router</code> (type-safe routing + built-in View Transitions), <code>zustand</code> (UI state), <code>framer-motion</code> (interactions + shared-element), <code>posthog-js</code> (analytics), <code>i18next</code> + <code>react-i18next</code> (ru + en). Providers land as part of the first-screen wave; scaffold just proves <code>tsc --noEmit</code>, eslint, and <code>vite build</code> all pass.
+              <br><br>
+              <em>Design contract</em> — <a href="../../services/telegram/index.html"><code>services/portal/internal/services/telegram/</code></a> filled with the full Diátaxis quadrant set for a live-runtime service: entity card, architecture (C4-Component + request path), dependencies (runtime + build inputs), on-call, design (9-screen catalog with states, motion + haptics vocabulary, information architecture), how-to (run-locally, test-on-device, add-a-screen, translate-a-string), reference (event spec, deep-link grammar, env vars), explanation (why React + Vite, observability model, deploy topology). ~15 pages, all portfolio-tone, all machine-checked by <code>make docs-check</code>. Same discipline as <code>api</code>, <code>portal</code>, <code>monitoring</code>, <code>datastore</code> and <code>ui-kit</code>.
+              <br><br>
+              <em>Dev</em>: plain browser tab. <code>mockTelegramEnv()</code> boots the SDK with a synthetic theme + viewport; <code>tools/dev/sign_init_data.py</code> mints a signed <code>initData</code> for a fake Telegram user against the local <code>TELEGRAM_BOT_TOKEN</code>. No tunnel required for UI work; on-device testing (real Telegram + real HTTPS) comes in W6.
             </div>
           </li>
           <li>
             <div>
-              <strong>W2b · Today screen (end-to-end).</strong>
-              First working screen against real API — Yesterday-digest strip, streak <code>ProgressRing</code>, Recently-reviewed carousel, 90-day <code>HeatmapCalendar</code>, due list with 4 swipe gestures (mark done · snooze · destructive · star). <strong>Contract note:</strong> snooze is <em>not</em> a separate endpoint — every review outcome, snooze included, is a <code>tag</code> (<code>easy</code> · <code>hard</code> · <code>forgot</code>) on <code>POST /api/v1/conspectuses/{id}/actions/review</code>; the exact UI-action → tag mapping is pinned in the operations spec page, not here.
+              <strong>W3 · Today screen (end-to-end).</strong>
+              First working screen against real API. Providers land here (<code>QueryClient</code>, <code>Router</code>, <code>ThemeProvider</code> mapping <code>themeParams</code> → semantic CSS vars, <code>ViewportProvider</code> writing <code>--tma-safe-top / --tma-safe-bottom / --tma-viewport-h</code>), plus the auth bootstrap (POST <code>WebApp.initData</code> → <code>/auth/telegram</code>, cache JWT in <code>CloudStorage</code>) and the generated API client with <code>Authorization: Bearer &lt;jwt&gt;</code> + <code>Idempotency-Key</code> interceptors. Screen itself: Yesterday-digest strip, streak <code>ProgressRing</code>, Recently-reviewed carousel, 90-day <code>HeatmapCalendar</code>, due list with 4 swipe gestures. <strong>Contract note:</strong> snooze is <em>not</em> a separate endpoint — every review outcome, snooze included, is a <code>tag</code> (<code>easy</code> · <code>hard</code> · <code>forgot</code>) on <code>POST /api/v1/conspectuses/{id}/actions/review</code>; the exact UI-action → tag mapping is pinned in the design contract, not here.
             </div>
           </li>
           <li>
             <div>
-              <strong>W3 · Screens: Conspectus, Schedule, Errors, Focus, Search, Profile, Onboarding.</strong>
+              <strong>W4 · Remaining screens — Conspectus, Schedule, Errors, Focus, Search, Profile, Onboarding.</strong>
               Full 8-screen surface — read-only Conspectus with AI micro-actions (Explain differently, Generate quiz), <strong>Focus mode</strong> (SRS review flow — full-screen card, tap to reveal, Again/Hard/Good/Easy grades, SM-2 next-interval preview), Schedule with 90-day heat-map, Errors with timeline + pattern grouping, Profile with achievements + weekly retention chart, first-run <strong>Onboarding</strong>, <strong>Search / Spotlight</strong> (Cmd+K on desktop, pull-down on mobile). All screens hooked to real API via the OpenAPI-generated client (<code>openapi-typescript</code>). Every screen ships loading (content-aware skeleton), empty (with illustration + rotating tip), and error toast states.
             </div>
           </li>
           <li>
             <div>
-              <strong>W4 · Polish · motion + delight.</strong>
-              Framer Motion springs on every mount / dismount. View Transitions API for route changes (Today card → Focus card = shared-element). Haptics vocabulary (7 patterns — selection, impact light/med/heavy, notification success/warning/error). BackButton + MainButton + SettingsButton wired via SDK. Content-aware loading skeletons. Toasts with undo. Milestone celebrations (Lottie for streak 7/30/100). Time-aware copies. Sound cues (opt-in, muted by default). Sentry + PostHog with event spec (<code>review_completed</code>, <code>review_snoozed</code>, <code>error_logged</code>, <code>streak_broken</code>, <code>focus_session_ended</code>, <code>search_opened</code>).
+              <strong>W5 · Polish · motion + delight.</strong>
+              Framer Motion springs on every mount / dismount. View Transitions API for route changes (Today card → Focus card = shared-element). Haptics vocabulary (7 patterns — selection, impact light/med/heavy, notification success/warning/error). BackButton + MainButton + SettingsButton wired via SDK. Content-aware loading skeletons. Toasts with undo. Milestone celebrations (Lottie for streak 7/30/100). Time-aware copies. Sound cues (opt-in, muted by default). Sentry + PostHog with event spec (<code>review_completed</code>, <code>review_snoozed</code>, <code>error_logged</code>, <code>streak_broken</code>, <code>focus_session_ended</code>, <code>search_opened</code>). Event spec doc in the catalog gets its <em>Verified</em> stamp as each event ships.
             </div>
           </li>
           <li>
             <div>
-              <strong>W5 · Bot &amp; deep-linking.</strong>
-              Python <code>aiogram</code> handlers colocated inside <code>services/api</code> (shares models, config, and Postgres session). aiogram <code>Dispatcher</code> started on FastAPI <code>lifespan</code> startup; dev uses long-poll, prod uses webhook mounted at <code>POST /api/v1/telegram/webhook</code> with <code>X-Telegram-Bot-Api-Secret-Token</code> header check. <code>/start</code> greets and offers the Mini App launch button. Deep-link scheme uses the <em>modern</em> HTTPS format — <code>https://t.me/&lt;bot_username&gt;/&lt;app_short_name&gt;?startapp=conspectus_&lt;uuid&gt;</code>. The <code>startapp</code> payload is exposed to the WebApp via <code>WebApp.initDataUnsafe.start_param</code> and drives router navigation.
+              <strong>W6 · Bot &amp; deep-linking.</strong>
+              Python <code>aiogram</code> handlers colocated inside <code>services/api</code> (shares models, config, and Postgres session). aiogram <code>Dispatcher</code> started on FastAPI <code>lifespan</code> startup; dev uses long-poll, prod uses webhook mounted at <code>POST /api/v1/telegram/webhook</code> with <code>X-Telegram-Bot-Api-Secret-Token</code> header check. <code>/start</code> greets and offers the Mini App launch button. Deep-link scheme uses the <em>modern</em> HTTPS format — <code>https://t.me/&lt;bot_username&gt;/&lt;app_short_name&gt;?startapp=conspectus_&lt;uuid&gt;</code>. The <code>startapp</code> payload is exposed to the WebApp via <code>WebApp.initDataUnsafe.start_param</code> and drives router navigation. This wave forces the <strong>backend hosting decision</strong> — on-device Telegram testing needs a public HTTPS endpoint for the API. Candidate ADR 0039 (Cloudflare Tunnel from Mac / Hetzner CX22 VPS / Fly.io) drafted &amp; accepted here.
             </div>
           </li>
           <li>
             <div>
-              <strong>W6 · Deploy, docs, perf budget, DoD.</strong>
-              Mini App shipped to Cloudflare Pages (custom domain, HTTPS). Bot webhook served from the API container. Portal gains a service page under <code>services/portal/internal/services/telegram/</code> — one page per Diátaxis quadrant, plus a public design case-study on the blog. Backlog cockpit reflects «done». <code>make verify</code> extended: builds the Mini App, typechecks, runs Vitest + Playwright, and enforces the performance budget via <strong>Lighthouse CI</strong> — <em>LCP ≤ 2.0s</em>, <em>TBT ≤ 200ms</em>, <em>bundle ≤ 200 KB gz</em>, <em>a11y ≥ 95</em>. Epic closed.
+              <strong>W7 · Deploy, perf budget, DoD.</strong>
+              Mini App shipped to Cloudflare Pages (custom domain, HTTPS). Bot webhook served from the API container per ADR 0039. Backlog cockpit reflects «done». <code>make verify</code> extended: builds the Mini App, typechecks, runs Vitest + Playwright, and enforces the performance budget via <strong>Lighthouse CI</strong> — <em>LCP ≤ 2.0s</em>, <em>TBT ≤ 200ms</em>, <em>bundle ≤ 200 KB gz</em>, <em>a11y ≥ 95</em>. Deploy-topology page in the catalog is stamped <em>Verified</em>. Epic closed.
             </div>
           </li>
         </ol>
       </section>
 
-      <section aria-labelledby="cutline-h">
-        <h2 id="cutline-h">Cut line — local test by 2026-07-17</h2>
-        <p>The first checkpoint is a working daily loop on the maintainer's machine by end of this week. Screen mock-ups are still being finalised in the TMA design section — that work runs in parallel and is <em>not</em> a blocker: the shell, data layer and approved screens land first, remaining screens follow the mock-ups.</p>
-        <div class="docs-table-wrap">
-          <table class="docs-table docs-table--zebra">
-            <thead>
-              <tr>
-                <th scope="col">In this week</th>
-                <th scope="col">Explicitly deferred past the checkpoint</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>W1 in full (auth simplification, bot-token config, CORS, ADR 0038).</td>
-                <td>W4 heavy delight — Lottie, sound cues, Sentry + PostHog wiring, full haptics vocabulary.</td>
-              </tr>
-              <tr>
-                <td>W2a in full — bootstrap, providers, generated client, plain-browser dev.</td>
-                <td>W6 in full — Cloudflare Pages deploy, Lighthouse CI budget, portal service pages.</td>
-              </tr>
-              <tr>
-                <td>W2b — Today screen end-to-end against local API.</td>
-                <td>Storybook coverage beyond the primitives actually built this week.</td>
-              </tr>
-              <tr>
-                <td>W3 screens in mock-up-approval order; each screen ships loading / empty / error states.</td>
-                <td>W5 beyond a long-poll <code>/start</code> + launch button — webhook, <code>startapp</code> deep-links wait until on-device testing starts.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
       <section aria-labelledby="tasks-h">
         <h2 id="tasks-h">Task board</h2>
-        <p>Every task from the waves, dated and testable. Dates before 2026-07-17 form the local-test cut; T-16 is the checkpoint itself. One row = one commit-sized unit of work.</p>
+        <p>Every task from the waves, dated and testable. Dates on or before 2026-07-24 form the milestone-1 cut; T-21 is the milestone check itself. One row = one commit-sized unit of work. <strong>Status</strong> tracks shipped rows against the plan — T-05 (scaffold) landed 2026-07-15; W1 backend prep (identity migration + <code>initData</code> → JWT + JWT middleware) and W2 design contract (T-06…T-10) are landing in parallel this week.</p>
         <div class="docs-table-wrap">
           <table class="docs-table docs-table--zebra docs-table--tasks">
             <thead>
               <tr>
                 <th scope="col">№</th>
+                <th scope="col">Status</th>
                 <th scope="col">Date</th>
                 <th scope="col">Task</th>
                 <th scope="col">How to test</th>
@@ -263,169 +257,233 @@
             <tbody>
               <tr>
                 <td>T-01</td>
-                <td>2026-07-14</td>
-                <td>Auth simplification — remove the <code>API_AUTH_STRATEGY</code> branch in <code>app/core/security.py</code>; keep <code>API_AUTH_HEADER</code> + <code>API_AUTH_KEY</code> (renamed from <code>API_MOCK_API_KEY</code>); qa/prod guard «key non-empty».</td>
-                <td>pytest: valid / missing / wrong key on a protected route; config guard raises on empty key in qa/prod; <code>make verify</code> green.</td>
-                <td><a href="../adr/index.html">ADR log</a></td>
+                <td><span class="docs-pill docs-pill--success" data-tooltip="Alembic revision 20260719_0003 lands the telegram_users table (unique client_uuid FK to users, unique telegram_user_id BigInteger, nullable telegram_username / telegram_photo_url / locale, created_at / updated_at). Existing users table untouched. TelegramUser ORM model + models/__init__ export. testcontainers-pytest bootstraps the schema on every run.">shipped</span></td>
+                <td>2026-07-19</td>
+                <td>Alembic migration · new <code>telegram_users</code> table (unique <code>telegram_user_id</code> BigInteger, FK <code>client_uuid</code> → <code>users.client_uuid</code> with <code>ON DELETE CASCADE</code>, plus <code>telegram_username</code>, <code>telegram_photo_url</code>, <code>locale</code>, timestamps). Core <code>users</code> table left untouched.</td>
+                <td><code>alembic upgrade head</code> applies cleanly on an empty DB and on a seeded dev DB; downgrade drops the table; testcontainers-pytest exercises both directions.</td>
+                <td><a href="https://alembic.sqlalchemy.org/">Alembic</a></td>
               </tr>
               <tr>
                 <td>T-02</td>
-                <td>2026-07-14</td>
-                <td>Register the BotFather test bot; add <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code> to <code>app/core/config.py</code> and <code>env/*</code>.</td>
-                <td>App boots with and without the vars set; settings expose both values; secrets absent from git.</td>
-                <td><a href="https://core.telegram.org/bots/features#botfather">BotFather</a></td>
+                <td><span class="docs-pill docs-pill--success" data-tooltip="Pure stdlib verifier at app/core/telegram_init_data.py (four spec steps: derive secret_key, build data_check_string, HMAC compare, freshness). Hand-rolled HS256 JWT at app/core/jwt_tokens.py (no external dep). AuthService orchestrates verify → upsert users + telegram_users → mint JWT. Endpoint at app/api/v1/auth.py. 15 unit tests + 7 integration tests green.">shipped</span></td>
+                <td>2026-07-19</td>
+                <td><code>initData</code> HMAC verifier + <code>POST /api/v1/auth/telegram</code>. Body: raw <code>initData</code> string; server verifies against <code>TELEGRAM_BOT_TOKEN</code>, upserts by <code>telegram_user_id</code>, mints 24 h JWT (HS256, hand-rolled against stdlib to avoid an external dep) signed with <code>JWT_SECRET</code>. Response: <code>{ jwt, expires_at_epoch, token_type, user }</code>.</td>
+                <td>pytest: valid initData → 200 + JWT decodes with expected <code>sub</code>; tampered signature → 401; replay of stale <code>auth_date</code> (&gt; 24 h) → 401.</td>
+                <td><a href="https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app">Telegram · validating initData</a></td>
               </tr>
               <tr>
                 <td>T-03</td>
-                <td>2026-07-14</td>
-                <td>CORS — extend <code>CORS_ALLOW_ORIGINS</code> with <code>http://localhost:5173</code> and the tunnel origin.</td>
-                <td><code>curl -X OPTIONS</code> preflight from the Vite origin returns the matching <code>Access-Control-Allow-Origin</code> header.</td>
-                <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS">MDN · CORS</a></td>
+                <td><span class="docs-pill docs-pill--success" data-tooltip="Dual-mode auth. Bearer JWT is preferred and, when present, is the only credential checked (a wrong Bearer never falls through to X-API-Key — prevents credential-confusion attacks). Sub claim written to request.state.current_user_client_uuid. /auth/telegram, /live and /ready listed in ANONYMOUS_API_PATHS. 9 integration tests green.">shipped</span></td>
+                <td>2026-07-19</td>
+                <td>Dual-mode auth middleware in <code>app/core/security.py</code>. <code>Authorization: Bearer &lt;jwt&gt;</code> is the preferred credential and always short-circuits — a wrong Bearer never falls through to the legacy <code>X-API-Key</code> fallback. Valid JWT → <code>request.state.current_user_client_uuid</code>. Invalid / expired / missing → 401. <code>/auth/telegram</code>, <code>/live</code>, <code>/ready</code> stay anonymous.</td>
+                <td>pytest: valid JWT reaches protected route; expired / wrong-signature / malformed Bearer → 401; a wrong Bearer + a valid X-API-Key still returns 401 (short-circuit); X-API-Key alone still works for internal tools.</td>
+                <td><a href="https://datatracker.ietf.org/doc/html/rfc6750">RFC 6750</a></td>
               </tr>
               <tr>
                 <td>T-04</td>
-                <td>2026-07-14</td>
-                <td>ADR 0038 «Personal-mode auth: reuse X-API-Key» written &amp; Accepted; OpenAPI baseline regenerated.</td>
-                <td><code>make openapi-check</code> + <code>make docs-check</code> green; ADR status pill reads Accepted.</td>
-                <td><a href="../adr/index.html">ADR log</a></td>
+                <td><span class="docs-pill docs-pill--success" data-tooltip="Settings.jwt_secret + jwt_ttl_seconds + telegram_init_data_max_age_seconds added; qa/prod guard rejects the default value and any secret shorter than 32 bytes. bearerAuth security scheme declared globally via app/openapi/bearer_auth_openapi.py; every non-anonymous op advertises both bearerAuth and X-API-Key. /api/v1/auth/telegram registered as a KNOWN_NON_CANON_OPERATION (Mini-App-specific per ADR 0036). make openapi-check + make docs-check green; runtime baseline regenerated.">shipped</span></td>
+                <td>2026-07-19</td>
+                <td>Config &amp; CORS · <code>TELEGRAM_BOT_TOKEN</code>, <code>JWT_SECRET</code>, <code>TELEGRAM_CHAT_ID</code> in <code>app/core/config.py</code> + <code>env/*</code>. qa/prod guard rejects default <code>JWT_SECRET</code> and enforces ≥ 32 bytes. <code>CORS_ALLOW_ORIGINS</code> += <code>http://localhost:5173</code> + tunnel origin. OpenAPI baseline regenerated with <code>bearerAuth</code> security scheme.</td>
+                <td><code>make openapi-check</code> + <code>make docs-check</code> green; config guard raises on default <code>JWT_SECRET</code>; <code>curl -X OPTIONS</code> preflight from the Vite origin returns matching CORS headers.</td>
+                <td><a href="../adr/0010-env-profiles-and-config-governance.html">ADR 0010</a></td>
               </tr>
               <tr>
                 <td>T-05</td>
+                <td><span class="docs-pill docs-pill--success" data-tooltip="Scaffold landed 2026-07-15. Vite 6 + React 18.3 (pinned to 18 because @telegram-apps/telegram-ui@2.1.13 still peer-locks to ^18.2.0). Flat single-package layout at services/telegram/ (no web/ subdir, no workspace root). typecheck + lint + build all green; 144 KB / 46 KB gz bundle.">shipped</span></td>
                 <td>2026-07-15</td>
-                <td>Scaffold <code>services/telegram/</code> — Vite + React 19 + TS, deps installed, README + Makefile.</td>
-                <td><code>make -C services/telegram dev</code> serves the app; <code>tsc --noEmit</code> and eslint clean.</td>
+                <td>Scaffold <code>services/telegram/</code> — Vite 6 + React 18.3 + TypeScript, full W2 dep set installed, README + Makefile + <code>make -C services/telegram verify</code> target.</td>
+                <td><code>make -C services/telegram dev</code> serves the app on :5173; <code>make typecheck</code> + <code>make lint</code> + <code>make build</code> all green.</td>
                 <td><a href="https://vite.dev/guide/">Vite</a> · <a href="https://docs.telegram-mini-apps.com/">TMA SDK</a></td>
               </tr>
               <tr>
                 <td>T-06</td>
-                <td>2026-07-15</td>
+                <td><span class="docs-pill docs-pill--neutral" data-tooltip="W2 design contract · page 1 of 5. Currently in progress.">in progress</span></td>
+                <td>2026-07-18</td>
+                <td>Catalog entry — <code>services/portal/internal/services/telegram/{index.html, catalog-info.yaml}</code>. Backstage descriptor + hub page with entity card (auto-rendered), daily-loop request path, seven-tile Diátaxis spine, current-status cards.</td>
+                <td><code>make catalog-render</code> fills the entity card without drift; page opens under Internal → Services → telegram in the nav; <code>make docs-check</code> green.</td>
+                <td><a href="../../services/telegram/index.html">telegram service</a></td>
+              </tr>
+              <tr>
+                <td>T-07</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-19</td>
+                <td>Catalog reference-spine — <code>architecture.html</code> (runtime model + C4-Component + build pipeline), <code>dependencies.html</code> (runtime + build inputs + blast radius), <code>on-call.html</code> (bundle broken / deep-link broken / API unreachable).</td>
+                <td>Three pages open from the spine grid on the hub; PlantUML diagrams render via <code>make docs-fix</code>; <code>docs-check</code> green.</td>
+                <td><a href="../../services/telegram/architecture.html">architecture</a> · <a href="../../services/telegram/dependencies.html">dependencies</a></td>
+              </tr>
+              <tr>
+                <td>T-08</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-20</td>
+                <td>Catalog design section — <code>design/{index, screens, interactions, information-architecture}.html</code>. 9-screen catalog with states + endpoints, motion + haptics vocabulary, sitemap + deep-link grammar.</td>
+                <td>Each screen page cross-links to its TMA UI Kit mock; every state (loading / empty / error) has a variant tile; <code>docs-check</code> green.</td>
+                <td><a href="../../services/telegram/design/index.html">design</a></td>
+              </tr>
+              <tr>
+                <td>T-09</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-20</td>
+                <td>Catalog how-to section — <code>how-to/{run-locally, test-on-device, add-a-screen, translate-a-string}.html</code>. First-run recipe (npm ci → make dev → open :5173), Cloudflare Tunnel + BotFather test bot recipe, add-a-screen walkthrough, i18n recipe.</td>
+                <td>A first-time contributor following <code>run-locally.html</code> ends up with the app on :5173; page structure matches the Diátaxis how-to template.</td>
+                <td><a href="../../services/telegram/how-to/run-locally.html">how-to</a></td>
+              </tr>
+              <tr>
+                <td>T-10</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-21</td>
+                <td>Catalog reference &amp; explanation — <code>reference/{event-spec, deep-link-grammar, env-vars}.html</code> + <code>explanation/{why-react-and-vite, observability-model, deploy-topology}.html</code>. Machine-checkable contracts + long-form rationale.</td>
+                <td>Event spec has one row per event with type-shape; deep-link grammar has a state-machine table; deploy-topology documents both the current localhost loop and the future hosting options.</td>
+                <td><a href="../../services/telegram/reference/event-spec.html">reference</a> · <a href="../../services/telegram/explanation/why-react-and-vite.html">explanation</a></td>
+              </tr>
+              <tr>
+                <td>T-11</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-20</td>
                 <td>Providers — QueryClient, Router, ThemeProvider (<code>themeParams</code> → CSS vars), ViewportProvider; <code>mockTelegramEnv()</code> dev shim.</td>
                 <td>App renders in a plain browser tab; <code>--tma-safe-*</code> vars present; theme flips with the mock scheme.</td>
                 <td><a href="https://docs.telegram-mini-apps.com/packages/telegram-apps-sdk-react/3-x">sdk-react</a> · <a href="https://tanstack.com/router/latest">TanStack Router</a></td>
               </tr>
               <tr>
-                <td>T-07</td>
-                <td>2026-07-15</td>
-                <td>Generated API client (<code>openapi-typescript</code>) + interceptor injecting <code>X-API-Key</code> and per-write <code>Idempotency-Key</code>.</td>
-                <td>Vitest asserts both headers; dev app fetches live <code>GET /api/v1/schedule/summary</code> from local API.</td>
+                <td>T-12</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-21</td>
+                <td>Generated API client (<code>openapi-typescript</code>) + auth bootstrap: on mount, POST <code>WebApp.initData</code> to <code>/auth/telegram</code>, cache the JWT in memory + <code>WebApp.CloudStorage</code> for cross-device sync, refresh silently before expiry. Fetch interceptor injects <code>Authorization: Bearer &lt;jwt&gt;</code> + per-write <code>Idempotency-Key</code>.</td>
+                <td>Vitest asserts the bootstrap POST fires once per cold open; both headers present on subsequent calls; dev app fetches live <code>GET /api/v1/schedule/summary</code> from local API against a mocked initData.</td>
                 <td><a href="https://openapi-ts.dev/">openapi-typescript</a> · <a href="https://tanstack.com/query/latest">TanStack Query</a></td>
               </tr>
               <tr>
-                <td>T-08</td>
-                <td>2026-07-15</td>
+                <td>T-13</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-21</td>
                 <td>i18n scaffold (<code>i18next</code>, ru + en from <code>language_code</code>) + Storybook boot with the first <code>.tma-*</code> primitive.</td>
                 <td>Switching mock <code>language_code</code> flips copy; <code>storybook dev</code> renders the primitive story.</td>
                 <td><a href="https://www.i18next.com/">i18next</a> · <a href="https://storybook.js.org/docs">Storybook</a></td>
               </tr>
               <tr>
-                <td>T-09</td>
-                <td>2026-07-16</td>
+                <td>T-14</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-22</td>
                 <td>Today — data layer: due list (<code>GET /conspectuses/due</code>) + schedule summary hooks with loading / empty / error states.</td>
                 <td>Seeded local Postgres shows due cards; kill the API → error toast; empty DB → empty state.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/today.html">Today mock</a></td>
               </tr>
               <tr>
-                <td>T-10</td>
-                <td>2026-07-16</td>
+                <td>T-15</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-22</td>
                 <td>Today — UI per mock: Yesterday-digest strip, streak <code>ProgressRing</code>, Recently-reviewed carousel, 90-day <code>HeatmapCalendar</code>.</td>
                 <td>Side-by-side with the mock in light + dark; Storybook stories for each block.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/today.html">Today mock</a> · <a href="../../../ui-kit/pages/telegram-mini-app/components.html">Components</a></td>
               </tr>
               <tr>
-                <td>T-11</td>
-                <td>2026-07-16</td>
+                <td>T-16</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-22</td>
                 <td>Swipe gestures on due cards → <code>tag</code> (<code>easy</code> · <code>hard</code> · <code>forgot</code>) on <code>POST …/actions/review</code>; snooze is a tag, not an endpoint.</td>
                 <td>Swipe → 200, <code>schedule_revision</code> increments, card leaves the list; page reload persists.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/today.html">Today mock</a></td>
               </tr>
               <tr>
-                <td>T-12</td>
-                <td>2026-07-17</td>
+                <td>T-17</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-23</td>
                 <td>Conspectus list &amp; detail (read-only) with cursor pagination and AI micro-action stubs.</td>
                 <td>Scroll paginates via cursor; detail renders <code>cue_sheet</code> / bullets; deep URL <code>/conspectus/:id</code> loads directly.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/conspectus.html">Conspectus mock</a></td>
               </tr>
               <tr>
-                <td>T-13</td>
-                <td>2026-07-17</td>
+                <td>T-18</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-23</td>
                 <td>Focus mode — full-screen card, tap-to-reveal, Again/Hard/Good/Easy grades mapped to review tags, next-interval preview.</td>
                 <td>Grade fires <code>POST …/actions/review</code>; <code>next_review_at</code> in the response matches the preview; session summary shows.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/focus.html">Focus mock</a></td>
               </tr>
               <tr>
-                <td>T-14</td>
-                <td>2026-07-17</td>
+                <td>T-19</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-24</td>
                 <td>Schedule screen — summary strip + 90-day heat-map straight from <code>GET /schedule/summary</code>, no client aggregation.</td>
                 <td>Numbers equal a raw <code>curl</code> of the endpoint; day with 0 due renders as calm state.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/schedule.html">Schedule mock</a></td>
               </tr>
               <tr>
-                <td>T-15</td>
-                <td>2026-07-17</td>
+                <td>T-20</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-24</td>
                 <td>Errors screen — timeline list + inline add (<code>POST /errors</code> with Idempotency-Key), source conspectus pre-filled from Focus.</td>
                 <td>Add → appears in list and in Postgres; double-submit with same key creates one row.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/errors.html">Errors mock</a></td>
               </tr>
               <tr>
-                <td>T-16</td>
-                <td>2026-07-17</td>
-                <td><strong>✦ Checkpoint — local daily loop.</strong> Open app in browser → Today → review in Focus → log an error → check Schedule.</td>
+                <td>T-21</td>
+                <td><span class="docs-pill docs-pill--info" data-tooltip="Milestone 1 — not a task itself. Reached when T-05 through T-20 are all shipped.">milestone</span></td>
+                <td>2026-07-24</td>
+                <td><strong>✦ Milestone 1 — local daily loop.</strong> Open app in browser → Today → review in Focus → log an error → check Schedule.</td>
                 <td>Full pass of the DoD persistence bullet: every action survives a reload against local Postgres.</td>
-                <td><a href="#dod-h">DoD</a> · <a href="#cutline-h">Cut line</a></td>
+                <td><a href="#dod-h">DoD</a> · <a href="#tasks-h">Task board</a></td>
               </tr>
               <tr>
-                <td>T-17</td>
-                <td>2026-07-18</td>
+                <td>T-22</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-25</td>
                 <td>Search / Spotlight — Cmd+K on desktop, pull-down on mobile; searches conspectus titles.</td>
                 <td>Cmd+K opens overlay; typing narrows results; Enter navigates to detail.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/search.html">Search mock</a></td>
               </tr>
               <tr>
-                <td>T-18</td>
-                <td>2026-07-18</td>
+                <td>T-23</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-25</td>
                 <td>Profile — achievements, weekly retention chart, settings entry points.</td>
                 <td>Chart matches review history in DB; renders in light + dark.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/profile.html">Profile mock</a></td>
               </tr>
               <tr>
-                <td>T-19</td>
-                <td>2026-07-18</td>
+                <td>T-24</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-25</td>
                 <td>Onboarding — first-run flow, dismissed flag persisted locally.</td>
                 <td>Fresh profile sees it once; reload skips it; reset re-triggers it.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/onboarding.html">Onboarding mock</a></td>
               </tr>
               <tr>
-                <td>T-20</td>
-                <td>2026-07-20</td>
+                <td>T-25</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-27</td>
                 <td>Motion + haptics + Telegram chrome — springs on mount/dismount, View Transitions on routes, haptics vocabulary, BackButton / MainButton / SettingsButton.</td>
                 <td><code>prefers-reduced-motion</code> collapses everything to instant; buttons + haptics verified on-device via tunnel.</td>
                 <td><a href="../../../ui-kit/pages/telegram-mini-app/motion.html">Motion mock</a> · <a href="https://docs.telegram-mini-apps.com/platform/haptic-feedback">Haptics</a></td>
               </tr>
               <tr>
-                <td>T-21</td>
-                <td>2026-07-20</td>
+                <td>T-26</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-28</td>
                 <td>Skeletons, toasts with undo, milestone celebrations; Sentry + PostHog with the event spec.</td>
                 <td>PostHog debug shows <code>review_completed</code> / <code>error_logged</code> / <code>focus_session_ended</code>; forced error lands in Sentry.</td>
-                <td><a href="https://posthog.com/docs">PostHog</a> · <a href="https://docs.sentry.io/">Sentry</a></td>
+                <td><a href="../../services/telegram/reference/event-spec.html">event-spec</a> · <a href="https://posthog.com/docs">PostHog</a></td>
               </tr>
               <tr>
-                <td>T-22</td>
-                <td>2026-07-21</td>
+                <td>T-27</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-29</td>
                 <td>Bot — aiogram long-poll <code>/start</code> with the Mini App launch button, colocated in <code>services/api/app/bot/</code>.</td>
                 <td><code>/start</code> in real Telegram replies with the button; tap opens the tunnel-served app.</td>
                 <td><a href="https://docs.aiogram.dev/">aiogram</a></td>
               </tr>
               <tr>
-                <td>T-23</td>
-                <td>2026-07-21</td>
-                <td>Webhook (<code>POST /api/v1/telegram_webhook</code> with secret-token check) + <code>startapp</code> deep-links driving router navigation.</td>
-                <td>pytest: wrong secret → 403; deep-link <code>startapp=conspectus_&lt;uuid&gt;</code> opens the right detail screen.</td>
-                <td><a href="https://docs.telegram-mini-apps.com/platform/start-parameter">start_param</a></td>
+                <td>T-28</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-29</td>
+                <td>Webhook (<code>POST /api/v1/telegram_webhook</code> with secret-token check) + <code>startapp</code> deep-links driving router navigation. ADR 0039 «Backend hosting strategy» drafted &amp; accepted here.</td>
+                <td>pytest: wrong secret → 403; deep-link <code>startapp=conspectus_&lt;uuid&gt;</code> opens the right detail screen; ADR 0039 status pill reads Accepted.</td>
+                <td><a href="https://docs.telegram-mini-apps.com/platform/start-parameter">start_param</a> · <a href="../adr/index.html">ADR log</a></td>
               </tr>
               <tr>
-                <td>T-24</td>
-                <td>2026-07-22</td>
-                <td>Deploy to Cloudflare Pages, Lighthouse CI budget in <code>make verify</code>, portal service pages, epic → Delivered.</td>
+                <td>T-29</td>
+                <td><span class="docs-pill docs-pill--neutral">pending</span></td>
+                <td>2026-07-30</td>
+                <td>Deploy Mini App to Cloudflare Pages, Lighthouse CI budget in <code>make verify</code>, deploy-topology page stamped <em>Verified</em>, epic → Delivered.</td>
                 <td>Pages URL opens from real Telegram; Lighthouse gates pass (LCP ≤ 2.0s, ≤ 200 KB gz, a11y ≥ 95); <code>make verify</code> green.</td>
                 <td><a href="https://developers.cloudflare.com/pages/">CF Pages</a> · <a href="https://github.com/GoogleChrome/lighthouse-ci">Lighthouse CI</a></td>
               </tr>
@@ -436,15 +494,16 @@
 
       <section aria-labelledby="nonfunc-h">
         <h2 id="nonfunc-h">Non-functional guarantees</h2>
-        <p>Ambition: portfolio-grade. Every point below is a hard gate or a first-class design concern — not an afterthought.</p>
+        <p>Every point below is either a hard gate (the build fails if it breaks) or a design concern that shapes early decisions, not something to bolt on later.</p>
         <div class="docs-card-grid">
           <article class="docs-card docs-card--rail" data-tone="accent">
             <h3 class="docs-card__title">Auth &amp; storage</h3>
             <ul class="docs-card__body">
-              <li><code>X-API-Key</code> injected at build time via <code>VITE_API_KEY</code> — no token storage in the client at all; nothing in <code>localStorage</code>.</li>
-              <li>The key ships inside the bundle — accepted for personal mode, rotated if leaked; P2's initData → JWT removes it entirely.</li>
-              <li><code>BiometricManager</code> is used to gate destructive actions (delete conspectus, reset schedule) and streak-break confirms.</li>
-              <li>No DB migration in MVP — <code>users.telegram_*</code> identity columns arrive with P2 auth.</li>
+              <li>Trust root: Telegram's HMAC-signed <code>initData</code>. Server verifies against <code>TELEGRAM_BOT_TOKEN</code>; nothing user-supplied is trusted otherwise.</li>
+              <li>JWT (24 h, HS256, signed with <code>JWT_SECRET</code>) is minted at <code>POST /auth/telegram</code>; every <code>/api/v1/*</code> call carries <code>Authorization: Bearer &lt;jwt&gt;</code>.</li>
+              <li>Token stored in <code>WebApp.CloudStorage</code> (cross-device sync per user) with a memory-first hot cache; nothing in <code>localStorage</code>. Silent refresh 5 min before expiry.</li>
+              <li>Identity migration lands in W1: <code>users.telegram_user_id</code> (unique) + <code>telegram_username</code> + <code>telegram_photo_url</code> + <code>locale</code> + <code>tz</code>. Every request resolves to a real <code>users</code> row via the JWT's <code>sub</code> claim.</li>
+              <li><code>BiometricManager</code> gates destructive actions (delete conspectus, reset schedule) and streak-break confirms.</li>
             </ul>
           </article>
           <article class="docs-card docs-card--rail" data-tone="info">
@@ -468,7 +527,7 @@
           <article class="docs-card docs-card--rail" data-tone="warn">
             <h3 class="docs-card__title">Observability</h3>
             <ul class="docs-card__body">
-              <li>PostHog event spec: <code>review_completed</code>, <code>review_snoozed</code>, <code>focus_session_ended</code>, <code>error_logged</code>, <code>streak_broken</code>, <code>search_opened</code>, <code>command_ran</code>.</li>
+              <li>PostHog event spec: <code>review_completed</code>, <code>review_snoozed</code>, <code>focus_session_ended</code>, <code>error_logged</code>, <code>streak_broken</code>, <code>search_opened</code>, <code>command_ran</code>. Full contract on the <a href="../../services/telegram/reference/event-spec.html">event-spec reference page</a>.</li>
               <li>Sentry client (opt-in via <code>VITE_SENTRY_DSN</code>) with Telegram context tags.</li>
               <li>Bot-side: structured logs with <code>correlation_id</code>, joined to API logs.</li>
             </ul>
@@ -476,10 +535,9 @@
           <article class="docs-card docs-card--rail" data-tone="teal">
             <h3 class="docs-card__title">Dev environment</h3>
             <ul class="docs-card__body">
-              <li>Plain browser tab is the primary dev loop: auth is an <code>X-API-Key</code> header, so no signed initData is ever required. <code>mockTelegramEnv()</code> survives only as a 3-line dev shim that lets the SDK boot (theme + viewport).</li>
-              <li>Cloudflare Tunnel scripts checked in for on-device dev with real Telegram.</li>
+              <li>Two dev loops. <em>Fast loop:</em> plain browser tab with <code>mockTelegramEnv()</code> generating deterministic <code>initData</code> payloads signed by a dev-only HMAC helper (<code>tools/dev/sign_init_data.py</code>) that shares <code>TELEGRAM_BOT_TOKEN</code> with the local API. No tunnel, sub-second reload. <em>On-device loop:</em> Cloudflare Tunnel exposes the API over HTTPS so real Telegram clients drive real <code>initData</code>.</li>
               <li>Storybook for every <code>.tma-*</code> primitive; visual QA lives here, not on the phone.</li>
-              <li>Playwright uses <code>mockTelegramEnv()</code> in CI — no external HTTPS required.</li>
+              <li>Playwright uses <code>mockTelegramEnv()</code> + the dev signer in CI — no external HTTPS required.</li>
             </ul>
           </article>
           <article class="docs-card docs-card--rail" data-tone="rose">
@@ -487,7 +545,7 @@
             <ul class="docs-card__body">
               <li>All copy through <code>i18next</code>; <code>ru</code> + <code>en</code> at MVP, chosen from Telegram's <code>language_code</code>.</li>
               <li>Numbers use <code>Intl.NumberFormat</code>; dates use <code>Intl.RelativeTimeFormat</code>.</li>
-              <li>Timezone from <code>Intl.DateTimeFormat().resolvedOptions().timeZone</code>, persisted server-side for reminder scheduling.</li>
+              <li>Timezone from <code>Intl.DateTimeFormat()</code> → <code>.resolvedOptions().timeZone</code>, persisted server-side for reminder scheduling.</li>
             </ul>
           </article>
         </div>
@@ -509,39 +567,51 @@
             <tbody>
               <tr>
                 <td>W1</td>
-                <td>Auth simplification — drop the strategy switch</td>
-                <td><code>app/core/security.py</code> · <code>app/core/config.py</code></td>
-                <td><code>API_AUTH_STRATEGY</code> removed; plain <code>API_AUTH_HEADER</code> + <code>API_AUTH_KEY</code> (renamed from <code>API_MOCK_API_KEY</code>); qa/prod guard: key must be non-empty.</td>
+                <td>Identity migration</td>
+                <td><code>alembic/versions/20260719_0003_add_telegram_users.py</code> · <code>app/models/core/telegram_user.py</code></td>
+                <td>Creates <code>telegram_users</code>: <code>client_uuid</code> (unique FK → <code>users.client_uuid</code>, <code>ON DELETE CASCADE</code>), <code>telegram_user_id</code> (BigInteger, unique), <code>telegram_username</code>, <code>telegram_photo_url</code>, <code>locale</code>, timestamps. Core <code>users</code> table stays clean of provider-specific columns.</td>
               </tr>
               <tr>
                 <td>W1</td>
-                <td>Telegram bot config</td>
+                <td><code>initData</code> verifier + auth endpoint</td>
+                <td><code>app/api/v1/auth.py</code> · <code>app/core/telegram_init_data.py</code></td>
+                <td><code>POST /api/v1/auth/telegram</code>. HMAC-verifies <code>initData</code> with <code>TELEGRAM_BOT_TOKEN</code>; upserts by <code>telegram_user_id</code>; mints 24 h JWT (<code>PyJWT</code>, HS256, <code>JWT_SECRET</code>). Anonymous endpoint; returns <code>{ jwt, user }</code>.</td>
+              </tr>
+              <tr>
+                <td>W1</td>
+                <td>JWT middleware</td>
+                <td><code>app/core/security.py</code></td>
+                <td>Requires <code>Authorization: Bearer &lt;jwt&gt;</code> on every <code>/api/v1/*</code> route except <code>/auth/telegram</code>. Resolves <code>request.state.current_user</code> via the <code>sub</code> claim. <code>/live</code> + <code>/ready</code> stay open.</td>
+              </tr>
+              <tr>
+                <td>W1</td>
+                <td>Config &amp; CORS</td>
                 <td><code>app/core/config.py</code> · <code>env/*</code></td>
-                <td><code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code>; consumed by the bot in W5. Register the BotFather test bot to fill them.</td>
+                <td><code>TELEGRAM_BOT_TOKEN</code>, <code>JWT_SECRET</code> (≥ 32 bytes, qa/prod guard), <code>TELEGRAM_CHAT_ID</code>. <code>CORS_ALLOW_ORIGINS</code> += <code>http://localhost:5173</code> (Vite) + tunnel origin.</td>
               </tr>
               <tr>
                 <td>W1</td>
-                <td>CORS origins for the Mini App</td>
-                <td><code>env/*</code></td>
-                <td><code>CORS_ALLOW_ORIGINS</code> += <code>http://localhost:5173</code> (Vite) + tunnel origin.</td>
+                <td>OpenAPI baseline refresh</td>
+                <td><code>services/portal/public/reference/api/openapi.json</code></td>
+                <td>Regenerated with <code>bearerAuth</code> security scheme; <code>make openapi-check</code> guards canon parity.</td>
               </tr>
               <tr>
-                <td>W1</td>
-                <td>ADR 0038 · personal-mode auth</td>
-                <td><code>internal/governance/adr/0038-personal-mode-auth-x-api-key.html</code></td>
-                <td>Reuse <code>X-API-Key</code>, defer initData → JWT to the multi-user epic; records the accepted key-in-bundle risk.</td>
-              </tr>
-              <tr>
-                <td>W5</td>
+                <td>W6</td>
                 <td>Bot webhook</td>
                 <td><code>app/api/v1/telegram_webhook.py</code></td>
                 <td>Verifies X-Telegram-Bot-Api-Secret-Token, delegates to aiogram Dispatcher.</td>
               </tr>
               <tr>
-                <td>W1 / W6</td>
-                <td>OpenAPI baseline refresh</td>
-                <td><code>services/portal/public/reference/api/openapi-baseline.json</code></td>
-                <td>Regenerate after the auth simplification and again after the webhook; <code>make openapi-check</code> guards canon parity.</td>
+                <td>W6</td>
+                <td>ADR 0039 · backend hosting</td>
+                <td><code>internal/governance/adr/0039-backend-hosting-strategy.html</code></td>
+                <td>Pick one of Cloudflare Tunnel from Mac / Hetzner CX22 VPS / Fly.io. Forced by on-device Telegram testing needing a public HTTPS API endpoint.</td>
+              </tr>
+              <tr>
+                <td>W7</td>
+                <td>OpenAPI baseline refresh (post-webhook)</td>
+                <td><code>services/portal/public/reference/api/openapi.json</code></td>
+                <td>Regenerated after the bot webhook lands so the baseline captures the final route surface; <code>make openapi-check</code> guards canon parity.</td>
               </tr>
             </tbody>
           </table>
@@ -550,41 +620,33 @@
 
       <section aria-labelledby="tree-h">
         <h2 id="tree-h">Frontend structure · <code>services/telegram/</code></h2>
+        <p>Flat single-package layout (chosen deliberately in W2 — see «Location in repo» in the locked-decisions table). The router / providers / screens files listed below land in W3; W2 ships only the shell and the design contract that pins their shape.</p>
         <pre><code>services/telegram/
 ├── README.md
-├── Makefile
-├── Dockerfile                    # static bundle → nginx-alpine (option) OR built for Pages
-├── package.json                  # workspace root — web + shared configs
-├── tsconfig.json
-├── web/                          # Vite + React 19 Mini App
-│   ├── index.html
-│   ├── vite.config.ts
-│   └── src/
-│       ├── main.tsx              # SDK bootstrap → theme sync (mockTelegramEnv shim in dev)
-│       ├── app/
-│       │   ├── router.tsx        # 9 routes: / · /focus · /conspectus[/:id] · /schedule · /errors · /search · /me · /onboarding
-│       │   ├── providers.tsx     # QueryClient · Router · Theme · SDK
-│       │   └── shell.tsx         # BackButton / MainButton binding
-│       ├── screens/
-│       │   ├── Today/
-│       │   ├── ConspectusList/
-│       │   ├── ConspectusDetail/
-│       │   ├── Schedule/
-│       │   ├── Errors/
-│       │   ├── Profile/
-│       │   ├── Focus/
-│       │   ├── Search/
-│       │   └── Onboarding/
-│       ├── shared/
-│       │   ├── api/              # openapi-generated client + hooks · X-API-Key + Idempotency-Key headers
-│       │   ├── ui/               # thin wrappers over telegram-ui
-│       │   ├── haptics.ts        # SDK.hapticFeedback shortcuts
-│       │   └── theme.ts          # tg-theme → CSS vars + accent
-│       └── styles/
-│           ├── global.css
-│           └── accent.css        # study-app brand accent overlaid on tg-theme
-└── ops/
-    └── cloudflare-pages.toml     # build config</code></pre>
+├── CHANGELOG.md
+├── Makefile               # dev / install / typecheck / lint / build / verify
+├── package.json
+├── tsconfig.json          # references app + node projects
+├── tsconfig.app.json
+├── tsconfig.node.json
+├── vite.config.ts
+├── eslint.config.js
+├── index.html
+└── src/
+    ├── main.tsx           # SDK bootstrap → mount App (mockTelegramEnv shim in dev)
+    ├── App.tsx            # W3 replaces this with the router + shell
+    ├── vite-env.d.ts
+    ├── app/               # W3: router.tsx, providers.tsx, shell.tsx (BackButton/MainButton)
+    ├── screens/           # W3–W4: Today / Focus / ConspectusList / ConspectusDetail /
+    │                      #        Schedule / Errors / Profile / Search / Onboarding
+    ├── shared/
+    │   ├── api/           # W3: openapi-typescript client + JWT bootstrap (initData → /auth/telegram) + Authorization: Bearer + Idempotency-Key
+    │   ├── ui/            # W3+: thin wrappers over telegram-ui
+    │   ├── haptics.ts     # W5: SDK.hapticFeedback shortcuts
+    │   └── theme.ts       # W3: tg-theme → CSS vars + accent
+    └── styles/
+        ├── global.css
+        └── accent.css     # W3+: study-app brand accent overlaid on tg-theme</code></pre>
         <p><em>Bot code</em> stays inside <code>services/api/app/bot/</code> — Python-only, shares the ORM session and settings. No JS bot layer.</p>
       </section>
 
@@ -603,12 +665,12 @@
               <tr>
                 <td>API — integration</td>
                 <td>pytest (existing)</td>
-                <td>Header-key auth (valid / missing / wrong key), empty-key guard in qa/prod, webhook secret enforcement.</td>
+                <td><code>initData</code> HMAC verify (valid / tampered / expired <code>auth_date</code>), JWT middleware (valid / missing / expired / wrong-signature), qa/prod guard on default <code>JWT_SECRET</code>, webhook secret enforcement.</td>
               </tr>
               <tr>
                 <td>Mini App — unit</td>
                 <td>Vitest</td>
-                <td>API-client header injection (X-API-Key, Idempotency-Key), theme mapping, formatters.</td>
+                <td>Auth bootstrap (single POST per cold open), header injection (Authorization Bearer, Idempotency-Key), silent-refresh timing, theme mapping, formatters.</td>
               </tr>
               <tr>
                 <td>Mini App — E2E</td>
@@ -623,7 +685,12 @@
               <tr>
                 <td>Type / lint</td>
                 <td>tsc + eslint</td>
-                <td>Wired into <code>make verify</code> so pre-push catches it locally.</td>
+                <td>Wired into <code>make -C services/telegram verify</code>; the root <code>make verify</code> composite adds this delegate in W7.</td>
+              </tr>
+              <tr>
+                <td>Docs</td>
+                <td><code>make docs-check</code></td>
+                <td>Drift on the <code>services/portal/internal/services/telegram/</code> catalog pages — every wave's added quadrant is gated the same way as the other four services.</td>
               </tr>
             </tbody>
           </table>
@@ -633,13 +700,14 @@
       <section aria-labelledby="dod-h">
         <h2 id="dod-h">Definition of Done</h2>
         <ul>
-          <li>Opening the bot in Telegram → <code>/start</code> → tap «Open study_app» launches the Mini App.</li>
-          <li>Every <code>/api/v1/*</code> route (except <code>/live</code>, <code>/ready</code>) requires the <code>X-API-Key</code> header — enforced by the existing middleware, covered by tests.</li>
-          <li>All nine MVP screens render on iOS + Android Telegram clients — dark and light themes.</li>
-          <li>Adding an error, marking a review, and reading a conspectus persist against the real Postgres and survive a page reload.</li>
+          <li>Opening the bot in Telegram → <code>/start</code> → tap «Open study_app» launches the Mini App, and a fresh Telegram account is upserted into <code>users</code> on first open.</li>
+          <li>Every <code>/api/v1/*</code> route (except <code>/live</code>, <code>/ready</code>, <code>/auth/telegram</code>) requires a valid <code>Authorization: Bearer &lt;jwt&gt;</code> — enforced by the JWT middleware, covered by tests.</li>
+          <li>All nine MVP screens render on iOS + Android Telegram clients — dark and light themes — for every tester in the cohort, each seeing only their own data.</li>
+          <li>Adding an error, marking a review, and reading a conspectus persist against the real Postgres, are scoped to the caller's <code>users.id</code>, and survive a page reload.</li>
           <li>Schedule strip reflects <code>GET /api/v1/schedule/summary</code> without any client-side aggregation.</li>
           <li><code>make verify</code> passes (lint · types · openapi · contract · pytest · docs-check · web build).</li>
-          <li>Portal has a service page under <code>services/portal/internal/services/telegram/</code>, ADR 0038 is <em>Accepted</em>, and this epic is <em>Delivered</em> in the backlog cockpit.</li>
+          <li>Service catalog at <code>services/portal/internal/services/telegram/</code> ships the full Diátaxis quadrant set — entity card, architecture, dependencies, on-call, design, how-to, reference, explanation.</li>
+          <li>ADR 0039 (backend hosting) is <em>Accepted</em>; this epic is <em>Delivered</em> in the backlog cockpit.</li>
         </ul>
       </section>
 
@@ -648,23 +716,27 @@
         <div class="docs-card-grid">
           <article class="docs-card docs-card--rail" data-tone="warn">
             <h3 class="docs-card__title">HTTPS in dev</h3>
-            <p class="docs-card__body">Telegram requires HTTPS for the WebApp URL — but only for <em>on-device</em> sessions. The primary dev loop is a plain browser tab (no tunnel at all). When on-device testing starts: Cloudflare Tunnel; fallback ngrok or hosts-file + mkcert.</p>
+            <p class="docs-card__body">Telegram requires HTTPS for the WebApp URL — but only for <em>on-device</em> sessions. The fast dev loop is a plain browser tab against a locally-signed <code>initData</code>; no tunnel required. When on-device testing starts (W6): Cloudflare Tunnel; fallback ngrok or hosts-file + mkcert.</p>
           </article>
           <article class="docs-card docs-card--rail" data-tone="warn">
             <h3 class="docs-card__title">Bot polling vs webhook in dev</h3>
-            <p class="docs-card__body">Webhook needs a public URL. In dev, aiogram long-polling is fine; W5 flips to webhook only for prod. Config lives in <code>env/*</code>.</p>
+            <p class="docs-card__body">Webhook needs a public URL. In dev, aiogram long-polling is fine; W6 flips to webhook only for prod. Config lives in <code>env/*</code>.</p>
           </article>
           <article class="docs-card docs-card--rail" data-tone="warn">
             <h3 class="docs-card__title">Deep-linking scope</h3>
-            <p class="docs-card__body">Default launch opens Today. Per-conspectus deep-links (<code>startapp=conspectus_&lt;uuid&gt;</code>) land in W5 together with the webhook — nothing deep-link-shaped ships before that. Document the URL scheme in the service page — kits and callers rely on it.</p>
+            <p class="docs-card__body">Default launch opens Today. Per-conspectus deep-links (<code>startapp=conspectus_&lt;uuid&gt;</code>) land in W6 together with the webhook — nothing deep-link-shaped ships before that. Grammar is pinned in the <a href="../../services/telegram/reference/deep-link-grammar.html">deep-link-grammar reference page</a>.</p>
           </article>
           <article class="docs-card docs-card--rail" data-tone="warn">
-            <h3 class="docs-card__title">API key ships in the bundle</h3>
-            <p class="docs-card__body">With header-key auth the key is readable by anyone who opens the deployed bundle. Accepted trade-off for personal mode: the key guards one user's study data, is rotated on suspicion, and disappears entirely when P2 moves to initData → JWT. Recorded in ADR 0038.</p>
+            <h3 class="docs-card__title">Dev loop needs signed <code>initData</code></h3>
+            <p class="docs-card__body">Server rejects any request whose <code>initData</code> doesn't HMAC-verify against <code>TELEGRAM_BOT_TOKEN</code>. The fast dev loop (plain browser tab) uses <code>tools/dev/sign_init_data.py</code> to mint deterministic payloads for the local API — same bot token, same verifier, same result. Real-device testing goes through Cloudflare Tunnel with the real Telegram client generating <code>initData</code>. Never bake the bot token into the bundle; the signer stays server-side.</p>
+          </article>
+          <article class="docs-card docs-card--rail" data-tone="info">
+            <h3 class="docs-card__title">Backend hosting</h3>
+            <p class="docs-card__body">API has no cloud production host today (see <a href="../../services/deployment-topology.html">deployment topology</a>). Three viable paths on the table: Cloudflare Tunnel from Mac ($0 · needs Mac online) / Hetzner CX22 VPS (~€4/mo · 24/7) / Fly.io ($0-5/mo · cloud-native). Decision forced in W6 as ADR 0039 when on-device Telegram testing needs a public HTTPS endpoint.</p>
           </article>
           <article class="docs-card docs-card--rail" data-tone="info">
             <h3 class="docs-card__title">Reminders scheduler</h3>
-            <p class="docs-card__body">Deferred to P2 — MVP relies on user opening the bot on their own. Once scheduled, decide: APScheduler in-process vs external cron. Note in the ADR log once chosen.</p>
+            <p class="docs-card__body">Deferred to P2 — MVP relies on testers opening the bot on their own. Once scheduled, decide: APScheduler in-process vs external cron. Note in the ADR log once chosen.</p>
           </article>
         </div>
       </section>
@@ -674,14 +746,14 @@
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
         <li class="docs-history__row">
-          <span class="docs-history__date">2026-07-14</span>
+          <span class="docs-history__date">2026-07-15</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-          <span class="docs-history__note">Plan audited against the live <code>/api/v1</code> code. Auth decision revised: existing <code>X-API-Key</code> header retained (strategy switch removed — <code>API_AUTH_HEADER</code> + <code>API_AUTH_KEY</code>); initData → JWT and the <code>users.telegram_*</code> migration deferred to P2. Fixed: snooze is a <code>tag</code> on <code>POST …/actions/review</code>, not an endpoint; <code>make openapi-check</code> is the only OpenAPI gate; CORS needs the Vite origin; bot token registration pulled into W1. Screen count aligned at 9; P2 card de-duplicated against W2b/W4. Added the «Cut line — local test by 2026-07-17» section and the dated task board T-01…T-24 (task · how-to-test · docs links).</span>
+          <span class="docs-history__note"><strong>W2 in progress · seven-wave plan.</strong> W2 «Service foundation» is a two-deliverable wave — scaffold + design contract — because refactoring a shell already wired to five screens costs an order of magnitude more than editing a design page. Scaffold T-05 shipped 2026-07-15 (Vite 6 + React 18.3 + TS, all gates green, 144 KB / 46 KB gz). Design-contract tasks T-06…T-10 cover the ~15 catalog pages under <code>services/portal/internal/services/telegram/</code>. Milestone-1 check pinned at T-21. «Frontend stack» reads React 18 (not 19 — <code>@telegram-apps/telegram-ui@2.1.13</code> still peer-locks to <code>^18.2.0</code>; bump when they ship a 19-compatible build). ADR 0039 (backend hosting) scheduled to W6 — forced by on-device Telegram testing.</span>
         </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-13</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
-          <span class="docs-history__note">Initial epic drafted after five locked decisions (Bot + Mini App, React + <code>@telegram-apps/telegram-ui</code>, <code>services/telegram/</code>, JWT, maintainer-only). Six-wave plan: W1 auth &amp; identity, W2 skeleton + Today, W3 remaining screens, W4 polish, W5 bot &amp; deep-linking, W6 deploy &amp; docs. Companion TMA UI Kit page in the portal ui-kit describes the visual language.</span>
+          <span class="docs-history__note">Initial epic drafted after six locked decisions (Bot + Mini App, React + <code>@telegram-apps/telegram-ui</code>, <code>services/telegram/</code>, Telegram <code>initData</code> → JWT auth, multi-user testers from launch, catalog page written alongside code). Seven-wave plan: W1 backend prep (identity + JWT), W2 service foundation (scaffold + design contract), W3 Today screen, W4 remaining screens, W5 polish, W6 bot + deep-linking, W7 deploy. Companion TMA UI Kit page in the portal ui-kit describes the visual language.</span>
         </li>
       </ul>
     </footer>
@@ -694,7 +766,6 @@
       <li class="docs-toc__item"><a class="docs-toc__link" href="#decisions-h">Locked decisions</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#phases-h">Scope by phase</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#waves-h">Waves — the work plan</a></li>
-      <li class="docs-toc__item"><a class="docs-toc__link" href="#cutline-h">Cut line — local test</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#tasks-h">Task board</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#backend-h">Backend changes</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#tree-h">Frontend structure</a></li>

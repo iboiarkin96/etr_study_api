@@ -14,6 +14,7 @@ from app.models.core.conspectus import (
 from app.models.core.idempotency_key import IdempotencyKeyRecord
 from app.models.core.learning_error import LearningError
 from app.models.core.schedule_policy import SchedulePolicy
+from app.models.core.telegram_user import TelegramUser
 from app.models.core.user import User
 from app.models.reference.invalidation_reason import InvalidationReason
 from app.models.reference.system import System
@@ -25,6 +26,7 @@ __all__ = [
     "InvalidationReason",
     "Timezone",
     "User",
+    "TelegramUser",
     "IdempotencyKeyRecord",
     "SchedulePolicy",
     "Conspectus",

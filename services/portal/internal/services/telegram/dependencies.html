@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Dependencies · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Dependencies</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Dependencies</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Everything this service reaches for at runtime, at build time, or through its host platform. Grouped by <em>what breaks</em> if the dependency goes away, not by <em>where it lives</em> in <code>package.json</code>. Blast radius is stated honestly per row — no «critical» / «non-critical» hand-waving.</p>
+
+      <section aria-labelledby="runtime-h">
+        <h2 id="runtime-h">Runtime dependencies</h2>
+        <p>What must be alive while a user has the Mini App open. Each row is «if this goes away, this specifically stops working».</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Dependency</th>
+                <th scope="col">Role</th>
+                <th scope="col">Blast radius if unavailable</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="../api/index.html"><code>services/api</code></a> · <code>/api/v1</code></td>
+                <td>The only backend surface the client consumes. Every screen is a view over this contract.</td>
+                <td>Total. The app shell loads (offline-friendly HTML), but every screen shows an error toast on first fetch. No degraded mode — read-only cache is not in MVP.</td>
+              </tr>
+              <tr>
+                <td>PostgreSQL (via API)</td>
+                <td>Persistence for every read and write. Client never touches it directly.</td>
+                <td>Same as API — surfaced as a 500-family response with an error toast. Retries are automatic (TanStack Query) but bounded.</td>
+              </tr>
+              <tr>
+                <td>Telegram WebApp platform</td>
+                <td>The runtime host. Supplies <code>themeParams</code>, <code>viewport</code>, <code>hapticFeedback</code>, back/main/settings buttons, deep-link payload.</td>
+                <td>None in dev (browser tab with <code>mockTelegramEnv()</code>). In prod: no Telegram = no launch. Not a component we can page.</td>
+              </tr>
+              <tr>
+                <td>Telegram Bot API (via <code>services/api</code>)</td>
+                <td>Delivers the daily push and hosts the launch button (<code>/start</code>).</td>
+                <td>Client keeps working for the user who already has the app open. New sessions can't launch — no push, no button.</td>
+              </tr>
+              <tr>
+                <td>Cloudflare Pages CDN</td>
+                <td>Serves the static bundle over HTTPS. Auto-invalidates on new deploy.</td>
+                <td>Cold opens fail (no bundle to download). Sessions already loaded keep working from browser cache until reload.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="npm-runtime-h">
+        <h2 id="npm-runtime-h">npm — runtime</h2>
+        <p>Compiled into the shipped bundle. Every version is pinned via <code>package-lock.json</code>; upgrades go through a PR that shows the diff and re-runs <code>make verify</code>.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Package</th>
+                <th scope="col">Version</th>
+                <th scope="col">Why it earns its bundle bytes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>react</code>, <code>react-dom</code></td>
+                <td>18.3.1</td>
+                <td>UI runtime. Pinned to 18 because <code>@telegram-apps/telegram-ui</code> still peer-locks to <code>^18.2.0</code>. Bump to 19 when they ship a compatible build.</td>
+              </tr>
+              <tr>
+                <td><code>@telegram-apps/sdk-react</code></td>
+                <td>3.x</td>
+                <td>Official Telegram SDK, React bindings. Hooks for theme / viewport / haptics / back-button.</td>
+              </tr>
+              <tr>
+                <td><code>@telegram-apps/telegram-ui</code></td>
+                <td>2.x</td>
+                <td>Component library that auto-switches between iOS and Material on platform. Skips reimplementing Cell / Section / Button.</td>
+              </tr>
+              <tr>
+                <td><code>@tanstack/react-router</code></td>
+                <td>1.x</td>
+                <td>Type-safe routing with built-in View Transitions. Cheaper on bundle than react-router + view-transitions polyfill.</td>
+              </tr>
+              <tr>
+                <td><code>@tanstack/react-query</code></td>
+                <td>5.x</td>
+                <td>Server-state cache. Retries, invalidation, optimistic updates — all standard patterns without ceremony.</td>
+              </tr>
+              <tr>
+                <td><code>zustand</code></td>
+                <td>5.x</td>
+                <td>Local UI state (Focus session state, onboarding step). Two-hook API, ~1 KB gz.</td>
+              </tr>
+              <tr>
+                <td><code>framer-motion</code></td>
+                <td>11.x</td>
+                <td>Springs + gestures + shared-element transitions. Only screens that use it pay for it (code-split).</td>
+              </tr>
+              <tr>
+                <td><code>i18next</code>, <code>react-i18next</code></td>
+                <td>24.x / 15.x</td>
+                <td>ru + en copy chosen from Telegram's <code>language_code</code>. Format-heavy strings use <code>Intl.*</code>, not i18n keys.</td>
+              </tr>
+              <tr>
+                <td><code>posthog-js</code></td>
+                <td>1.x</td>
+                <td>Client-side product analytics. Ships in W5 · T-26 with the event spec.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="build-h">
+        <h2 id="build-h">Build-time dependencies</h2>
+        <p>Live in <code>devDependencies</code>. Present on the dev machine and in CI; never shipped in the bundle.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Package</th>
+                <th scope="col">Role</th>
+                <th scope="col">Failure mode</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Node.js</td>
+                <td>Runs Vite, tsc, ESLint. Required on dev machine + CI runner.</td>
+                <td>Not installed → make targets exit at <code>which node</code>. Rare in practice — Homebrew / mise / nvm cover it.</td>
+              </tr>
+              <tr>
+                <td><code>vite</code> + <code>@vitejs/plugin-react</code></td>
+                <td>Dev server (HMR) + production bundler.</td>
+                <td>Config errors surface immediately at <code>make dev</code> / <code>make build</code>; no silent failures.</td>
+              </tr>
+              <tr>
+                <td><code>typescript</code></td>
+                <td>Strict type-checking via project references (<code>tsconfig.app.json</code> + <code>tsconfig.node.json</code>).</td>
+                <td><code>make typecheck</code> fails in CI before merge. Never a runtime concern.</td>
+              </tr>
+              <tr>
+                <td><code>eslint</code> (flat config) + typescript-eslint + react-hooks + react-refresh plugins</td>
+                <td>Style + pattern gate.</td>
+                <td><code>make lint</code> fails in CI. Auto-fixable rules run via <code>make lint-fix</code>.</td>
+              </tr>
+              <tr>
+                <td><code>@types/react</code>, <code>@types/react-dom</code>, <code>@types/node</code></td>
+                <td>Type definitions.</td>
+                <td>Type errors caught at compile-time; never a runtime concern.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="upstream-h">
+        <h2 id="upstream-h">Upstream contracts we assume unchanged</h2>
+        <p>Contracts owned by other services / vendors that this service reads as fixed points. Change to any of them is a coordinated cross-service PR, not a unilateral upgrade.</p>
+        <ul>
+          <li><strong>OpenAPI canon at <code>services/api/openapi.json</code></strong> — every generated client type comes from here. Drift is caught by <code>make openapi-check</code>. If the API renames a field, the generated client won't compile → immediate loud failure at <code>make typecheck</code>, not a silent runtime bug.</li>
+          <li><strong>Telegram <code>initData</code> signature scheme</strong> — <code>hmac_sha256(bot_token, "WebAppData")</code> is the derivation key; <code>hash</code> field verified server-side. Owned by Telegram; monitored via their Bots API changelog. A silent change here would break the auth bootstrap for every client.</li>
+          <li><strong>Telegram WebApp protocol</strong> — <code>window.Telegram.WebApp</code> shape (themeParams, viewport, hapticFeedback, back-button, main-button). Owned by Telegram; monitored via the SDK release notes.</li>
+          <li><strong>Cloudflare Pages build API</strong> — the <code>build.command</code> + <code>build.output</code> contract. Change to it is rare; deploy config lives in <code>ops/</code>.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="consumers-h">
+        <h2 id="consumers-h">Who consumes this service</h2>
+        <p>Zero other services. The Mini App is a leaf in the internal graph — it takes from <code>services/api</code> and delivers to the user. Nothing in the monorepo imports its bundle or its source. Removing this service breaks the Telegram surface only; the API, portal, monitoring, datastore and ui-kit are unaffected.</p>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Dependencies page created. Grouped by blast radius, not by <code>package.json</code> section. Runtime deps + npm deps + build deps + upstream contracts + downstream consumers (zero). Feeds the on-call page's first-response checklist.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#runtime-h">Runtime dependencies</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#npm-runtime-h">npm — runtime</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#build-h">Build-time dependencies</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#upstream-h">Upstream contracts</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#consumers-h">Who consumes this</a></li>    </ol>
+    </aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

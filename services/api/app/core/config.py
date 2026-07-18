@@ -82,6 +82,10 @@ _PARENT_WINS_KEYS = (
     "API_RATE_LIMIT_REQUESTS",
     "API_RATE_LIMIT_WINDOW_SECONDS",
     "DATABASE_URL",
+    "JWT_SECRET",
+    "JWT_TTL_SECONDS",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_INIT_DATA_MAX_AGE_SECONDS",
 )
 
 
@@ -153,7 +157,13 @@ class Settings:
         api_auth_header: HTTP header name that carries the API key.
         api_protected_prefix: URL path prefix that requires authentication and rate limiting.
         telegram_bot_token: Telegram bot token from BotFather (empty when the bot is disabled).
+            Also used as the HMAC key when verifying Telegram Mini App ``initData``.
         telegram_chat_id: Maintainer's Telegram chat id for bot pushes (empty when unused).
+        jwt_secret: Signing key for the 24 h JWT minted at ``POST /api/v1/auth/telegram``.
+            Must be at least 32 bytes and not the default in ``qa``/``prod``.
+        jwt_ttl_seconds: Time-to-live for a freshly-minted JWT, in seconds.
+        telegram_init_data_max_age_seconds: Maximum accepted age of Telegram ``initData``
+            (``auth_date`` field); older payloads are rejected as replay attempts.
         metrics_enabled: Whether Prometheus metrics collection and ``/metrics`` are enabled.
         metrics_path: HTTP path exposing Prometheus text exposition.
         readiness_db_timeout_ms: Maximum acceptable database ping duration for readiness.
@@ -184,6 +194,9 @@ class Settings:
     api_protected_prefix: str
     telegram_bot_token: str
     telegram_chat_id: str
+    jwt_secret: str
+    jwt_ttl_seconds: int
+    telegram_init_data_max_age_seconds: int
     metrics_enabled: bool
     metrics_path: str
     readiness_db_timeout_ms: int
@@ -304,6 +317,11 @@ def get_settings() -> Settings:
         api_protected_prefix=os.getenv("API_PROTECTED_PREFIX", "/api/v1").strip() or "/api/v1",
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", "").strip(),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", "").strip(),
+        jwt_secret=os.getenv("JWT_SECRET", "local-dev-jwt-secret-32-bytes-min").strip(),
+        jwt_ttl_seconds=max(60, int(os.getenv("JWT_TTL_SECONDS", "86400"))),
+        telegram_init_data_max_age_seconds=max(
+            60, int(os.getenv("TELEGRAM_INIT_DATA_MAX_AGE_SECONDS", "86400"))
+        ),
         metrics_enabled=_as_bool(os.getenv("METRICS_ENABLED", "true"), True),
         metrics_path=os.getenv("METRICS_PATH", "/metrics").strip() or "/metrics",
         readiness_db_timeout_ms=max(50, int(os.getenv("READINESS_DB_TIMEOUT_MS", "250"))),
@@ -320,6 +338,10 @@ def get_settings() -> Settings:
     if settings.app_env in {"qa", "prod"}:
         if settings.api_auth_key == "local-dev-key":
             raise ValueError("Set a non-default API_AUTH_KEY for qa/prod.")
+        if settings.jwt_secret == "local-dev-jwt-secret-32-bytes-min":
+            raise ValueError("Set a non-default JWT_SECRET for qa/prod.")
+        if len(settings.jwt_secret.encode("utf-8")) < 32:
+            raise ValueError("JWT_SECRET must be at least 32 bytes in qa/prod.")
         if not settings.metrics_enabled:
             raise ValueError("METRICS_ENABLED must be true in qa/prod.")
 

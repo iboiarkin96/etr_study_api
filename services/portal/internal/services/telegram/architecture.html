@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Architecture · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Architecture</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Architecture</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">A static bundle of HTML / JS / CSS served by a CDN, opened inside Telegram's WebView. On cold open the client sends Telegram's signed <code>initData</code> to <code>POST /api/v1/auth/telegram</code>, gets back a 24 h JWT, and uses that as a bearer token on every subsequent <code>/api/v1</code> call. No server-rendered pages, no BFF, no new persistence — each screen is a client-side view over an existing endpoint.</p>
+
+      <section aria-labelledby="runtime-h">
+        <h2 id="runtime-h">Runtime model</h2>
+        <p>Three things happen in three places. None of them require Node at runtime — Node lives only on the dev machine and in CI.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Layer</th>
+                <th scope="col">What lives here</th>
+                <th scope="col">Where it runs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Trigger</td>
+                <td>aiogram bot (<code>/start</code>, launch button, deep-link scheme) colocated in <code>services/api/app/bot/</code>.</td>
+                <td>Same process as the FastAPI API (long-poll in dev, webhook in prod).</td>
+              </tr>
+              <tr>
+                <td>Client bundle</td>
+                <td>React app: router, providers, screens, generated API client, i18n, motion.</td>
+                <td>Cloudflare Pages CDN → downloaded once, cached, executed inside Telegram's WebView.</td>
+              </tr>
+              <tr>
+                <td>Backend contract</td>
+                <td><code>/api/v1</code> — conspectuses, schedule, errors, reviews. All routes gated by a JWT middleware; <code>/auth/telegram</code>, <code>/live</code> and <code>/ready</code> stay open.</td>
+                <td>Same FastAPI process that ran before the Mini App existed, plus the new <code>/auth/telegram</code> handler and the JWT middleware.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="request-path-h">
+        <h2 id="request-path-h">Request path</h2>
+        <p>The wire-level order — user tap → HTTP → Postgres → screen paint — is the same as any other <code>/api/v1</code> consumer and lives in one place, not two: <a href="../api/reference/index.html#business-flow">Business flow &amp; UML sequence</a> on the <code>api</code> service page. Three client-specific notes that do not fit that generic view:</p>
+        <ul>
+          <li><strong>Auth bootstrap.</strong> On the first request of a session, the client POSTs <code>window.Telegram.WebApp.initData</code> to <code>/api/v1/auth/telegram</code>. The server HMAC-verifies it against <code>TELEGRAM_BOT_TOKEN</code>, upserts the row in <code>users</code> keyed on <code>telegram_user_id</code>, and returns a 24 h JWT signed with <code>JWT_SECRET</code>. The token is cached in <code>WebApp.CloudStorage</code> so a warm open reuses it without a network round-trip.</li>
+          <li><strong>Header contract.</strong> Every subsequent request carries <code>Authorization: Bearer &lt;jwt&gt;</code>. Every mutation (POST / PATCH / DELETE) additionally carries <code>Idempotency-Key: <em>${uuidv4()}</em></code>, generated once per user gesture and retained through retry, so a lost 4G reply never doubles an action.</li>
+          <li><strong>State cache.</strong> TanStack Query holds the on-screen server state; mutations optimistically update it and roll back on error. The cache is memory-only — no <code>localStorage</code>, no <code>IndexedDB</code>. Cold open reloads everything the current screen needs, no more.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="build-h">
+        <h2 id="build-h">Build pipeline</h2>
+        <p>One command from source to a CDN-shippable artefact. Deterministic, reproducible from <code>package-lock.json</code>, no post-install network calls.</p>
+        <pre><code>make -C services/telegram install   # npm ci → node_modules/ from the lockfile
+make -C services/telegram typecheck # tsc --noEmit (strict, project references)
+make -C services/telegram lint      # eslint . (flat config)
+make -C services/telegram build     # tsc -b &amp;&amp; vite build → services/telegram/dist/</code></pre>
+        <p>The <code>dist/</code> output is three-to-five files: <code>index.html</code>, one JS chunk (~46 KB gz today), one CSS bundle, source-maps. No fonts fetched over the network — system stack only, per the performance budget in the epic.</p>
+        <p><code>make -C services/telegram verify</code> chains typecheck → lint → build. Wired into the root <code>make verify</code> composite in W7 alongside the Lighthouse-CI gate.</p>
+      </section>
+
+      <section aria-labelledby="layout-h">
+        <h2 id="layout-h">Code layout</h2>
+        <p>Flat single-package. No <code>web/</code> subdirectory, no npm workspace root — one <code>package.json</code>, one <code>node_modules</code>. A single-package workspace earns nothing but ceremony; siblings (<code>ops/</code>, <code>e2e/</code>, <code>storybook/</code>) can land later without restructuring.</p>
+        <pre><code>services/telegram/
+├── package.json · tsconfig.{json,app.json,node.json} · vite.config.ts · eslint.config.js
+├── index.html                     entry HTML (Vite consumes it)
+├── Makefile                       dev / install / typecheck / lint / build / verify
+└── src/
+    ├── main.tsx                   SDK bootstrap → mount &lt;App&gt;
+    ├── App.tsx                    root — router shell
+    ├── app/                       router · providers · shell (BackButton, MainButton)
+    ├── screens/                   one directory per screen (Today, Focus, Conspectus, …)
+    ├── shared/api/                openapi-typescript client + JWT bootstrap + Authorization Bearer + Idempotency-Key
+    ├── shared/ui/                 thin wrappers over @telegram-apps/telegram-ui
+    ├── shared/haptics.ts          SDK.hapticFeedback shortcuts
+    ├── shared/theme.ts            themeParams → CSS vars + accent
+    └── styles/                    global + accent overlay on tg-theme</code></pre>
+      </section>
+
+      <section aria-labelledby="c4-h">
+        <h2 id="c4-h">C4-Component view — inside the bundle</h2>
+        <p>Zoom-in on what runs when Telegram opens the WebApp. Each component is a directory in <code>src/</code>; each arrow is a synchronous function or React-hook call.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Component</th>
+                <th scope="col">Responsibility</th>
+                <th scope="col">Talks to</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>main.tsx</code></td>
+                <td>Read <code>window.Telegram.WebApp</code>, install <code>mockTelegramEnv()</code> shim in dev, mount <code>&lt;App&gt;</code>.</td>
+                <td>Telegram SDK · React DOM</td>
+              </tr>
+              <tr>
+                <td><code>app/providers.tsx</code></td>
+                <td>Wire <code>QueryClient</code>, <code>Router</code>, <code>ThemeProvider</code> (themeParams → CSS vars), <code>ViewportProvider</code> (safe-area insets).</td>
+                <td>TanStack Query · TanStack Router · SDK</td>
+              </tr>
+              <tr>
+                <td><code>app/shell.tsx</code></td>
+                <td>Bind Telegram back-button, main-button, settings-button to the current route's affordances.</td>
+                <td>SDK · Router</td>
+              </tr>
+              <tr>
+                <td><code>screens/*</code></td>
+                <td>Per-screen views. Each screen owns its data hooks (via <code>shared/api/</code>) and its own local UI state (via <code>zustand</code> if it grows past 3 items).</td>
+                <td><code>shared/api/</code> · <code>shared/ui/</code></td>
+              </tr>
+              <tr>
+                <td><code>shared/api/</code></td>
+                <td>Generated OpenAPI client + auth bootstrap (POST <code>initData</code> to <code>/auth/telegram</code>, cache the JWT in <code>CloudStorage</code>, refresh before expiry) + fetch wrapper that injects <code>Authorization: Bearer &lt;jwt&gt;</code> and a fresh <code>Idempotency-Key</code> per mutation. TanStack Query hooks live here.</td>
+                <td><code>/api/v1</code></td>
+              </tr>
+              <tr>
+                <td><code>shared/ui/</code></td>
+                <td>Study-App-branded wrappers around <code>@telegram-apps/telegram-ui</code> primitives. Zero business logic.</td>
+                <td>telegram-ui</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <figure class="docs-diagram">
+          <img alt="C4 L3 component view of the Telegram Mini App bundle: Telegram WebView loads static HTML/JS/CSS from Cloudflare Pages, main.tsx bootstraps app/providers → shell + screens, shared/api exchanges initData for a JWT at /auth/telegram and then calls /api/v1 with Authorization Bearer and Idempotency-Key headers" loading="lazy" src="../../reference/uml/rendered/services__telegram_component_view.svg">
+          <figcaption>Components inside the Telegram Mini App bundle · Telegram WebView loads the bundle from Cloudflare Pages, app/providers wire QueryClient / Router / theme, screens read data through <code>shared/api</code>. On cold open <code>shared/api</code> exchanges Telegram <code>initData</code> for a JWT at <code>/auth/telegram</code>, caches it in <code>CloudStorage</code>, and injects <code>Authorization: Bearer</code> + <code>Idempotency-Key</code> on every call. Source: <code>services/portal/internal/reference/uml/services/telegram_component_view.puml</code>.</figcaption>
+        </figure>
+        <p>Regenerate with <code>make docs-fix</code>. Kroki renders the SVG once the <code>.puml</code> source changes (fingerprint cache in <code>reference/uml/input-hashes.json</code>).</p>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Architecture page created — runtime model (three layers), build pipeline (four commands), code layout, C4-Component table. Request-path prose lives on the <code>api</code> service page under <a href="../api/reference/index.html#business-flow">#business-flow</a>; this page links, does not duplicate.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#runtime-h">Runtime model</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#request-path-h">Request path</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#build-h">Build pipeline</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layout-h">Code layout</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#c4-h">C4-Component view</a></li>    </ol>
+    </aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

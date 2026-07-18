@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Test on device · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="swe">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Test on device</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Test on a real phone via Telegram</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Get the local dev app open on your phone, inside a real Telegram WebView, via a BotFather test bot and a Cloudflare Tunnel. Needed when you're validating haptics, safe-area insets, or Telegram-chrome behaviour — anything <code>mockTelegramEnv()</code> can't fake.</p>
+
+      <section aria-labelledby="before-h">
+        <h2 id="before-h">Before you start</h2>
+        <ul>
+          <li><strong>App running locally</strong> — see <a href="run-locally.html">Run the Mini App locally</a> first. Confirm <code>http://localhost:5173</code> works in your browser.</li>
+          <li><strong>API reachable at a stable local URL</strong> — <code>make up</code> from repo root; <code>curl http://localhost:8000/ready</code> returns <code>200</code>.</li>
+          <li><strong>Cloudflare account</strong> (free tier is enough) and <code>cloudflared</code> installed: <code>brew install cloudflared</code>.</li>
+          <li><strong>Telegram bot registered via BotFather</strong> with <code>TELEGRAM_BOT_TOKEN</code> in your <code>env/dev</code>. See <a href="https://core.telegram.org/bots/features#botfather">BotFather docs</a>.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="steps-h">
+        <h2 id="steps-h">Steps</h2>
+        <ol class="numbered-step-list">
+          <li>
+            <div>
+              <strong>Expose the Vite dev server via Cloudflare Tunnel.</strong> In a fresh terminal:
+              <pre><code>cloudflared tunnel --url http://localhost:5173</code></pre>
+              Cloudflare prints a URL like <code>https://random-words-abc123.trycloudflare.com</code>. This is the <em>tunnel origin</em> — public HTTPS pointing at your local Vite. Keep this terminal open; closing it kills the tunnel.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Also expose the API</strong> (in another terminal) so the app can call it from the phone:
+              <pre><code>cloudflared tunnel --url http://localhost:8000</code></pre>
+              Note this second URL — pass it to Vite as <code>VITE_API_BASE_URL</code> on the next dev-server restart.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Add the tunnel API origin to backend CORS.</strong> Edit <code>env/dev</code>, append the API tunnel URL to <code>CORS_ALLOW_ORIGINS</code>. Restart the API (<code>make down &amp;&amp; make up</code>).
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Restart Vite pointing at the tunnel API.</strong>
+              <pre><code>VITE_API_BASE_URL=https://api-tunnel-url.trycloudflare.com make -C services/telegram dev</code></pre>
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Register the tunnel URL with your bot in BotFather.</strong> Open <a href="https://t.me/BotFather">@BotFather</a> in Telegram → <code>/mybots</code> → pick your bot → <em>Bot Settings</em> → <em>Configure Mini App</em> → paste the Vite tunnel URL. Give it a short-name (e.g. <code>study_app</code>).
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Open the bot on your phone.</strong> Find your bot in Telegram, send <code>/start</code>. Tap the launch button that appears. The Mini App opens inside Telegram's WebView, backed by your laptop.
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="devtools-h">
+        <h2 id="devtools-h">Remote DevTools (iOS + Android)</h2>
+        <p>Once open on the phone, you can debug the WebView from your Mac:</p>
+        <ul>
+          <li><strong>iOS Telegram:</strong> connect the iPhone via USB, enable <em>Web Inspector</em> on the phone (Settings → Safari → Advanced), open Safari on Mac → Develop menu → your iPhone → the Mini App page. Full DevTools.</li>
+          <li><strong>Android Telegram:</strong> enable USB debugging, connect via USB, open <code>chrome://inspect</code> in desktop Chrome, find the WebView, click <em>inspect</em>. Full Chrome DevTools.</li>
+          <li><strong>Telegram Desktop:</strong> right-click inside the Mini App → <em>Inspect</em>. Full DevTools embedded.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="verify-h">
+        <h2 id="verify-h">What you can now verify</h2>
+        <p>Things that a plain browser tab can't:</p>
+        <ul>
+          <li><strong>Haptics.</strong> Every swipe / grade / tap that has a haptic token fires on the device.</li>
+          <li><strong>Real theme.</strong> Whatever accent + light/dark mode your Telegram is in — your <code>themeParams</code> reflect it.</li>
+          <li><strong>Safe-area insets.</strong> Notch / home-indicator on iOS handled correctly.</li>
+          <li><strong>Native chrome buttons.</strong> BackButton, MainButton, SettingsButton — all wired via the SDK, visible in the Telegram UI.</li>
+          <li><strong>Deep-links.</strong> Bot sends a message with <code>startapp=conspectus_&lt;uuid&gt;</code>, tap → app opens on the right screen.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="troubleshooting-h">
+        <h2 id="troubleshooting-h">Troubleshooting</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr><th scope="col">Symptom</th><th scope="col">Fix</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Bot launch button opens Telegram's «Sorry, this Mini App is not available» screen.</td><td>The URL in BotFather is wrong or the tunnel is down. Verify the tunnel URL opens in a normal browser first, then re-set it in BotFather (<em>Configure Mini App</em> → paste the current tunnel URL).</td></tr>
+              <tr><td>App opens but every request fails with CORS in DevTools.</td><td>The API tunnel URL isn't in <code>CORS_ALLOW_ORIGINS</code>. Update <code>env/dev</code>, restart the API. Cloudflare's tunnel URL changes on every restart, so this bites often.</td></tr>
+              <tr><td>App opens on the phone but shows the wrong theme (always light).</td><td>You're likely on <code>mockTelegramEnv()</code> — check <code>src/main.tsx</code>. The shim should be dev-only; in prod it must be off. Also confirm the URL you registered in BotFather is the tunnel, not <code>http://localhost:5173</code>.</td></tr>
+              <tr><td>Tunnel URL changes every time you restart <code>cloudflared</code>.</td><td>Expected for the free ephemeral tunnels. For a stable URL, register a Named Tunnel with a Cloudflare-registered domain: see <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/">Cloudflare docs</a>.</td></tr>
+              <tr><td><code>cloudflared</code> refuses to start on macOS with a certificate error.</td><td>Run <code>cloudflared tunnel login</code> once to install the certificate.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="related-h">
+        <h2 id="related-h">Related</h2>
+        <ul>
+          <li><a href="run-locally.html">Run the Mini App locally</a> — prerequisite.</li>
+          <li><a href="../design/interactions.html#haptics-h">Haptics vocabulary</a> — what you're verifying by testing on device.</li>
+          <li><a href="../design/information-architecture.html#deeplink-h">Deep-link grammar</a> — payloads your bot can push.</li>
+        </ul>
+      </section>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">On-device recipe created. 6 steps to get the local dev app open in real Telegram via Cloudflare Tunnel + BotFather. Remote DevTools instructions for iOS / Android / Desktop. Troubleshooting for the 5 most common failures.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#before-h">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps-h">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#devtools-h">Remote DevTools</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify-h">What you can verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting-h">Troubleshooting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related-h">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

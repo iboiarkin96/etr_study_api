@@ -49,6 +49,10 @@ CANON_PATH = (
 KNOWN_NON_CANON_OPERATIONS: set[tuple[str, str]] = {
     ("get", "/live"),
     ("get", "/ready"),
+    # Telegram Mini App sign-in — client-flow endpoint that mints the Bearer
+    # JWT. Owned by the TMA epic; deliberately outside the analyst-authored
+    # product canon per ADR 0036.
+    ("post", "/api/v1/auth/telegram"),
 }
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 
