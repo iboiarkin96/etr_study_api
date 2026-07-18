@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-15" data-role="architect">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -73,7 +73,7 @@
         <h2 id="request-path-h">Request path</h2>
         <p>The wire-level order — user tap → HTTP → Postgres → screen paint — is the same as any other <code>/api/v1</code> consumer and lives in one place, not two: <a href="../api/reference/index.html#business-flow">Business flow &amp; UML sequence</a> on the <code>api</code> service page. Three client-specific notes that do not fit that generic view:</p>
         <ul>
-          <li><strong>Auth bootstrap.</strong> On the first request of a session, the client POSTs <code>window.Telegram.WebApp.initData</code> to <code>/api/v1/auth/telegram</code>. The server HMAC-verifies it against <code>TELEGRAM_BOT_TOKEN</code>, upserts the row in <code>users</code> keyed on <code>telegram_user_id</code>, and returns a 24 h JWT signed with <code>JWT_SECRET</code>. The token is cached in <code>WebApp.CloudStorage</code> so a warm open reuses it without a network round-trip.</li>
+          <li><strong>Auth bootstrap.</strong> On the first request of a session, the client POSTs <code>window.Telegram.WebApp.initData</code> to <code>/api/v1/auth/telegram</code>. The server HMAC-verifies it against <code>TELEGRAM_BOT_TOKEN</code>, then upserts two rows: a per-provider identity in <code>telegram_users</code> keyed on <code>telegram_user_id</code>, and its paired core row in <code>users</code> under the composite key <code>(system_uuid=&lt;telegram system&gt;, system_user_id=str(telegram_user_id))</code>. Response: a 24 h JWT signed with <code>JWT_SECRET</code> whose <code>sub</code> claim is <code>users.client_uuid</code>. The token is cached in <code>WebApp.CloudStorage</code> so a warm open reuses it without a network round-trip.</li>
           <li><strong>Header contract.</strong> Every subsequent request carries <code>Authorization: Bearer &lt;jwt&gt;</code>. Every mutation (POST / PATCH / DELETE) additionally carries <code>Idempotency-Key: <em>${uuidv4()}</em></code>, generated once per user gesture and retained through retry, so a lost 4G reply never doubles an action.</li>
           <li><strong>State cache.</strong> TanStack Query holds the on-screen server state; mutations optimistically update it and roll back on error. The cache is memory-only — no <code>localStorage</code>, no <code>IndexedDB</code>. Cold open reloads everything the current screen needs, no more.</li>
         </ul>
