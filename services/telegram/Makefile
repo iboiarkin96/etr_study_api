@@ -34,7 +34,7 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 NPM ?= npm
 VITE_PORT ?= 5173
 
-.PHONY: help install install-if-missing dev build preview typecheck lint lint-fix verify clean
+.PHONY: help install install-if-missing dev build preview typecheck lint lint-fix test gen-api verify clean
 
 help:
 	@echo "services/telegram — make targets"
@@ -46,7 +46,9 @@ help:
 	@echo "  make typecheck     tsc --noEmit"
 	@echo "  make lint          eslint ."
 	@echo "  make lint-fix      eslint . --fix"
-	@echo "  make verify        typecheck + lint + build (the CI gate)"
+	@echo "  make test          vitest run (unit)"
+	@echo "  make gen-api       Regenerate src/shared/api/schema.d.ts from services/portal/public/reference/api/openapi.json"
+	@echo "  make verify        typecheck + lint + test + build (the CI gate)"
 	@echo "  make clean         rm -rf node_modules dist .vite"
 
 install:
@@ -90,13 +92,25 @@ lint: install-if-missing
 lint-fix: install-if-missing
 	@$(NPM) run lint -- --fix
 
+test: install-if-missing
+	@printf "$(ICON_STEP) %s\n" "Running unit tests (vitest run)…"
+	@$(NPM) run test
+	@printf "$(ICON_OK) %s\n" "Tests passed"
+
+gen-api: install-if-missing
+	@printf "$(ICON_STEP) %s\n" "Regenerating OpenAPI types…"
+	@$(NPM) run gen-api
+	@printf "$(ICON_OK) %s\n" "src/shared/api/schema.d.ts refreshed"
+
 verify: install-if-missing
 	@printf "$(COLOR_CYAN)== TELEGRAM VERIFY: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/3] typecheck"
+	@printf "$(ICON_INFO) %s\n" "[1/4] typecheck"
 	@$(MAKE) typecheck
-	@printf "$(ICON_INFO) %s\n" "[2/3] lint"
+	@printf "$(ICON_INFO) %s\n" "[2/4] lint"
 	@$(MAKE) lint
-	@printf "$(ICON_INFO) %s\n" "[3/3] build"
+	@printf "$(ICON_INFO) %s\n" "[3/4] test"
+	@$(MAKE) test
+	@printf "$(ICON_INFO) %s\n" "[4/4] build"
 	@$(MAKE) build
 	@printf "$(COLOR_GREEN)== TELEGRAM VERIFY: SUCCESS ==$(COLOR_RESET)\n"
 

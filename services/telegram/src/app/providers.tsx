@@ -14,6 +14,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { AuthProvider } from './auth-provider';
 import { Router } from './router';
 import { ThemeProvider } from './theme-provider';
 import { ViewportProvider } from './viewport-provider';
@@ -38,7 +39,9 @@ export function Providers() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ViewportProvider>
-          <Router />
+          <AuthProvider>
+            <Router />
+          </AuthProvider>
         </ViewportProvider>
       </ThemeProvider>
     </QueryClientProvider>

@@ -92,6 +92,10 @@ study_app/
     │       └── pages/
     └── telegram/
         └── src/
+            ├── app/
+            ├── screens/
+            ├── shared/
+            └── styles/
 ```
 <!-- END:REPO_LAYOUT -->
 

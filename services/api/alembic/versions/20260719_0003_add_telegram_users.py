@@ -34,21 +34,16 @@ TELEGRAM_SYSTEM_NAME = "Telegram Mini App"
 
 
 def upgrade() -> None:
-    systems_table = sa.table(
-        "systems",
-        sa.column("system_uuid", sa.String(length=36)),
-        sa.column("code", sa.String(length=64)),
-        sa.column("name", sa.String(length=255)),
-    )
-    op.bulk_insert(
-        systems_table,
-        [
-            {
-                "system_uuid": TELEGRAM_SYSTEM_UUID,
-                "code": TELEGRAM_SYSTEM_CODE,
-                "name": TELEGRAM_SYSTEM_NAME,
-            }
-        ],
+    # Idempotent seed: if the telegram system row already exists (partial-run
+    # recovery, hand-inserted during dev, etc.), do not fail the migration.
+    # TELEGRAM_SYSTEM_UUID / _CODE / _NAME are hard-coded constants — no
+    # user input, so an inline SQL literal is safe.
+    op.execute(
+        f"""
+        INSERT INTO systems (system_uuid, code, name)
+        VALUES ('{TELEGRAM_SYSTEM_UUID}', '{TELEGRAM_SYSTEM_CODE}', '{TELEGRAM_SYSTEM_NAME}')
+        ON CONFLICT (system_uuid) DO NOTHING
+        """
     )
 
     op.create_table(

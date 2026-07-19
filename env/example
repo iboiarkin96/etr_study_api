@@ -1,25 +1,53 @@
 # =============================================================================
-# ETR Study App API — environment template
+# ETR Study App — environment template (per ADR 0010)
 # =============================================================================
 #
-# Usage
-# -----
-#   cp env/example .env          # or: make env-init
-#   Edit .env: set APP_ENV, secrets, and any overrides for your machine.
+# This file is the CANONICAL TEMPLATE. Every environment variable the app or
+# its Docker stack reads has a documented slot here — with the real value for
+# public defaults and an empty slot for secrets.
 #
-# Load order (later wins; see app/core/config.py)
-# -----------------------------------------------
-#   1. Root .env (if present) — base values.
-#   2. env/<APP_ENV> — optional profile file (e.g. env/dev) merged on top.
-#   3. ENV_FILE — optional extra file (secrets, deployment-specific); path is
-#      relative to project root or absolute.
+# Two-layer policy (see ADR 0010 · «Where each key lives»)
+# --------------------------------------------------------
+#   env/{dev,qa,prod}   — committed. Public profile behavior.
+#                          LOG_LEVEL, CORS_ALLOW_ORIGINS, rate limits,
+#                          dev-only JWT_SECRET / API_AUTH_KEY defaults.
+#                          REAL SECRETS NEVER GO HERE.
 #
-# If you export variables in the shell before starting Uvicorn, some keys are
-# preserved so Makefile-driven flows (e.g. load tests) are not overwritten by
-# profile reload — see _PARENT_WINS_KEYS in app/core/config.py.
+#   .env  (repo root)   — GIT-IGNORED. Private secrets + per-developer overrides.
+#                          TELEGRAM_BOT_TOKEN, OPENROUTER_API_KEY,
+#                          GRAFANA_ADMIN_PASSWORD, personal LOG_LEVEL, etc.
 #
-# APP_ENV must be one of: dev | qa | prod (aliases like "local" → dev, "test" → qa).
-# Stricter rules apply in qa/prod (auth, metrics, CORS, log level); see get_settings().
+# The two files are LAYERED, not duplicated. A key never appears in both:
+# public-slot values live in env/*, private-slot values live in .env.
+#
+# Getting started
+# ---------------
+#   cp env/example .env             # or: make env-init
+#   # Then edit .env: paste real secrets under the SECRETS section,
+#   # leave the public-behavior section alone.
+#
+# Load order — HOST (see app/core/config.py::_load_env_files)
+# ----------------------------------------------------------
+#   1. Root .env               (override=False; shell-exported values survive)
+#   2. env/<APP_ENV>           (override=True; wins over .env for public keys)
+#   3. optional ENV_FILE       (final override; deployment-specific paths)
+#   4. _PARENT_WINS_KEYS       (small allowlist: DATABASE_URL, JWT_SECRET,
+#                               TELEGRAM_BOT_TOKEN, rate-limit overrides —
+#                               re-applied from shell after profile load so
+#                               tests / load runs don't get clobbered)
+#
+# Load order — DOCKER (see docker-compose.yml `env_file:` blocks)
+# ----------------------------------------------------------
+#   1. env/<APP_ENV>           (public behavior — same file the host uses)
+#   2. .env                    (secrets — REAL values injected into container)
+#   3. compose `environment:`  (container-specific overrides, e.g.
+#                               DATABASE_URL=postgres:5432, APP_HOST=0.0.0.0)
+#
+# APP_ENV must be one of: dev | qa | prod (aliases: local → dev, test → qa).
+# NEVER set APP_ENV inside a profile file — it's the switch that PICKS the
+# profile. Set it in the shell, docker-compose environment:, or deployment
+# platform. Stricter rules apply in qa/prod (auth, metrics, CORS, log level,
+# JWT secret strength — see get_settings()).
 #
 # Sections in this file
 # ---------------------

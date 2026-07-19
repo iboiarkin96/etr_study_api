@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="architect">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -72,7 +72,7 @@
         <h1>Environment Profiles and Config Governance</h1>
         <div id="docs-top-nav"></div>
         <p class="lede">
-          Three explicit profiles (<code>dev</code>, <code>qa</code>, <code>prod</code>), one committed template, layered loading, and strict validation that blocks unsafe settings outside dev.
+          Three explicit profiles (<code>dev</code>, <code>qa</code>, <code>prod</code>), a hard split between <em>public profile behavior</em> (committed under <code>env/</code>) and <em>private secrets</em> (uncommitted <code>.env</code>), layered loading on the host and mirrored inside Docker containers, and strict validation that blocks unsafe settings outside dev.
         </p>
       </header>
 
@@ -88,27 +88,60 @@
           <dt>Decided on</dt>
           <dd><time datetime="2026-05-17">2026-05-17</time></dd>
           <dt>Last reviewed</dt>
-          <dd><time datetime="2026-06-01">2026-06-01</time></dd>
+          <dd><time datetime="2026-07-19">2026-07-19</time></dd>
         </dl>
       </section>
 
       <section aria-labelledby="context-h">
         <h2 id="context-h">Context</h2>
         <p><strong>Why this matters:</strong> Twelve-factor style apps read config from the environment so the same build can run in dev, staging, and prod. If profiles are fuzzy, teams accidentally ship debug logging, mock auth, or open CORS to production—often discovered by incident, not review.</p>
-        <p>We need explicit profiles (<code>dev</code>, <code>qa</code>, <code>prod</code>), one documented template, and validation that rejects unsafe combinations in non-dev environments.</p>
+        <p>The config surface has <em>two audiences</em> that behave very differently. <strong>Public profile behavior</strong> (log level, CORS allowlist, rate limits, feature flags) is safe to commit — reviewers need to see it, CI needs to lint it, contributors need it to onboard. <strong>Private secrets</strong> (bot tokens, external SaaS keys, personal debug overrides) must never enter git — one commit exposes them permanently in history. Mixing the two into a single file forces every contributor to redact secrets by hand on every commit, which is the exact pattern that ends in leaked keys.</p>
+        <p>We need explicit profiles (<code>dev</code>, <code>qa</code>, <code>prod</code>), a hard split between the committed and uncommitted layers, a documented template, and validation that rejects unsafe combinations in non-dev environments. The same layering must apply inside Docker containers so a compose-run process reads exactly what the same host-run process would.</p>
       </section>
 
       <section aria-labelledby="decision-h">
         <h2 id="decision-h">Decision</h2>
         <ul>
           <li>Adopt explicit environment profiles: <code>dev</code>, <code>qa</code>, <code>prod</code> only.</li>
-          <li>Single committed template: <code>env/example</code> (copy to <code>.env</code> via <code>make env-init</code>).</li>
-          <li>Load configuration in layers: <code>.env</code> -&gt; <code>env/&lt;APP_ENV&gt;</code> -&gt; optional <code>ENV_FILE</code>.</li>
+          <li><strong>Two-layer split.</strong> <code>env/{dev,qa,prod,example}</code> carry public profile behavior and are committed to git. Root <code>.env</code> carries private secrets and per-developer overrides and is git-ignored. <code>env/example</code> is the canonical template — every key that could be set anywhere in the system has a documented slot there with an empty value for secrets.</li>
+          <li><strong>Precedence (host).</strong> <code>services/api/app/core/config.py::_load_env_files()</code> loads in this order, later wins: <code>.env</code> at repo root (<code>override=False</code>, so shell-exported values survive) → <code>env/&lt;APP_ENV&gt;</code> (<code>override=True</code>) → optional <code>ENV_FILE</code>. The <code>_PARENT_WINS_KEYS</code> escape hatch reinstates shell-exported values after profile load for a small allowlist of keys that must not be perturbed by profile reload (<code>DATABASE_URL</code> for tests, rate-limit overrides for local load-tests, JWT / bot-token secrets).</li>
+          <li><strong>Precedence (Docker).</strong> <code>docker-compose.yml</code> mirrors the same layering via <code>env_file:</code> directives on each service — <code>env/&lt;profile&gt;</code> first, <code>.env</code> second. The explicit <code>environment:</code> block on the compose service takes precedence over both, and is reserved for values that <em>must</em> differ between host-run and container-run (e.g. <code>APP_HOST=0.0.0.0</code>, <code>DATABASE_URL=…@postgres:5432/…</code>).</li>
+          <li><strong>Secret hygiene.</strong> Never commit a real secret to <code>env/*</code>. Empty placeholders are allowed as documentation (they show the key exists) but the real value only lives in <code>.env</code> or in the deployment platform's secret store. CI reviewers reject any PR that adds a non-empty secret to <code>env/*</code>.</li>
           <li>Automated tests use <code>APP_ENV=qa</code> (not a separate profile). Legacy <code>APP_ENV=test</code> maps to <code>qa</code>.</li>
           <li>Normalize legacy aliases (for example <code>local</code> -&gt; <code>dev</code>).</li>
           <li>Expose effective profile in <code>GET /live</code> as <code>app_env</code>.</li>
           <li>Enforce strict runtime validation for unsafe settings in <code>qa/prod</code>.</li>
         </ul>
+      </section>
+
+      <section aria-labelledby="policy-h">
+        <h2 id="policy-h">Where each key lives</h2>
+        <p>Concrete policy — one column per file, one row per key. A key never lives in two files; if a value differs between profiles, the version in <code>env/&lt;profile&gt;</code> wins for that profile.</p>
+        <div class="docs-table-wrap" role="region" aria-label="Env key placement policy">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Key (representative)</th>
+                <th scope="col"><code>env/{dev,qa,prod}</code></th>
+                <th scope="col">Root <code>.env</code></th>
+                <th scope="col">Why here</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>LOG_LEVEL</code>, <code>LOG_FORMAT</code></td><td>✅</td><td>❌ (except personal debug override)</td><td>Public — reviewers need to see the effective log level per profile.</td></tr>
+              <tr><td><code>CORS_ALLOW_ORIGINS</code>, <code>CORS_ALLOW_*</code></td><td>✅</td><td>❌</td><td>Public — the allowlist is auditable and the same across every dev machine.</td></tr>
+              <tr><td><code>API_RATE_LIMIT_*</code></td><td>✅</td><td>❌</td><td>Public — behavior of the rate limiter is part of the contract.</td></tr>
+              <tr><td><code>API_AUTH_KEY</code> (dev value: <code>local-dev-key</code>)</td><td>✅</td><td>❌</td><td>Public in dev only. In qa/prod the compose <code>environment:</code> block or a secret store supplies the real value.</td></tr>
+              <tr><td><code>JWT_SECRET</code> (dev value: <code>local-dev-jwt-secret-32-bytes-min</code>)</td><td>✅ (dev value only)</td><td>Override for personal keys</td><td>Public dev-value is intentional so the app boots cleanly on <code>make up</code>. qa/prod refuse to boot with the dev value (see Validation Rules).</td></tr>
+              <tr><td><code>TELEGRAM_INIT_DATA_MAX_AGE_SECONDS</code></td><td>✅</td><td>❌</td><td>Public — freshness window is a behavior knob, not a secret.</td></tr>
+              <tr><td><strong><code>TELEGRAM_BOT_TOKEN</code></strong></td><td>❌ (empty slot only)</td><td>✅</td><td><strong>Secret</strong> — signing key for Telegram initData verification. Real value never enters git.</td></tr>
+              <tr><td><code>OPENROUTER_API_KEY</code>, other paid-SaaS keys</td><td>❌</td><td>✅</td><td>Secrets by definition — exposure has cost.</td></tr>
+              <tr><td><code>GRAFANA_ADMIN_USER</code>, <code>GRAFANA_ADMIN_PASSWORD</code></td><td>❌</td><td>✅</td><td>Console credentials — treat like any other secret.</td></tr>
+              <tr><td><code>APP_ENV</code></td><td>❌ (would be self-referential — this file <em>is</em> the profile)</td><td>❌ (leak into personal shell instead)</td><td>Set externally: shell export, docker-compose <code>environment:</code>, or a deployment platform. A profile file that names its own profile is a foot-gun.</td></tr>
+              <tr><td><code>DATABASE_URL</code></td><td>Public dev value pointing at host <code>127.0.0.1:5432</code></td><td>Personal override if using a different DB</td><td>Docker-compose pins the container's value to <code>postgres:5432</code> via <code>environment:</code>; host-run uses the <code>env/dev</code> value.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section aria-labelledby="scope-h">
@@ -121,7 +154,7 @@
 
       <section aria-labelledby="alternatives-h">
         <h2 id="alternatives-h">Alternatives considered</h2>
-        <p>Three alternatives were evaluated before adopting three explicit profiles + fail-fast validation. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints.</p>
+        <p>Four alternatives were evaluated before adopting three explicit profiles + a two-layer (public / secret) split + fail-fast validation. Each is real (another serious team in the industry uses it) and explicitly rejected with a reason rooted in our constraints.</p>
         <div class="docs-card-grid docs-card-grid--stack">
           <article class="docs-card" data-tone="warn">
             <div class="docs-card__head"><h3 class="docs-card__title">No profiles — every setting is an independent env var</h3><span class="docs-pill docs-pill--danger">rejected</span></div>
@@ -144,8 +177,15 @@
               <p><strong>Why rejected:</strong> three profiles cover «running locally», «running with prod-like constraints» (qa/test), and «running in production». Adding more profiles invites «which one applies?» ambiguity (is the load-test environment <code>qa</code> or its own <code>load</code>?) and grows the validation matrix N×. Three is the smallest set that lets us write meaningful per-profile rules without combinatorial blowup.</p>
             </div>
           </article>
+          <article class="docs-card" data-tone="warn">
+            <div class="docs-card__head"><h3 class="docs-card__title">Single mixed file — secrets and public config together in <code>.env</code></h3><span class="docs-pill docs-pill--danger">rejected</span></div>
+            <div class="docs-card__body">
+              <p><strong>Why considered:</strong> the maximally-flat model — one file, one place to look, no «which layer wins?» question. Every developer sees the same thing when they open <code>.env</code>.</p>
+              <p><strong>Why rejected:</strong> pushes every review of «is this rate-limit reasonable?» / «did CORS change?» into a git-ignored file that reviewers never see, and every non-secret behavior change either evades review entirely or forces the author to duplicate the value into a committed doc that immediately drifts. Worse, it makes «forgot to strip a secret before committing» the default failure mode instead of the exceptional one: any time an operator wants to share their <code>.env</code> for reproduction, they have to redact by hand. The two-layer split converts the review question («is this behavior change safe?») into a git-diff-visible artefact, and makes the secret-leak question into a physical one («did the diff touch a file that git tracks?»).</p>
+            </div>
+          </article>
         </div>
-        <p><strong>Trade we accept by choosing three explicit profiles + fail-fast validation.</strong> Every new validation rule is paid once at authoring time and stays paid. We accept it because each rejected alternative invites a failure mode this ADR exists to prevent: no-profiles ships unsafe combinations silently, external vaults add an outage axis we have not justified, and more profiles inflate the matrix faster than the value grows. Three profiles + a committed template is the smallest mechanism that is both <em>auditable</em> and <em>operable</em>.</p>
+        <p><strong>Trade we accept by choosing three explicit profiles + a two-layer split + fail-fast validation.</strong> Every new validation rule and every new key needs a placement decision (public or private?) at authoring time. We accept it because each rejected alternative invites a failure mode this ADR exists to prevent: no-profiles ships unsafe combinations silently, external vaults add an outage axis we have not justified, more profiles inflate the matrix faster than the value grows, and a single mixed file guarantees that some contributor will paste a real bot token into a committed doc within the first quarter. Three profiles + a committed template + an uncommitted secret file is the smallest mechanism that is simultaneously <em>auditable</em>, <em>operable</em>, and <em>leak-resistant</em>.</p>
       </section>
 
       <section aria-labelledby="consequences-h">
@@ -158,6 +198,8 @@
                 <li>Clear branch logic for environment behavior with safer defaults.</li>
                 <li>Reduced risk of accidental insecure production configuration.</li>
                 <li>Better developer onboarding for environment-specific setup.</li>
+                <li>Secret-leak surface reduced to a single git-ignored file — a review of «did this commit touch a secret?» is a one-liner (<code>git diff --stat | grep -v '^ \.env'</code>).</li>
+                <li>Docker containers see the same layering the host does — no «works on my Mac, 500s in compose» class of bug.</li>
               </ul>
             </div>
           </article>
@@ -169,6 +211,7 @@
                 <ul class="rail-list" data-tone="rose">
                   <li><strong>Fail-fast on unsafe config (startup refuses to boot).</strong> We gain a process that cannot serve traffic with mock auth in <code>qa</code> / <code>prod</code> — the validation rule is the gate, not a runtime check that can be silently disabled. We lose the option of «boot in degraded mode and warn» (some teams prefer this for partial-outage scenarios). We accept it because partial-boot with mock auth in production is the exact failure mode this ADR exists to prevent; the «soft warn» pattern always converges on «the warning was ignored, now we have the incident».</li>
                   <li><strong>Profile name baked into the runtime (<code>APP_ENV</code>).</strong> We gain a single switch that the validation rules and the <code>/live</code> endpoint can read, so the effective profile is visible end-to-end. We lose the «one binary, infinitely composable env vars» purity that some twelve-factor purists prefer. We accept it because the profile is the load-bearing branch in our validation rules; making it implicit (derive from other vars) is the recipe for «which profile am I actually in?» confusion.</li>
+                  <li><strong>Every new key needs a public / private placement decision.</strong> We gain a git-diff-visible signal for «did this commit change behavior?» versus «did this commit change a secret?» — reviewers read two very different signals from the two file locations. We lose the «one file, one grep, one edit» simplicity of a mixed layout. We accept it because the placement question is decided once per key, and the answer stays with the key forever; the alternative — asking every reviewer to inspect every diff for accidentally-committed secrets — never converges on «safe» and never scales beyond a solo project.</li>
                 </ul>
               </div>
             </article>
@@ -205,12 +248,22 @@
                 <tr>
                   <td>Profile-aware loader + validation</td>
                   <td><code>services/api/app/core/config.py</code></td>
-                  <td>—</td>
+                  <td><code>_load_env_files()</code> orchestrates the layering; <code>_PARENT_WINS_KEYS</code> pins the escape-hatch allowlist; <code>get_settings()</code> carries the qa/prod validation rules.</td>
                 </tr>
                 <tr>
-                  <td>Env templates</td>
+                  <td>Public env templates</td>
                   <td><code>env/example</code>, <code>env/dev</code>, <code>env/qa</code>, <code>env/prod</code></td>
-                  <td>small per-profile overrides on top of <code>example</code></td>
+                  <td>Committed. <code>example</code> is the canonical template with every key documented; per-profile files carry small overrides on top.</td>
+                </tr>
+                <tr>
+                  <td>Private secret file</td>
+                  <td>Root <code>.env</code></td>
+                  <td>Git-ignored (see <code>.gitignore</code>). Holds real API tokens, external SaaS keys, personal debug overrides. <code>make env-init</code> seeds a copy from <code>env/example</code>.</td>
+                </tr>
+                <tr>
+                  <td>Docker container env loading</td>
+                  <td><code>docker-compose.yml</code></td>
+                  <td><code>env_file:</code> layers <code>env/&lt;profile&gt;</code> then <code>.env</code>; explicit <code>environment:</code> block on each service overrides both for container-specific values (<code>APP_HOST=0.0.0.0</code>, <code>DATABASE_URL=…@postgres:5432/…</code>).</td>
                 </tr>
                 <tr>
                   <td>Observability compose</td>
@@ -246,6 +299,11 @@
         <footer class="docs-history" aria-label="History">
           <h2 class="docs-history__title">History</h2>
           <ul class="docs-history__list">
+            <li class="docs-history__row">
+              <span class="docs-history__date">2026-07-19</span>
+              <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+              <span class="docs-history__note">Public / private split formalized. The two-layer structure (committed <code>env/{profile}</code> + git-ignored <code>.env</code>) existed in the tree from the ADR's original acceptance, but the ADR did not name it explicitly — reviewers and contributors had to reverse-engineer the intent from <code>_load_env_files()</code>. Additions this pass: lede + context call out the two-audience nature (public behavior vs private secrets); Decision gains explicit bullets for the split, host precedence (with <code>_PARENT_WINS_KEYS</code> escape hatch), Docker precedence (via <code>env_file:</code> layering), and a secret-hygiene rule; new <code>§ Where each key lives</code> table pins the placement policy for representative keys; Alternatives gains a fourth (single mixed file) with a rejection rooted in leak surface; Consequences add wins for secret-leak reduction and host/container parity, and a third trade-off for the placement decision every new key needs. Implementation table now names <code>.env</code> and <code>docker-compose.yml</code> as governance surfaces alongside <code>env/*</code> and <code>config.py</code>.</span>
+            </li>
             <li class="docs-history__row">
               <span class="docs-history__date">2026-06-01</span>
               <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
