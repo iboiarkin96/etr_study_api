@@ -5,7 +5,10 @@
  * next-review-in copy land alongside the real UI in T-15.
  */
 
+import { useTranslation } from 'react-i18next';
+
 export function EmptyToday() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -18,10 +21,10 @@ export function EmptyToday() {
         ✨
       </div>
       <div style={{ fontSize: '1.05rem', color: 'var(--tg-text-color, #f5f5f7)' }}>
-        Всё повторил на сегодня
+        {t('today.empty.title')}
       </div>
       <div style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>
-        Загляни позже — новая волна карточек подойдёт по расписанию.
+        {t('today.empty.hint')}
       </div>
     </div>
   );

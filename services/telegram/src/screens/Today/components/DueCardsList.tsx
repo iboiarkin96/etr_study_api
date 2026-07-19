@@ -4,11 +4,15 @@
  * land in T-15 · T-16.
  */
 
+import { type TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
+
 import type { DueConspectus } from '../hooks/useConspectusesDue';
 
 type Props = { items: DueConspectus[] };
 
 export function DueCardsList({ items }: Props) {
+  const { t } = useTranslation();
   return (
     <ul
       aria-label="Due conspectuses"
@@ -54,7 +58,7 @@ export function DueCardsList({ items }: Props) {
                   marginTop: 2,
                 }}
               >
-                {formatNextReview(item.next_review_at)}
+                {formatNextReview(item.next_review_at, t)}
               </div>
             )}
           </div>
@@ -78,15 +82,15 @@ export function DueCardsList({ items }: Props) {
   );
 }
 
-function formatNextReview(iso: string): string {
+function formatNextReview(iso: string, t: TFunction): string {
   const now = Date.now();
   const target = new Date(iso).getTime();
   const diffMs = target - now;
-  if (diffMs <= 0) return 'сейчас';
+  if (diffMs <= 0) return t('today.nextReview.now');
   const minutes = Math.round(diffMs / 60_000);
-  if (minutes < 60) return `через ${minutes} мин`;
+  if (minutes < 60) return t('today.nextReview.inMinutes', { count: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `через ${hours} ч`;
+  if (hours < 24) return t('today.nextReview.inHours', { count: hours });
   const days = Math.round(hours / 24);
-  return `через ${days} дн`;
+  return t('today.nextReview.inDays', { count: days });
 }

@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { bootstrapAuth } from '../shared/auth/bootstrap';
 import { createApiClient } from '../shared/api/client';
+import { switchLanguageFromLocale } from '../shared/i18n';
 
 import { AuthContext, type AuthState } from './auth-context';
 
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     bootstrapAuth().then(
       (result) => {
         if (cancelled) return;
+        switchLanguageFromLocale(result.user.locale);
         setState({
           status: 'authenticated',
           jwt: result.jwt,

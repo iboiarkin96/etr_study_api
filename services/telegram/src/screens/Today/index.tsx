@@ -7,7 +7,10 @@
  * carousel) lands in T-15.
  */
 
+import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '../../app/use-auth';
+import { LangSwitch } from '../../shared/i18n/LangSwitch';
 import { DueCardsList } from './components/DueCardsList';
 import { DueCardsSkeleton } from './components/DueCardsSkeleton';
 import { EmptyToday } from './components/EmptyToday';
@@ -17,6 +20,7 @@ import { useConspectusesDue } from './hooks/useConspectusesDue';
 import { useScheduleSummary } from './hooks/useScheduleSummary';
 
 export function Today() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const due = useConspectusesDue();
   const summary = useScheduleSummary();
@@ -33,17 +37,27 @@ export function Today() {
       }}
     >
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '1.25rem 1rem 3rem' }}>
-        <header>
-          <h1 style={{ fontSize: '1.35rem', margin: '0 0 .25rem' }}>Сегодня</h1>
-          <p
-            style={{
-              margin: 0,
-              fontSize: '0.85rem',
-              color: 'var(--tg-hint-color, #708499)',
-            }}
-          >
-            Привет 👋 Скоро тут будет твой день.
-          </p>
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+          }}
+        >
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h1 style={{ fontSize: '1.35rem', margin: '0 0 .25rem' }}>{t('today.title')}</h1>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '0.85rem',
+                color: 'var(--tg-hint-color, #708499)',
+              }}
+            >
+              {t('today.greeting')}
+            </p>
+          </div>
+          <LangSwitch />
         </header>
 
         {auth.status !== 'authenticated' && (
@@ -57,8 +71,8 @@ export function Today() {
               color: 'var(--tg-hint-color, #708499)',
             }}
           >
-            {auth.status === 'authenticating' && 'Подключаемся к серверу…'}
-            {auth.status === 'error' && (auth.error?.message ?? 'Ошибка авторизации.')}
+            {auth.status === 'authenticating' && t('auth.connecting')}
+            {auth.status === 'error' && (auth.error?.message ?? t('auth.error'))}
           </div>
         )}
 
@@ -67,7 +81,7 @@ export function Today() {
             {summary.isPending && <ScheduleSummaryStripSkeleton />}
             {summary.isError && (
               <ErrorInline
-                label="Не смог получить расписание"
+                label={t('today.error.summary')}
                 onRetry={() => summary.refetch()}
               />
             )}
@@ -84,12 +98,12 @@ export function Today() {
                   margin: '0 0 0.5rem',
                 }}
               >
-                К повторению
+                {t('today.dueSection')}
               </h2>
               {due.isPending && <DueCardsSkeleton />}
               {due.isError && (
                 <ErrorInline
-                  label="Не смог получить карточки"
+                  label={t('today.error.cards')}
                   onRetry={() => due.refetch()}
                 />
               )}

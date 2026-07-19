@@ -4,12 +4,15 @@
  * stays visible so the retry re-lands in the same layout (design contract).
  */
 
+import { useTranslation } from 'react-i18next';
+
 type Props = {
   label: string;
   onRetry: () => void;
 };
 
 export function ErrorInline({ label, onRetry }: Props) {
+  const { t } = useTranslation();
   return (
     <div
       role="alert"
@@ -38,7 +41,7 @@ export function ErrorInline({ label, onRetry }: Props) {
           cursor: 'pointer',
         }}
       >
-        Повторить
+        {t('today.error.retry')}
       </button>
     </div>
   );

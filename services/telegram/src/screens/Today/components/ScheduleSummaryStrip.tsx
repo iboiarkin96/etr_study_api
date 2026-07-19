@@ -4,11 +4,14 @@
  * arrives in T-15.
  */
 
+import { useTranslation } from 'react-i18next';
+
 import type { ScheduleSummary } from '../hooks/useScheduleSummary';
 
 type Props = { data: ScheduleSummary };
 
 export function ScheduleSummaryStrip({ data }: Props) {
+  const { t } = useTranslation();
   const cell = (label: string, value: number) => (
     <div
       key={label}
@@ -53,9 +56,9 @@ export function ScheduleSummaryStrip({ data }: Props) {
         margin: '1rem 0',
       }}
     >
-      {cell('сейчас', data.due_now)}
-      {cell('за 24 ч', data.due_next_24h)}
-      {cell('всего', data.total)}
+      {cell(t('today.summary.dueNow'), data.due_now)}
+      {cell(t('today.summary.next24h'), data.due_next_24h)}
+      {cell(t('today.summary.total'), data.total)}
     </div>
   );
 }
