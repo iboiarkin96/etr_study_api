@@ -24,6 +24,7 @@ from starlette.responses import Response
 from app.api.v1.auth import router as auth_router
 from app.api.v1.conspectus import router as conspectus_router
 from app.api.v1.error_log import router as error_log_router
+from app.api.v1.me import router as me_router
 from app.api.v1.schedule import router as schedule_router
 from app.api.v1.user import router as user_router
 from app.core.config import get_settings
@@ -456,6 +457,7 @@ app.include_router(user_router, prefix="/api/v1")
 app.include_router(error_log_router, prefix="/api/v1")
 app.include_router(schedule_router, prefix="/api/v1")
 app.include_router(conspectus_router, prefix="/api/v1")
+app.include_router(me_router, prefix="/api/v1")
 
 
 def custom_openapi() -> dict[str, Any]:

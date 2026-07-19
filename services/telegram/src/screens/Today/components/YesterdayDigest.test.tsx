@@ -24,7 +24,7 @@ function iconTone(container: HTMLElement): string | null {
 describe('<YesterdayDigest>', () => {
   test('renders the digest structure', () => {
     const { container } = render(
-      <YesterdayDigest data={{ reviewed: 8, target: 10, accuracyPct: 87 }} />,
+      <YesterdayDigest data={{ reviewed: 8, target: 10, accuracy_pct: 87, missed: 2 }} />,
     );
     expect(container.querySelector('.tma-digest')).toBeTruthy();
     expect(container.querySelector('.tma-digest__icon')).toBeTruthy();
@@ -34,7 +34,7 @@ describe('<YesterdayDigest>', () => {
 
   test('summary carries the interpolated numbers', () => {
     const { container } = render(
-      <YesterdayDigest data={{ reviewed: 8, target: 10, accuracyPct: 87 }} />,
+      <YesterdayDigest data={{ reviewed: 8, target: 10, accuracy_pct: 87, missed: 2 }} />,
     );
     const sub = container.querySelector('.tma-digest__sub')?.textContent ?? '';
     expect(sub).toMatch(/8/);
@@ -45,21 +45,21 @@ describe('<YesterdayDigest>', () => {
 
   test('icon tone flips to success at high accuracy', () => {
     const { container } = render(
-      <YesterdayDigest data={{ reviewed: 9, target: 10, accuracyPct: 95 }} />,
+      <YesterdayDigest data={{ reviewed: 9, target: 10, accuracy_pct: 95, missed: 1 }} />,
     );
     expect(iconTone(container)).toBe('success');
   });
 
   test('icon tone falls to warn between 60% and 80%', () => {
     const { container } = render(
-      <YesterdayDigest data={{ reviewed: 7, target: 10, accuracyPct: 70 }} />,
+      <YesterdayDigest data={{ reviewed: 7, target: 10, accuracy_pct: 70, missed: 3 }} />,
     );
     expect(iconTone(container)).toBe('warn');
   });
 
   test('icon tone falls to danger below 60%', () => {
     const { container } = render(
-      <YesterdayDigest data={{ reviewed: 4, target: 10, accuracyPct: 40 }} />,
+      <YesterdayDigest data={{ reviewed: 4, target: 10, accuracy_pct: 40, missed: 6 }} />,
     );
     expect(iconTone(container)).toBe('danger');
   });

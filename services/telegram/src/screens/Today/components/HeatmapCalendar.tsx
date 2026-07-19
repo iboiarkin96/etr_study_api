@@ -12,7 +12,9 @@
 
 import { useTranslation } from 'react-i18next';
 
-import type { HeatmapDay } from '../hooks/useDailyStats';
+import type { components } from '../../../shared/api/schema';
+
+type HeatmapDay = components['schemas']['HistoryDay'];
 
 type Props = { data: HeatmapDay[] };
 
@@ -27,7 +29,7 @@ function monthsAcross(days: HeatmapDay[], columnCount = 13): string[] {
   let prev = '';
   for (let i = 0; i < columnCount; i++) {
     const idx = Math.min(i * step, days.length - 1);
-    const d = new Date(`${days[idx].isoDate}T00:00:00Z`);
+    const d = new Date(`${days[idx].date}T00:00:00Z`);
     const label = MONTH_LABEL_INTL.format(d);
     labels.push(label === prev ? '' : label);
     prev = label;
@@ -69,14 +71,14 @@ export function HeatmapCalendar({ data }: Props) {
           <div className="tma-heat" role="grid" aria-label={t('today.heatmap.title')}>
             {data.map((d) => (
               <div
-                key={d.isoDate}
+                key={d.date}
                 className="tma-heat__cell"
                 role="gridcell"
                 data-level={d.intensity}
                 data-count={d.count === 0 ? '0' : `${d.count} reviews`}
-                data-date={shortDate(d.isoDate)}
-                data-today={d.isoDate === todayIso ? 'true' : undefined}
-                aria-label={t('today.heatmap.cell', { date: d.isoDate, count: d.count })}
+                data-date={shortDate(d.date)}
+                data-today={d.date === todayIso ? 'true' : undefined}
+                aria-label={t('today.heatmap.cell', { date: d.date, count: d.count })}
               />
             ))}
           </div>
@@ -113,7 +115,7 @@ export function HeatmapCalendar({ data }: Props) {
               <div className="tma-heat__stat">
                 <span className="tma-heat__stat-k">{t('today.heatmap.stats.best')}</span>
                 <span className="tma-heat__stat-v">{bestDay.count}</span>
-                <span className="tma-heat__stat-s">{shortDate(bestDay.isoDate)}</span>
+                <span className="tma-heat__stat-s">{shortDate(bestDay.date)}</span>
               </div>
             )}
           </div>

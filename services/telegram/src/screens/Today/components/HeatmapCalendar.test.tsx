@@ -12,7 +12,9 @@ import { describe, expect, test } from 'vitest';
 
 import { initI18n } from '../../../shared/i18n';
 import { HeatmapCalendar } from './HeatmapCalendar';
-import type { HeatmapDay } from '../hooks/useDailyStats';
+import type { components } from '../../../shared/api/schema';
+
+type HeatmapDay = components['schemas']['HistoryDay'];
 
 initI18n();
 
@@ -21,7 +23,7 @@ function buildDays(n: number, start = '2026-05-01'): HeatmapDay[] {
   return Array.from({ length: n }, (_, i) => {
     const iso = new Date(startEpoch + i * 86_400_000).toISOString().slice(0, 10);
     const intensity = ((i % 5) as HeatmapDay['intensity']);
-    return { isoDate: iso, intensity, count: intensity * 3 };
+    return { date: iso, intensity, count: intensity * 3 };
   });
 }
 

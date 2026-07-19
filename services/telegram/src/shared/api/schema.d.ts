@@ -4,6 +4,53 @@
  */
 
 export interface paths {
+    "/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liveness probe
+         * @description Liveness: process is up (no dependency checks).
+         *
+         *     Returns:
+         *         Payload with ``status="alive"`` and current ``app_env``.
+         */
+        get: operations["getLiveProbe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Readiness probe
+         * @description Readiness probe including database connectivity and latency budget.
+         *
+         *     Returns:
+         *         ``ReadyResponse`` with HTTP 200 when ready, or HTTP 503 with the same schema
+         *         when the DB check fails or exceeds the timeout.
+         */
+        get: operations["getReadyProbe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/telegram": {
         parameters: {
             query?: never;
@@ -18,182 +65,6 @@ export interface paths {
          * @description Verifies the HMAC signature of `initData` against `TELEGRAM_BOT_TOKEN`, upserts the caller's identity in `users` + `telegram_users`, and returns a signed JWT for use as `Authorization: Bearer <jwt>` on every subsequent `/api/v1/*` call. Anonymous endpoint — the Bearer middleware exempts it.
          */
         post: operations["signInWithTelegramInitData"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/conspectuses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List conspectuses (newest first, cursor-paginated)
-         * @description GET /conspectuses with keyset cursor pagination.
-         */
-        get: operations["listConspectuses"];
-        put?: never;
-        /**
-         * Create a conspectus
-         * @description POST /conspectuses with idempotent replay and initial schedule row.
-         */
-        post: operations["createConspectus"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/conspectuses/due": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List conspectuses due for review (bounded top-100)
-         * @description GET /conspectuses/due (top-100, sorted by next_review_at ASC).
-         */
-        get: operations["listDueConspectuses"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/conspectuses/{conspectus_uuid}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get one conspectus by uuid
-         * @description GET /conspectuses/{id}.
-         */
-        get: operations["getConspectusById"];
-        put?: never;
-        post?: never;
-        /**
-         * Soft-delete a conspectus (returns the updated row)
-         * @description DELETE /conspectuses/{id} — soft-delete via reason FK and unlink learner errors.
-         */
-        delete: operations["deleteConspectus"];
-        options?: never;
-        head?: never;
-        /**
-         * Update conspectus content (at least one ETR field)
-         * @description PATCH /conspectuses/{id} — partial content update with idempotent replay.
-         */
-        patch: operations["patchConspectus"];
-        trace?: never;
-    };
-    "/api/v1/conspectuses/{conspectus_uuid}/actions/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Apply a review outcome and advance the schedule
-         * @description POST /conspectuses/{id}/actions/review — state machine + optimistic CC.
-         */
-        post: operations["reviewConspectus"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/conspectuses/{conspectus_uuid}/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get an ordered audit trail for a conspectus
-         * @description GET /conspectuses/{id}/history — merged review + content events, oldest first.
-         */
-        get: operations["getConspectusHistory"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/errors": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List learner error records
-         * @description Returns the learner's own error rows, newest first, capped at 100. Cross-tenant references return an empty list (no leak).
-         */
-        get: operations["listErrorLogs"];
-        put?: never;
-        /**
-         * Append a learner error record
-         * @description Appends an immutable error entry for the learner. Requires `Idempotency-Key`. Optional `conspectus_uuid` / `review_log_id` must be owned by the same learner.
-         */
-        post: operations["createErrorLog"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/schedule/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Evening-review lookahead batch
-         * @description Returns a compact, deterministically-shuffled list of conspectuses whose next review falls within the requested window. `random_seed` + current clock minute make the order stable for one minute; a seed is generated when omitted.
-         */
-        get: operations["getSchedulePreview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/schedule/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Study-load summary counts
-         * @description Aggregates the learner's schedule for the load-badge widget: counts per slot, items due now, items due in the next 24 hours, and total active.
-         */
-        get: operations["getScheduleSummary"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -285,7 +156,7 @@ export interface paths {
         patch: operations["patchUserBySystemUserId"];
         trace?: never;
     };
-    "/live": {
+    "/api/v1/errors": {
         parameters: {
             query?: never;
             header?: never;
@@ -293,13 +164,34 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Liveness probe
-         * @description Liveness: process is up (no dependency checks).
-         *
-         *     Returns:
-         *         Payload with ``status="alive"`` and current ``app_env``.
+         * List learner error records
+         * @description Returns the learner's own error rows, newest first, capped at 100. Cross-tenant references return an empty list (no leak).
          */
-        get: operations["getLiveProbe"];
+        get: operations["listErrorLogs"];
+        put?: never;
+        /**
+         * Append a learner error record
+         * @description Appends an immutable error entry for the learner. Requires `Idempotency-Key`. Optional `conspectus_uuid` / `review_log_id` must be owned by the same learner.
+         */
+        post: operations["createErrorLog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedule/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Study-load summary counts
+         * @description Aggregates the learner's schedule for the load-badge widget: counts per slot, items due now, items due in the next 24 hours, and total active.
+         */
+        get: operations["getScheduleSummary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -308,7 +200,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ready": {
+    "/api/v1/schedule/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -316,14 +208,182 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Readiness probe
-         * @description Readiness probe including database connectivity and latency budget.
-         *
-         *     Returns:
-         *         ``ReadyResponse`` with HTTP 200 when ready, or HTTP 503 with the same schema
-         *         when the DB check fails or exceeds the timeout.
+         * Evening-review lookahead batch
+         * @description Returns a compact, deterministically-shuffled list of conspectuses whose next review falls within the requested window. `random_seed` + current clock minute make the order stable for one minute; a seed is generated when omitted.
          */
-        get: operations["getReadyProbe"];
+        get: operations["getSchedulePreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedule/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Per-day review counts (Today heat-map data)
+         * @description Returns one row per UTC calendar day for the last ``days`` days, filled with zeros for inactive days. Intensity 0..4 buckets the count for the Ember-tinted heat-map cells.
+         */
+        get: operations["getScheduleHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conspectuses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List conspectuses (newest first, cursor-paginated)
+         * @description GET /conspectuses with keyset cursor pagination.
+         */
+        get: operations["listConspectuses"];
+        put?: never;
+        /**
+         * Create a conspectus
+         * @description POST /conspectuses with idempotent replay and initial schedule row.
+         */
+        post: operations["createConspectus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conspectuses/due": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List conspectuses due for review (bounded top-100)
+         * @description GET /conspectuses/due (top-100, sorted by next_review_at ASC).
+         */
+        get: operations["listDueConspectuses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conspectuses/{conspectus_uuid}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an ordered audit trail for a conspectus
+         * @description GET /conspectuses/{id}/history — merged review + content events, oldest first.
+         */
+        get: operations["getConspectusHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conspectuses/{conspectus_uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one conspectus by uuid
+         * @description GET /conspectuses/{id}.
+         */
+        get: operations["getConspectusById"];
+        put?: never;
+        post?: never;
+        /**
+         * Soft-delete a conspectus (returns the updated row)
+         * @description DELETE /conspectuses/{id} — soft-delete via reason FK and unlink learner errors.
+         */
+        delete: operations["deleteConspectus"];
+        options?: never;
+        head?: never;
+        /**
+         * Update conspectus content (at least one ETR field)
+         * @description PATCH /conspectuses/{id} — partial content update with idempotent replay.
+         */
+        patch: operations["patchConspectus"];
+        trace?: never;
+    };
+    "/api/v1/conspectuses/{conspectus_uuid}/actions/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a review outcome and advance the schedule
+         * @description POST /conspectuses/{id}/actions/review — state machine + optimistic CC.
+         */
+        post: operations["reviewConspectus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current + longest streak (consecutive review days).
+         * @description Handle ``GET /api/v1/me/stats``.
+         */
+        get: operations["getMeStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/yesterday": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recap of the previous UTC day (reviewed / target / accuracy).
+         * @description Handle ``GET /api/v1/me/yesterday``.
+         */
+        get: operations["getMeYesterday"];
         put?: never;
         post?: never;
         delete?: never;
@@ -361,17 +421,6 @@ export interface components {
          * @description JSON body for ``POST /api/v1/conspectuses``.
          */
         ConspectusCreateRequest: {
-            /** Bullets */
-            bullets: string[];
-            /**
-             * Cue Sheet
-             * @description Object of ETR cue tags (schema v1).
-             */
-            cue_sheet: {
-                [key: string]: unknown;
-            };
-            /** Dense Paragraph */
-            dense_paragraph: string;
             /** System User Id */
             system_user_id: string;
             /**
@@ -381,17 +430,23 @@ export interface components {
             system_uuid: string;
             /** Title */
             title?: string | null;
+            /**
+             * Cue Sheet
+             * @description Object of ETR cue tags (schema v1).
+             */
+            cue_sheet: {
+                [key: string]: unknown;
+            };
+            /** Dense Paragraph */
+            dense_paragraph: string;
+            /** Bullets */
+            bullets: string[];
         };
         /**
          * ConspectusDeleteRequest
          * @description JSON body for ``DELETE /api/v1/conspectuses/{id}`` (soft-delete with reason).
          */
         ConspectusDeleteRequest: {
-            /**
-             * Invalidation Reason Uuid
-             * Format: uuid
-             */
-            invalidation_reason_uuid: string;
             /** System User Id */
             system_user_id: string;
             /**
@@ -399,6 +454,11 @@ export interface components {
              * Format: uuid
              */
             system_uuid: string;
+            /**
+             * Invalidation Reason Uuid
+             * Format: uuid
+             */
+            invalidation_reason_uuid: string;
         };
         /**
          * ConspectusHistoryActor
@@ -425,13 +485,6 @@ export interface components {
          * @description One history entry. Only the matching discriminator payload is populated.
          */
         ConspectusHistoryEvent: {
-            actor: components["schemas"]["ConspectusHistoryActor"];
-            content_patch?: components["schemas"]["ConspectusHistoryContentPatchPayload"] | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
             /** Event Id */
             event_id: string;
             /**
@@ -439,7 +492,14 @@ export interface components {
              * @enum {string}
              */
             event_type: "review" | "content_patch";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            actor: components["schemas"]["ConspectusHistoryActor"];
             review?: components["schemas"]["ConspectusHistoryReviewPayload"] | null;
+            content_patch?: components["schemas"]["ConspectusHistoryContentPatchPayload"] | null;
         };
         /**
          * ConspectusHistoryResponse
@@ -448,14 +508,14 @@ export interface components {
         ConspectusHistoryResponse: {
             /** Conspectus Uuid */
             conspectus_uuid: string;
-            /** Count */
-            count: number;
-            /** Has More */
-            has_more: boolean;
             /** Items */
             items: components["schemas"]["ConspectusHistoryEvent"][];
             /** Next Cursor */
             next_cursor: string | null;
+            /** Count */
+            count: number;
+            /** Has More */
+            has_more: boolean;
         };
         /**
          * ConspectusHistoryReviewPayload
@@ -463,16 +523,10 @@ export interface components {
          */
         ConspectusHistoryReviewPayload: {
             /**
-             * Next Review At After
-             * Format: date-time
+             * Tag
+             * @enum {string}
              */
-            next_review_at_after: string;
-            /** Schedule Revision After */
-            schedule_revision_after: number;
-            /** Slot D Ladder Index From */
-            slot_d_ladder_index_from: number;
-            /** Slot D Ladder Index To */
-            slot_d_ladder_index_to: number;
+            tag: "easy" | "hard" | "forgot";
             /**
              * Slot From
              * @enum {string}
@@ -483,39 +537,37 @@ export interface components {
              * @enum {string}
              */
             slot_to: "A" | "B" | "C" | "D";
+            /** Slot D Ladder Index From */
+            slot_d_ladder_index_from: number;
+            /** Slot D Ladder Index To */
+            slot_d_ladder_index_to: number;
+            /** Schedule Revision After */
+            schedule_revision_after: number;
             /**
-             * Tag
-             * @enum {string}
+             * Next Review At After
+             * Format: date-time
              */
-            tag: "easy" | "hard" | "forgot";
+            next_review_at_after: string;
         };
         /**
          * ConspectusListResponse
          * @description List envelope for ``GET /api/v1/conspectuses``.
          */
         ConspectusListResponse: {
-            /** Count */
-            count: number;
-            /** Has More */
-            has_more: boolean;
             /** Items */
             items: components["schemas"]["ConspectusResponse"][];
             /** Next Cursor */
             next_cursor: string | null;
+            /** Count */
+            count: number;
+            /** Has More */
+            has_more: boolean;
         };
         /**
          * ConspectusPatchRequest
          * @description JSON body for ``PATCH /api/v1/conspectuses/{id}`` — at least one ETR field required.
          */
         ConspectusPatchRequest: {
-            /** Bullets */
-            bullets?: string[] | null;
-            /** Cue Sheet */
-            cue_sheet?: {
-                [key: string]: unknown;
-            } | null;
-            /** Dense Paragraph */
-            dense_paragraph?: string | null;
             /** System User Id */
             system_user_id: string;
             /**
@@ -525,6 +577,14 @@ export interface components {
             system_uuid: string;
             /** Title */
             title?: string | null;
+            /** Cue Sheet */
+            cue_sheet?: {
+                [key: string]: unknown;
+            } | null;
+            /** Dense Paragraph */
+            dense_paragraph?: string | null;
+            /** Bullets */
+            bullets?: string[] | null;
         };
         /**
          * ConspectusResponse
@@ -534,19 +594,10 @@ export interface components {
          *     clients can render slot + next_review_at without a second request.
          */
         ConspectusResponse: {
-            /** Algorithm Version */
-            algorithm_version: string;
-            /** Bullets */
-            bullets: string[];
             /** Conspectus Uuid */
             conspectus_uuid: string;
-            /** Content Version */
-            content_version: number;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
+            /** Title */
+            title: string | null;
             /** Cue Sheet */
             cue_sheet: {
                 [key: string]: unknown;
@@ -555,28 +606,10 @@ export interface components {
             cue_sheet_schema_version: number;
             /** Dense Paragraph */
             dense_paragraph: string;
-            /** Invalidated At */
-            invalidated_at: string | null;
-            /** Invalidation Reason Uuid */
-            invalidation_reason_uuid: string | null;
-            /** Is Row Invalid */
-            is_row_invalid: number;
-            /**
-             * Next Review At
-             * Format: date-time
-             */
-            next_review_at: string;
-            /** Schedule Policy Id */
-            schedule_policy_id: string;
-            /** Schedule Policy Version */
-            schedule_policy_version: string;
-            /** Schedule Revision */
-            schedule_revision: number;
-            /**
-             * Schedule Updated At
-             * Format: date-time
-             */
-            schedule_updated_at: string;
+            /** Bullets */
+            bullets: string[];
+            /** Content Version */
+            content_version: number;
             /**
              * Slot
              * @enum {string}
@@ -584,8 +617,35 @@ export interface components {
             slot: "A" | "B" | "C" | "D";
             /** Slot D Ladder Index */
             slot_d_ladder_index: number;
-            /** Title */
-            title: string | null;
+            /**
+             * Next Review At
+             * Format: date-time
+             */
+            next_review_at: string;
+            /** Schedule Revision */
+            schedule_revision: number;
+            /** Schedule Policy Id */
+            schedule_policy_id: string;
+            /** Schedule Policy Version */
+            schedule_policy_version: string;
+            /** Algorithm Version */
+            algorithm_version: string;
+            /**
+             * Schedule Updated At
+             * Format: date-time
+             */
+            schedule_updated_at: string;
+            /** Is Row Invalid */
+            is_row_invalid: number;
+            /** Invalidation Reason Uuid */
+            invalidation_reason_uuid: string | null;
+            /** Invalidated At */
+            invalidated_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /**
              * Updated At
              * Format: date-time
@@ -597,10 +657,6 @@ export interface components {
          * @description JSON body for ``POST /api/v1/conspectuses/{id}/actions/review``.
          */
         ConspectusReviewRequest: {
-            /** Expected Schedule Revision */
-            expected_schedule_revision?: number | null;
-            /** Reviewed At */
-            reviewed_at?: string | null;
             /** System User Id */
             system_user_id: string;
             /**
@@ -613,6 +669,10 @@ export interface components {
              * @enum {string}
              */
             tag: "easy" | "hard" | "forgot";
+            /** Expected Schedule Revision */
+            expected_schedule_revision?: number | null;
+            /** Reviewed At */
+            reviewed_at?: string | null;
         };
         /**
          * ErrorLogCreateRequest
@@ -622,21 +682,6 @@ export interface components {
          *     Optional FK fields must be owned by the same learner or the request 404s.
          */
         ErrorLogCreateRequest: {
-            /**
-             * Conspectus Uuid
-             * @description Optional link to a conspectus the error refers to.
-             */
-            conspectus_uuid?: string | null;
-            /**
-             * Message
-             * @description Free-text learner note about the mistake (trimmed; non-empty).
-             */
-            message: string;
-            /**
-             * Review Log Id
-             * @description Optional link to a specific review log row.
-             */
-            review_log_id?: number | null;
             /**
              * System User Id
              * @description External user id; composite key with `system_uuid`.
@@ -648,25 +693,40 @@ export interface components {
              * @description Source system UUID (`systems.system_uuid`).
              */
             system_uuid: string;
+            /**
+             * Message
+             * @description Free-text learner note about the mistake (trimmed; non-empty).
+             */
+            message: string;
+            /**
+             * Conspectus Uuid
+             * @description Optional link to a conspectus the error refers to.
+             */
+            conspectus_uuid?: string | null;
+            /**
+             * Review Log Id
+             * @description Optional link to a specific review log row.
+             */
+            review_log_id?: number | null;
         };
         /**
          * ErrorLogResponse
          * @description Single ``learning_errors`` row returned by create / list endpoints.
          */
         ErrorLogResponse: {
+            /** Error Uuid */
+            error_uuid: string;
+            /** Message */
+            message: string;
             /** Conspectus Uuid */
             conspectus_uuid: string | null;
+            /** Review Log Id */
+            review_log_id: number | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
-            /** Error Uuid */
-            error_uuid: string;
-            /** Message */
-            message: string;
-            /** Review Log Id */
-            review_log_id: number | null;
         };
         /**
          * HTTPValidationError
@@ -675,6 +735,25 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HistoryDay
+         * @description One day's review count on the 90-day heat-map.
+         */
+        HistoryDay: {
+            /**
+             * Date
+             * Format: date
+             * @description UTC calendar day this bucket covers.
+             */
+            date: string;
+            /** Count */
+            count: number;
+            /**
+             * Intensity
+             * @description Bucketed density 0..4 for heat-map cells.
+             */
+            intensity: number;
         };
         /**
          * LiveResponse
@@ -686,6 +765,12 @@ export interface components {
          */
         LiveResponse: {
             /**
+             * Status
+             * @default alive
+             * @example alive
+             */
+            status: string;
+            /**
              * App Env
              * @description Logical deployment profile from APP_ENV (dev, qa, prod).
              * @example dev
@@ -693,12 +778,37 @@ export interface components {
              * @example prod
              */
             app_env: string;
+        };
+        /**
+         * MeStatsResponse
+         * @description Payload for ``GET /api/v1/me/stats`` — Today screen streak orb.
+         */
+        MeStatsResponse: {
+            streak: components["schemas"]["StreakStats"];
             /**
-             * Status
-             * @default alive
-             * @example alive
+             * Computed At
+             * Format: date-time
+             * @description Server clock at read time (UTC).
              */
-            status: string;
+            computed_at: string;
+        };
+        /**
+         * MeYesterdayResponse
+         * @description Payload for ``GET /api/v1/me/yesterday``.
+         */
+        MeYesterdayResponse: {
+            yesterday: components["schemas"]["YesterdayDigest"];
+            /**
+             * Date
+             * Format: date
+             * @description The UTC calendar day the digest covers.
+             */
+            date: string;
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
         };
         /**
          * ReadyResponse
@@ -710,6 +820,13 @@ export interface components {
          *         db_latency_ms: Observed database round-trip in milliseconds, if measured.
          */
         ReadyResponse: {
+            /**
+             * Status
+             * @default ready
+             * @example ready
+             * @example not_ready
+             */
+            status: string;
             /** Checks */
             checks?: {
                 [key: string]: string;
@@ -720,32 +837,38 @@ export interface components {
              * @example null
              */
             db_latency_ms?: number | null;
+        };
+        /**
+         * ScheduleHistoryResponse
+         * @description Payload for ``GET /api/v1/schedule/history``.
+         */
+        ScheduleHistoryResponse: {
+            /** Days */
+            days: components["schemas"]["HistoryDay"][];
             /**
-             * Status
-             * @default ready
-             * @example ready
-             * @example not_ready
+             * Computed At
+             * Format: date-time
              */
-            status: string;
+            computed_at: string;
         };
         /**
          * SchedulePreviewItem
          * @description One row inside the preview payload.
          */
         SchedulePreviewItem: {
+            /** Preview Order Index */
+            preview_order_index: number;
             /** Conspectus Uuid */
             conspectus_uuid: string;
+            /** Title */
+            title?: string | null;
+            /** Slot */
+            slot: string;
             /**
              * Next Review At
              * Format: date-time
              */
             next_review_at: string;
-            /** Preview Order Index */
-            preview_order_index: number;
-            /** Slot */
-            slot: string;
-            /** Title */
-            title?: string | null;
         };
         /**
          * SchedulePreviewResponse
@@ -753,21 +876,21 @@ export interface components {
          */
         SchedulePreviewResponse: {
             /**
-             * Computed At
-             * Format: date-time
-             */
-            computed_at: string;
-            /** Count */
-            count: number;
-            /** Items */
-            items: components["schemas"]["SchedulePreviewItem"][];
-            /** Random Seed */
-            random_seed: string;
-            /**
              * Window
              * @enum {string}
              */
             window: "PT1H" | "PT4H" | "PT24H" | "P1D";
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
+            /** Random Seed */
+            random_seed: string;
+            /** Count */
+            count: number;
+            /** Items */
+            items: components["schemas"]["SchedulePreviewItem"][];
         };
         /**
          * ScheduleSummaryResponse
@@ -775,17 +898,17 @@ export interface components {
          */
         ScheduleSummaryResponse: {
             by_slot: components["schemas"]["ScheduleSummarySlotCounts"];
+            /** Due Now */
+            due_now: number;
+            /** Due Next 24H */
+            due_next_24h: number;
+            /** Total */
+            total: number;
             /**
              * Computed At
              * Format: date-time
              */
             computed_at: string;
-            /** Due Next 24H */
-            due_next_24h: number;
-            /** Due Now */
-            due_now: number;
-            /** Total */
-            total: number;
         };
         /**
          * ScheduleSummarySlotCounts
@@ -800,6 +923,28 @@ export interface components {
             C: number;
             /** D */
             D: number;
+        };
+        /**
+         * StreakStats
+         * @description Current + longest streak of consecutive days with at least one review.
+         */
+        StreakStats: {
+            /**
+             * Current Days
+             * @description Consecutive days ending today or yesterday.
+             */
+            current_days: number;
+            /**
+             * Longest Days
+             * @description Longest streak on record for this learner.
+             */
+            longest_days: number;
+            /**
+             * Goal Days
+             * @description Next milestone (30-day default).
+             * @default 30
+             */
+            goal_days: number;
         };
         /**
          * TelegramAuthRequest
@@ -818,15 +963,15 @@ export interface components {
          */
         TelegramAuthResponse: {
             /**
-             * Expires At Epoch
-             * @description Unix seconds when the JWT stops verifying.
-             */
-            expires_at_epoch: number;
-            /**
              * Jwt
              * @description 24 h HS256 JWT signed with `JWT_SECRET`.
              */
             jwt: string;
+            /**
+             * Expires At Epoch
+             * @description Unix seconds when the JWT stops verifying.
+             */
+            expires_at_epoch: number;
             /**
              * Token Type
              * @description Always `Bearer` (RFC 6750).
@@ -849,21 +994,6 @@ export interface components {
              */
             client_uuid: string;
             /**
-             * Full Name
-             * @description Concatenated first+last name mirrored on `users`.
-             */
-            full_name: string;
-            /**
-             * Locale
-             * @description BCP-47 language code from `initData.user.language_code`.
-             */
-            locale?: string | null;
-            /**
-             * Telegram Photo Url
-             * @description Avatar URL from `initData`, if present.
-             */
-            telegram_photo_url?: string | null;
-            /**
              * Telegram User Id
              * @description Telegram's numeric user id (int64).
              */
@@ -873,6 +1003,21 @@ export interface components {
              * @description Public `@handle`, if the account has one.
              */
             telegram_username?: string | null;
+            /**
+             * Telegram Photo Url
+             * @description Avatar URL from `initData`, if present.
+             */
+            telegram_photo_url?: string | null;
+            /**
+             * Locale
+             * @description BCP-47 language code from `initData.user.language_code`.
+             */
+            locale?: string | null;
+            /**
+             * Full Name
+             * @description Concatenated first+last name mirrored on `users`.
+             */
+            full_name: string;
         };
         /**
          * UserCreateRequest
@@ -884,11 +1029,39 @@ export interface components {
          */
         UserCreateRequest: {
             /**
+             * System User Id
+             * @description User ID in the source system; unique together with `system_uuid`.
+             * @example 134tg
+             */
+            system_user_id: string;
+            /**
+             * Username
+             * @description Username or login.
+             * @example ipetrov
+             */
+            username?: string | null;
+            /**
              * Full Name
              * @description Full name of the user.
              * @example Ivan Petrov
              */
             full_name: string;
+            /**
+             * Timezone
+             * @description IANA timezone name (e.g. 'UTC', 'Europe/Moscow').
+             * @default UTC
+             * @example Europe/Moscow
+             * @example UTC
+             * @example America/New_York
+             */
+            timezone: string;
+            /**
+             * System Uuid
+             * Format: uuid
+             * @description UUID of the source system (`systems.system_uuid`); composite key with `system_user_id`.
+             * @example b2c3d4e5-0002-4000-8000-000000000002
+             */
+            system_uuid: string;
             /**
              * Invalidation Reason Uuid
              * @description Related invalidation reason UUID.
@@ -903,34 +1076,6 @@ export interface components {
              * @example 1
              */
             is_row_invalid: number;
-            /**
-             * System User Id
-             * @description User ID in the source system; unique together with `system_uuid`.
-             * @example 134tg
-             */
-            system_user_id: string;
-            /**
-             * System Uuid
-             * Format: uuid
-             * @description UUID of the source system (`systems.system_uuid`); composite key with `system_user_id`.
-             * @example b2c3d4e5-0002-4000-8000-000000000002
-             */
-            system_uuid: string;
-            /**
-             * Timezone
-             * @description IANA timezone name (e.g. 'UTC', 'Europe/Moscow').
-             * @default UTC
-             * @example Europe/Moscow
-             * @example UTC
-             * @example America/New_York
-             */
-            timezone: string;
-            /**
-             * Username
-             * @description Username or login.
-             * @example ipetrov
-             */
-            username?: string | null;
         };
         /**
          * UserCreateResponse
@@ -956,25 +1101,25 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Full Name */
-            full_name: string;
-            /** Invalidation Reason Uuid */
-            invalidation_reason_uuid: string | null;
-            /** Is Row Invalid */
-            is_row_invalid: number;
-            /** System User Id */
-            system_user_id: string | null;
-            /** System Uuid */
-            system_uuid: string | null;
-            /** Timezone */
-            timezone: string;
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
+            /** Is Row Invalid */
+            is_row_invalid: number;
+            /** Invalidation Reason Uuid */
+            invalidation_reason_uuid: string | null;
+            /** System User Id */
+            system_user_id: string | null;
+            /** System Uuid */
+            system_uuid: string | null;
             /** Username */
             username: string | null;
+            /** Full Name */
+            full_name: string;
+            /** Timezone */
+            timezone: string;
         };
         /**
          * UserPatchRequest
@@ -982,11 +1127,31 @@ export interface components {
          */
         UserPatchRequest: {
             /**
+             * Username
+             * @description Username or login; set null to clear.
+             * @example ipetrov
+             */
+            username?: string | null;
+            /**
              * Full Name
              * @description Full name; omit to leave unchanged.
              * @example Ivan Petrov
              */
             full_name?: string | null;
+            /**
+             * Timezone
+             * @description IANA timezone; omit to leave unchanged.
+             * @example Europe/Moscow
+             * @example UTC
+             * @example America/New_York
+             */
+            timezone?: string | null;
+            /**
+             * System Uuid
+             * @description Related system UUID; set null to clear.
+             * @example b2c3d4e5-0002-4000-8000-000000000002
+             */
+            system_uuid?: string | null;
             /**
              * Invalidation Reason Uuid
              * @description Invalidation reason UUID; set null to clear.
@@ -1000,26 +1165,6 @@ export interface components {
              * @example 1
              */
             is_row_invalid?: number | null;
-            /**
-             * System Uuid
-             * @description Related system UUID; set null to clear.
-             * @example b2c3d4e5-0002-4000-8000-000000000002
-             */
-            system_uuid?: string | null;
-            /**
-             * Timezone
-             * @description IANA timezone; omit to leave unchanged.
-             * @example Europe/Moscow
-             * @example UTC
-             * @example America/New_York
-             */
-            timezone?: string | null;
-            /**
-             * Username
-             * @description Username or login; set null to clear.
-             * @example ipetrov
-             */
-            username?: string | null;
         };
         /**
          * UserUpdateRequest
@@ -1027,11 +1172,31 @@ export interface components {
          */
         UserUpdateRequest: {
             /**
+             * Username
+             * @description Username or login.
+             * @example ipetrov
+             */
+            username?: string | null;
+            /**
              * Full Name
              * @description Full name of the user.
              * @example Ivan Petrov
              */
             full_name: string;
+            /**
+             * Timezone
+             * @description IANA timezone name (e.g. 'UTC', 'Europe/Moscow').
+             * @example Europe/Moscow
+             * @example UTC
+             * @example America/New_York
+             */
+            timezone: string;
+            /**
+             * System Uuid
+             * @description Related system UUID; set null to clear.
+             * @example b2c3d4e5-0002-4000-8000-000000000002
+             */
+            system_uuid?: string | null;
             /**
              * Invalidation Reason Uuid
              * @description Related invalidation reason UUID.
@@ -1046,42 +1211,22 @@ export interface components {
              * @example 1
              */
             is_row_invalid: number;
-            /**
-             * System Uuid
-             * @description Related system UUID; set null to clear.
-             * @example b2c3d4e5-0002-4000-8000-000000000002
-             */
-            system_uuid?: string | null;
-            /**
-             * Timezone
-             * @description IANA timezone name (e.g. 'UTC', 'Europe/Moscow').
-             * @example Europe/Moscow
-             * @example UTC
-             * @example America/New_York
-             */
-            timezone: string;
-            /**
-             * Username
-             * @description Username or login.
-             * @example ipetrov
-             */
-            username?: string | null;
         };
         /**
          * ValidationError
          * @description Single field-level validation failure. ``loc`` is the JSON path inside the request body or query that triggered the error; ``msg`` is a human-readable message; ``type`` is the Pydantic error code (for example ``string_too_short``); ``input`` and ``ctx`` are present when Pydantic supplies them.
          */
         ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
         /**
          * ValidationErrorItem
@@ -1098,18 +1243,18 @@ export interface components {
         ValidationErrorItem: {
             /** Code */
             code: string;
-            /** Details */
-            details?: {
-                [key: string]: unknown;
-            } | null;
-            /** Field */
-            field?: string | null;
             /** Key */
             key: string;
             /** Message */
             message: string;
+            /** Field */
+            field?: string | null;
             /** Source */
             source: string;
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * ValidationErrorResponse
@@ -1121,12 +1266,38 @@ export interface components {
          *         errors: List of :class:`ValidationErrorItem` entries.
          */
         ValidationErrorResponse: {
-            /** Endpoint */
-            endpoint: string;
             /** Error Type */
             error_type: string;
+            /** Endpoint */
+            endpoint: string;
             /** Errors */
             errors: components["schemas"]["ValidationErrorItem"][];
+        };
+        /**
+         * YesterdayDigest
+         * @description Recap of the previous day's review activity.
+         */
+        YesterdayDigest: {
+            /**
+             * Reviewed
+             * @description Reviews that landed yesterday.
+             */
+            reviewed: number;
+            /**
+             * Target
+             * @description Reviews scheduled for yesterday (reviewed + still-due).
+             */
+            target: number;
+            /**
+             * Accuracy Pct
+             * @description Share of ``easy`` reviews vs. total, rounded to a %.
+             */
+            accuracy_pct: number;
+            /**
+             * Missed
+             * @description Target minus reviewed, floored at 0.
+             */
+            missed: number;
         };
     };
     responses: never;
@@ -1137,6 +1308,56 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getLiveProbe: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveResponse"];
+                };
+            };
+        };
+    };
+    getReadyProbe: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadyResponse"];
+                };
+            };
+        };
+    };
     signInWithTelegramInitData: {
         parameters: {
             query?: never;
@@ -1182,6 +1403,848 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ValidationErrorResponse"];
+                };
+            };
+        };
+    };
+    createUser: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Required idempotency key for write deduplication. Use printable ASCII only (no Cyrillic/Unicode). */
+                "Idempotency-Key": string;
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description User created successfully. */
+            201: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCreateResponse"];
+                };
+            };
+            /** @description Business validation failure. */
+            400: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Idempotency key was reused with different payload. */
+            409: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Request body exceeds configured maximum size. */
+            413: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Request validation errors for all supported user create field rules. */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    getUserBySystemUserId: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path: {
+                /** @description Source system UUID (`systems.system_uuid`). */
+                system_uuid: string;
+                system_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCreateResponse"];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User not found. */
+            404: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    updateUserBySystemUserId: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Required idempotency key for write deduplication. Use printable ASCII only (no Cyrillic/Unicode). */
+                "Idempotency-Key": string;
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path: {
+                /** @description Source system UUID (`systems.system_uuid`). */
+                system_uuid: string;
+                system_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description User updated successfully. */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCreateResponse"];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User not found. */
+            404: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Idempotency key was reused with different payload. */
+            409: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Request body exceeds configured maximum size. */
+            413: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Request validation errors for user update body rules. */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    patchUserBySystemUserId: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Required idempotency key for write deduplication. Use printable ASCII only (no Cyrillic/Unicode). */
+                "Idempotency-Key": string;
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path: {
+                /** @description Source system UUID (`systems.system_uuid`). */
+                system_uuid: string;
+                system_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description User updated successfully. */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCreateResponse"];
+                };
+            };
+            /** @description Business validation failure. */
+            400: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User not found. */
+            404: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Idempotency key was reused with different payload. */
+            409: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Request body exceeds configured maximum size. */
+            413: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Request validation errors for user patch body rules. */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    listErrorLogs: {
+        parameters: {
+            query: {
+                /** @description External user id. */
+                system_user_id: string;
+                /** @description Source system UUID (`systems.system_uuid`). */
+                system_uuid: string;
+                /** @description Optional filter: only errors linked to this conspectus. */
+                conspectus_uuid?: string | null;
+            };
+            header?: {
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorLogResponse"][];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User not found for the composite key. */
+            404: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    createErrorLog: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Required idempotency key (printable ASCII only). */
+                "Idempotency-Key": string;
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ErrorLogCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorLogResponse"];
+                };
+            };
+            /** @description Business validation failure. */
+            400: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User or referenced conspectus / review log not found. */
+            404: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Idempotency key was reused with different payload. */
+            409: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Request body exceeds configured maximum size. */
+            413: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Request validation errors for the create-error-log body. */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    getScheduleSummary: {
+        parameters: {
+            query: {
+                system_user_id: string;
+                system_uuid: string;
+            };
+            header?: {
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleSummaryResponse"];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User not found for the composite key. */
+            404: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Validation errors for the required query parameters. */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    getSchedulePreview: {
+        parameters: {
+            query: {
+                system_user_id: string;
+                system_uuid: string;
+                window?: "PT1H" | "PT4H" | "PT24H" | "P1D";
+                limit?: number;
+                /** @description Optional shuffle seed; server generates one when omitted. */
+                random_seed?: string | null;
+            };
+            header?: {
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulePreviewResponse"];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User not found for the composite key. */
+            404: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Validation errors for query parameters (window, limit, random_seed). */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationErrorResponse"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    getScheduleHistory: {
+        parameters: {
+            query: {
+                system_user_id: string;
+                system_uuid: string;
+                days?: number;
+            };
+            header?: {
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleHistoryResponse"];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User not found for the composite key. */
+            404: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
@@ -1423,6 +2486,90 @@ export interface operations {
                 };
             };
             /** @description User not found for the composite key. */
+            404: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Per-client request rate limit exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds until request can be retried. */
+                    "Retry-After"?: string;
+                    /** @description Rate-limit ceiling for current window. */
+                    "X-RateLimit-Limit"?: string;
+                    /** @description Remaining requests in current window. */
+                    "X-RateLimit-Remaining"?: string;
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    getConspectusHistory: {
+        parameters: {
+            query: {
+                system_user_id: string;
+                system_uuid: string;
+                event_type?: "review" | "content_patch" | "all";
+                since?: string | null;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: {
+                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
+                "X-Request-Id"?: string;
+            };
+            path: {
+                conspectus_uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConspectusHistoryResponse"];
+                };
+            };
+            /** @description Missing or invalid API key header. */
+            401: {
+                headers: {
+                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
+                    "X-Request-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User or conspectus not found (both collapse to 404). */
             404: {
                 headers: {
                     /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
@@ -1888,99 +3035,11 @@ export interface operations {
             };
         };
     };
-    getConspectusHistory: {
+    getMeStats: {
         parameters: {
             query: {
                 system_user_id: string;
                 system_uuid: string;
-                event_type?: "review" | "content_patch" | "all";
-                since?: string | null;
-                limit?: number;
-                cursor?: string | null;
-            };
-            header?: {
-                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
-                "X-Request-Id"?: string;
-            };
-            path: {
-                conspectus_uuid: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConspectusHistoryResponse"];
-                };
-            };
-            /** @description Missing or invalid API key header. */
-            401: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description User or conspectus not found (both collapse to 404). */
-            404: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Per-client request rate limit exceeded. */
-            429: {
-                headers: {
-                    /** @description Seconds until request can be retried. */
-                    "Retry-After"?: string;
-                    /** @description Rate-limit ceiling for current window. */
-                    "X-RateLimit-Limit"?: string;
-                    /** @description Remaining requests in current window. */
-                    "X-RateLimit-Remaining"?: string;
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    listErrorLogs: {
-        parameters: {
-            query: {
-                /** @description External user id. */
-                system_user_id: string;
-                /** @description Source system UUID (`systems.system_uuid`). */
-                system_uuid: string;
-                /** @description Optional filter: only errors linked to this conspectus. */
-                conspectus_uuid?: string | null;
             };
             header?: {
                 /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
@@ -1999,7 +3058,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorLogResponse"][];
+                    "application/json": components["schemas"]["MeStatsResponse"];
                 };
             };
             /** @description Missing or invalid API key header. */
@@ -2054,203 +3113,7 @@ export interface operations {
             };
         };
     };
-    createErrorLog: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Required idempotency key (printable ASCII only). */
-                "Idempotency-Key": string;
-                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
-                "X-Request-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ErrorLogCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorLogResponse"];
-                };
-            };
-            /** @description Business validation failure. */
-            400: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Missing or invalid API key header. */
-            401: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description User or referenced conspectus / review log not found. */
-            404: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Idempotency key was reused with different payload. */
-            409: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Request body exceeds configured maximum size. */
-            413: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Request validation errors for the create-error-log body. */
-            422: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationErrorResponse"];
-                };
-            };
-            /** @description Per-client request rate limit exceeded. */
-            429: {
-                headers: {
-                    /** @description Seconds until request can be retried. */
-                    "Retry-After"?: string;
-                    /** @description Rate-limit ceiling for current window. */
-                    "X-RateLimit-Limit"?: string;
-                    /** @description Remaining requests in current window. */
-                    "X-RateLimit-Remaining"?: string;
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    getSchedulePreview: {
-        parameters: {
-            query: {
-                system_user_id: string;
-                system_uuid: string;
-                window?: "PT1H" | "PT4H" | "PT24H" | "P1D";
-                limit?: number;
-                /** @description Optional shuffle seed; server generates one when omitted. */
-                random_seed?: string | null;
-            };
-            header?: {
-                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
-                "X-Request-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SchedulePreviewResponse"];
-                };
-            };
-            /** @description Missing or invalid API key header. */
-            401: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description User not found for the composite key. */
-            404: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Validation errors for query parameters (window, limit, random_seed). */
-            422: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationErrorResponse"];
-                };
-            };
-            /** @description Per-client request rate limit exceeded. */
-            429: {
-                headers: {
-                    /** @description Seconds until request can be retried. */
-                    "Retry-After"?: string;
-                    /** @description Rate-limit ceiling for current window. */
-                    "X-RateLimit-Limit"?: string;
-                    /** @description Remaining requests in current window. */
-                    "X-RateLimit-Remaining"?: string;
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    getScheduleSummary: {
+    getMeYesterday: {
         parameters: {
             query: {
                 system_user_id: string;
@@ -2273,7 +3136,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScheduleSummaryResponse"];
+                    "application/json": components["schemas"]["MeYesterdayResponse"];
                 };
             };
             /** @description Missing or invalid API key header. */
@@ -2288,188 +3151,6 @@ export interface operations {
                 };
             };
             /** @description User not found for the composite key. */
-            404: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Validation errors for the required query parameters. */
-            422: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationErrorResponse"];
-                };
-            };
-            /** @description Per-client request rate limit exceeded. */
-            429: {
-                headers: {
-                    /** @description Seconds until request can be retried. */
-                    "Retry-After"?: string;
-                    /** @description Rate-limit ceiling for current window. */
-                    "X-RateLimit-Limit"?: string;
-                    /** @description Remaining requests in current window. */
-                    "X-RateLimit-Remaining"?: string;
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    createUser: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Required idempotency key for write deduplication. Use printable ASCII only (no Cyrillic/Unicode). */
-                "Idempotency-Key": string;
-                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
-                "X-Request-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description User created successfully. */
-            201: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserCreateResponse"];
-                };
-            };
-            /** @description Business validation failure. */
-            400: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Missing or invalid API key header. */
-            401: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Idempotency key was reused with different payload. */
-            409: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Request body exceeds configured maximum size. */
-            413: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Request validation errors for all supported user create field rules. */
-            422: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationErrorResponse"];
-                };
-            };
-            /** @description Per-client request rate limit exceeded. */
-            429: {
-                headers: {
-                    /** @description Seconds until request can be retried. */
-                    "Retry-After"?: string;
-                    /** @description Rate-limit ceiling for current window. */
-                    "X-RateLimit-Limit"?: string;
-                    /** @description Remaining requests in current window. */
-                    "X-RateLimit-Remaining"?: string;
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    getUserBySystemUserId: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
-                "X-Request-Id"?: string;
-            };
-            path: {
-                /** @description Source system UUID (`systems.system_uuid`). */
-                system_uuid: string;
-                system_user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserCreateResponse"];
-                };
-            };
-            /** @description Missing or invalid API key header. */
-            401: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description User not found. */
             404: {
                 headers: {
                     /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
@@ -2506,281 +3187,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    updateUserBySystemUserId: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Required idempotency key for write deduplication. Use printable ASCII only (no Cyrillic/Unicode). */
-                "Idempotency-Key": string;
-                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
-                "X-Request-Id"?: string;
-            };
-            path: {
-                /** @description Source system UUID (`systems.system_uuid`). */
-                system_uuid: string;
-                system_user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description User updated successfully. */
-            200: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserCreateResponse"];
-                };
-            };
-            /** @description Missing or invalid API key header. */
-            401: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description User not found. */
-            404: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Idempotency key was reused with different payload. */
-            409: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Request body exceeds configured maximum size. */
-            413: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Request validation errors for user update body rules. */
-            422: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationErrorResponse"];
-                };
-            };
-            /** @description Per-client request rate limit exceeded. */
-            429: {
-                headers: {
-                    /** @description Seconds until request can be retried. */
-                    "Retry-After"?: string;
-                    /** @description Rate-limit ceiling for current window. */
-                    "X-RateLimit-Limit"?: string;
-                    /** @description Remaining requests in current window. */
-                    "X-RateLimit-Remaining"?: string;
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    patchUserBySystemUserId: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Required idempotency key for write deduplication. Use printable ASCII only (no Cyrillic/Unicode). */
-                "Idempotency-Key": string;
-                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
-                "X-Request-Id"?: string;
-            };
-            path: {
-                /** @description Source system UUID (`systems.system_uuid`). */
-                system_uuid: string;
-                system_user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserPatchRequest"];
-            };
-        };
-        responses: {
-            /** @description User updated successfully. */
-            200: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserCreateResponse"];
-                };
-            };
-            /** @description Business validation failure. */
-            400: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Missing or invalid API key header. */
-            401: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description User not found. */
-            404: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Idempotency key was reused with different payload. */
-            409: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Request body exceeds configured maximum size. */
-            413: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Request validation errors for user patch body rules. */
-            422: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationErrorResponse"];
-                };
-            };
-            /** @description Per-client request rate limit exceeded. */
-            429: {
-                headers: {
-                    /** @description Seconds until request can be retried. */
-                    "Retry-After"?: string;
-                    /** @description Rate-limit ceiling for current window. */
-                    "X-RateLimit-Limit"?: string;
-                    /** @description Remaining requests in current window. */
-                    "X-RateLimit-Remaining"?: string;
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    getLiveProbe: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
-                "X-Request-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LiveResponse"];
-                };
-            };
-        };
-    };
-    getReadyProbe: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID. */
-                "X-Request-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Correlation id for this HTTP request—echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana. */
-                    "X-Request-Id"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReadyResponse"];
                 };
             };
         };

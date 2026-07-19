@@ -23,7 +23,7 @@ describe('<StreakOrb>', () => {
   test('renders the kit primitive with all four child slots', () => {
     const { container } = render(
       <StreakOrb
-        data={{ currentDays: 12, longestDays: 21, goalDays: 30 }}
+        data={{ current_days: 12, longest_days: 21, goal_days: 30 }}
         dueToday={4}
       />,
     );
@@ -37,7 +37,7 @@ describe('<StreakOrb>', () => {
   test('renders the current streak number', () => {
     render(
       <StreakOrb
-        data={{ currentDays: 12, longestDays: 21, goalDays: 30 }}
+        data={{ current_days: 12, longest_days: 21, goal_days: 30 }}
         dueToday={4}
       />,
     );
@@ -47,7 +47,7 @@ describe('<StreakOrb>', () => {
   test('carries an aria label with the streak count', () => {
     const { container } = render(
       <StreakOrb
-        data={{ currentDays: 12, longestDays: 21, goalDays: 30 }}
+        data={{ current_days: 12, longest_days: 21, goal_days: 30 }}
         dueToday={4}
       />,
     );
@@ -58,7 +58,7 @@ describe('<StreakOrb>', () => {
   test('default state is warm', () => {
     const { container } = render(
       <StreakOrb
-        data={{ currentDays: 7, longestDays: 21, goalDays: 30 }}
+        data={{ current_days: 7, longest_days: 21, goal_days: 30 }}
         dueToday={4}
       />,
     );
@@ -68,7 +68,7 @@ describe('<StreakOrb>', () => {
   test('state = rested when nothing is due', () => {
     const { container } = render(
       <StreakOrb
-        data={{ currentDays: 7, longestDays: 21, goalDays: 30 }}
+        data={{ current_days: 7, longest_days: 21, goal_days: 30 }}
         dueToday={0}
       />,
     );
@@ -78,7 +78,7 @@ describe('<StreakOrb>', () => {
   test('state = celebrate on every 30-day milestone', () => {
     const { container } = render(
       <StreakOrb
-        data={{ currentDays: 30, longestDays: 30, goalDays: 30 }}
+        data={{ current_days: 30, longest_days: 30, goal_days: 30 }}
         dueToday={4}
       />,
     );

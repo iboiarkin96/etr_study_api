@@ -16,13 +16,16 @@ from app.openapi.examples.schedule import (
     SCHEDULE_SUMMARY_VALIDATION_ERROR_EXAMPLES,
 )
 from app.openapi.responses import common_protected_route_responses
+from app.repositories.me_repository import MeRepository
 from app.repositories.schedule_repository import ScheduleRepository
 from app.schemas.errors import ApiErrorResponse, ValidationErrorResponse
+from app.schemas.me import ScheduleHistoryResponse
 from app.schemas.schedule import (
     SchedulePreviewResponse,
     ScheduleSummaryResponse,
     WindowLiteral,
 )
+from app.services.me_service import MeService
 from app.services.owner_resolver import resolve_owner_client_uuid
 from app.services.schedule_service import SchedulePreviewInputs, ScheduleService
 
@@ -162,3 +165,38 @@ def get_schedule_preview(
         owner_client_uuid=owner_client_uuid,
         inputs=SchedulePreviewInputs(window=window, limit=limit, random_seed=random_seed),
     )
+
+
+@router.get(
+    "/history",
+    response_model=ScheduleHistoryResponse,
+    operation_id="getScheduleHistory",
+    summary="Per-day review counts (Today heat-map data)",
+    description=(
+        "Returns one row per UTC calendar day for the last ``days`` days, filled "
+        "with zeros for inactive days. Intensity 0..4 buckets the count for the "
+        "Ember-tinted heat-map cells."
+    ),
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ApiErrorResponse,
+            "description": "User not found for the composite key.",
+        },
+        **common_protected_route_responses(),
+    },
+)
+def get_schedule_history(
+    session: Annotated[Session, Depends(get_db_session)],
+    system_user_id: Annotated[str, Query(min_length=1, max_length=36)],
+    system_uuid: Annotated[UUID, Query()],
+    days: Annotated[int, Query(ge=1, le=365)] = 90,
+    api_key: Annotated[str | None, Security(api_key_security)] = None,
+) -> ScheduleHistoryResponse:
+    """Handle ``GET /api/v1/schedule/history``."""
+    _ = api_key
+    owner_client_uuid = resolve_owner_client_uuid(
+        session,
+        system_user_id=system_user_id,
+        system_uuid=system_uuid,
+    )
+    return MeService(MeRepository(session)).history(owner_client_uuid=owner_client_uuid, days=days)

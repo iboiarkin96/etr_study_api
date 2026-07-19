@@ -1,17 +1,19 @@
 /**
- * Yesterday-digest strip — one-line recap of the previous day, rendered on
- * the shipped `.tma-digest` primitive from `tma-kit.css`.
+ * Yesterday-digest strip — one-line recap of the previous day rendered on
+ * the `.tma-digest` primitive.
  *
- * The kit's digest is a single row (icon + main text). The icon tone tracks
- * accuracy so the strip carries a mood at-a-glance without needing colour
- * in the copy itself.
+ * Reads the `YesterdayDigest` shape returned by `GET /api/v1/me/yesterday`
+ * — `reviewed`, `target`, `accuracy_pct`, `missed`. The icon tone tracks
+ * accuracy so the strip carries a mood at-a-glance.
  */
 
 import { useTranslation } from 'react-i18next';
 
-import type { YesterdayDigest as Data } from '../hooks/useDailyStats';
+import type { components } from '../../../shared/api/schema';
 
-type Props = { data: Data };
+type YesterdayDigestData = components['schemas']['YesterdayDigest'];
+
+type Props = { data: YesterdayDigestData };
 
 type Tone = 'success' | 'warn' | 'danger';
 
@@ -23,8 +25,7 @@ function pickTone(accuracyPct: number): Tone {
 
 export function YesterdayDigest({ data }: Props) {
   const { t } = useTranslation();
-  const tone = pickTone(data.accuracyPct);
-  const missed = Math.max(0, data.target - data.reviewed);
+  const tone = pickTone(data.accuracy_pct);
 
   return (
     <div className="tma-digest" role="group" aria-label={t('today.yesterday.title')}>
@@ -37,8 +38,8 @@ export function YesterdayDigest({ data }: Props) {
           {t('today.yesterday.summary', {
             reviewed: data.reviewed,
             target: data.target,
-            accuracy: data.accuracyPct,
-            missed,
+            accuracy: data.accuracy_pct,
+            missed: data.missed,
           })}
         </div>
       </div>

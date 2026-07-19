@@ -1,26 +1,21 @@
 /**
  * Signature streak orb (variant A · Amie DNA).
  *
- * Renders the shipped `.tma-orb` primitive from `tma-kit.css` — a living
- * radial-gradient bubble with rotating iridescent sheen, double glare and
- * ember-tinted specular. All motion / colours are owned by the kit; this
- * file only decides which state to show and threads the streak number
- * through `.tma-orb__num`.
+ * Reads the `StreakStats` shape returned by `GET /api/v1/me/stats` directly —
+ * `current_days`, `longest_days`, `goal_days` (snake_case matches the
+ * OpenAPI schema so no adapter layer is needed).
  *
  * State machine (per screens.html § ed-states):
  *   * `celebrate` — every 30-day milestone → single pulse + ring halo.
  *   * `rested`    — zero due today → cool sage twin of the orb.
  *   * `warm`      — default habit state.
- *
- * `tma-ticker--live` is left off for now; the number renders statically.
- * The ticker requires driving `--tick-target` through a CSS variable
- * countdown that the kit ships as a raw animation — swap in when we
- * wire the streak-changed event.
  */
 
 import { useTranslation } from 'react-i18next';
 
-import type { StreakStats } from '../hooks/useDailyStats';
+import type { components } from '../../../shared/api/schema';
+
+type StreakStats = components['schemas']['StreakStats'];
 
 type Props = {
   data: StreakStats;
@@ -30,7 +25,7 @@ type Props = {
 };
 
 function resolveState(data: StreakStats, dueToday: number): 'warm' | 'rested' | 'celebrate' {
-  if (data.currentDays > 0 && data.currentDays % 30 === 0) return 'celebrate';
+  if (data.current_days > 0 && data.current_days % 30 === 0) return 'celebrate';
   if (dueToday === 0) return 'rested';
   return 'warm';
 }
@@ -52,12 +47,12 @@ export function StreakOrb({ data, dueToday, size = 'lg' }: Props) {
         className={`tma-orb ${sizeClass}`.trim()}
         data-state={state}
         role="img"
-        aria-label={t('today.streak.aria', { count: data.currentDays })}
+        aria-label={t('today.streak.aria', { count: data.current_days })}
       >
         <span className="tma-orb__sheen" aria-hidden="true" />
         <span className="tma-orb__glare" aria-hidden="true" />
         <span className="tma-orb__num" aria-hidden="true">
-          {data.currentDays}
+          {data.current_days}
         </span>
         <span className="tma-orb__cap">{t('today.streak.unit')}</span>
       </div>

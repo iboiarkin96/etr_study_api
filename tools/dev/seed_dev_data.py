@@ -69,6 +69,7 @@ from app.domain.scheduling import (  # noqa: E402
 from app.models.core.conspectus import (  # noqa: E402
     Conspectus,
     ConspectusEvent,
+    ConspectusReviewLog,
     ConspectusSchedule,
 )
 from app.models.core.telegram_user import TelegramUser  # noqa: E402
@@ -140,6 +141,86 @@ def _wipe_seeds(session: Session) -> int:
     """Delete every row whose uuid starts with the seed prefix. Returns row count."""
     result = session.execute(
         delete(Conspectus).where(Conspectus.conspectus_uuid.like(f"{SEED_UUID_PREFIX}%"))
+    )
+    session.commit()
+    return result.rowcount or 0
+
+
+def _insert_review_logs(
+    session: Session,
+    *,
+    owner_client_uuid: str,
+    telegram_user_id: int,
+    conspectus_uuids: list[str],
+) -> int:
+    """Insert synthetic review-log rows so streak / yesterday / heat-map show non-zero.
+
+    Distribution:
+
+    * Days 1..12 back (a 12-day streak ending today) — 3 reviews per day.
+    * Days 13..14 back — 0 reviews (the streak-boundary gap).
+    * Days 15..60 back — mostly active, 1–5 reviews per day with some empty days.
+
+    Tag mix approximates 85% ``easy`` for a healthy accuracy signal.
+    """
+    now = datetime.now(UTC)
+    today_midnight = datetime(now.year, now.month, now.day, tzinfo=UTC)
+    inserted = 0
+
+    def _emit(day_offset: int, count: int, cycle_start: int) -> None:
+        nonlocal inserted
+        for i in range(count):
+            uuid = conspectus_uuids[(cycle_start + i) % len(conspectus_uuids)]
+            reviewed_at = today_midnight - timedelta(days=day_offset, hours=(i * 2 + 9))
+            tag = "easy" if (day_offset + i) % 7 != 0 else "hard"
+            log = ConspectusReviewLog(
+                conspectus_uuid=uuid,
+                owner_client_uuid=owner_client_uuid,
+                tag=tag,
+                slot_before="A",
+                slot_after="B" if tag == "easy" else "A",
+                slot_d_ladder_index_before=0,
+                slot_d_ladder_index_after=0,
+                schedule_revision_before=1,
+                schedule_revision_after=2,
+                next_review_at_before=reviewed_at,
+                next_review_at_after=reviewed_at + timedelta(days=1),
+                algorithm_version=ALGORITHM_VERSION,
+                schedule_policy_id=SCHEDULE_POLICY_ID,
+                schedule_policy_version=SCHEDULE_POLICY_VERSION,
+                actor_system_user_id=str(telegram_user_id),
+                actor_system_uuid=TELEGRAM_SYSTEM_UUID,
+                reviewed_at=reviewed_at,
+                created_at=reviewed_at,
+            )
+            session.add(log)
+            inserted += 1
+
+    # 12-day active streak ending today.
+    for day_offset in range(12):
+        _emit(day_offset, count=3, cycle_start=day_offset)
+
+    # Streak-boundary gap on days 13..14 back.
+    # (Nothing emitted — the current streak logic terminates here.)
+
+    # Earlier activity — mostly-active pattern from days 15 to 60.
+    for day_offset in range(15, 61):
+        # Alternate between 0, 2, 3, 4, 5 reviews to look organic.
+        pattern = (0, 2, 3, 4, 5)
+        count = pattern[day_offset % len(pattern)]
+        if count > 0:
+            _emit(day_offset, count=count, cycle_start=day_offset)
+
+    session.commit()
+    return inserted
+
+
+def _wipe_review_logs(session: Session, owner_client_uuid: str) -> int:
+    """Delete every review-log row for a given owner."""
+    result = session.execute(
+        delete(ConspectusReviewLog).where(
+            ConspectusReviewLog.owner_client_uuid == owner_client_uuid
+        )
     )
     session.commit()
     return result.rowcount or 0
@@ -231,13 +312,26 @@ def main() -> None:
         if args.reset:
             wiped = _wipe_seeds(session)
             print(f"[seed] wiped {wiped} pre-existing seed row(s)")
+            wiped_logs = _wipe_review_logs(session, owner)
+            print(f"[seed] wiped {wiped_logs} review-log row(s) for owner")
 
         inserted = _insert_seeds(session, owner, args.telegram_user_id)
         skipped = len(_SEED_ROWS) - inserted
         print(f"[seed] inserted {inserted} conspectus(es); skipped {skipped} (already present)")
+
+        # Only seed review logs when we actually have conspectuses in place —
+        # otherwise the foreign key on `conspectus_uuid` fails.
+        conspectus_uuids = [f"{SEED_UUID_PREFIX}{suffix}" for suffix, *_ in _SEED_ROWS]
+        logs = _insert_review_logs(
+            session,
+            owner_client_uuid=owner,
+            telegram_user_id=args.telegram_user_id,
+            conspectus_uuids=conspectus_uuids,
+        )
+        print(f"[seed] inserted {logs} review-log row(s) — 12-day streak + 60-day heatmap history")
         print(
             "[seed] done. Refresh the Mini App — Today should now show "
-            f"{len(_SEED_ROWS)} entries with due_now / due_next_24h / total > 0."
+            f"{len(_SEED_ROWS)} due cards, a 12-day streak, and a populated heatmap."
         )
 
 

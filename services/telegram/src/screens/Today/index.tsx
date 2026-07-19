@@ -1,13 +1,10 @@
 /**
  * Today screen · variant A (Amie · Signature).
  *
- * Composed on `tma-kit.css` primitives — `.tma-scope` on the root activates
- * tier-2 tokens, `.tma-orb` carries the streak signature, `.tma-digest`
- * carries yesterday, `.tma-heat-frame` carries the 90-day map, and
- * `.tma-section__plate` + `.tma-cell` structure the due list. Anything
- * that doesn't have a native primitive (auth banner, langswitch, three-cell
- * summary strip) uses tokens directly (`--tma-*`, no `--tg-*`) so light /
- * dark and Ember tuning apply uniformly.
+ * Composed from real data: `useConspectusesDue`, `useScheduleSummary`,
+ * `useMeStats`, `useMeYesterday`, `useScheduleHistory`. Every block owns
+ * its own loading / error surface so a slow endpoint doesn't blank the
+ * whole screen; only the auth gate hides the composed body entirely.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -24,7 +21,9 @@ import { ScheduleSummaryStrip } from './components/ScheduleSummaryStrip';
 import { StreakOrb } from './components/StreakOrb';
 import { YesterdayDigest } from './components/YesterdayDigest';
 import { useConspectusesDue } from './hooks/useConspectusesDue';
-import { useDailyStats } from './hooks/useDailyStats';
+import { useMeStats } from './hooks/useMeStats';
+import { useMeYesterday } from './hooks/useMeYesterday';
+import { useScheduleHistory } from './hooks/useScheduleHistory';
 import { useScheduleSummary } from './hooks/useScheduleSummary';
 
 export function Today() {
@@ -32,9 +31,12 @@ export function Today() {
   const auth = useAuth();
   const due = useConspectusesDue();
   const summary = useScheduleSummary();
-  const stats = useDailyStats();
+  const stats = useMeStats();
+  const yesterday = useMeYesterday();
+  const history = useScheduleHistory(90);
 
   const dueToday = summary.data?.due_now ?? due.data?.length ?? 0;
+  const recentlyReviewed = (due.data ?? []).slice(0, 5);
 
   return (
     <main
@@ -103,8 +105,8 @@ export function Today() {
 
         {auth.status === 'authenticated' && (
           <>
-            <StreakOrb data={stats.streak} dueToday={dueToday} size="lg" />
-            <YesterdayDigest data={stats.yesterday} />
+            {stats.data && <StreakOrb data={stats.data.streak} dueToday={dueToday} size="lg" />}
+            {yesterday.data && <YesterdayDigest data={yesterday.data.yesterday} />}
 
             {summary.isPending && <ScheduleSummaryStripSkeleton />}
             {summary.isError && (
@@ -138,8 +140,8 @@ export function Today() {
               {due.data && due.data.length > 0 && <DueCardsList items={due.data} />}
             </section>
 
-            <RecentlyReviewedPeek items={stats.recentlyReviewed} />
-            <HeatmapCalendar data={stats.heatmap} />
+            <RecentlyReviewedPeek items={recentlyReviewed} />
+            {history.data && <HeatmapCalendar data={history.data.days} />}
           </>
         )}
       </div>
