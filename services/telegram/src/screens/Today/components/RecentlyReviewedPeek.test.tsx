@@ -4,8 +4,20 @@
  * The block is opt-out — an empty list returns `null` so no dangling
  * section label appears. Populated: every item's title lands on screen
  * and the row structure hits `.tma-peek__row` for the kit's styling.
+ *
+ * Router context: `<Link>` needs a mounted `RouterProvider`. We build a
+ * tiny in-memory router with a single index route so the peek's
+ * navigation targets resolve without loading the real app tree.
  */
 
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from '@tanstack/react-router';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 
@@ -24,20 +36,39 @@ function stub(uuid: string, title: string, slot: DueConspectus['slot']): DueCons
   } as DueConspectus;
 }
 
+function renderWithRouter(node: React.ReactElement) {
+  const rootRoute = createRootRoute({ component: () => <Outlet /> });
+  const indexRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/',
+    component: () => node,
+  });
+  const detailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/conspectus/$conspectus_uuid',
+    component: () => null,
+  });
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([indexRoute, detailRoute]),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  });
+  return render(<RouterProvider router={router} />);
+}
+
 describe('<RecentlyReviewedPeek>', () => {
   test('returns null when the list is empty', () => {
-    const { container } = render(<RecentlyReviewedPeek items={[]} />);
-    expect(container.firstChild).toBeNull();
+    const { container } = renderWithRouter(<RecentlyReviewedPeek items={[]} />);
+    expect(container.querySelector('.tma-peek')).toBeNull();
   });
 
-  test('renders every provided item title inside a peek row', () => {
+  test('renders every provided item title inside a peek row', async () => {
     const items = [
-      stub('a', 'First title', 'A'),
-      stub('b', 'Second title', 'B'),
-      stub('c', 'Third title', 'C'),
+      stub('u-a', 'First title', 'A'),
+      stub('u-b', 'Second title', 'B'),
+      stub('u-c', 'Third title', 'C'),
     ];
-    const { container } = render(<RecentlyReviewedPeek items={items} />);
-    expect(screen.getByText('First title')).toBeTruthy();
+    const { container } = renderWithRouter(<RecentlyReviewedPeek items={items} />);
+    await screen.findByText('First title');
     expect(screen.getByText('Second title')).toBeTruthy();
     expect(screen.getByText('Third title')).toBeTruthy();
     expect(container.querySelectorAll('.tma-peek__row').length).toBe(3);

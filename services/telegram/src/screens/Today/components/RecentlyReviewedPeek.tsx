@@ -1,15 +1,15 @@
 /**
- * Recently-reviewed peek — replaces the earlier horizontal carousel.
+ * Recently-reviewed peek — quiet editorial mini-list on `.tma-peek--lined`.
  *
- * Renders on `.tma-peek--lined` from `tma-kit.css` per the variant A DNA:
- * a quiet, editorial mini-list where the eye lands on the *titles* and
- * slot letter sits in the right-aligned mono meta column. Self-hides
- * on an empty list so the label doesn't appear without content.
+ * Every row is a `<Link>` to the same `/conspectus/$conspectus_uuid` route
+ * the due list uses, so «recently reviewed» is a proper drill-down surface
+ * and not just decoration. Self-hides on an empty list.
  *
  * Data source: derived from `useConspectusesDue` — until a dedicated
  * `GET /conspectuses?sort=-last_reviewed_at&limit=5` hook lands.
  */
 
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
 import type { DueConspectus } from '../hooks/useConspectusesDue';
@@ -31,7 +31,14 @@ export function RecentlyReviewedPeek({ items }: Props) {
           {t('today.recent.title')}
         </div>
         {items.map((item) => (
-          <div key={item.conspectus_uuid} className="tma-peek__row" role="listitem">
+          <Link
+            key={item.conspectus_uuid}
+            to="/conspectus/$conspectus_uuid"
+            params={{ conspectus_uuid: item.conspectus_uuid }}
+            className="tma-peek__row"
+            role="listitem"
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
             <span
               style={{
                 overflow: 'hidden',
@@ -43,7 +50,7 @@ export function RecentlyReviewedPeek({ items }: Props) {
               {item.title}
             </span>
             <span className="tma-peek__meta">{t('today.recent.slot', { slot: item.slot })}</span>
-          </div>
+          </Link>
         ))}
       </div>
     </section>
