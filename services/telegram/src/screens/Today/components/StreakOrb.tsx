@@ -43,20 +43,23 @@ export function StreakOrb({ data, dueToday, size = 'lg' }: Props) {
         margin: 'var(--tma-sp-6, 24px) 0 var(--tma-sp-4, 16px)',
       }}
     >
-      <div
-        className={`tma-orb tma-tip tma-tip--below ${sizeClass}`.trim()}
-        data-state={state}
-        data-tip={t('today.streak.tip')}
-        role="img"
-        aria-label={t('today.streak.aria', { count: data.current_days })}
-        title={t('today.streak.tip')}
-      >
-        <span className="tma-orb__sheen" aria-hidden="true" />
-        <span className="tma-orb__glare" aria-hidden="true" />
-        <span className="tma-orb__num" aria-hidden="true">
-          {data.current_days}
-        </span>
-        <span className="tma-orb__cap">{t('today.streak.unit')}</span>
+      {/* Tip lives on a wrapper — the orb owns its own ::before / ::after
+       * pseudo-elements for the radial body and the celebration halo, so
+       * `.tma-tip` can't sit directly on it or those visuals disappear. */}
+      <div className="tma-tip tma-tip--below" data-tip={t('today.streak.tip')}>
+        <div
+          className={`tma-orb ${sizeClass}`.trim()}
+          data-state={state}
+          role="img"
+          aria-label={t('today.streak.aria', { count: data.current_days })}
+        >
+          <span className="tma-orb__sheen" aria-hidden="true" />
+          <span className="tma-orb__glare" aria-hidden="true" />
+          <span className="tma-orb__num" aria-hidden="true">
+            {data.current_days}
+          </span>
+          <span className="tma-orb__cap">{t('today.streak.unit')}</span>
+        </div>
       </div>
     </div>
   );

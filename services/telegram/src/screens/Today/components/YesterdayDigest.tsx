@@ -33,7 +33,6 @@ export function YesterdayDigest({ data }: Props) {
       role="group"
       aria-label={t('today.yesterday.title')}
       data-tip={t('today.yesterday.tip')}
-      title={t('today.yesterday.tip')}
     >
       <div className="tma-digest__icon" data-tone={tone} aria-hidden="true">
         {tone === 'success' ? '✓' : tone === 'warn' ? '·' : '!'}

@@ -30,7 +30,6 @@ export function RecentlyReviewedPeek({ items }: Props) {
         className="tma-peek tma-peek--lined tma-tip"
         role="list"
         data-tip={t('today.recent.tip')}
-        title={t('today.recent.tip')}
       >
         <div className="tma-peek__label" id="recent-h">
           {t('today.recent.title')}
@@ -43,7 +42,6 @@ export function RecentlyReviewedPeek({ items }: Props) {
             className="tma-peek__row"
             role="listitem"
             style={{ textDecoration: 'none', color: 'inherit' }}
-            title={t('today.dueList.rowTip', { title: item.title })}
           >
             <span
               style={{

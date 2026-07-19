@@ -52,7 +52,6 @@ export function HeatmapCalendar({ data }: Props) {
         className="tma-section__header tma-tip tma-tip--below"
         id="heatmap-h"
         data-tip={t('today.heatmap.tip')}
-        title={t('today.heatmap.tip')}
       >
         {t('today.heatmap.title')}
       </div>
@@ -108,18 +107,27 @@ export function HeatmapCalendar({ data }: Props) {
             <span>{t('today.heatmap.more')}</span>
           </div>
           <div className="tma-heat__stats">
-            <div className="tma-heat__stat">
+            <div
+              className="tma-heat__stat tma-tip"
+              data-tip={t('today.heatmap.stats.totalTip')}
+            >
               <span className="tma-heat__stat-k">{t('today.heatmap.stats.total')}</span>
               <span className="tma-heat__stat-v tma-heat__stat-v--accent">{total}</span>
               <span className="tma-heat__stat-s">{t('today.heatmap.stats.totalUnit')}</span>
             </div>
-            <div className="tma-heat__stat">
+            <div
+              className="tma-heat__stat tma-tip"
+              data-tip={t('today.heatmap.stats.activeTip', { total: data.length })}
+            >
               <span className="tma-heat__stat-k">{t('today.heatmap.stats.active')}</span>
               <span className="tma-heat__stat-v">{activeDays}</span>
               <span className="tma-heat__stat-s">/ {data.length}</span>
             </div>
             {bestDay && bestDay.count > 0 && (
-              <div className="tma-heat__stat">
+              <div
+                className="tma-heat__stat tma-tip"
+                data-tip={t('today.heatmap.stats.bestTip')}
+              >
                 <span className="tma-heat__stat-k">{t('today.heatmap.stats.best')}</span>
                 <span className="tma-heat__stat-v">{bestDay.count}</span>
                 <span className="tma-heat__stat-s">{shortDate(bestDay.date)}</span>

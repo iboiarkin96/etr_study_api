@@ -29,7 +29,6 @@ export function DueCardsList({ items }: Props) {
       role="list"
       aria-label={t('today.dueSection')}
       data-tip={t('today.dueList.tip')}
-      title={t('today.dueList.tip')}
     >
       {items.map((item) => (
         <Link
@@ -39,7 +38,6 @@ export function DueCardsList({ items }: Props) {
           className="tma-cell"
           role="listitem"
           style={{ textDecoration: 'none', color: 'inherit' }}
-          title={t('today.dueList.rowTip', { title: item.title })}
         >
           <div className="tma-cell__icon" data-tone={SLOT_TONE[item.slot] ?? 'accent'}>
             {item.slot}
