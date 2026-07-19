@@ -1,11 +1,11 @@
 /**
- * In-header EN / RU toggle.
+ * In-header EN / RU toggle — built on the kit's `.tma-btn` primitives so
+ * the pill matches every other action in the app (density, radius, font).
  *
- * Two-line ambition: the toggle overrides the language the auth handshake
- * derives from `initData.language_code`, and the choice survives a reload
- * (stored in `localStorage`, read back at i18n init and again by
- * `switchLanguageFromLocale`). To go back to «follow Telegram», the user
- * long-presses the currently active tag — see `onContextMenu`.
+ * The active language is `.tma-btn--tinted[data-tone="accent"]`; inactive
+ * is `.tma-btn--ghost`. Right-click / long-press on the active pill
+ * clears the manual override so the next auth handshake reads Telegram's
+ * `initData.language_code` again.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -38,13 +38,10 @@ export function LangSwitch() {
       onContextMenu={onContextMenu}
       style={{
         display: 'inline-flex',
-        gap: 4,
+        gap: 'var(--tma-sp-1)',
         padding: 2,
-        borderRadius: 999,
-        background: 'var(--tg-secondary-bg-color, #232e3c)',
-        fontSize: '0.7rem',
-        letterSpacing: '0.05em',
-        fontWeight: 600,
+        borderRadius: 'var(--tma-rad-full)',
+        background: 'var(--tma-surface-plate)',
       }}
     >
       {SUPPORTED_LANGUAGES.map((code) => {
@@ -55,19 +52,21 @@ export function LangSwitch() {
             type="button"
             aria-pressed={isActive}
             onClick={onClick(code)}
+            className={
+              isActive
+                ? 'tma-btn tma-btn--tinted'
+                : 'tma-btn tma-btn--ghost'
+            }
+            data-tone={isActive ? 'accent' : undefined}
             style={{
-              minWidth: 28,
-              padding: '2px 8px',
-              borderRadius: 999,
-              border: 'none',
-              cursor: isActive ? 'default' : 'pointer',
-              background: isActive
-                ? 'var(--tg-button-color, #3390ec)'
-                : 'transparent',
-              color: isActive
-                ? 'var(--tg-button-text-color, #ffffff)'
-                : 'var(--tg-hint-color, #708499)',
+              minWidth: 40,
+              minHeight: 0,
+              padding: '4px 10px',
+              fontSize: 'var(--tma-fs-micro)',
+              fontWeight: 'var(--tma-fw-semi)',
+              letterSpacing: '0.06em',
               textTransform: 'uppercase',
+              borderRadius: 'var(--tma-rad-full)',
             }}
           >
             {code}

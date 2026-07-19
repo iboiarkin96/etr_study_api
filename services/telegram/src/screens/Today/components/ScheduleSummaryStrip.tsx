@@ -1,7 +1,10 @@
 /**
- * Compact three-count strip at the top of Today: due-now / next-24h /
- * total-active. Structural rendering only — the rich HeatmapCalendar
- * arrives in T-15.
+ * Three-count schedule strip: due-now / next-24h / total-active.
+ *
+ * Uses the kit's spacing / radius / typography tokens directly — this
+ * shape (three equal tabular-numeric cells) doesn't have a native
+ * primitive in the kit. Elevation + tokens keep it flush with the
+ * neighbouring `.tma-digest` and `.tma-section__plate` blocks.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -12,34 +15,40 @@ type Props = { data: ScheduleSummary };
 
 export function ScheduleSummaryStrip({ data }: Props) {
   const { t } = useTranslation();
-  const cell = (label: string, value: number) => (
+
+  const cell = (label: string, value: number, tone?: 'accent') => (
     <div
       key={label}
       style={{
         flex: 1,
-        padding: '0.65rem 0.5rem',
-        borderRadius: 12,
-        background: 'var(--tg-secondary-bg-color, #232e3c)',
+        padding: 'var(--tma-sp-3) var(--tma-sp-2)',
+        borderRadius: 'var(--tma-rad-3)',
+        background: 'var(--tma-surface-plate)',
+        boxShadow: 'var(--tma-elev-1)',
         textAlign: 'center',
       }}
     >
       <div
         style={{
-          fontSize: '1.35rem',
-          fontWeight: 600,
-          color: 'var(--tg-text-color, #f5f5f7)',
-          lineHeight: 1.1,
+          fontSize: 'var(--tma-fs-h3)',
+          fontWeight: 'var(--tma-fw-heavy)',
+          lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums',
+          color:
+            tone === 'accent' ? 'var(--tma-ember-500)' : 'var(--tma-text-primary)',
+          letterSpacing: '-0.02em',
         }}
       >
         {value}
       </div>
       <div
         style={{
-          fontSize: '0.68rem',
-          color: 'var(--tg-hint-color, #708499)',
+          fontSize: 9,
+          color: 'var(--tma-text-tertiary)',
           textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          marginTop: 4,
+          letterSpacing: '0.14em',
+          marginTop: 'var(--tma-sp-1)',
+          fontWeight: 'var(--tma-fw-semi)',
         }}
       >
         {label}
@@ -49,14 +58,15 @@ export function ScheduleSummaryStrip({ data }: Props) {
 
   return (
     <div
-      aria-label="Schedule summary"
+      role="group"
+      aria-label={t('today.summary.dueNow')}
       style={{
         display: 'flex',
-        gap: 8,
-        margin: '1rem 0',
+        gap: 'var(--tma-sp-2)',
+        margin: 'var(--tma-sp-3) var(--tma-sp-4)',
       }}
     >
-      {cell(t('today.summary.dueNow'), data.due_now)}
+      {cell(t('today.summary.dueNow'), data.due_now, 'accent')}
       {cell(t('today.summary.next24h'), data.due_next_24h)}
       {cell(t('today.summary.total'), data.total)}
     </div>

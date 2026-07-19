@@ -1,8 +1,11 @@
 /**
- * Empty state — «All caught up for today». Per the design contract on
- * `services/portal/internal/services/telegram/design/screens.html` this
- * is a calm, single-message screen, not a placeholder. Rotating tip +
- * next-review-in copy land alongside the real UI in T-15.
+ * Empty state — «All caught up for today».
+ *
+ * Renders inside a `.tma-section__plate` so the empty rail matches the
+ * dense list that would otherwise sit there. The kit's sage orb variant
+ * (`data-state="rested"`) sits next to the copy per the design spec
+ * (screens.html § ed-states — «Nothing due»): the surface stays alive
+ * even when there's zero work.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -11,20 +14,43 @@ export function EmptyToday() {
   const { t } = useTranslation();
   return (
     <div
+      className="tma-section__plate"
       style={{
-        textAlign: 'center',
-        padding: '2.5rem 1rem',
-        color: 'var(--tg-hint-color, #708499)',
+        padding: 'var(--tma-sp-6) var(--tma-sp-4)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--tma-sp-4)',
       }}
     >
-      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }} aria-hidden="true">
-        ✨
+      <div
+        className="tma-orb tma-orb--sm"
+        data-state="rested"
+        role="img"
+        aria-label="rested"
+      >
+        <span className="tma-orb__sheen" aria-hidden="true" />
+        <span className="tma-orb__glare" aria-hidden="true" />
       </div>
-      <div style={{ fontSize: '1.05rem', color: 'var(--tg-text-color, #f5f5f7)' }}>
-        {t('today.empty.title')}
-      </div>
-      <div style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>
-        {t('today.empty.hint')}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 'var(--tma-fs-body)',
+            fontWeight: 'var(--tma-fw-semi)',
+            color: 'var(--tma-text-primary)',
+          }}
+        >
+          {t('today.empty.title')}
+        </div>
+        <div
+          style={{
+            fontSize: 'var(--tma-fs-small)',
+            color: 'var(--tma-text-tertiary)',
+            marginTop: 'var(--tma-sp-1)',
+            lineHeight: 'var(--tma-lh-snug)',
+          }}
+        >
+          {t('today.empty.hint')}
+        </div>
       </div>
     </div>
   );

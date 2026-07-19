@@ -1,12 +1,10 @@
 /**
- * Yesterday-digest strip — three-cell recap of the previous day: how many
- * cards were reviewed, out of the day's target, and hit-rate.
+ * Yesterday-digest strip — one-line recap of the previous day, rendered on
+ * the shipped `.tma-digest` primitive from `tma-kit.css`.
  *
- * Data source: `useDailyStats().yesterday` — mocked; swaps onto
- * `GET /api/v1/me/yesterday` (new) once the endpoint lands.
- *
- * Visual: mirrors `ScheduleSummaryStrip` proportions so the two strips read
- * as a matched pair when stacked.
+ * The kit's digest is a single row (icon + main text). The icon tone tracks
+ * accuracy so the strip carries a mood at-a-glance without needing colour
+ * in the copy itself.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -15,74 +13,35 @@ import type { YesterdayDigest as Data } from '../hooks/useDailyStats';
 
 type Props = { data: Data };
 
+type Tone = 'success' | 'warn' | 'danger';
+
+function pickTone(accuracyPct: number): Tone {
+  if (accuracyPct >= 80) return 'success';
+  if (accuracyPct >= 60) return 'warn';
+  return 'danger';
+}
+
 export function YesterdayDigest({ data }: Props) {
   const { t } = useTranslation();
-  const hitRateTone = data.accuracyPct >= 80 ? 'positive' : data.accuracyPct >= 60 ? 'neutral' : 'warn';
-
-  const cell = (label: string, value: string | number, tone?: 'positive' | 'neutral' | 'warn') => (
-    <div
-      key={label}
-      style={{
-        flex: 1,
-        padding: '0.55rem 0.5rem',
-        borderRadius: 10,
-        background: 'var(--tg-secondary-bg-color, #232e3c)',
-        textAlign: 'center',
-      }}
-    >
-      <div
-        style={{
-          fontSize: '1.05rem',
-          fontWeight: 600,
-          lineHeight: 1.1,
-          color:
-            tone === 'positive'
-              ? 'var(--tg-accent-text-color, #6ab3f3)'
-              : tone === 'warn'
-                ? 'var(--tg-destructive-text-color, #ec3942)'
-                : 'var(--tg-text-color, #f5f5f7)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {value}
-      </div>
-      <div
-        style={{
-          fontSize: '0.62rem',
-          color: 'var(--tg-hint-color, #708499)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          marginTop: 3,
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
+  const tone = pickTone(data.accuracyPct);
+  const missed = Math.max(0, data.target - data.reviewed);
 
   return (
-    <section aria-labelledby="yesterday-h" style={{ marginTop: '1rem' }}>
-      <h2
-        id="yesterday-h"
-        style={{
-          fontSize: '0.75rem',
-          color: 'var(--tg-hint-color, #708499)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          margin: '0 0 0.4rem',
-        }}
-      >
-        {t('today.yesterday.title')}
-      </h2>
-      <div style={{ display: 'flex', gap: 8 }} aria-label={t('today.yesterday.title')}>
-        {cell(t('today.yesterday.reviewed'), `${data.reviewed} / ${data.target}`)}
-        {cell(t('today.yesterday.accuracy'), `${data.accuracyPct}%`, hitRateTone)}
-        {cell(
-          t('today.yesterday.missed'),
-          Math.max(0, data.target - data.reviewed),
-          data.reviewed < data.target ? 'warn' : 'neutral',
-        )}
+    <div className="tma-digest" role="group" aria-label={t('today.yesterday.title')}>
+      <div className="tma-digest__icon" data-tone={tone} aria-hidden="true">
+        {tone === 'success' ? '✓' : tone === 'warn' ? '·' : '!'}
       </div>
-    </section>
+      <div className="tma-digest__main">
+        <div className="tma-digest__title">{t('today.yesterday.title')}</div>
+        <div className="tma-digest__sub">
+          {t('today.yesterday.summary', {
+            reviewed: data.reviewed,
+            target: data.target,
+            accuracy: data.accuracyPct,
+            missed,
+          })}
+        </div>
+      </div>
+    </div>
   );
 }

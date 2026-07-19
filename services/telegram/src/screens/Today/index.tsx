@@ -1,13 +1,13 @@
 /**
- * Today screen — composed from the data hooks (T-14) and the four hero
- * blocks (T-15): streak ring, Yesterday-digest, 90-day heat-map,
- * Recently-reviewed carousel.
+ * Today screen · variant A (Amie · Signature).
  *
- * Streak / yesterday / heat-map read from `useDailyStats`, which returns
- * deterministic mock data until the matching backend endpoints ship
- * (`/api/v1/me/stats`, `/api/v1/me/yesterday`, `/api/v1/schedule/history`).
- * Every rich block is opt-out — the auth / due / summary flow keeps
- * working when swapping the mock hook for a real one.
+ * Composed on `tma-kit.css` primitives — `.tma-scope` on the root activates
+ * tier-2 tokens, `.tma-orb` carries the streak signature, `.tma-digest`
+ * carries yesterday, `.tma-heat-frame` carries the 90-day map, and
+ * `.tma-section__plate` + `.tma-cell` structure the due list. Anything
+ * that doesn't have a native primitive (auth banner, langswitch, three-cell
+ * summary strip) uses tokens directly (`--tma-*`, no `--tg-*`) so light /
+ * dark and Ember tuning apply uniformly.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -19,9 +19,9 @@ import { DueCardsSkeleton } from './components/DueCardsSkeleton';
 import { EmptyToday } from './components/EmptyToday';
 import { ErrorInline } from './components/ErrorInline';
 import { HeatmapCalendar } from './components/HeatmapCalendar';
-import { RecentlyReviewedCarousel } from './components/RecentlyReviewedCarousel';
+import { RecentlyReviewedPeek } from './components/RecentlyReviewedPeek';
 import { ScheduleSummaryStrip } from './components/ScheduleSummaryStrip';
-import { StreakRing } from './components/StreakRing';
+import { StreakOrb } from './components/StreakOrb';
 import { YesterdayDigest } from './components/YesterdayDigest';
 import { useConspectusesDue } from './hooks/useConspectusesDue';
 import { useDailyStats } from './hooks/useDailyStats';
@@ -34,33 +34,47 @@ export function Today() {
   const summary = useScheduleSummary();
   const stats = useDailyStats();
 
+  const dueToday = summary.data?.due_now ?? due.data?.length ?? 0;
+
   return (
     <main
+      className="tma-scope"
+      data-density="regular"
       style={{
         minHeight: 'var(--tma-viewport-h, 100dvh)',
         paddingTop: 'var(--tma-safe-top, 0)',
         paddingBottom: 'var(--tma-safe-bottom, 0)',
-        background: 'var(--tg-bg-color, #0f0f10)',
-        color: 'var(--tg-text-color, #f5f5f7)',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
+        background: 'var(--tma-surface-canvas)',
+        color: 'var(--tma-text-primary)',
       }}
     >
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '1.25rem 1rem 3rem' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--tma-sp-5) 0 var(--tma-sp-12)' }}>
         <header
           style={{
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'space-between',
-            gap: '0.75rem',
+            gap: 'var(--tma-sp-3)',
+            padding: '0 var(--tma-sp-4)',
           }}
         >
           <div style={{ minWidth: 0, flex: 1 }}>
-            <h1 style={{ fontSize: '1.35rem', margin: '0 0 .25rem' }}>{t('today.title')}</h1>
+            <h1
+              style={{
+                fontSize: 'var(--tma-fs-h3)',
+                fontWeight: 'var(--tma-fw-bold)',
+                margin: 0,
+                color: 'var(--tma-text-primary)',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {t('today.title')}
+            </h1>
             <p
               style={{
-                margin: 0,
-                fontSize: '0.85rem',
-                color: 'var(--tg-hint-color, #708499)',
+                margin: 'var(--tma-sp-1) 0 0',
+                fontSize: 'var(--tma-fs-small)',
+                color: 'var(--tma-text-tertiary)',
               }}
             >
               {t('today.greeting')}
@@ -71,13 +85,15 @@ export function Today() {
 
         {auth.status !== 'authenticated' && (
           <div
+            role="status"
             style={{
-              marginTop: '2rem',
-              padding: '1rem',
-              borderRadius: 12,
-              background: 'var(--tg-secondary-bg-color, #232e3c)',
-              fontSize: '0.85rem',
-              color: 'var(--tg-hint-color, #708499)',
+              margin: 'var(--tma-sp-6) var(--tma-sp-4) 0',
+              padding: 'var(--tma-sp-4)',
+              borderRadius: 'var(--tma-rad-3)',
+              background: 'var(--tma-surface-plate)',
+              fontSize: 'var(--tma-fs-small)',
+              color: 'var(--tma-text-tertiary)',
+              boxShadow: 'var(--tma-elev-1)',
             }}
           >
             {auth.status === 'authenticating' && t('auth.connecting')}
@@ -87,43 +103,42 @@ export function Today() {
 
         {auth.status === 'authenticated' && (
           <>
-            <StreakRing data={stats.streak} />
+            <StreakOrb data={stats.streak} dueToday={dueToday} size="lg" />
             <YesterdayDigest data={stats.yesterday} />
 
             {summary.isPending && <ScheduleSummaryStripSkeleton />}
             {summary.isError && (
-              <ErrorInline
-                label={t('today.error.summary')}
-                onRetry={() => summary.refetch()}
-              />
+              <div style={{ padding: '0 var(--tma-sp-4)' }}>
+                <ErrorInline
+                  label={t('today.error.summary')}
+                  onRetry={() => summary.refetch()}
+                />
+              </div>
             )}
             {summary.data && <ScheduleSummaryStrip data={summary.data} />}
 
-            <section aria-labelledby="due-h" style={{ marginTop: '1rem' }}>
-              <h2
-                id="due-h"
-                style={{
-                  fontSize: '0.85rem',
-                  color: 'var(--tg-hint-color, #708499)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  margin: '0 0 0.5rem',
-                }}
-              >
+            <section className="tma-section" aria-labelledby="due-h">
+              <div className="tma-section__header" id="due-h">
                 {t('today.dueSection')}
-              </h2>
-              {due.isPending && <DueCardsSkeleton />}
+              </div>
+              {due.isPending && (
+                <div style={{ padding: '0 var(--tma-sp-4)' }}>
+                  <DueCardsSkeleton />
+                </div>
+              )}
               {due.isError && (
-                <ErrorInline
-                  label={t('today.error.cards')}
-                  onRetry={() => due.refetch()}
-                />
+                <div style={{ padding: '0 var(--tma-sp-4)' }}>
+                  <ErrorInline
+                    label={t('today.error.cards')}
+                    onRetry={() => due.refetch()}
+                  />
+                </div>
               )}
               {due.data && due.data.length === 0 && <EmptyToday />}
               {due.data && due.data.length > 0 && <DueCardsList items={due.data} />}
             </section>
 
-            <RecentlyReviewedCarousel items={stats.recentlyReviewed} />
+            <RecentlyReviewedPeek items={stats.recentlyReviewed} />
             <HeatmapCalendar data={stats.heatmap} />
           </>
         )}
@@ -138,15 +153,22 @@ function ScheduleSummaryStripSkeleton() {
       key={i}
       style={{
         flex: 1,
-        height: 68,
-        background: 'var(--tg-secondary-bg-color, #232e3c)',
-        opacity: 0.65,
-        borderRadius: 12,
+        height: 62,
+        background: 'var(--tma-surface-plate)',
+        opacity: 0.6,
+        borderRadius: 'var(--tma-rad-2)',
       }}
     />
   );
   return (
-    <div style={{ display: 'flex', gap: 8, margin: '1rem 0' }} aria-label="Summary loading">
+    <div
+      style={{
+        display: 'flex',
+        gap: 'var(--tma-sp-2)',
+        margin: 'var(--tma-sp-4) var(--tma-sp-4)',
+      }}
+      aria-label="Summary loading"
+    >
       {cell(0)}
       {cell(1)}
       {cell(2)}

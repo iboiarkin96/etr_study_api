@@ -1,7 +1,15 @@
 /**
- * Success state for the due-cards block — a flat list of titles + slot
- * badges. Real card visuals (swipe gestures, streak ring, cue preview)
- * land in T-15 · T-16.
+ * Due-cards list — rendered on `.tma-section__plate` + `.tma-cell` rows
+ * from `tma-kit.css` per variant A (dense-list DNA).
+ *
+ * Each row carries:
+ *   * `.tma-cell__icon` with the slot letter, tinted through the kit's
+ *     tone recipe (accent / warn / success chosen from ETR slot).
+ *   * `.tma-cell__main` — title + relative next-review copy.
+ *   * `.tma-cell__aside` — the raw slot label as a monospace signal.
+ *   * `.tma-cell__chevron` — nav affordance.
+ *
+ * Real card visuals (swipe gestures, cue preview) still land in T-16.
  */
 
 import { type TFunction } from 'i18next';
@@ -11,74 +19,38 @@ import type { DueConspectus } from '../hooks/useConspectusesDue';
 
 type Props = { items: DueConspectus[] };
 
+// ETR slot → tone token on the kit's icon recipe.
+const SLOT_TONE: Record<string, 'accent' | 'success' | 'info' | 'warn'> = {
+  A: 'accent',
+  B: 'info',
+  C: 'success',
+  D: 'warn',
+};
+
 export function DueCardsList({ items }: Props) {
   const { t } = useTranslation();
   return (
-    <ul
-      aria-label="Due conspectuses"
-      style={{
-        listStyle: 'none',
-        margin: 0,
-        padding: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}
-    >
+    <div className="tma-section__plate" role="list" aria-label={t('today.dueSection')}>
       {items.map((item) => (
-        <li
-          key={item.conspectus_uuid}
-          style={{
-            padding: '0.75rem 1rem',
-            background: 'var(--tg-secondary-bg-color, #232e3c)',
-            borderRadius: 12,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '0.75rem',
-          }}
-        >
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div
-              style={{
-                fontSize: '0.95rem',
-                color: 'var(--tg-text-color, #f5f5f7)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {item.title}
-            </div>
+        <div key={item.conspectus_uuid} className="tma-cell" role="listitem">
+          <div className="tma-cell__icon" data-tone={SLOT_TONE[item.slot] ?? 'accent'}>
+            {item.slot}
+          </div>
+          <div className="tma-cell__main">
+            <div className="tma-cell__title">{item.title}</div>
             {item.next_review_at && (
-              <div
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--tg-hint-color, #708499)',
-                  marginTop: 2,
-                }}
-              >
+              <div className="tma-cell__subtitle">
                 {formatNextReview(item.next_review_at, t)}
               </div>
             )}
           </div>
-          <span
-            aria-label={`slot ${item.slot}`}
-            style={{
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              padding: '0.15rem 0.5rem',
-              borderRadius: 999,
-              background: 'var(--tg-bg-color, #17212b)',
-              color: 'var(--tg-accent-text-color, #6ab3f3)',
-              letterSpacing: '0.03em',
-            }}
-          >
-            {item.slot}
-          </span>
-        </li>
+          <div className="tma-cell__aside">{item.slot}</div>
+          <div className="tma-cell__chevron" aria-hidden="true">
+            ›
+          </div>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 

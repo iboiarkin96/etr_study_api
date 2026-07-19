@@ -1,14 +1,13 @@
 /**
- * 90-day heat-map — GitHub-contribution-style grid showing review activity.
+ * 90-day heat-map — rendered on `.tma-heat-frame > .tma-heat` from
+ * `tma-kit.css`. The kit lays cells left-to-right, wrapping into
+ * `grid-template-columns: repeat(13, 1fr)`, and drives colour + hover
+ * tooltip entirely through `data-level` / `data-count` / `data-date`
+ * attributes — so this component is pure attribute glue, no inline
+ * styling and no CSS of its own.
  *
  * Data source: `useDailyStats().heatmap` — mocked (deterministic seeded);
  * swaps onto `GET /api/v1/schedule/history?days=90` once the endpoint lands.
- *
- * Layout: `weeks × 7` grid rendered as CSS grid, so the columns wrap into
- * a natural calendar shape without touching flex math. Each cell tints
- * from `--tg-secondary-bg-color` (intensity 0) up to `--tg-button-color`
- * (intensity 4) via CSS `color-mix`, so light and dark modes get the same
- * legibility for free.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -17,109 +16,108 @@ import type { HeatmapDay } from '../hooks/useDailyStats';
 
 type Props = { data: HeatmapDay[] };
 
-// Intensity → tint mix percentage (0 = base grey, 4 = full accent).
-const INTENSITY_MIX = [0, 24, 46, 68, 92] as const;
+const MONTH_LABEL_INTL = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+});
+
+function monthsAcross(days: HeatmapDay[], columnCount = 13): string[] {
+  if (days.length === 0) return [];
+  const step = Math.max(1, Math.floor(days.length / columnCount));
+  const labels: string[] = [];
+  let prev = '';
+  for (let i = 0; i < columnCount; i++) {
+    const idx = Math.min(i * step, days.length - 1);
+    const d = new Date(`${days[idx].isoDate}T00:00:00Z`);
+    const label = MONTH_LABEL_INTL.format(d);
+    labels.push(label === prev ? '' : label);
+    prev = label;
+  }
+  return labels;
+}
+
+function shortDate(iso: string): string {
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(
+    new Date(`${iso}T00:00:00Z`),
+  );
+}
 
 export function HeatmapCalendar({ data }: Props) {
   const { t } = useTranslation();
-
-  // Group into weeks (7 cells per column). The first column may be partial
-  // when the window doesn't start on Monday; we pad the *front* with empty
-  // cells so today lands in the correct row of the last column.
-  const daysWithWeekday = data.map((d) => ({ ...d, weekday: new Date(`${d.isoDate}T00:00:00Z`).getUTCDay() }));
-  const first = daysWithWeekday[0];
-  // Convert Sun=0..Sat=6 to a Mon-first offset (Mon=0..Sun=6).
-  const leadingPad = first ? (first.weekday + 6) % 7 : 0;
-  const cells: (HeatmapDay | null)[] = [
-    ...Array.from({ length: leadingPad }, () => null),
-    ...data,
-  ];
-  const weekCount = Math.ceil(cells.length / 7);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const months = monthsAcross(data);
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+  const activeDays = data.filter((d) => d.count > 0).length;
+  const bestDay = data.reduce<HeatmapDay | null>(
+    (best, d) => (!best || d.count > best.count ? d : best),
+    null,
+  );
 
   return (
-    <section aria-labelledby="heatmap-h" style={{ marginTop: '1.25rem' }}>
-      <h2
-        id="heatmap-h"
-        style={{
-          fontSize: '0.75rem',
-          color: 'var(--tg-hint-color, #708499)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          margin: '0 0 0.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span>{t('today.heatmap.title')}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.6rem' }}>
-          <span>{t('today.heatmap.less')}</span>
-          {INTENSITY_MIX.map((mix, idx) => (
-            <span
-              key={idx}
-              aria-hidden="true"
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 3,
-                background:
-                  mix === 0
-                    ? 'var(--tg-secondary-bg-color, #232e3c)'
-                    : `color-mix(in oklab, var(--tg-button-color, #3390ec) ${mix}%, var(--tg-secondary-bg-color, #232e3c))`,
-              }}
-            />
-          ))}
-          <span>{t('today.heatmap.more')}</span>
-        </span>
-      </h2>
-      <div
-        role="grid"
-        aria-label={t('today.heatmap.title')}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${weekCount}, 1fr)`,
-          gridAutoRows: 'auto',
-          gap: 3,
-          padding: '0.5rem',
-          borderRadius: 12,
-          background: 'var(--tg-bg-color, #17212b)',
-          border: '1px solid var(--tg-secondary-bg-color, #232e3c)',
-        }}
-      >
-        {Array.from({ length: weekCount }).map((_, week) => (
-          <div
-            key={week}
-            role="row"
-            style={{ display: 'grid', gridTemplateRows: 'repeat(7, 1fr)', gap: 3 }}
-          >
-            {Array.from({ length: 7 }).map((__, day) => {
-              const cell = cells[week * 7 + day] ?? null;
-              const mix = cell ? INTENSITY_MIX[cell.intensity] : 0;
-              return (
-                <div
-                  key={day}
-                  role="gridcell"
-                  aria-label={
-                    cell
-                      ? t('today.heatmap.cell', { date: cell.isoDate, count: cell.count })
-                      : ''
-                  }
-                  title={cell ? `${cell.isoDate} · ${cell.count}` : ''}
-                  style={{
-                    aspectRatio: '1 / 1',
-                    borderRadius: 3,
-                    background:
-                      !cell
-                        ? 'transparent'
-                        : mix === 0
-                          ? 'var(--tg-secondary-bg-color, #232e3c)'
-                          : `color-mix(in oklab, var(--tg-button-color, #3390ec) ${mix}%, var(--tg-secondary-bg-color, #232e3c))`,
-                  }}
-                />
-              );
-            })}
+    <section className="tma-section" aria-labelledby="heatmap-h">
+      <div className="tma-section__header" id="heatmap-h">
+        {t('today.heatmap.title')}
+      </div>
+      <div className="tma-section__plate">
+        <div className="tma-heat-frame">
+          <div className="tma-heat__months" aria-hidden="true">
+            {months.map((label, i) => (
+              <span key={i} className="tma-heat__month">
+                {label}
+              </span>
+            ))}
           </div>
-        ))}
+          <div className="tma-heat" role="grid" aria-label={t('today.heatmap.title')}>
+            {data.map((d) => (
+              <div
+                key={d.isoDate}
+                className="tma-heat__cell"
+                role="gridcell"
+                data-level={d.intensity}
+                data-count={d.count === 0 ? '0' : `${d.count} reviews`}
+                data-date={shortDate(d.isoDate)}
+                data-today={d.isoDate === todayIso ? 'true' : undefined}
+                aria-label={t('today.heatmap.cell', { date: d.isoDate, count: d.count })}
+              />
+            ))}
+          </div>
+          <div className="tma-heat__legend" aria-hidden="true">
+            <span>{t('today.heatmap.less')}</span>
+            {[0, 22, 45, 70, 100].map((mixPct, lvl) => (
+              <span
+                key={lvl}
+                className="tma-heat__legend-cell"
+                style={{
+                  background:
+                    mixPct === 0
+                      ? 'var(--tma-border-soft)'
+                      : mixPct === 100
+                        ? 'var(--tma-ember-500)'
+                        : `color-mix(in oklab, var(--tma-ember-500) ${mixPct}%, var(--tma-border-soft))`,
+                }}
+              />
+            ))}
+            <span>{t('today.heatmap.more')}</span>
+          </div>
+          <div className="tma-heat__stats">
+            <div className="tma-heat__stat">
+              <span className="tma-heat__stat-k">{t('today.heatmap.stats.total')}</span>
+              <span className="tma-heat__stat-v tma-heat__stat-v--accent">{total}</span>
+              <span className="tma-heat__stat-s">{t('today.heatmap.stats.totalUnit')}</span>
+            </div>
+            <div className="tma-heat__stat">
+              <span className="tma-heat__stat-k">{t('today.heatmap.stats.active')}</span>
+              <span className="tma-heat__stat-v">{activeDays}</span>
+              <span className="tma-heat__stat-s">/ {data.length}</span>
+            </div>
+            {bestDay && bestDay.count > 0 && (
+              <div className="tma-heat__stat">
+                <span className="tma-heat__stat-k">{t('today.heatmap.stats.best')}</span>
+                <span className="tma-heat__stat-v">{bestDay.count}</span>
+                <span className="tma-heat__stat-s">{shortDate(bestDay.isoDate)}</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );

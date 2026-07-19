@@ -5,6 +5,10 @@ import { App } from './App.tsx';
 import { installTelegramMock } from './app/mock-telegram-env';
 import { initI18n } from './shared/i18n';
 import './styles/global.css';
+// Ember design system — tokens + primitives, product-owned. The full ui-kit
+// (~4800 lines including showcase chrome + variants B/C we don't ship) is the
+// *spec* at services/frontend/portal/assets_v2/ui-kit/components/tma-kit.css.
+import './styles/index.css';
 
 // Install the Telegram SDK shim before React mounts so ThemeProvider +
 // ViewportProvider can read `window.Telegram.WebApp` synchronously on their

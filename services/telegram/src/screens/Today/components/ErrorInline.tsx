@@ -1,7 +1,12 @@
 /**
- * Inline error affordance for a data block. Per the on-call playbook the
- * user should always see «what broke» + «how to retry»; the skeleton
- * stays visible so the retry re-lands in the same layout (design contract).
+ * Inline error affordance for a data block. Rendered on kit primitives:
+ *
+ *   * `.tma-digest` carries the alert copy (icon + main text).
+ *   * `.tma-btn.tma-btn--outline` renders the Retry affordance so it
+ *     matches every other kit-styled action in the app.
+ *
+ * The skeleton stays visible above this element so the retry lands in
+ * the same layout — that responsibility lives on the caller (Today).
  */
 
 import { useTranslation } from 'react-i18next';
@@ -14,32 +19,18 @@ type Props = {
 export function ErrorInline({ label, onRetry }: Props) {
   const { t } = useTranslation();
   return (
-    <div
-      role="alert"
-      style={{
-        padding: '0.85rem 1rem',
-        borderRadius: 10,
-        background: 'var(--tg-secondary-bg-color, #2b1e22)',
-        color: 'var(--tg-destructive-text-color, #ec3942)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '0.75rem',
-      }}
-    >
-      <div style={{ flex: 1, fontSize: '0.85rem' }}>{label}</div>
+    <div className="tma-digest" role="alert" style={{ margin: 'var(--tma-sp-2) 0' }}>
+      <div className="tma-digest__icon" data-tone="danger" aria-hidden="true">
+        !
+      </div>
+      <div className="tma-digest__main">
+        <div className="tma-digest__title">{label}</div>
+      </div>
       <button
         type="button"
+        className="tma-btn tma-btn--outline"
         onClick={onRetry}
-        style={{
-          background: 'var(--tg-button-color, #3390ec)',
-          color: 'var(--tg-button-text-color, #ffffff)',
-          border: 'none',
-          borderRadius: 8,
-          padding: '0.4rem 0.85rem',
-          fontSize: '0.8rem',
-          cursor: 'pointer',
-        }}
+        style={{ minHeight: 0, padding: '6px 12px', fontSize: 'var(--tma-fs-small)' }}
       >
         {t('today.error.retry')}
       </button>
