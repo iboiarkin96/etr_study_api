@@ -49,14 +49,13 @@ help:
 	@echo ""
 	@echo "  ★ One-shot lifecycle (start / stop the whole thing)"
 	@echo "    make up                     Start EVERYTHING — api (docker, with migrations),"
-	@echo "                                prometheus, grafana, blackbox + local portal server."
-	@echo "                                Prints all URLs at the end."
+	@echo "                                prometheus, grafana, blackbox, elasticsearch, kibana,"
+	@echo "                                filebeat + local portal server. Prints all URLs at end."
 	@echo "    make down                   Stop everything (preserves docker volumes)"
-	@echo "    make down-volumes           Same as down, but WIPES prometheus/grafana data"
-	@echo "    make logs                   Tail api + monitoring docker logs (Ctrl+C to stop)"
+	@echo "    make down-volumes           Same as down, but WIPES prometheus/grafana/es data"
+	@echo "    make logs                   Tail all docker logs — Ctrl+C to stop (Kibana UI"
+	@echo "                                at http://127.0.0.1:5601 for structured search)"
 	@echo "    make status                 Show which services are up and where to reach them"
-	@echo "    make logging-up             Optional heavy stack: ES + Kibana + Filebeat"
-	@echo "    make logging-down           Stop the heavy logging stack"
 	@echo ""
 	@echo "  First-time setup"
 	@echo "    make setup                  .venv + install deps + .env from template"
@@ -196,13 +195,14 @@ type-check:
 # `logs` tails the docker side (portal writes to a file — `tail -f .runtime/portal.log`).
 # `status` inspects both worlds and prints the URL cheat-sheet.
 #
-# The heavy logging stack (ES + Kibana + Filebeat, ~2 GiB RAM) is intentionally
-# NOT part of `up` — bring it up manually with `make logging-up` when needed.
+# The logging stack (Elasticsearch + Kibana + Filebeat, ~2 GiB RAM) is bundled
+# into `up` via the root docker-compose.yml's `include:` block — searchable
+# logs at http://127.0.0.1:5601 come up together with the API and portal.
 
 up:
 	@mkdir -p .runtime
 	@printf "$(COLOR_CYAN)== UP: START ==$(COLOR_RESET)\n"
-	@printf "$(ICON_INFO) %s\n" "[1/2] api + monitoring (docker compose up -d --build; migrations run in the api container)"
+	@printf "$(ICON_INFO) %s\n" "[1/2] api + monitoring + logging (docker compose up -d --build; migrations run in the api container)"
 	@docker compose up -d --build
 	@printf "$(ICON_INFO) %s\n" "[2/2] portal static server (background)"
 	@if [ -f .runtime/portal.pid ] && kill -0 $$(cat .runtime/portal.pid) 2>/dev/null; then \
@@ -218,12 +218,13 @@ up:
 	fi
 	@printf "\n"
 	@printf "  $(COLOR_GREEN)Stack is up.$(COLOR_RESET) Open any of these in a browser:\n\n"
-	@printf "    $(COLOR_CYAN)API$(COLOR_RESET)       http://127.0.0.1:8000        (Swagger UI at /docs, ReDoc at /redoc)\n"
-	@printf "    $(COLOR_CYAN)Portal$(COLOR_RESET)    http://127.0.0.1:8080/portal/\n"
-	@printf "    $(COLOR_CYAN)Grafana$(COLOR_RESET)   http://127.0.0.1:3010        (login and password: in env file GRAFANA_ADMIN_USER и GRAFANA_ADMIN_PASSWORD)\n"
+	@printf "    $(COLOR_CYAN)API$(COLOR_RESET)        http://127.0.0.1:8000        (Swagger UI at /docs, ReDoc at /redoc)\n"
+	@printf "    $(COLOR_CYAN)Portal$(COLOR_RESET)     http://127.0.0.1:8080/portal/\n"
+	@printf "    $(COLOR_CYAN)Kibana$(COLOR_RESET)     http://127.0.0.1:5601        (logs UI — Discover; first load takes 30-60s while ES warms up)\n"
+	@printf "    $(COLOR_CYAN)Grafana$(COLOR_RESET)    http://127.0.0.1:3010        (login and password: in env file GRAFANA_ADMIN_USER и GRAFANA_ADMIN_PASSWORD)\n"
 	@printf "    $(COLOR_CYAN)Prometheus$(COLOR_RESET) http://127.0.0.1:9090\n"
-	@printf "    $(COLOR_CYAN)Blackbox$(COLOR_RESET)  http://127.0.0.1:9115\n\n"
-	@printf "  Next: $(COLOR_CYAN)make logs$(COLOR_RESET) tails api+monitoring  ·  $(COLOR_CYAN)make status$(COLOR_RESET) shows state  ·  $(COLOR_CYAN)make down$(COLOR_RESET) stops everything\n"
+	@printf "    $(COLOR_CYAN)Blackbox$(COLOR_RESET)   http://127.0.0.1:9115\n\n"
+	@printf "  Next: $(COLOR_CYAN)make logs$(COLOR_RESET) tails docker logs  ·  $(COLOR_CYAN)make status$(COLOR_RESET) shows state  ·  $(COLOR_CYAN)make down$(COLOR_RESET) stops everything\n"
 	@printf "$(COLOR_GREEN)== UP: SUCCESS ==$(COLOR_RESET)\n"
 
 down:
@@ -275,16 +276,16 @@ status:
 	@printf "\n$(ICON_INFO) %s\n" "endpoints (when up)"
 	@printf "    API        http://127.0.0.1:8000\n"
 	@printf "    Portal     http://127.0.0.1:8080/portal/\n"
+	@printf "    Kibana     http://127.0.0.1:5601\n"
 	@printf "    Grafana    http://127.0.0.1:3010\n"
 	@printf "    Prometheus http://127.0.0.1:9090\n"
 	@printf "    Blackbox   http://127.0.0.1:9115\n"
 
-logging-up:
-	@docker compose -f services/monitoring/docker-compose.logging.yml up -d
-	@printf "$(ICON_OK) %s\n" "Logging stack up — ES :9200  ·  Kibana :5601"
-
-logging-down:
-	@docker compose -f services/monitoring/docker-compose.logging.yml down
+# Backwards-compat aliases. The logging stack is now part of `make up` via the
+# root docker-compose.yml `include:` block; these targets remain so muscle memory
+# and older docs keep working. New code should call `make up` / `make down`.
+logging-up: up
+logging-down: down
 
 # ──────────────────────────────────────────────
 # Pre-commit

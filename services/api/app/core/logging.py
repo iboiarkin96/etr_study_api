@@ -60,7 +60,10 @@ class JsonLogFormatter(logging.Formatter):
         payload["trace_id"] = trace_id
         payload["span_id"] = span_id
         if record.exc_info:
-            payload["error"] = self.formatException(record.exc_info).strip()
+            # ECS shape: `error` is an object with `stack_trace` (keyword+text).
+            # Writing a bare string here collides with Elasticsearch's default
+            # ECS mapping and makes filebeat drop every ERROR event as a 400.
+            payload["error"] = {"stack_trace": self.formatException(record.exc_info).strip()}
         return json.dumps(payload, ensure_ascii=False)
 
 
