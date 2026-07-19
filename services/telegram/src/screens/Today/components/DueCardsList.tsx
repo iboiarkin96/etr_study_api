@@ -1,17 +1,12 @@
 /**
- * Due-cards list — rendered on `.tma-section__plate` + `.tma-cell` rows
- * from `tma-kit.css` per variant A (dense-list DNA).
+ * Due-cards list — `.tma-section__plate` + `.tma-cell` rows per variant A.
  *
- * Each row carries:
- *   * `.tma-cell__icon` with the slot letter, tinted through the kit's
- *     tone recipe (accent / warn / success chosen from ETR slot).
- *   * `.tma-cell__main` — title + relative next-review copy.
- *   * `.tma-cell__aside` — the raw slot label as a monospace signal.
- *   * `.tma-cell__chevron` — nav affordance.
- *
- * Real card visuals (swipe gestures, cue preview) still land in T-16.
+ * Each row is a `<Link>` to `/conspectus/$uuid` so a tap opens the detail
+ * screen. Icon tone tracks the ETR slot (A = accent, B = info, C = success,
+ * D = warn).  Swipe-to-review lands with T-16.
  */
 
+import { Link } from '@tanstack/react-router';
 import { type TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
@@ -19,7 +14,6 @@ import type { DueConspectus } from '../hooks/useConspectusesDue';
 
 type Props = { items: DueConspectus[] };
 
-// ETR slot → tone token on the kit's icon recipe.
 const SLOT_TONE: Record<string, 'accent' | 'success' | 'info' | 'warn'> = {
   A: 'accent',
   B: 'info',
@@ -32,7 +26,14 @@ export function DueCardsList({ items }: Props) {
   return (
     <div className="tma-section__plate" role="list" aria-label={t('today.dueSection')}>
       {items.map((item) => (
-        <div key={item.conspectus_uuid} className="tma-cell" role="listitem">
+        <Link
+          key={item.conspectus_uuid}
+          to="/conspectus/$conspectus_uuid"
+          params={{ conspectus_uuid: item.conspectus_uuid }}
+          className="tma-cell"
+          role="listitem"
+          style={{ textDecoration: 'none', color: 'inherit' }}
+        >
           <div className="tma-cell__icon" data-tone={SLOT_TONE[item.slot] ?? 'accent'}>
             {item.slot}
           </div>
@@ -48,7 +49,7 @@ export function DueCardsList({ items }: Props) {
           <div className="tma-cell__chevron" aria-hidden="true">
             ›
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );

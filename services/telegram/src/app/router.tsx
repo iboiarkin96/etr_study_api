@@ -1,10 +1,13 @@
 /**
- * TanStack Router root — one placeholder `/` route for T-11.
+ * TanStack Router root.
  *
- * Additional routes (Focus, Conspectus, Schedule, Errors, Search, Profile,
- * Onboarding) land in T-15 / T-17 / T-19 / T-20 / T-22 / T-23 / T-24 per
- * the epic's design contract (services/portal/internal/services/telegram/
- * design/screens.html + information-architecture.html).
+ * Routes:
+ *   * `/` — Today (T-11 → T-15d)
+ *   * `/conspectus/$conspectus_uuid` — Conspectus detail (T-17)
+ *
+ * Additional routes (Focus, Conspectus list, Schedule, Errors, Search,
+ * Profile, Onboarding) land in T-16 / T-18 / T-19 / T-20 / T-22 / T-23
+ * / T-24 per the epic's design contract.
  */
 
 import {
@@ -15,6 +18,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 
+import { ConspectusDetail } from '../screens/ConspectusDetail';
 import { Today } from '../screens/Today';
 
 const rootRoute = createRootRoute({
@@ -27,7 +31,13 @@ const indexRoute = createRoute({
   component: Today,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute]);
+const conspectusDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/conspectus/$conspectus_uuid',
+  component: ConspectusDetail,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, conspectusDetailRoute]);
 
 const router = createRouter({ routeTree, defaultPreload: 'intent' });
 
