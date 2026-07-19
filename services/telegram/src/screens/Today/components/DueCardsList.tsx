@@ -24,7 +24,12 @@ const SLOT_TONE: Record<string, 'accent' | 'success' | 'info' | 'warn'> = {
 export function DueCardsList({ items }: Props) {
   const { t } = useTranslation();
   return (
-    <div className="tma-section__plate" role="list" aria-label={t('today.dueSection')}>
+    <div
+      className="tma-section__plate"
+      role="list"
+      aria-label={t('today.dueSection')}
+      title={t('today.dueList.tip')}
+    >
       {items.map((item) => (
         <Link
           key={item.conspectus_uuid}
@@ -33,6 +38,7 @@ export function DueCardsList({ items }: Props) {
           className="tma-cell"
           role="listitem"
           style={{ textDecoration: 'none', color: 'inherit' }}
+          title={t('today.dueList.rowTip', { title: item.title })}
         >
           <div className="tma-cell__icon" data-tone={SLOT_TONE[item.slot] ?? 'accent'}>
             {item.slot}

@@ -26,7 +26,11 @@ export function RecentlyReviewedPeek({ items }: Props) {
       aria-labelledby="recent-h"
       style={{ margin: '0 var(--tma-sp-4)' }}
     >
-      <div className="tma-peek tma-peek--lined" role="list">
+      <div
+        className="tma-peek tma-peek--lined"
+        role="list"
+        title={t('today.recent.tip')}
+      >
         <div className="tma-peek__label" id="recent-h">
           {t('today.recent.title')}
         </div>
@@ -38,6 +42,7 @@ export function RecentlyReviewedPeek({ items }: Props) {
             className="tma-peek__row"
             role="listitem"
             style={{ textDecoration: 'none', color: 'inherit' }}
+            title={t('today.dueList.rowTip', { title: item.title })}
           >
             <span
               style={{

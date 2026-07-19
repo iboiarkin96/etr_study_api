@@ -29,6 +29,23 @@ router = APIRouter(prefix="/me", tags=["Me"])
     response_model=MeStatsResponse,
     operation_id="getMeStats",
     summary="Current + longest streak (consecutive review days).",
+    description=(
+        "Reads `conspectus_review_logs` grouped by UTC calendar date. The current "
+        "streak is alive today (or yesterday — 24 h grace) and counts back while "
+        "every prior day carries ≥1 review. Longest streak is the largest such run "
+        "on record. `goal_days` is a fixed 30-day milestone.\n\n"
+        "Equivalent raw SQL for one learner:\n\n"
+        "```sql\n"
+        "-- Per-day review counts (base fact used by both current + longest):\n"
+        "SELECT DATE(reviewed_at) AS day, COUNT(*) AS n\n"
+        "FROM conspectus_review_logs\n"
+        "WHERE owner_client_uuid = :owner\n"
+        "GROUP BY 1\n"
+        "ORDER BY 1;\n\n"
+        "-- Current streak: walk backwards from today (or yesterday if today is 0).\n"
+        "-- Longest streak: largest gap-free consecutive-days run in the above set.\n"
+        "```"
+    ),
     responses={
         status.HTTP_404_NOT_FOUND: {
             "model": ApiErrorResponse,
@@ -58,6 +75,38 @@ def get_me_stats(
     response_model=MeYesterdayResponse,
     operation_id="getMeYesterday",
     summary="Recap of the previous UTC day (reviewed / target / accuracy).",
+    description=(
+        "Aggregates review activity for the previous UTC calendar day. "
+        "`reviewed` = COUNT of review logs whose `reviewed_at` falls in "
+        "yesterday's window. `target` = reviewed + still-due-from-yesterday "
+        "(schedules whose `next_review_at` also fell into that window). "
+        "`accuracy_pct` = share of `tag='easy'` reviews rounded to a percent.\n\n"
+        "Equivalent raw SQL for one learner:\n\n"
+        "```sql\n"
+        "WITH y AS (\n"
+        "  SELECT (CURRENT_DATE - INTERVAL '1 day')::date AS d\n"
+        "),\n"
+        "log_bounds AS (\n"
+        "  SELECT d::timestamptz AS start_ts,\n"
+        "         (d + INTERVAL '1 day')::timestamptz AS end_ts FROM y\n"
+        ")\n"
+        "SELECT\n"
+        "  (SELECT COUNT(*) FROM conspectus_review_logs, log_bounds\n"
+        "     WHERE owner_client_uuid = :owner\n"
+        "       AND reviewed_at >= start_ts AND reviewed_at < end_ts) AS reviewed,\n"
+        "  (SELECT COUNT(*) FILTER (WHERE tag = 'easy')\n"
+        "     FROM conspectus_review_logs, log_bounds\n"
+        "     WHERE owner_client_uuid = :owner\n"
+        "       AND reviewed_at >= start_ts AND reviewed_at < end_ts) AS easy_cnt,\n"
+        "  (SELECT COUNT(*) FROM conspectus_schedules, log_bounds\n"
+        "     WHERE owner_client_uuid = :owner AND is_row_invalid = 0\n"
+        "       AND next_review_at >= start_ts\n"
+        "       AND next_review_at <  end_ts) AS still_due_yesterday;\n"
+        "-- target = reviewed + still_due_yesterday\n"
+        "-- accuracy_pct = ROUND(easy_cnt * 100 / NULLIF(reviewed, 0))\n"
+        "-- missed = GREATEST(0, target - reviewed)\n"
+        "```"
+    ),
     responses={
         status.HTTP_404_NOT_FOUND: {
             "model": ApiErrorResponse,

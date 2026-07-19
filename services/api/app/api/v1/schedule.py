@@ -175,7 +175,27 @@ def get_schedule_preview(
     description=(
         "Returns one row per UTC calendar day for the last ``days`` days, filled "
         "with zeros for inactive days. Intensity 0..4 buckets the count for the "
-        "Ember-tinted heat-map cells."
+        "Ember-tinted heat-map cells (0=none · 1 <3 · 2 <7 · 3 <12 · 4 ≥12).\n\n"
+        "Equivalent raw SQL for one learner:\n\n"
+        "```sql\n"
+        "SELECT day::date AS day,\n"
+        "       COALESCE(n, 0) AS count,\n"
+        "       CASE\n"
+        "         WHEN COALESCE(n, 0) = 0 THEN 0\n"
+        "         WHEN n < 3  THEN 1\n"
+        "         WHEN n < 7  THEN 2\n"
+        "         WHEN n < 12 THEN 3\n"
+        "         ELSE 4\n"
+        "       END AS intensity\n"
+        "FROM generate_series(CURRENT_DATE - (:days - 1), CURRENT_DATE, '1 day') AS day\n"
+        "LEFT JOIN (\n"
+        "  SELECT DATE(reviewed_at) AS day, COUNT(*) AS n\n"
+        "  FROM conspectus_review_logs\n"
+        "  WHERE owner_client_uuid = :owner\n"
+        "  GROUP BY 1\n"
+        ") logs USING (day)\n"
+        "ORDER BY day;\n"
+        "```"
     ),
     responses={
         status.HTTP_404_NOT_FOUND: {

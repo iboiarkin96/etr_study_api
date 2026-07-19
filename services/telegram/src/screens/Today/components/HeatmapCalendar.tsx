@@ -51,7 +51,10 @@ export function HeatmapCalendar({ data }: Props) {
       <div className="tma-section__header" id="heatmap-h">
         {t('today.heatmap.title')}
       </div>
-      <div className="tma-section__plate">
+      <div
+        className="tma-section__plate tma-section__plate--overflow"
+        title={t('today.heatmap.tip')}
+      >
         <div
           className="tma-heat-frame"
           style={{ ['--tma-heat-week-count' as string]: layout.weekCount }}

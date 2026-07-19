@@ -48,6 +48,7 @@ export function StreakOrb({ data, dueToday, size = 'lg' }: Props) {
         data-state={state}
         role="img"
         aria-label={t('today.streak.aria', { count: data.current_days })}
+        title={t('today.streak.tip')}
       >
         <span className="tma-orb__sheen" aria-hidden="true" />
         <span className="tma-orb__glare" aria-hidden="true" />

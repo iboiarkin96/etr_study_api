@@ -28,7 +28,12 @@ export function YesterdayDigest({ data }: Props) {
   const tone = pickTone(data.accuracy_pct);
 
   return (
-    <div className="tma-digest" role="group" aria-label={t('today.yesterday.title')}>
+    <div
+      className="tma-digest"
+      role="group"
+      aria-label={t('today.yesterday.title')}
+      title={t('today.yesterday.tip')}
+    >
       <div className="tma-digest__icon" data-tone={tone} aria-hidden="true">
         {tone === 'success' ? '✓' : tone === 'warn' ? '·' : '!'}
       </div>
