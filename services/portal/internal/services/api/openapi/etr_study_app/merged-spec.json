@@ -2094,6 +2094,414 @@
         }
       }
     },
+    "/api/v1/me/stats": {
+      "get": {
+        "operationId": "getMeStats",
+        "x-implementation-status": "implemented",
+        "summary": "Current + longest streak (consecutive review days).",
+        "description": "Returns the learner's review streak, computed from\n`conspectus_review_logs` grouped by UTC calendar date. The current\nstreak is alive today (or yesterday — a 24-hour grace) and counts\nback while every prior day carries at least one review. The longest\nstreak is the largest such run on record. `goal_days` is the fixed\n30-day milestone the client celebrates.\n\nRead-only; no `Idempotency-Key`. Requires `X-API-Key`. Each call\nrecomputes — no caching in v1.\n",
+        "tags": [
+          "Me"
+        ],
+        "parameters": [
+          {
+            "$ref": "_shared/headers/ApiKey.yaml"
+          },
+          {
+            "name": "system_user_id",
+            "in": "query",
+            "required": true,
+            "description": "External user id (composite key with `system_uuid`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "example": "learner-01"
+          },
+          {
+            "name": "system_uuid",
+            "in": "query",
+            "required": true,
+            "description": "Source system UUID (composite key with `system_user_id`).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "b2c3d4e5-0002-4000-8000-000000000002"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — streak snapshot as of `computed_at`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getMeStats_MeStatsResponse"
+                },
+                "examples": {
+                  "active_streak": {
+                    "summary": "Twelve-day streak in progress",
+                    "value": {
+                      "streak": {
+                        "current_days": 12,
+                        "longest_days": 21,
+                        "goal_days": 30
+                      },
+                      "computed_at": "2026-07-19T09:00:00+00:00"
+                    }
+                  },
+                  "fresh_learner": {
+                    "summary": "No reviews yet",
+                    "value": {
+                      "streak": {
+                        "current_days": 0,
+                        "longest_days": 0,
+                        "goal_days": 30
+                      },
+                      "computed_at": "2026-07-19T09:00:00+00:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "_shared/responses/Error401.yaml"
+          },
+          "404": {
+            "description": "Not Found — the user does not exist for this tenant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ApiErrorResponse.yaml"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No user matches the composite key",
+                    "value": {
+                      "code": "USER_404",
+                      "key": "USER_NOT_FOUND",
+                      "message": "User with this `system_user_id` and `system_uuid` was not found.",
+                      "source": "business"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content — query parameters failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ValidationErrorResponse.yaml"
+                },
+                "examples": {
+                  "missing_system_uuid": {
+                    "summary": "`system_uuid` is required",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/me/stats",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Query parameter `system_uuid` is required.",
+                          "field": "system_uuid",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "_shared/responses/Error429.yaml"
+          }
+        }
+      }
+    },
+    "/api/v1/me/yesterday": {
+      "get": {
+        "operationId": "getMeYesterday",
+        "x-implementation-status": "implemented",
+        "summary": "Recap of the previous day's review activity.",
+        "description": "Returns yesterday's digest for the learner: how many reviews landed,\nhow many were scheduled, the share of `easy` outcomes as a rounded\npercentage, and how many scheduled reviews were missed. The client\nrenders it as the one-line «how did yesterday go» strip and picks a\ntone (success / warn / danger) from `accuracy_pct`.\n\nRead-only; no `Idempotency-Key`. Requires `X-API-Key`.\n",
+        "tags": [
+          "Me"
+        ],
+        "parameters": [
+          {
+            "$ref": "_shared/headers/ApiKey.yaml"
+          },
+          {
+            "name": "system_user_id",
+            "in": "query",
+            "required": true,
+            "description": "External user id (composite key with `system_uuid`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "example": "learner-01"
+          },
+          {
+            "name": "system_uuid",
+            "in": "query",
+            "required": true,
+            "description": "Source system UUID (composite key with `system_user_id`).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "b2c3d4e5-0002-4000-8000-000000000002"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — digest for the previous UTC calendar day.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getMeYesterday_MeYesterdayResponse"
+                },
+                "examples": {
+                  "good_day": {
+                    "summary": "Nine of ten reviewed with high accuracy",
+                    "value": {
+                      "yesterday": {
+                        "reviewed": 9,
+                        "target": 10,
+                        "accuracy_pct": 92,
+                        "missed": 1
+                      },
+                      "date": "2026-07-18",
+                      "computed_at": "2026-07-19T09:00:00+00:00"
+                    }
+                  },
+                  "quiet_day": {
+                    "summary": "Nothing scheduled, nothing reviewed",
+                    "value": {
+                      "yesterday": {
+                        "reviewed": 0,
+                        "target": 0,
+                        "accuracy_pct": 0,
+                        "missed": 0
+                      },
+                      "date": "2026-07-18",
+                      "computed_at": "2026-07-19T09:00:00+00:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "_shared/responses/Error401.yaml"
+          },
+          "404": {
+            "description": "Not Found — the user does not exist for this tenant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ApiErrorResponse.yaml"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No user matches the composite key",
+                    "value": {
+                      "code": "USER_404",
+                      "key": "USER_NOT_FOUND",
+                      "message": "User with this `system_user_id` and `system_uuid` was not found.",
+                      "source": "business"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content — query parameters failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ValidationErrorResponse.yaml"
+                },
+                "examples": {
+                  "missing_system_uuid": {
+                    "summary": "`system_uuid` is required",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/me/yesterday",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Query parameter `system_uuid` is required.",
+                          "field": "system_uuid",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "_shared/responses/Error429.yaml"
+          }
+        }
+      }
+    },
+    "/api/v1/schedule/history": {
+      "get": {
+        "operationId": "getScheduleHistory",
+        "x-implementation-status": "implemented",
+        "summary": "Per-day review counts for the trailing N days (heat-map source).",
+        "description": "Returns one bucket per UTC calendar day for the trailing `days`\nwindow, zero-filled — a day with no reviews is present with\n`count: 0`, so the client renders a gap-free grid. Each bucket\nalso carries a pre-computed `intensity` (0–4) so heat-map cell\nshading needs no client-side maths.\n\nRead-only; no `Idempotency-Key`. Requires `X-API-Key`.\n",
+        "tags": [
+          "Schedule"
+        ],
+        "parameters": [
+          {
+            "$ref": "_shared/headers/ApiKey.yaml"
+          },
+          {
+            "name": "system_user_id",
+            "in": "query",
+            "required": true,
+            "description": "External user id (composite key with `system_uuid`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "example": "learner-01"
+          },
+          {
+            "name": "system_uuid",
+            "in": "query",
+            "required": true,
+            "description": "Source system UUID (composite key with `system_user_id`).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "b2c3d4e5-0002-4000-8000-000000000002"
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "description": "Size of the trailing window in days.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 90
+            },
+            "example": 90
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — zero-filled per-day buckets, oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/getScheduleHistory_ScheduleHistoryResponse"
+                },
+                "examples": {
+                  "three_days": {
+                    "summary": "Three-day window with one quiet day",
+                    "value": {
+                      "days": [
+                        {
+                          "date": "2026-07-17",
+                          "count": 6,
+                          "intensity": 3
+                        },
+                        {
+                          "date": "2026-07-18",
+                          "count": 0,
+                          "intensity": 0
+                        },
+                        {
+                          "date": "2026-07-19",
+                          "count": 2,
+                          "intensity": 1
+                        }
+                      ],
+                      "computed_at": "2026-07-19T09:00:00+00:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "_shared/responses/Error401.yaml"
+          },
+          "404": {
+            "description": "Not Found — the user does not exist for this tenant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ApiErrorResponse.yaml"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No user matches the composite key",
+                    "value": {
+                      "code": "USER_404",
+                      "key": "USER_NOT_FOUND",
+                      "message": "User with this `system_user_id` and `system_uuid` was not found.",
+                      "source": "business"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content — query parameters failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_shared/schemas/ValidationErrorResponse.yaml"
+                },
+                "examples": {
+                  "days_out_of_range": {
+                    "summary": "`days` outside 1–365",
+                    "value": {
+                      "error_type": "validation_error",
+                      "endpoint": "GET /api/v1/schedule/history",
+                      "errors": [
+                        {
+                          "code": "COMMON_000",
+                          "key": "COMMON_VALIDATION_ERROR",
+                          "message": "Query parameter `days` must be between 1 and 365.",
+                          "field": "days",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "_shared/responses/Error429.yaml"
+          }
+        }
+      }
+    },
     "/api/v1/schedule/preview": {
       "get": {
         "operationId": "getSchedulePreview",
@@ -4275,6 +4683,141 @@
             "type": "string",
             "format": "date-time",
             "description": "Row creation timestamp (RFC 3339, UTC)."
+          }
+        }
+      },
+      "getMeStats_MeStatsResponse": {
+        "type": "object",
+        "required": [
+          "streak",
+          "computed_at"
+        ],
+        "properties": {
+          "streak": {
+            "type": "object",
+            "required": [
+              "current_days",
+              "longest_days",
+              "goal_days"
+            ],
+            "properties": {
+              "current_days": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Consecutive review days ending today or yesterday (24 h grace)."
+              },
+              "longest_days": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Longest streak on record for this learner."
+              },
+              "goal_days": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Next milestone; fixed at 30 days."
+              }
+            }
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Server timestamp when the streak was computed (RFC 3339, UTC)."
+          }
+        }
+      },
+      "getMeYesterday_MeYesterdayResponse": {
+        "type": "object",
+        "required": [
+          "yesterday",
+          "date",
+          "computed_at"
+        ],
+        "properties": {
+          "yesterday": {
+            "type": "object",
+            "required": [
+              "reviewed",
+              "target",
+              "accuracy_pct",
+              "missed"
+            ],
+            "properties": {
+              "reviewed": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Reviews that landed yesterday."
+              },
+              "target": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Reviews scheduled for yesterday (reviewed + still-due)."
+              },
+              "accuracy_pct": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Share of `easy` reviews vs. total, rounded to a percent."
+              },
+              "missed": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Scheduled reviews that did not happen."
+              }
+            }
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The UTC calendar day the digest covers."
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Server timestamp when the digest was computed (RFC 3339, UTC)."
+          }
+        }
+      },
+      "getScheduleHistory_ScheduleHistoryResponse": {
+        "type": "object",
+        "required": [
+          "days",
+          "computed_at"
+        ],
+        "properties": {
+          "days": {
+            "type": "array",
+            "description": "One bucket per UTC calendar day, oldest first, zero-filled.",
+            "items": {
+              "type": "object",
+              "required": [
+                "date",
+                "count",
+                "intensity"
+              ],
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "UTC calendar day this bucket covers."
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Reviews logged on this day."
+                },
+                "intensity": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4,
+                  "description": "Bucketed density 0–4 for heat-map cell shading."
+                }
+              }
+            }
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Server timestamp when the window was computed (RFC 3339, UTC)."
           }
         }
       },

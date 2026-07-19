@@ -49,7 +49,7 @@
           <dt>Component</dt>
           <dd><code>StreakOrb</code></dd>
           <dt>Surface</dt>
-          <dd>telegram — Today screen only (as of W1)</dd>
+          <dd>telegram — Today screen hero and the EmptyToday accompaniment</dd>
           <dt>Implementation</dt>
           <dd><code>services/telegram/src/screens/Today/components/StreakOrb.tsx</code> · CSS primitive <code>services/telegram/src/styles/primitives/orb.css</code> · selectors <code>.tma-orb*</code></dd>
           <dt>Owner</dt>
@@ -61,9 +61,38 @@
 
       <section aria-labelledby="overview-h">
         <h2 id="overview-h">Overview</h2>
-        <p>The orb is the emotional anchor of Today. Per the design (<a href="../../design/screens.html">Screens § variant A · Amie · Signature</a>) the streak is not a chip or a number — it's the first thing the user sees, occupying the full width of the hero and moving on its own. Whether the user actually reviews or not, the surface stays alive.</p>
-        <p>Two design constraints shape the implementation: (1) the orb has to feel like a physical object under a light source — hence the four-layer radial body, the rotating conic sheen and the double glare; (2) it has to communicate <em>zero-work</em> without going grey — hence the sage twin under <code>data-state="rested"</code> instead of a flat empty state.</p>
-        <p>All motion (bubble morph, breathe, iris rotation, glare drift, celebrate pulse + ring) sits in CSS; the React component only picks a state and emits the DOM. Every animation halts under <code>prefers-reduced-motion: reduce</code>.</p>
+        <p>The orb is the D1 breathing element of Today — see <a href="../../../../governance/adr/0038-tma-screen-dna-amie-signature.html">ADR 0038 · TMA screen DNA</a> for the app-wide rule and <a href="../screens/today.html#pin-2">reference · Today · pin 2</a> for how it sits inside the screen. It occupies the full width of the hero, moves on its own, and reads as a physical object under a light source. Whether the user reviews or not, the surface stays alive.</p>
+        <p>Two design constraints shape the implementation. First, the orb has to feel like a physical object under a light source — hence the four-layer radial body, the rotating conic sheen and the double glare. Second, it has to communicate <em>zero-work</em> without going grey — hence the sage twin under <code>data-state="rested"</code> instead of a flat empty state.</p>
+        <p>All motion (bubble morph, breathe, iris rotation, glare drift, celebrate pulse and ring) sits in CSS; the React component picks a state and emits the DOM. Every animation halts under <code>prefers-reduced-motion: reduce</code>.</p>
+      </section>
+
+      <section aria-labelledby="preview-h">
+        <h2 id="preview-h">Live preview</h2>
+        <p>The three canonical states, rendered from the same Storybook stories that drive the production screen. See <a href="#state-machine-h">state machine</a> for how the component chooses one, and open any preview in a full Storybook tab to explore size variants and controls.</p>
+        <div class="storybook-embed-grid">
+          <div class="storybook-embed storybook-embed--component" style="--sb-h:280px">
+            <div class="storybook-embed__frame">
+              <iframe class="storybook-embed__iframe" src="../../../../../../telegram/storybook-static/iframe.html?id=today-streakorb--warm&amp;viewMode=story&amp;globals=theme:dark" title="StreakOrb · warm" loading="lazy"></iframe>
+              <div class="storybook-embed__loading" aria-hidden="true"><span>loading</span></div>
+            </div>
+            <div class="storybook-embed__caption"><strong>warm</strong><a class="storybook-embed__link" href="../../../../../../telegram/storybook-static/index.html?path=/story/today-streakorb--warm" target="_blank" rel="noopener">open ↗</a></div>
+          </div>
+          <div class="storybook-embed storybook-embed--component" style="--sb-h:280px">
+            <div class="storybook-embed__frame">
+              <iframe class="storybook-embed__iframe" src="../../../../../../telegram/storybook-static/iframe.html?id=today-streakorb--rested&amp;viewMode=story&amp;globals=theme:dark" title="StreakOrb · rested" loading="lazy"></iframe>
+              <div class="storybook-embed__loading" aria-hidden="true"><span>loading</span></div>
+            </div>
+            <div class="storybook-embed__caption"><strong>rested</strong><a class="storybook-embed__link" href="../../../../../../telegram/storybook-static/index.html?path=/story/today-streakorb--rested" target="_blank" rel="noopener">open ↗</a></div>
+          </div>
+          <div class="storybook-embed storybook-embed--component" style="--sb-h:280px">
+            <div class="storybook-embed__frame">
+              <iframe class="storybook-embed__iframe" src="../../../../../../telegram/storybook-static/iframe.html?id=today-streakorb--celebrate&amp;viewMode=story&amp;globals=theme:dark" title="StreakOrb · celebrate" loading="lazy"></iframe>
+              <div class="storybook-embed__loading" aria-hidden="true"><span>loading</span></div>
+            </div>
+            <div class="storybook-embed__caption"><strong>celebrate</strong><a class="storybook-embed__link" href="../../../../../../telegram/storybook-static/index.html?path=/story/today-streakorb--celebrate" target="_blank" rel="noopener">open ↗</a></div>
+          </div>
+        </div>
+        <p class="docs-prose__meta">Additional stories: <a href="../../../../../../telegram/storybook-static/index.html?path=/story/today-streakorb--small" target="_blank" rel="noopener">small</a> · <a href="../../../../../../telegram/storybook-static/index.html?path=/story/today-streakorb--milestone-overrides-rested" target="_blank" rel="noopener">milestone-overrides-rested</a>.</p>
       </section>
 
       <section aria-labelledby="anatomy-h">
@@ -72,7 +101,7 @@
           <li><strong>Root.</strong> <code>&lt;div class="tma-orb"&gt;</code> — carries <code>data-state</code>, <code>role="img"</code>, and the aria-label with the streak count. Also owns two pseudo-elements: <code>::before</code> = radial body (4 stacked gradients), <code>::after</code> = celebration halo (dormant until <code>data-state="celebrate"</code>).</li>
           <li><strong>Sheen.</strong> <code>&lt;span class="tma-orb__sheen"&gt;</code> — 10-band conic rainbow, <code>mix-blend-mode: overlay</code>, rotates continuously.</li>
           <li><strong>Glare.</strong> <code>&lt;span class="tma-orb__glare"&gt;</code> — two radial specular highlights (primary top-left, counter bottom-right), <code>mix-blend-mode: screen</code>, drifts on a 9s ease.</li>
-          <li><strong>Number.</strong> <code>&lt;span class="tma-orb__num"&gt;</code> — the streak count, tabular numerics, weight 800. Font size scales with the size variant (28 / 48 / 76 px).</li>
+          <li><strong>Number.</strong> <code>&lt;span class="tma-orb__num"&gt;</code> — the streak count, tabular numerics, heavy weight. Font size scales with the size tier (see <code>orb.css</code>).</li>
           <li><strong>Cap.</strong> <code>&lt;span class="tma-orb__cap"&gt;</code> — «day streak» copy (i18n key <code>today.streak.unit</code>), 10 px uppercase eyebrow.</li>
           <li><strong>Tip wrapper (external).</strong> The tap-target ancestor is <code>&lt;div class="tma-tip tma-tip--below"&gt;</code> that carries <code>data-tip={t('today.streak.tip')}</code>. It has to sit on a wrapper because <code>.tma-tip</code>'s own <code>::before</code> / <code>::after</code> would collide with the orb's pseudo-elements.</li>
         </ol>
@@ -97,7 +126,7 @@
                 <td><code>StreakStats</code> — <code>{ current_days, longest_days, goal_days }</code> from <code>components['schemas']['StreakStats']</code></td>
                 <td>Yes</td>
                 <td>—</td>
-                <td>Streak payload returned by <code>GET /api/v1/me/stats</code>. snake_case is preserved to match the OpenAPI schema so no adapter layer is needed. Only <code>current_days</code> is read by the component today; <code>longest_days</code> and <code>goal_days</code> land later on a tap-through detail.</td>
+                <td>Streak payload returned by <code>GET /api/v1/me/stats</code>. snake_case is preserved to match the OpenAPI schema so no adapter layer is needed. <code>current_days</code> drives the on-orb numeral and the milestone check; <code>longest_days</code> and <code>goal_days</code> are carried in the payload for surfaces that read them.</td>
               </tr>
               <tr>
                 <td><code>dueToday</code></td>
@@ -111,7 +140,7 @@
                 <td><code>'sm' | 'md' | 'lg'</code></td>
                 <td>No</td>
                 <td><code>'lg'</code></td>
-                <td>Diameter tier: <code>sm</code> = 96 px, <code>md</code> = 160 px, <code>lg</code> = 260 px. Today uses <code>lg</code>; the EmptyToday state re-uses a <code>sm</code> orb as a rested twin next to the copy.</td>
+                <td>Diameter tier — small, medium, large. Today's hero uses <code>lg</code>; EmptyToday re-uses a <code>sm</code> orb as a rested twin next to the copy. Exact diameters and numeral sizes per tier live in <code>orb.css</code>.</td>
               </tr>
             </tbody>
           </table>
@@ -152,19 +181,19 @@
               <tr>
                 <td>Size · <code>sm</code></td>
                 <td><code>size="sm"</code></td>
-                <td>96 px diameter · 28 px numeral · animation-delay <code>-9s, -3s</code> (de-syncs multiple instances).</td>
+                <td>Smallest tier — used beside copy (EmptyToday). Negative animation-delays de-sync multiple on-screen instances.</td>
                 <td>Yes</td>
               </tr>
               <tr>
                 <td>Size · <code>md</code></td>
                 <td><code>size="md"</code></td>
-                <td>160 px diameter (default in CSS) · 48 px numeral.</td>
+                <td>Middle tier — the CSS default when no size class is present.</td>
                 <td>Yes</td>
               </tr>
               <tr>
                 <td>Size · <code>lg</code></td>
                 <td><code>size="lg"</code> (default)</td>
-                <td>260 px diameter · 76 px numeral · animation-delay <code>-4s, -1.5s</code>.</td>
+                <td>Hero tier — Today’s streak block. Exact diameters per tier live in <code>orb.css</code>.</td>
                 <td>Yes</td>
               </tr>
               <tr>
@@ -221,9 +250,9 @@
         <ul>
           <li><strong>Ember palette</strong> (<code>warm</code>, <code>celebrate</code>): <code>--tma-ember-300</code> / <code>-400</code> / <code>-500</code> / <code>-600</code> / <code>-900</code>. Radial body sweeps from <code>-300</code> through <code>-500</code> to <code>-900</code>; box-shadow is a soft <code>-600</code>; halo border is <code>-400</code>.</li>
           <li><strong>Sage palette</strong> (<code>rested</code>): <code>--tma-sage-500</code>, <code>--tma-sage-700</code>. Box-shadow keyed off <code>-700</code>; body sweeps through <code>-500</code>.</li>
-          <li><strong>Motion.</strong> Bubble morph 14 s ease-in-out infinite (<code>tma-orb-bubble</code>). Breathe 5 s ease-in-out infinite (<code>tma-orb-breathe</code>). Sheen iris 18 s linear infinite (<code>tma-orb-iris</code>). Glare drift 9 s ease-in-out infinite (<code>tma-orb-glare</code>). Celebrate pulse 900 ms · <code>var(--tma-ease-spring)</code>. Celebrate ring 900 ms · <code>var(--tma-ease-out)</code>. Transition on <code>transform</code> = 0.6 s <code>cubic-bezier(0.34, 1.4, 0.4, 1)</code>.</li>
-          <li><strong>Typography.</strong> <code>--tma-font-sans</code>, weight 800, tabular numerics, letter-spacing <code>-0.04em</code>. Cap is 10 px / weight 600 / letter-spacing 0.16 em / uppercase.</li>
-          <li><strong>Custom property.</strong> <code>--orb-warmth</code> (<code>0deg</code> default, <code>-4deg</code> on <code>warm</code>) drives the root <code>filter: hue-rotate()</code>. Overridable inline for per-instance tuning.</li>
+          <li><strong>Motion.</strong> Six named keyframe loops layered on the body and its children: <code>tma-orb-bubble</code> (slow shape morph), <code>tma-orb-breathe</code> (scale breathing), <code>tma-orb-iris</code> (sheen rotation), <code>tma-orb-glare</code> (specular drift), <code>tma-orb-pulse</code> and <code>tma-orb-ring</code> (one-shot celebrate pair on <code>--tma-ease-spring</code> / <code>--tma-ease-out</code>). Durations and easing values live in <code>orb.css</code> — the stylesheet is the source of truth for exact numbers.</li>
+          <li><strong>Typography.</strong> <code>--tma-font-sans</code>, heavy weight, tabular numerics, tight tracking on the numeral; small uppercase eyebrow on the cap.</li>
+          <li><strong>Custom property.</strong> <code>--orb-warmth</code> drives the root <code>filter: hue-rotate()</code> (warm state shifts it a few degrees toward red). Overridable inline for per-instance tuning.</li>
         </ul>
       </section>
 
@@ -273,10 +302,10 @@
       <section aria-labelledby="related-h">
         <h2 id="related-h">Related</h2>
         <ul>
-          <li><a href="../screens/today.html">Screen · Today</a> — element inventory row for the orb.</li>
-          <li><a href="../../design/screens.html">Design · Screens</a> — variant A rationale, «ed-states» taxonomy.</li>
-          <li><a href="../../../api/reference/me/operations/get-api-v1-me-stats.html"><code>GET /api/v1/me/stats</code></a> — payload contract.</li>
-          <li><a href="../../how-to/add-a-screen.html">How-to · Add a screen</a> — where kit primitives fit in the screen assembly.</li>
+          <li><a href="../../../../governance/adr/0038-tma-screen-dna-amie-signature.html">ADR 0038 · TMA screen DNA — Amie signature</a> — the D1 (one breathing element) and D4 (ember accent, sage rest) clauses this component answers.</li>
+          <li><a href="../screens/today.html">Screen · Today</a> — pin 2 in the annotated map, with the hook / endpoint / CSS primitive wiring.</li>
+          <li><a href="../../../api/reference/me/operations/get-api-v1-me-stats.html"><code>GET /api/v1/me/stats</code></a> — payload contract for the <code>data</code> prop.</li>
+          <li><a href="../../how-to/add-a-screen.html">How-to · Add a screen</a> — where kit primitives fit in a screen assembly.</li>
         </ul>
       </section>
 
@@ -299,6 +328,7 @@
     <ol class="docs-toc__list">
       <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#overview-h">Overview</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#preview-h">Live preview</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#anatomy-h">Anatomy</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#props-h">Props</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#states-h">States &amp; variants</a></li>

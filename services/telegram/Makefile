@@ -33,8 +33,9 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
 NPM ?= npm
 VITE_PORT ?= 5173
+SB_PORT ?= 6006
 
-.PHONY: help install install-if-missing dev build preview typecheck lint lint-fix test gen-api verify clean
+.PHONY: help install install-if-missing dev build preview typecheck lint lint-fix test gen-api verify clean storybook storybook-build test-visual test-visual-update test-a11y install-browsers
 
 help:
 	@echo "services/telegram — make targets"
@@ -48,6 +49,12 @@ help:
 	@echo "  make lint-fix      eslint . --fix"
 	@echo "  make test          vitest run (unit)"
 	@echo "  make gen-api       Regenerate src/shared/api/schema.d.ts from services/portal/public/reference/api/openapi.json"
+	@echo "  make storybook            Storybook dev server on http://localhost:$(SB_PORT)"
+	@echo "  make storybook-build      Static Storybook → storybook-static/"
+	@echo "  make test-visual          Playwright visual regression (fails on drift)"
+	@echo "  make test-visual-update   Refresh baseline screenshots after intentional visual change"
+	@echo "  make test-a11y            axe-core WCAG gate over all Storybook stories"
+	@echo "  make install-browsers     Install Playwright browsers (chromium only)"
 	@echo "  make verify        typecheck + lint + test + build (the CI gate)"
 	@echo "  make clean         rm -rf node_modules dist .vite"
 
@@ -101,6 +108,49 @@ gen-api: install-if-missing
 	@printf "$(ICON_STEP) %s\n" "Regenerating OpenAPI types…"
 	@$(NPM) run gen-api
 	@printf "$(ICON_OK) %s\n" "src/shared/api/schema.d.ts refreshed"
+
+storybook: install-if-missing
+	@printf "$(ICON_STEP) %s\n" "Starting Storybook on http://localhost:$(SB_PORT)…"
+	@$(NPM) run storybook -- -p $(SB_PORT)
+
+storybook-build: install-if-missing
+	@printf "$(ICON_STEP) %s\n" "Building static Storybook…"
+	@$(NPM) run build-storybook
+	@printf "$(ICON_OK) %s\n" "Static bundle written to storybook-static/"
+
+install-browsers: install-if-missing
+	@printf "$(ICON_STEP) %s\n" "Installing Playwright Chromium…"
+	@npx --yes playwright install chromium
+	@printf "$(ICON_OK) %s\n" "Playwright ready"
+
+# `test-visual*` targets rebuild storybook-static only when missing, so
+# incremental runs are fast. Delete storybook-static/ if you want a fresh build.
+test-visual: install-if-missing
+	@if [ ! -d storybook-static ]; then \
+		printf "$(ICON_INFO) %s\n" "storybook-static missing — building"; \
+		$(NPM) run build-storybook; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Running visual regression (playwright test)…"
+	@$(NPM) run test:visual
+	@printf "$(ICON_OK) %s\n" "No visual drift"
+
+test-a11y: install-if-missing
+	@if [ ! -d storybook-static ]; then \
+		printf "$(ICON_INFO) %s\n" "storybook-static missing — building"; \
+		$(NPM) run build-storybook; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Running accessibility gate (axe-core)…"
+	@$(NPM) run test:a11y
+	@printf "$(ICON_OK) %s\n" "No WCAG violations"
+
+test-visual-update: install-if-missing
+	@if [ ! -d storybook-static ]; then \
+		printf "$(ICON_INFO) %s\n" "storybook-static missing — building"; \
+		$(NPM) run build-storybook; \
+	fi
+	@printf "$(ICON_STEP) %s\n" "Refreshing baseline screenshots…"
+	@$(NPM) run test:visual:update
+	@printf "$(ICON_OK) %s\n" "Baselines updated — review + commit tests/visual/__screenshots__/"
 
 verify: install-if-missing
 	@printf "$(COLOR_CYAN)== TELEGRAM VERIFY: START ==$(COLOR_RESET)\n"

@@ -1,0 +1,123 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/me/operations/get-api-v1-me-stats.html
+paths:
+  /api/v1/me/stats:
+    get:
+      operationId: getMeStats
+      x-implementation-status: implemented
+      summary: Current + longest streak (consecutive review days).
+      description: |
+        Returns the learner's review streak, computed from
+        `conspectus_review_logs` grouped by UTC calendar date. The current
+        streak is alive today (or yesterday — a 24-hour grace) and counts
+        back while every prior day carries at least one review. The longest
+        streak is the largest such run on record. `goal_days` is the fixed
+        30-day milestone the client celebrates.
+
+        Read-only; no `Idempotency-Key`. Requires `X-API-Key`. Each call
+        recomputes — no caching in v1.
+      tags: [Me]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: system_user_id
+          in: query
+          required: true
+          description: External user id (composite key with `system_uuid`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 36
+          example: "learner-01"
+        - name: system_uuid
+          in: query
+          required: true
+          description: Source system UUID (composite key with `system_user_id`).
+          schema:
+            type: string
+            format: uuid
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+      responses:
+        "200":
+          description: OK — streak snapshot as of `computed_at`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeStatsResponse" }
+              examples:
+                active_streak:
+                  summary: Twelve-day streak in progress
+                  value:
+                    streak:
+                      current_days: 12
+                      longest_days: 21
+                      goal_days: 30
+                    computed_at: "2026-07-19T09:00:00+00:00"
+                fresh_learner:
+                  summary: No reviews yet
+                  value:
+                    streak:
+                      current_days: 0
+                      longest_days: 0
+                      goal_days: 30
+                    computed_at: "2026-07-19T09:00:00+00:00"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — the user does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+        "422":
+          description: Unprocessable Content — query parameters failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                missing_system_uuid:
+                  summary: "`system_uuid` is required"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/me/stats"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `system_uuid` is required."
+                        field: "system_uuid"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    MeStatsResponse:
+      type: object
+      required: [streak, computed_at]
+      properties:
+        streak:
+          type: object
+          required: [current_days, longest_days, goal_days]
+          properties:
+            current_days:
+              type: integer
+              minimum: 0
+              description: "Consecutive review days ending today or yesterday (24 h grace)."
+            longest_days:
+              type: integer
+              minimum: 0
+              description: "Longest streak on record for this learner."
+            goal_days:
+              type: integer
+              minimum: 1
+              description: "Next milestone; fixed at 30 days."
+        computed_at:
+          type: string
+          format: date-time
+          description: "Server timestamp when the streak was computed (RFC 3339, UTC)."

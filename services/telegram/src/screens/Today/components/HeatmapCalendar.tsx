@@ -67,7 +67,15 @@ export function HeatmapCalendar({ data }: Props) {
               </span>
             ))}
           </div>
-          <div className="tma-heat" role="grid" aria-label={t('today.heatmap.title')}>
+          {/* Non-interactive visualization: `role="img"` + one summary label.
+            * A `grid` role would demand row/gridcell structure and per-cell
+            * focus semantics the surface doesn't have; the textual stats
+            * below carry the same data for screen-reader users. */}
+          <div
+            className="tma-heat"
+            role="img"
+            aria-label={t('today.heatmap.aria', { days: data.length, total })}
+          >
             {layout.cells.map((cell, i) =>
               cell === null ? (
                 <div key={`pad-${i}`} aria-hidden="true" style={{ visibility: 'hidden' }} />
@@ -75,15 +83,11 @@ export function HeatmapCalendar({ data }: Props) {
                 <div
                   key={cell.date}
                   className="tma-heat__cell"
-                  role="gridcell"
+                  aria-hidden="true"
                   data-level={cell.intensity}
                   data-count={t('today.heatmap.cellCount', { count: cell.count })}
                   data-date={shortDate(cell.date)}
                   data-today={cell.date === todayIso ? 'true' : undefined}
-                  aria-label={t('today.heatmap.cell', {
-                    date: cell.date,
-                    count: cell.count,
-                  })}
                 />
               ),
             )}

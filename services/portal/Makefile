@@ -34,7 +34,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check
+.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check docs-storybook-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check
 
 PORTAL_PORT ?= 8080
 PORTAL_URL  := http://127.0.0.1:$(PORTAL_PORT)/portal/
@@ -47,6 +47,7 @@ help:
 	@echo "  make docs-html-check       HTML structure validation"
 	@echo "  make docs-design-check     Design baseline (cards, skeleton)"
 	@echo "  make docs-a11y-check       WCAG baseline accessibility"
+	@echo "  make docs-storybook-check  Storybook iframe/story-id references resolve"
 	@echo "  make docs-feedback-check   Page-level feedback smoke"
 	@echo "  make docs-spec-check       Spec consistency + lint"
 	@echo "  make docs-nav-check        Sidebar coverage — fails on pages not in nav-tree-internal.json"
@@ -191,6 +192,11 @@ docs-nav-check:
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_sidebar_coverage.py
 	@printf "$(COLOR_GREEN)== DOCS-NAV-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
+docs-storybook-check:
+	@printf "$(COLOR_CYAN)== DOCS-STORYBOOK-CHECK: START ==$(COLOR_RESET)\n"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_storybook_refs.py
+	@printf "$(COLOR_GREEN)== DOCS-STORYBOOK-CHECK: SUCCESS ==$(COLOR_RESET)\n"
+
 # ─────────────────────────────────────────────
 # Drift gate (used by CI + `make verify`)
 # ─────────────────────────────────────────────
@@ -200,6 +206,7 @@ docs-check:
 	@$(MAKE) docs-feedback-check
 	@$(MAKE) docs-spec-check
 	@$(MAKE) docs-nav-check
+	@$(MAKE) docs-storybook-check
 	@cd $(REPO_ROOT) && tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
 	git diff HEAD ':(exclude)services/portal/internal/services/api/code-reference/search.js' > "$$tmp_before"; \
 	$(MAKE) -C services/portal docs-fix; \

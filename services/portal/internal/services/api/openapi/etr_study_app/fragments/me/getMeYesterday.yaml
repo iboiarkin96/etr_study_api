@@ -1,0 +1,134 @@
+openapi: 3.1.0
+info:
+  title: Study App API · etr_study_app canon
+  version: v1
+  x-build-history: canon-first
+  x-portal-spec: /services/portal/internal/services/api/reference/me/operations/get-api-v1-me-yesterday.html
+paths:
+  /api/v1/me/yesterday:
+    get:
+      operationId: getMeYesterday
+      x-implementation-status: implemented
+      summary: Recap of the previous day's review activity.
+      description: |
+        Returns yesterday's digest for the learner: how many reviews landed,
+        how many were scheduled, the share of `easy` outcomes as a rounded
+        percentage, and how many scheduled reviews were missed. The client
+        renders it as the one-line «how did yesterday go» strip and picks a
+        tone (success / warn / danger) from `accuracy_pct`.
+
+        Read-only; no `Idempotency-Key`. Requires `X-API-Key`.
+      tags: [Me]
+      parameters:
+        - $ref: "../../_shared/headers/ApiKey.yaml"
+        - name: system_user_id
+          in: query
+          required: true
+          description: External user id (composite key with `system_uuid`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 36
+          example: "learner-01"
+        - name: system_uuid
+          in: query
+          required: true
+          description: Source system UUID (composite key with `system_user_id`).
+          schema:
+            type: string
+            format: uuid
+          example: "b2c3d4e5-0002-4000-8000-000000000002"
+      responses:
+        "200":
+          description: OK — digest for the previous UTC calendar day.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeYesterdayResponse" }
+              examples:
+                good_day:
+                  summary: Nine of ten reviewed with high accuracy
+                  value:
+                    yesterday:
+                      reviewed: 9
+                      target: 10
+                      accuracy_pct: 92
+                      missed: 1
+                    date: "2026-07-18"
+                    computed_at: "2026-07-19T09:00:00+00:00"
+                quiet_day:
+                  summary: Nothing scheduled, nothing reviewed
+                  value:
+                    yesterday:
+                      reviewed: 0
+                      target: 0
+                      accuracy_pct: 0
+                      missed: 0
+                    date: "2026-07-18"
+                    computed_at: "2026-07-19T09:00:00+00:00"
+        "401": { $ref: "../../_shared/responses/Error401.yaml" }
+        "404":
+          description: Not Found — the user does not exist for this tenant.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ApiErrorResponse.yaml" }
+              examples:
+                user_not_found:
+                  summary: No user matches the composite key
+                  value:
+                    code: "USER_404"
+                    key: "USER_NOT_FOUND"
+                    message: "User with this `system_user_id` and `system_uuid` was not found."
+                    source: "business"
+        "422":
+          description: Unprocessable Content — query parameters failed validation.
+          content:
+            application/json:
+              schema: { $ref: "../../_shared/schemas/ValidationErrorResponse.yaml" }
+              examples:
+                missing_system_uuid:
+                  summary: "`system_uuid` is required"
+                  value:
+                    error_type: "validation_error"
+                    endpoint: "GET /api/v1/me/yesterday"
+                    errors:
+                      - code: "COMMON_000"
+                        key: "COMMON_VALIDATION_ERROR"
+                        message: "Query parameter `system_uuid` is required."
+                        field: "system_uuid"
+                        source: "validation"
+        "429": { $ref: "../../_shared/responses/Error429.yaml" }
+components:
+  schemas:
+    MeYesterdayResponse:
+      type: object
+      required: [yesterday, date, computed_at]
+      properties:
+        yesterday:
+          type: object
+          required: [reviewed, target, accuracy_pct, missed]
+          properties:
+            reviewed:
+              type: integer
+              minimum: 0
+              description: "Reviews that landed yesterday."
+            target:
+              type: integer
+              minimum: 0
+              description: "Reviews scheduled for yesterday (reviewed + still-due)."
+            accuracy_pct:
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: "Share of `easy` reviews vs. total, rounded to a percent."
+            missed:
+              type: integer
+              minimum: 0
+              description: "Scheduled reviews that did not happen."
+        date:
+          type: string
+          format: date
+          description: "The UTC calendar day the digest covers."
+        computed_at:
+          type: string
+          format: date-time
+          description: "Server timestamp when the digest was computed (RFC 3339, UTC)."

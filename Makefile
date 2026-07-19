@@ -35,7 +35,7 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
         pre-commit-install pre-commit-check pre-commit-validate \
         run migrate test test-one deps-audit \
         openapi-check openapi-regen api-mock build \
-        docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check \
+        docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check docs-storybook-check \
         catalog-render catalog-render-check serve open sync-staging \
         visual-test visual-test-update
 
@@ -409,8 +409,26 @@ test:
 test-one:
 	@$(MAKE) -C services/api test-one path=$(path)
 
-docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check:
+docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check docs-storybook-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check:
 	@$(MAKE) -C services/portal $@
+
+# TMA Storybook — built into services/telegram/storybook-static/, served by
+# `make serve` at http://localhost:8080/telegram/storybook-static/iframe.html
+# because portal's dev server exposes services/ as its web root. Kit-showcase
+# pages iframe those URLs (see .storybook-embed primitive).
+.PHONY: tma-storybook tma-storybook-check
+tma-storybook:
+	@$(MAKE) -C services/telegram storybook-build
+
+# Sanity check for kit-page authors: prints where storybook-static/ lives
+# and whether it was built. Non-zero exit + hint if missing, so iframe 404s
+# in the pilot page point at the actual root cause.
+tma-storybook-check:
+	@if [ -d services/telegram/storybook-static ]; then \
+		printf "$(ICON_OK) storybook-static/ present · served at http://localhost:8080/telegram/storybook-static/\n"; \
+	else \
+		printf "$(ICON_ERR) storybook-static/ missing — run 'make tma-storybook' first\n"; exit 1; \
+	fi
 
 # ──────────────────────────────────────────────
 # Release pipeline — ADR 0034 dual-Pages

@@ -91,11 +91,16 @@ study_app/
     │   └── ui-kit/
     │       └── pages/
     └── telegram/
-        └── src/
-            ├── app/
-            ├── screens/
-            ├── shared/
-            └── styles/
+        ├── .storybook/
+        ├── scripts/
+        ├── src/
+        │   ├── app/
+        │   ├── screens/
+        │   ├── shared/
+        │   └── styles/
+        └── tests/
+            ├── a11y/
+            └── visual/
 ```
 <!-- END:REPO_LAYOUT -->
 

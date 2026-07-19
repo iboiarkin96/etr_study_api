@@ -1,111 +1,103 @@
 /* ═══════════════════════════════════════════════════════════════════════
- * today-map.css — annotated diagram for the Today screen spec
+ * today-map.css — annotated screen map for TMA screen reference pages
  *
- * Two-column layout: a magnified phone mock with numbered clickable pins
- * on the left, a sticky detail panel on the right that reveals exactly
- * one callout at a time via the pure-CSS `:target` pattern.
+ * Two-column layout: a live Storybook render with numbered clickable
+ * pins on the left, a sticky detail panel on the right that reveals
+ * exactly one callout at a time via the pure-CSS `:target` pattern.
  *
- * Pins are anchor tags (`<a href="#pin-N">`) that live INSIDE their
- * `.today-map__region`, hanging off its left edge — they track their
- * block automatically, no coordinate calibration. Callout `<article>`s
- * all live inside the panel with `id="pin-N"` and `display: none`; only
- * the one matching `:target` becomes visible. A `.today-map__panel-empty`
- * placeholder is shown by default and hidden via `:has(article:target)`.
+ * The left column is an iframe pointing at the screen's full-screen
+ * story (`.today-map__live-frame`), scaled down with `transform` inside
+ * a wrapper whose size is derived from the same custom properties — so
+ * the frame and its pins share one coordinate system:
  *
- * The phone is a stock `.tma-phone--mini` (240 px wide, height released
- * to fit content) magnified with `zoom` — layout AND fonts scale
- * together, so the mock reads as a crisp 384-px-wide phone instead of a
- * huge empty frame with microscopic authored px sizes.
+ *   --live-w      story viewport width in px units (unitless number)
+ *   --live-h      story content height in px units (unitless number)
+ *   --live-scale  display scale factor
  *
- * Note on selector depth: this file is bundled into entry.css, which
- * loads BEFORE tma-kit.css — kit overrides here need the two-class
- * `.today-map__mock …` prefix to out-rank equal-specificity kit rules.
+ * Pins are anchor tags (`<a class="today-map__pin" href="#pin-N">`)
+ * positioned absolutely on the frame's right rail via an inline
+ * `top: N%`. The percentages are measured against the story's frozen
+ * fixtures; the pixel-diff suite over the same story catches any layout
+ * shift that would move a region away from its pin.
+ *
+ * Callout `<article>`s live inside the panel with `id="pin-N"` and
+ * `display: none`; only the one matching `:target` becomes visible.
+ * A `.today-map__panel-empty` placeholder is shown by default and
+ * hidden via `:has(article:target)`.
  *
  * Consumed by services/portal/internal/services/telegram/reference/
- * screens/today.html and any future per-screen anatomy pages.
+ * screens/*.html.
  * ══════════════════════════════════════════════════════════════════════ */
 
 .today-map {
   display: grid;
-  /* Left column hugs the zoomed phone; right column soaks up the rest. */
+  /* Left column hugs the scaled frame; right column soaks up the rest. */
   grid-template-columns: max-content minmax(300px, 1fr);
   gap: var(--space-6, 24px);
   align-items: start;
   margin: var(--space-4, 16px) 0 var(--space-8, 32px);
 }
 
-/* ── Mock column ────────────────────────────────────────────────── */
-.today-map__mock {
+/* ── Live-render column ─────────────────────────────────────────── */
+.today-map__live {
+  --live-w: 390;
+  --live-h: 844;
+  --live-scale: 0.85;
   position: relative;
-  width: max-content;
-  align-self: start;
+  width: calc(var(--live-w) * var(--live-scale) * 1px);
+  height: calc(var(--live-h) * var(--live-scale) * 1px);
 }
 
-/* The mock follows the portal theme via `.tma-scope` on the inner scroll
- * region — tokens.css already flips tier-2 semantic tokens between
- * dark-first and light. Nothing to pin here; each screen page just has
- * to wrap the phone content in `.tma-scope` (see `today.html` and
- * `conspectus-detail.html`). */
-
-.today-map__mock .today-map__phone {
-  /* `zoom` (not `transform: scale`) so the enlarged size participates
-   * in layout — the grid column and the pins all see real pixels. */
-  zoom: var(--map-zoom, 1.6);
-  /* The Today screen is shown in full: release the fixed mini height
-   * and let the frame wrap its content instead of scroll-clipping it. */
-  height: auto;
-  position: relative;
+/* Rounded clip for the iframe only — pins hang off the wrapper's right
+ * edge and must not be cut, so the clip lives on an inner layer. */
+.today-map__live-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--line, #d9d4ce);
+  box-shadow: var(--shadow-md, 0 12px 28px -8px rgba(15, 23, 42, 0.18));
+  background: #0d0b0e;
 }
 
-.today-map__mock .tma-phone__screen {
-  height: auto;
-  /* Pins hang half-off the screen's left edge — don't clip them. The
-   * screen never scrolls here (full height), so nothing else escapes.
-   * `clip-path` rounds the surface corners without cutting the pins
-   * (unlike `overflow: hidden`), so the light-theme cream background
-   * stops in a rounded shape instead of showing straight bottom
-   * corners against the black bezel. */
-  overflow: visible;
-  clip-path: inset(0 -80px 0 -80px round 26px);
+.today-map__live-frame {
+  width: calc(var(--live-w) * 1px);
+  height: calc(var(--live-h) * 1px);
+  transform: scale(var(--live-scale));
+  transform-origin: top left;
+  border: 0;
+  display: block;
 }
 
-/* Roomier bottom bezel — extends the black rounded frame further past
- * the last content pin so the light-theme cream surface stops well
- * inside the phone silhouette instead of hugging its inner edge. */
-.today-map__mock .tma-phone {
-  padding-bottom: 24px;
+.today-map__live-caption {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted, #6b7280);
 }
 
-.today-map__mock .tma-scroll {
-  flex: none;
-  overflow: visible;
+.today-map__live-caption a {
+  color: var(--accent, #2563eb);
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
 }
 
-/* The kit's plate clips children to its rounded corners — that would
- * amputate the rail pins of nested regions (6, 8, 9). Nothing scrolls
- * inside the mock, so releasing the clip is safe. */
-.today-map__mock .tma-section__plate {
-  overflow: visible;
-}
-
-/* Positioning context for the pin anchored inside each region. */
-.today-map__region {
-  position: relative;
-}
-
-/* ── Numbered pin: clickable anchor on the screen's right rail ──── */
+/* ── Numbered pin: clickable anchor on the frame's right rail ───── */
 /* Blue (info ink) so pins read as annotations, not screen content —
- * the screen's own accent is ember. Authored at 19 px — the phone's
- * zoom (×1.6) brings it to ~30 px visual. All pins center on the
- * screen's right edge: one clean vertical rail. */
+ * the screen's own accent is ember. Each pin carries an inline
+ * `top: N%` and targets the matching <article id="pin-N">. */
 .today-map__pin {
   position: absolute;
   right: 0;
-  top: 50%;
   transform: translate(55%, -50%);
-  min-width: 19px;
-  height: 19px;
-  padding: 0 5px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -114,7 +106,7 @@
   color: #fff;
   font-family: var(--font-mono, "JetBrains Mono", monospace);
   font-weight: 800;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1;
   text-decoration: none;
   cursor: pointer;
@@ -131,52 +123,6 @@
   box-shadow:
     0 0 0 1.5px var(--tma-surface-canvas, #fff),
     0 2px 8px color-mix(in oklab, var(--tma-info-ink, #1d4ed8) 60%, transparent);
-}
-
-/* Nested / margined regions end short of the screen edge — pull their
- * pins out by the indent (plate margin 12px; heat plate padding +8px)
- * so they stay on the rail. */
-.today-map__region[data-pin="4"] .today-map__pin,
-.today-map__region[data-pin="6"] .today-map__pin,
-.today-map__region[data-pin="7"] .today-map__pin {
-  right: -12px;
-}
-
-.today-map__region[data-pin="8"] .today-map__pin,
-.today-map__region[data-pin="9"] .today-map__pin {
-  right: -20px;
-}
-
-/* Leader arrow for those far pins: a thin shaft from the pin's left
- * edge with an arrowhead pointing into the block it annotates. Near
- * pins touch their block already and need none. */
-.today-map__region[data-pin="4"] .today-map__pin::before,
-.today-map__region[data-pin="6"] .today-map__pin::before,
-.today-map__region[data-pin="7"] .today-map__pin::before,
-.today-map__region[data-pin="8"] .today-map__pin::before,
-.today-map__region[data-pin="9"] .today-map__pin::before {
-  content: "";
-  position: absolute;
-  right: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 14px;
-  height: 1.5px;
-  background: var(--tma-info-ink, #1d4ed8);
-}
-
-.today-map__region[data-pin="4"] .today-map__pin::after,
-.today-map__region[data-pin="6"] .today-map__pin::after,
-.today-map__region[data-pin="7"] .today-map__pin::after,
-.today-map__region[data-pin="8"] .today-map__pin::after,
-.today-map__region[data-pin="9"] .today-map__pin::after {
-  content: "";
-  position: absolute;
-  right: calc(100% + 13px);
-  top: 50%;
-  transform: translateY(-50%);
-  border-block: 3px solid transparent;
-  border-right: 5px solid var(--tma-info-ink, #1d4ed8);
 }
 
 .today-map__pin:focus-visible {
@@ -204,8 +150,7 @@
 .today-map__panel-empty {
   /* Shown by default; hidden below when any callout is targeted.
    * Background follows the portal theme; text is pinned to solid black
-   * regardless — per the user's request, the placeholder copy stays
-   * consistent across theme flips. */
+   * so the placeholder copy stays consistent across theme flips. */
   display: flex;
   flex-direction: column;
   gap: var(--space-2, 8px);
@@ -357,13 +302,13 @@
 }
 
 /* ── Mobile: stack, drop the sticky panel so the callouts follow the
- *    mock in the reading order. ── */
+ *    live frame in the reading order. ── */
 @media (max-width: 900px) {
   .today-map {
     grid-template-columns: 1fr;
   }
 
-  .today-map__mock {
+  .today-map__live {
     margin-inline: auto;
   }
 
@@ -373,11 +318,10 @@
   }
 }
 
-/* Narrow phones: shrink the mock so the 384-px visual + hanging pins
- * still fit the viewport. */
+/* Narrow phones: shrink the frame so it + hanging pins fit the viewport. */
 @media (max-width: 440px) {
-  .today-map__mock .today-map__phone {
-    zoom: 1.25;
+  .today-map__live {
+    --live-scale: 0.78;
   }
 }
 

@@ -1,0 +1,226 @@
+/* ui-kit/components/storybook-embed.css
+ *
+ * Frames an iframe pointing at a Storybook story so kit-showcase and
+ * reference pages stop hand-authoring HTML mocks. One primitive, one
+ * source of truth for the visual: whatever `.stories.tsx` produces is
+ * what the docs display.
+ *
+ * Anatomy — three surfaces stacked:
+ *
+ *   .storybook-embed              ← outer frame: radius + shadow + rail
+ *     .storybook-embed__frame     ← aspect-ratio slot (default 390/844)
+ *       iframe.storybook-embed__iframe  ← the actual story iframe
+ *       .storybook-embed__loading       ← centred spinner + label until
+ *                                         the iframe fires `load`
+ *     .storybook-embed__caption   ← optional footer (story id + link)
+ *
+ * Modifiers:
+ *   --phone      iOS phone chrome (notch, radius echo, safe-area gutters)
+ *   --component  no aspect-ratio; height driven by min-h / content
+ *   --wide       desktop-viewport ratio (16 / 10) for tablet/desktop shots
+ *
+ * Tokens consumed (all portal-standard):
+ *   --card, --line, --shadow-lg, --radius-lg, --radius-xl, --accent,
+ *   --text, --muted, --bg-elev, --space-*, --duration-base, --ease-out.
+ *
+ * The primitive is theme-aware by construction — every colour comes
+ * from a token, so `data-theme="dark"` and `data-theme="light"` both
+ * render correctly without a media query in this file.
+ */
+
+.storybook-embed {
+  /* Author-tunable dimensions (defaults match iPhone 14 viewport). */
+  --sb-w: min(390px, 100%);
+  --sb-aspect: 390 / 844;
+  --sb-radius: var(--radius-xl);
+  --sb-rail: color-mix(in srgb, var(--accent) 55%, transparent);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: var(--sb-w);
+  margin: 0 auto;
+  padding: 0;
+  position: relative;
+  isolation: isolate;
+  font-family: inherit;
+}
+
+.storybook-embed__frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--sb-aspect);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--sb-radius);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  transition:
+    box-shadow var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+.storybook-embed__frame::before {
+  /* Accent rail on the top edge — echoes .docs-card--rail so the embed
+     reads as a kit primitive, not a foreign iframe. */
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--rail-w, 3px);
+  background: var(--sb-rail);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.storybook-embed__iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  /* Above the loading placeholder: a static iframe would paint UNDER an
+   * absolutely-positioned sibling, leaving the spinner visible forever.
+   * The story body is opaque, so once the iframe paints it covers the
+   * placeholder; until then the transparent iframe lets it show through. */
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+/* Loading placeholder — sits under the iframe. When the iframe fires
+   `load` and paints, its opaque body covers the placeholder. */
+.storybook-embed__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.storybook-embed__loading::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: sb-embed-spin 900ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storybook-embed__loading::before { animation: none; opacity: 0.6; }
+}
+
+@keyframes sb-embed-spin {
+  to { transform: rotate(360deg); }
+}
+
+.storybook-embed__caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.storybook-embed__caption strong {
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.storybook-embed__link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted color-mix(in srgb, var(--accent) 60%, transparent);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.storybook-embed__link:hover {
+  color: color-mix(in srgb, var(--accent) 80%, var(--text));
+}
+
+/* ─── Modifier: --phone ─────────────────────────────────────────────
+ * iOS-flavoured frame: subtle inner shadow so the iframe body reads
+ * as the phone screen, corner rounding at a slightly larger radius,
+ * and a hairline notch across the top. Aspect stays 390/844.
+ * ─────────────────────────────────────────────────────────────────── */
+.storybook-embed--phone .storybook-embed__frame {
+  --sb-radius: 42px;
+  border-color: color-mix(in srgb, var(--accent) 8%, var(--line));
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 0 0 6px color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.storybook-embed--phone .storybook-embed__frame::after {
+  /* Notch — thin rounded pill at the top edge. */
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 84px;
+  height: 22px;
+  border-radius: 999px;
+  background: #0d0b0e;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ─── Modifier: --component ────────────────────────────────────────
+ * Free-height embed for single-component showcases (StreakOrb alone,
+ * a button variant, a toast, etc). Author sets --sb-h to control
+ * vertical breathing room.
+ * ─────────────────────────────────────────────────────────────────── */
+.storybook-embed--component {
+  --sb-h: 320px;
+  --sb-w: min(440px, 100%);
+}
+
+.storybook-embed--component .storybook-embed__frame {
+  aspect-ratio: auto;
+  height: var(--sb-h);
+}
+
+/* ─── Modifier: --wide ─────────────────────────────────────────────
+ * Desktop / tablet viewport ratio. Used when the story targets a
+ * viewport wider than phone (e.g. showcase overview stories).
+ * ─────────────────────────────────────────────────────────────────── */
+.storybook-embed--wide {
+  --sb-w: min(720px, 100%);
+  --sb-aspect: 16 / 10;
+}
+
+/* ─── Layout: side-by-side comparison grid ─────────────────────────
+ * Used when a kit page wants "before / after" or "warm vs rested"
+ * side by side. Wraps two `.storybook-embed`s and lets them shrink.
+ * ─────────────────────────────────────────────────────────────────── */
+.storybook-embed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-5);
+  margin: var(--space-5) 0;
+}
+
+.storybook-embed-grid .storybook-embed {
+  --sb-w: 100%;
+  margin: 0;
+}
+
+/* Small-viewport polish: preserve aspect but let the frame shrink. */
+@media (max-width: 760px) {
+  .storybook-embed { --sb-w: 100%; }
+  .storybook-embed--wide { --sb-aspect: 4 / 3; }
+}
