@@ -77,7 +77,7 @@ export function HeatmapCalendar({ data }: Props) {
                   className="tma-heat__cell"
                   role="gridcell"
                   data-level={cell.intensity}
-                  data-count={cell.count === 0 ? '0' : `${cell.count} reviews`}
+                  data-count={t('today.heatmap.cellCount', { count: cell.count })}
                   data-date={shortDate(cell.date)}
                   data-today={cell.date === todayIso ? 'true' : undefined}
                   aria-label={t('today.heatmap.cell', {

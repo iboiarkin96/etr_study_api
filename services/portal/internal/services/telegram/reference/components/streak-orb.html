@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Component spec · StreakOrb · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Component · StreakOrb</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Spec · Component</span>
+          <span class="docs-pill docs-pill--accent">telegram · signature primitive</span>
+        </p>
+        <h1>Component spec: StreakOrb</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">The signature block of the Today screen — a living, breathing radial-gradient bubble carrying the current streak. Three visual states, three sizes, one CSS primitive. Renders a <code>StreakStats</code> shape verbatim (no adapter layer) and resolves its <code>data-state</code> from just <code>(streak, dueToday)</code>.</p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Component</dt>
+          <dd><code>StreakOrb</code></dd>
+          <dt>Surface</dt>
+          <dd>telegram — Today screen only (as of W1)</dd>
+          <dt>Implementation</dt>
+          <dd><code>services/telegram/src/screens/Today/components/StreakOrb.tsx</code> · CSS primitive <code>services/telegram/src/styles/primitives/orb.css</code> · selectors <code>.tma-orb*</code></dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-07-19">2026-07-19</time></dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="overview-h">
+        <h2 id="overview-h">Overview</h2>
+        <p>The orb is the emotional anchor of Today. Per the design (<a href="../../design/screens.html">Screens § variant A · Amie · Signature</a>) the streak is not a chip or a number — it's the first thing the user sees, occupying the full width of the hero and moving on its own. Whether the user actually reviews or not, the surface stays alive.</p>
+        <p>Two design constraints shape the implementation: (1) the orb has to feel like a physical object under a light source — hence the four-layer radial body, the rotating conic sheen and the double glare; (2) it has to communicate <em>zero-work</em> without going grey — hence the sage twin under <code>data-state="rested"</code> instead of a flat empty state.</p>
+        <p>All motion (bubble morph, breathe, iris rotation, glare drift, celebrate pulse + ring) sits in CSS; the React component only picks a state and emits the DOM. Every animation halts under <code>prefers-reduced-motion: reduce</code>.</p>
+      </section>
+
+      <section aria-labelledby="anatomy-h">
+        <h2 id="anatomy-h">Anatomy</h2>
+        <ol>
+          <li><strong>Root.</strong> <code>&lt;div class="tma-orb"&gt;</code> — carries <code>data-state</code>, <code>role="img"</code>, and the aria-label with the streak count. Also owns two pseudo-elements: <code>::before</code> = radial body (4 stacked gradients), <code>::after</code> = celebration halo (dormant until <code>data-state="celebrate"</code>).</li>
+          <li><strong>Sheen.</strong> <code>&lt;span class="tma-orb__sheen"&gt;</code> — 10-band conic rainbow, <code>mix-blend-mode: overlay</code>, rotates continuously.</li>
+          <li><strong>Glare.</strong> <code>&lt;span class="tma-orb__glare"&gt;</code> — two radial specular highlights (primary top-left, counter bottom-right), <code>mix-blend-mode: screen</code>, drifts on a 9s ease.</li>
+          <li><strong>Number.</strong> <code>&lt;span class="tma-orb__num"&gt;</code> — the streak count, tabular numerics, weight 800. Font size scales with the size variant (28 / 48 / 76 px).</li>
+          <li><strong>Cap.</strong> <code>&lt;span class="tma-orb__cap"&gt;</code> — «day streak» copy (i18n key <code>today.streak.unit</code>), 10 px uppercase eyebrow.</li>
+          <li><strong>Tip wrapper (external).</strong> The tap-target ancestor is <code>&lt;div class="tma-tip tma-tip--below"&gt;</code> that carries <code>data-tip={t('today.streak.tip')}</code>. It has to sit on a wrapper because <code>.tma-tip</code>'s own <code>::before</code> / <code>::after</code> would collide with the orb's pseudo-elements.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="props-h">
+        <h2 id="props-h">Props</h2>
+        <div class="docs-table-wrap" role="region" aria-label="StreakOrb props">
+          <table class="docs-table docs-table--sticky-head docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Prop</th>
+                <th scope="col">Type</th>
+                <th scope="col">Required</th>
+                <th scope="col">Default</th>
+                <th scope="col">Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>data</code></td>
+                <td><code>StreakStats</code> — <code>{ current_days, longest_days, goal_days }</code> from <code>components['schemas']['StreakStats']</code></td>
+                <td>Yes</td>
+                <td>—</td>
+                <td>Streak payload returned by <code>GET /api/v1/me/stats</code>. snake_case is preserved to match the OpenAPI schema so no adapter layer is needed. Only <code>current_days</code> is read by the component today; <code>longest_days</code> and <code>goal_days</code> land later on a tap-through detail.</td>
+              </tr>
+              <tr>
+                <td><code>dueToday</code></td>
+                <td><code>number</code></td>
+                <td>Yes</td>
+                <td>—</td>
+                <td>The count of cards due right now (from <code>schedule/summary.due_now</code>, falling back to <code>useConspectusesDue.data.length</code>). Drives the <code>rested</code> state at zero.</td>
+              </tr>
+              <tr>
+                <td><code>size</code></td>
+                <td><code>'sm' | 'md' | 'lg'</code></td>
+                <td>No</td>
+                <td><code>'lg'</code></td>
+                <td>Diameter tier: <code>sm</code> = 96 px, <code>md</code> = 160 px, <code>lg</code> = 260 px. Today uses <code>lg</code>; the EmptyToday state re-uses a <code>sm</code> orb as a rested twin next to the copy.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="states-h">
+        <h2 id="states-h">States &amp; variants</h2>
+        <div class="docs-table-wrap" role="region" aria-label="StreakOrb states">
+          <table class="docs-table docs-table--sticky-head docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">State</th>
+                <th scope="col">Trigger</th>
+                <th scope="col">Visual change</th>
+                <th scope="col">Theme parity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>warm</code></td>
+                <td>Default — <code>current_days &gt; 0</code>, not a milestone, <code>dueToday &gt; 0</code>.</td>
+                <td>Ember radial body, iridescent conic sheen, double glare. <code>--orb-warmth: -4deg</code> hue-rotate.</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td><code>rested</code></td>
+                <td><code>dueToday === 0</code>.</td>
+                <td>Sage twin — mint / ice / teal radial body, cooler sheen, cool box-shadow keyed off <code>--tma-sage-700</code>. Everything else identical.</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td><code>celebrate</code></td>
+                <td>Every 30-day milestone — <code>current_days &gt; 0 &amp;&amp; current_days % 30 === 0</code>.</td>
+                <td>Single 900 ms spring pulse (<code>tma-orb-pulse</code>) + the <code>::after</code> halo ring blooms once (<code>tma-orb-ring</code>). Body stays the warm palette.</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td>Size · <code>sm</code></td>
+                <td><code>size="sm"</code></td>
+                <td>96 px diameter · 28 px numeral · animation-delay <code>-9s, -3s</code> (de-syncs multiple instances).</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td>Size · <code>md</code></td>
+                <td><code>size="md"</code></td>
+                <td>160 px diameter (default in CSS) · 48 px numeral.</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td>Size · <code>lg</code></td>
+                <td><code>size="lg"</code> (default)</td>
+                <td>260 px diameter · 76 px numeral · animation-delay <code>-4s, -1.5s</code>.</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td>Reduced motion</td>
+                <td><code>@media (prefers-reduced-motion: reduce)</code></td>
+                <td>All keyframe animations halted. Body freezes to a stable blob shape (<code>border-radius: 55% 45% 50% 50% / 50% 55% 45% 50%</code>). Celebrate halo stays at <code>opacity: 0</code>.</td>
+                <td>Yes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="state-machine-h">
+        <h2 id="state-machine-h">State machine</h2>
+        <p>The visual state is derived by <code>resolveState(data, dueToday)</code> in <code>StreakOrb.tsx</code> and applied as <code>data-state</code>. Order matters — a milestone streak with zero due still fires <code>celebrate</code>:</p>
+        <pre><code>function resolveState(data, dueToday) {
+  if (data.current_days &gt; 0 &amp;&amp; data.current_days % 30 === 0) return 'celebrate';
+  if (dueToday === 0) return 'rested';
+  return 'warm';
+}</code></pre>
+        <div class="docs-table-wrap" role="region" aria-label="State-machine truth table">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col"><code>current_days</code></th>
+                <th scope="col"><code>dueToday</code></th>
+                <th scope="col"><code>data-state</code></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>0</td><td>any</td><td><code>rested</code> (dueToday = 0) or <code>warm</code></td></tr>
+              <tr><td>7</td><td>4</td><td><code>warm</code></td></tr>
+              <tr><td>7</td><td>0</td><td><code>rested</code></td></tr>
+              <tr><td>30</td><td>4</td><td><code>celebrate</code></td></tr>
+              <tr><td>30</td><td>0</td><td><code>celebrate</code> — milestones override the rested check</td></tr>
+              <tr><td>60</td><td>0</td><td><code>celebrate</code></td></tr>
+              <tr><td>29</td><td>0</td><td><code>rested</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <aside class="docs-card docs-card--rail" data-tone="info" role="note" aria-labelledby="celebrate-vs-rested">
+          <h3 id="celebrate-vs-rested" class="docs-card__title">Why milestone wins over rested — and stays ember, not sage</h3>
+          <div class="docs-card__body">
+            <p><strong>Rested = sage.</strong> Empty day (nothing due today) is a calm, cool moment. The orb's four-layer radial body swaps to the mint/ice/sea-foam family; sheen bands stay in a single cool gamut so the surface never reads «tired» or «grey». See <code>.tma-orb[data-state="rested"]</code> in <code>orb.css</code>.</p>
+            <p><strong>Celebrate = ember.</strong> A milestone streak (every 30 days) is <em>the</em> party moment — the reward the whole habit product exists to serve. The body stays in the warm ember gradient; on top of that we fire a one-shot <code>tma-orb-pulse</code> (900 ms scale) and reveal the ring halo (<code>::after</code> · <code>tma-orb-ring</code>). Turning it green here would undersell the win — sage is calm, ember is joy.</p>
+            <p><strong>Precedence.</strong> Because celebrate carries stronger meaning than rested (finishing a 30-day streak deserves the party even on a light-workload day), the state machine picks it first. If we ever want a rested-milestone variant (party bubbles on a sage body), it becomes its own <code>data-state</code> — never a silent override of the ember celebrate.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section aria-labelledby="tokens-h">
+        <h2 id="tokens-h">Design tokens</h2>
+        <ul>
+          <li><strong>Ember palette</strong> (<code>warm</code>, <code>celebrate</code>): <code>--tma-ember-300</code> / <code>-400</code> / <code>-500</code> / <code>-600</code> / <code>-900</code>. Radial body sweeps from <code>-300</code> through <code>-500</code> to <code>-900</code>; box-shadow is a soft <code>-600</code>; halo border is <code>-400</code>.</li>
+          <li><strong>Sage palette</strong> (<code>rested</code>): <code>--tma-sage-500</code>, <code>--tma-sage-700</code>. Box-shadow keyed off <code>-700</code>; body sweeps through <code>-500</code>.</li>
+          <li><strong>Motion.</strong> Bubble morph 14 s ease-in-out infinite (<code>tma-orb-bubble</code>). Breathe 5 s ease-in-out infinite (<code>tma-orb-breathe</code>). Sheen iris 18 s linear infinite (<code>tma-orb-iris</code>). Glare drift 9 s ease-in-out infinite (<code>tma-orb-glare</code>). Celebrate pulse 900 ms · <code>var(--tma-ease-spring)</code>. Celebrate ring 900 ms · <code>var(--tma-ease-out)</code>. Transition on <code>transform</code> = 0.6 s <code>cubic-bezier(0.34, 1.4, 0.4, 1)</code>.</li>
+          <li><strong>Typography.</strong> <code>--tma-font-sans</code>, weight 800, tabular numerics, letter-spacing <code>-0.04em</code>. Cap is 10 px / weight 600 / letter-spacing 0.16 em / uppercase.</li>
+          <li><strong>Custom property.</strong> <code>--orb-warmth</code> (<code>0deg</code> default, <code>-4deg</code> on <code>warm</code>) drives the root <code>filter: hue-rotate()</code>. Overridable inline for per-instance tuning.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="a11y-h">
+        <h2 id="a11y-h">Accessibility</h2>
+        <ul>
+          <li><strong>Role &amp; label.</strong> <code>role="img"</code> + <code>aria-label={t('today.streak.aria', { count: data.current_days })}</code>. i18next resolves plural forms per locale — «Current streak is 1 day» / «Current streak is 12 days».</li>
+          <li><strong>Decorative sub-parts.</strong> <code>__sheen</code>, <code>__glare</code>, <code>__num</code> all carry <code>aria-hidden="true"</code>. Only <code>__cap</code> stays announceable, but its text is the same «day streak» copy already covered by the aria-label.</li>
+          <li><strong>Focus / keyboard.</strong> Not focusable — the orb is a display primitive with no interactive behaviour. Tap is handled by the ancestor <code>.tma-tip</code> wrapper (tooltip only, no navigation).</li>
+          <li><strong>Contrast.</strong> The numeral sits on a saturated ember gradient. Text is <code>white</code> with a warm text-shadow (<code>0 1px 6px rgba(74, 27, 12, 0.5)</code>). Verified ≥ 4.5:1 against the darkest zone of the body (<code>--tma-ember-900</code>).</li>
+          <li><strong>Motion.</strong> All keyframe animations halt under <code>prefers-reduced-motion: reduce</code>. Body freezes to a stable blob shape so the primitive still reads as an object under a light source. Celebrate halo stays fully transparent.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="behavior-h">
+        <h2 id="behavior-h">Behaviour contract</h2>
+        <ul>
+          <li><strong>Mount.</strong> Renders only once <code>useMeStats.data</code> resolves. No skeleton — the parent omits the block entirely until data lands, per the «don't dress a rare state as a normal one» rule (an orb-shaped placeholder would look like a broken orb).</li>
+          <li><strong>Re-render.</strong> Re-renders on every prop change. State resolution is pure and cheap; the animations are CSS-driven and continue seamlessly across renders.</li>
+          <li><strong>State transitions.</strong> Switching between <code>warm</code> / <code>rested</code> triggers a 0.6 s transition on <code>filter</code> and <code>box-shadow</code>. Entering <code>celebrate</code> plays the pulse + ring once (900 ms); leaving <code>celebrate</code> falls back to the running bubble/breathe loop.</li>
+          <li><strong>Ownership of pseudo-elements.</strong> The root owns <code>::before</code> (body) and <code>::after</code> (halo). Any consumer wrapping the orb in a component that also uses pseudo-elements (e.g. <code>.tma-tip</code>) has to keep them on a sibling wrapper, not on the orb itself.</li>
+          <li><strong>Isolation.</strong> The root sets <code>isolation: isolate</code>. Blend modes (<code>overlay</code> on the sheen, <code>screen</code> on the glare) stay contained; adjacent surfaces don't tint.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="used-on-h">
+        <h2 id="used-on-h">Used on</h2>
+        <ul>
+          <li><a href="../screens/today.html">Screen · Today</a> — hero block, <code>size="lg"</code>, driven by <code>useMeStats</code> and <code>dueToday</code>.</li>
+          <li><code>EmptyToday</code> component (<code>services/telegram/src/screens/Today/components/EmptyToday.tsx</code>) — <code>size="sm"</code>, <code>data-state="rested"</code> forced (no <code>data</code> prop; renders just the body + sheen + glare without the numeral cap).</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="tests-h">
+        <h2 id="tests-h">Tests</h2>
+        <p>Six vitest cases at <code>services/telegram/src/screens/Today/components/StreakOrb.test.tsx</code>:</p>
+        <ul>
+          <li>Renders the kit primitive with all four child slots (<code>.tma-orb</code> + <code>__sheen</code> + <code>__glare</code> + <code>__num</code> + <code>__cap</code>).</li>
+          <li>Renders the current streak number.</li>
+          <li>Carries an aria-label with the streak count.</li>
+          <li>Default state is <code>warm</code> — <code>dueToday &gt; 0</code>, non-milestone.</li>
+          <li>State is <code>rested</code> when <code>dueToday === 0</code>.</li>
+          <li>State is <code>celebrate</code> on every 30-day milestone.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="related-h">
+        <h2 id="related-h">Related</h2>
+        <ul>
+          <li><a href="../screens/today.html">Screen · Today</a> — element inventory row for the orb.</li>
+          <li><a href="../../design/screens.html">Design · Screens</a> — variant A rationale, «ed-states» taxonomy.</li>
+          <li><a href="../../../api/reference/me/operations/get-api-v1-me-stats.html"><code>GET /api/v1/me/stats</code></a> — payload contract.</li>
+          <li><a href="../../how-to/add-a-screen.html">How-to · Add a screen</a> — where kit primitives fit in the screen assembly.</li>
+        </ul>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Component spec: StreakOrb created — pilot of the frontend-doc pattern. Props / anatomy / state machine / tokens / a11y all mirror the current <code>StreakOrb.tsx</code> + <code>orb.css</code>. Truth-table row for the milestone-overrides-rested corner case surfaced from reading <code>resolveState</code> — worth flagging explicitly so a future refactor doesn't invert the check.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#overview-h">Overview</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#anatomy-h">Anatomy</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#props-h">Props</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#states-h">States &amp; variants</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#state-machine-h">State machine</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tokens-h">Design tokens</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#a11y-h">Accessibility</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#behavior-h">Behaviour contract</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#used-on-h">Used on</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tests-h">Tests</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related-h">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

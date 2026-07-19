@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
 import { LangSwitch } from '../../shared/i18n/LangSwitch';
+import { ErrorInline } from '../Today/components/ErrorInline';
+import { ErrorScreen } from '../Today/components/ErrorScreen';
 import { useConspectus } from './hooks/useConspectus';
 
 export function ConspectusDetail() {
@@ -26,6 +28,39 @@ export function ConspectusDetail() {
   const params = useParams({ strict: false }) as { conspectus_uuid?: string };
   const uuid = params.conspectus_uuid ?? '';
   const query = useConspectus(uuid);
+
+  const authErrorNs = (): 'auth.unreachable' | 'auth.denied' | 'auth.error' => {
+    const msg = auth.error?.message ?? '';
+    if (/failed to fetch|networkerror|network error|fetch failed/i.test(msg)) {
+      return 'auth.unreachable';
+    }
+    if (/401|unauthori[sz]ed|token|jwt|signature/i.test(msg)) {
+      return 'auth.denied';
+    }
+    return 'auth.error';
+  };
+
+  if (auth.status === 'error') {
+    const ns = authErrorNs();
+    return (
+      <main
+        className="tma-scope"
+        data-density="regular"
+        style={{
+          minHeight: 'var(--tma-viewport-h, 100dvh)',
+          background: 'var(--tma-surface-canvas)',
+          color: 'var(--tma-text-primary)',
+        }}
+      >
+        <ErrorScreen
+          title={t(`${ns}.title`)}
+          body={t(`${ns}.body`)}
+          ctaLabel={t(`${ns}.cta`)}
+          onRetry={() => auth.retry()}
+        />
+      </main>
+    );
+  }
 
   return (
     <main
@@ -64,7 +99,7 @@ export function ConspectusDetail() {
           <LangSwitch />
         </header>
 
-        {auth.status !== 'authenticated' && (
+        {auth.status === 'authenticating' && (
           <div
             role="status"
             style={{
@@ -85,17 +120,8 @@ export function ConspectusDetail() {
           <>
             {query.isPending && <DetailSkeleton />}
             {query.isError && (
-              <div
-                style={{
-                  margin: 'var(--tma-sp-4) var(--tma-sp-4)',
-                  padding: 'var(--tma-sp-4)',
-                  borderRadius: 'var(--tma-rad-3)',
-                  background: 'var(--tma-surface-plate)',
-                  color: 'var(--tma-tone-danger)',
-                  fontSize: 'var(--tma-fs-small)',
-                }}
-              >
-                {t('detail.error')}
+              <div style={{ margin: 'var(--tma-sp-4) var(--tma-sp-4)' }}>
+                <ErrorInline label={t('detail.error')} onRetry={() => query.refetch()} />
               </div>
             )}
             {query.data && (

@@ -15,6 +15,7 @@ import { DueCardsList } from './components/DueCardsList';
 import { DueCardsSkeleton } from './components/DueCardsSkeleton';
 import { EmptyToday } from './components/EmptyToday';
 import { ErrorInline } from './components/ErrorInline';
+import { ErrorScreen } from './components/ErrorScreen';
 import { HeatmapCalendar } from './components/HeatmapCalendar';
 import { RecentlyReviewedPeek } from './components/RecentlyReviewedPeek';
 import { ScheduleSummaryStrip } from './components/ScheduleSummaryStrip';
@@ -37,6 +38,43 @@ export function Today() {
 
   const dueToday = summary.data?.due_now ?? due.data?.length ?? 0;
   const recentlyReviewed = (due.data ?? []).slice(0, 5);
+
+  /** Distinguish «server unreachable» (fetch throws `TypeError: Failed to fetch`)
+   * from a real 401-style auth denial so users see a copy that matches the
+   * actual failure mode. Returns the i18n namespace key so callers can
+   * resolve `.title` / `.body` / `.cta` off of it. */
+  const authErrorNs = (): 'auth.unreachable' | 'auth.denied' | 'auth.error' => {
+    const msg = auth.error?.message ?? '';
+    if (/failed to fetch|networkerror|network error|fetch failed/i.test(msg)) {
+      return 'auth.unreachable';
+    }
+    if (/401|unauthori[sz]ed|token|jwt|signature/i.test(msg)) {
+      return 'auth.denied';
+    }
+    return 'auth.error';
+  };
+
+  if (auth.status === 'error') {
+    const ns = authErrorNs();
+    return (
+      <main
+        className="tma-scope"
+        data-density="regular"
+        style={{
+          minHeight: 'var(--tma-viewport-h, 100dvh)',
+          background: 'var(--tma-surface-canvas)',
+          color: 'var(--tma-text-primary)',
+        }}
+      >
+        <ErrorScreen
+          title={t(`${ns}.title`)}
+          body={t(`${ns}.body`)}
+          ctaLabel={t(`${ns}.cta`)}
+          onRetry={() => auth.retry()}
+        />
+      </main>
+    );
+  }
 
   return (
     <main
@@ -85,7 +123,7 @@ export function Today() {
           <LangSwitch />
         </header>
 
-        {auth.status !== 'authenticated' && (
+        {auth.status === 'authenticating' && (
           <div
             role="status"
             style={{
@@ -98,15 +136,27 @@ export function Today() {
               boxShadow: 'var(--tma-elev-1)',
             }}
           >
-            {auth.status === 'authenticating' && t('auth.connecting')}
-            {auth.status === 'error' && (auth.error?.message ?? t('auth.error'))}
+            {t('auth.connecting')}
           </div>
         )}
 
         {auth.status === 'authenticated' && (
           <>
             {stats.data && <StreakOrb data={stats.data.streak} dueToday={dueToday} size="lg" />}
+            {stats.isError && (
+              <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
+                <ErrorInline label={t('today.error.streak')} onRetry={() => stats.refetch()} />
+              </div>
+            )}
             {yesterday.data && <YesterdayDigest data={yesterday.data.yesterday} />}
+            {yesterday.isError && (
+              <div style={{ padding: '0 var(--tma-sp-4)' }}>
+                <ErrorInline
+                  label={t('today.error.yesterday')}
+                  onRetry={() => yesterday.refetch()}
+                />
+              </div>
+            )}
 
             {summary.isPending && <ScheduleSummaryStripSkeleton />}
             {summary.isError && (
@@ -142,6 +192,14 @@ export function Today() {
 
             <RecentlyReviewedPeek items={recentlyReviewed} />
             {history.data && <HeatmapCalendar data={history.data.days} />}
+            {history.isError && (
+              <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
+                <ErrorInline
+                  label={t('today.error.history')}
+                  onRetry={() => history.refetch()}
+                />
+              </div>
+            )}
           </>
         )}
       </div>

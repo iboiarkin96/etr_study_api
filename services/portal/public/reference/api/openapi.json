@@ -4977,7 +4977,7 @@
     },
     "/api/v1/me/stats": {
       "get": {
-        "description": "Handle ``GET /api/v1/me/stats``.",
+        "description": "Reads `conspectus_review_logs` grouped by UTC calendar date. The current streak is alive today (or yesterday \u2014 24 h grace) and counts back while every prior day carries \u22651 review. Longest streak is the largest such run on record. `goal_days` is a fixed 30-day milestone.\n\nEquivalent raw SQL for one learner:\n\n```sql\n-- Per-day review counts (base fact used by both current + longest):\nSELECT DATE(reviewed_at) AS day, COUNT(*) AS n\nFROM conspectus_review_logs\nWHERE owner_client_uuid = :owner\nGROUP BY 1\nORDER BY 1;\n\n-- Current streak: walk backwards from today (or yesterday if today is 0).\n-- Longest streak: largest gap-free consecutive-days run in the above set.\n```",
         "operationId": "getMeStats",
         "parameters": [
           {
@@ -5159,7 +5159,7 @@
     },
     "/api/v1/me/yesterday": {
       "get": {
-        "description": "Handle ``GET /api/v1/me/yesterday``.",
+        "description": "Aggregates review activity for the previous UTC calendar day. `reviewed` = COUNT of review logs whose `reviewed_at` falls in yesterday's window. `target` = reviewed + still-due-from-yesterday (schedules whose `next_review_at` also fell into that window). `accuracy_pct` = share of `tag='easy'` reviews rounded to a percent.\n\nEquivalent raw SQL for one learner:\n\n```sql\nWITH y AS (\n  SELECT (CURRENT_DATE - INTERVAL '1 day')::date AS d\n),\nlog_bounds AS (\n  SELECT d::timestamptz AS start_ts,\n         (d + INTERVAL '1 day')::timestamptz AS end_ts FROM y\n)\nSELECT\n  (SELECT COUNT(*) FROM conspectus_review_logs, log_bounds\n     WHERE owner_client_uuid = :owner\n       AND reviewed_at >= start_ts AND reviewed_at < end_ts) AS reviewed,\n  (SELECT COUNT(*) FILTER (WHERE tag = 'easy')\n     FROM conspectus_review_logs, log_bounds\n     WHERE owner_client_uuid = :owner\n       AND reviewed_at >= start_ts AND reviewed_at < end_ts) AS easy_cnt,\n  (SELECT COUNT(*) FROM conspectus_schedules, log_bounds\n     WHERE owner_client_uuid = :owner AND is_row_invalid = 0\n       AND next_review_at >= start_ts\n       AND next_review_at <  end_ts) AS still_due_yesterday;\n-- target = reviewed + still_due_yesterday\n-- accuracy_pct = ROUND(easy_cnt * 100 / NULLIF(reviewed, 0))\n-- missed = GREATEST(0, target - reviewed)\n```",
         "operationId": "getMeYesterday",
         "parameters": [
           {
@@ -5341,7 +5341,7 @@
     },
     "/api/v1/schedule/history": {
       "get": {
-        "description": "Returns one row per UTC calendar day for the last ``days`` days, filled with zeros for inactive days. Intensity 0..4 buckets the count for the Ember-tinted heat-map cells.",
+        "description": "Returns one row per UTC calendar day for the last ``days`` days, filled with zeros for inactive days. Intensity 0..4 buckets the count for the Ember-tinted heat-map cells (0=none \u00b7 1 <3 \u00b7 2 <7 \u00b7 3 <12 \u00b7 4 \u226512).\n\nEquivalent raw SQL for one learner:\n\n```sql\nSELECT day::date AS day,\n       COALESCE(n, 0) AS count,\n       CASE\n         WHEN COALESCE(n, 0) = 0 THEN 0\n         WHEN n < 3  THEN 1\n         WHEN n < 7  THEN 2\n         WHEN n < 12 THEN 3\n         ELSE 4\n       END AS intensity\nFROM generate_series(CURRENT_DATE - (:days - 1), CURRENT_DATE, '1 day') AS day\nLEFT JOIN (\n  SELECT DATE(reviewed_at) AS day, COUNT(*) AS n\n  FROM conspectus_review_logs\n  WHERE owner_client_uuid = :owner\n  GROUP BY 1\n) logs USING (day)\nORDER BY day;\n```",
         "operationId": "getScheduleHistory",
         "parameters": [
           {

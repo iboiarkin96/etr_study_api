@@ -1,0 +1,392 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * today-map.css — annotated diagram for the Today screen spec
+ *
+ * Two-column layout: a magnified phone mock with numbered clickable pins
+ * on the left, a sticky detail panel on the right that reveals exactly
+ * one callout at a time via the pure-CSS `:target` pattern.
+ *
+ * Pins are anchor tags (`<a href="#pin-N">`) that live INSIDE their
+ * `.today-map__region`, hanging off its left edge — they track their
+ * block automatically, no coordinate calibration. Callout `<article>`s
+ * all live inside the panel with `id="pin-N"` and `display: none`; only
+ * the one matching `:target` becomes visible. A `.today-map__panel-empty`
+ * placeholder is shown by default and hidden via `:has(article:target)`.
+ *
+ * The phone is a stock `.tma-phone--mini` (240 px wide, height released
+ * to fit content) magnified with `zoom` — layout AND fonts scale
+ * together, so the mock reads as a crisp 384-px-wide phone instead of a
+ * huge empty frame with microscopic authored px sizes.
+ *
+ * Note on selector depth: this file is bundled into entry.css, which
+ * loads BEFORE tma-kit.css — kit overrides here need the two-class
+ * `.today-map__mock …` prefix to out-rank equal-specificity kit rules.
+ *
+ * Consumed by services/portal/internal/services/telegram/reference/
+ * screens/today.html and any future per-screen anatomy pages.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.today-map {
+  display: grid;
+  /* Left column hugs the zoomed phone; right column soaks up the rest. */
+  grid-template-columns: max-content minmax(300px, 1fr);
+  gap: var(--space-6, 24px);
+  align-items: start;
+  margin: var(--space-4, 16px) 0 var(--space-8, 32px);
+}
+
+/* ── Mock column ────────────────────────────────────────────────── */
+.today-map__mock {
+  position: relative;
+  width: max-content;
+  align-self: start;
+}
+
+/* The mock follows the portal theme via `.tma-scope` on the inner scroll
+ * region — tokens.css already flips tier-2 semantic tokens between
+ * dark-first and light. Nothing to pin here; each screen page just has
+ * to wrap the phone content in `.tma-scope` (see `today.html` and
+ * `conspectus-detail.html`). */
+
+.today-map__mock .today-map__phone {
+  /* `zoom` (not `transform: scale`) so the enlarged size participates
+   * in layout — the grid column and the pins all see real pixels. */
+  zoom: var(--map-zoom, 1.6);
+  /* The Today screen is shown in full: release the fixed mini height
+   * and let the frame wrap its content instead of scroll-clipping it. */
+  height: auto;
+  position: relative;
+}
+
+.today-map__mock .tma-phone__screen {
+  height: auto;
+  /* Pins hang half-off the screen's left edge — don't clip them. The
+   * screen never scrolls here (full height), so nothing else escapes.
+   * `clip-path` rounds the surface corners without cutting the pins
+   * (unlike `overflow: hidden`), so the light-theme cream background
+   * stops in a rounded shape instead of showing straight bottom
+   * corners against the black bezel. */
+  overflow: visible;
+  clip-path: inset(0 -80px 0 -80px round 26px);
+}
+
+/* Roomier bottom bezel — extends the black rounded frame further past
+ * the last content pin so the light-theme cream surface stops well
+ * inside the phone silhouette instead of hugging its inner edge. */
+.today-map__mock .tma-phone {
+  padding-bottom: 24px;
+}
+
+.today-map__mock .tma-scroll {
+  flex: none;
+  overflow: visible;
+}
+
+/* The kit's plate clips children to its rounded corners — that would
+ * amputate the rail pins of nested regions (6, 8, 9). Nothing scrolls
+ * inside the mock, so releasing the clip is safe. */
+.today-map__mock .tma-section__plate {
+  overflow: visible;
+}
+
+/* Positioning context for the pin anchored inside each region. */
+.today-map__region {
+  position: relative;
+}
+
+/* ── Numbered pin: clickable anchor on the screen's right rail ──── */
+/* Blue (info ink) so pins read as annotations, not screen content —
+ * the screen's own accent is ember. Authored at 19 px — the phone's
+ * zoom (×1.6) brings it to ~30 px visual. All pins center on the
+ * screen's right edge: one clean vertical rail. */
+.today-map__pin {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translate(55%, -50%);
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--tma-info-ink, #1d4ed8);
+  color: #fff;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-weight: 800;
+  font-size: 9px;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1.5px var(--tma-surface-canvas, #fff),
+    0 1px 5px color-mix(in oklab, var(--tma-info-ink, #1d4ed8) 45%, transparent);
+  letter-spacing: 0;
+  z-index: 3;
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.today-map__pin:hover {
+  transform: translate(55%, -50%) scale(1.12);
+  box-shadow:
+    0 0 0 1.5px var(--tma-surface-canvas, #fff),
+    0 2px 8px color-mix(in oklab, var(--tma-info-ink, #1d4ed8) 60%, transparent);
+}
+
+/* Nested / margined regions end short of the screen edge — pull their
+ * pins out by the indent (plate margin 12px; heat plate padding +8px)
+ * so they stay on the rail. */
+.today-map__region[data-pin="4"] .today-map__pin,
+.today-map__region[data-pin="6"] .today-map__pin,
+.today-map__region[data-pin="7"] .today-map__pin {
+  right: -12px;
+}
+
+.today-map__region[data-pin="8"] .today-map__pin,
+.today-map__region[data-pin="9"] .today-map__pin {
+  right: -20px;
+}
+
+/* Leader arrow for those far pins: a thin shaft from the pin's left
+ * edge with an arrowhead pointing into the block it annotates. Near
+ * pins touch their block already and need none. */
+.today-map__region[data-pin="4"] .today-map__pin::before,
+.today-map__region[data-pin="6"] .today-map__pin::before,
+.today-map__region[data-pin="7"] .today-map__pin::before,
+.today-map__region[data-pin="8"] .today-map__pin::before,
+.today-map__region[data-pin="9"] .today-map__pin::before {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 1.5px;
+  background: var(--tma-info-ink, #1d4ed8);
+}
+
+.today-map__region[data-pin="4"] .today-map__pin::after,
+.today-map__region[data-pin="6"] .today-map__pin::after,
+.today-map__region[data-pin="7"] .today-map__pin::after,
+.today-map__region[data-pin="8"] .today-map__pin::after,
+.today-map__region[data-pin="9"] .today-map__pin::after {
+  content: "";
+  position: absolute;
+  right: calc(100% + 13px);
+  top: 50%;
+  transform: translateY(-50%);
+  border-block: 3px solid transparent;
+  border-right: 5px solid var(--tma-info-ink, #1d4ed8);
+}
+
+.today-map__pin:focus-visible {
+  outline: 2px solid var(--tma-ember-400, #ff8a6f);
+  outline-offset: 3px;
+}
+
+/* ── Detail panel (right column) ────────────────────────────────── */
+.today-map__panel {
+  position: sticky;
+  /* Push the panel below the portal topbar (fixed ~56px + a small
+   * breathing gap) so the callout's title isn't clipped by it as the
+   * user scrolls. */
+  top: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+  /* Constrain height so long callouts scroll within the panel rather
+   * than force the sticky container off-screen. */
+  max-height: calc(100vh - 100px);
+  overflow: auto;
+}
+
+.today-map__panel-empty {
+  /* Shown by default; hidden below when any callout is targeted.
+   * Background follows the portal theme; text is pinned to solid black
+   * regardless — per the user's request, the placeholder copy stays
+   * consistent across theme flips. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  padding: var(--space-5, 20px) var(--space-4, 16px);
+  border: 1px dashed var(--tma-border-soft, #d4d0cc);
+  border-radius: 12px;
+  background: var(--tma-surface-plate, #fafaf7);
+  color: #000;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.today-map__panel-empty strong {
+  color: #000;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.today-map__panel-empty::before {
+  content: "◎";
+  font-size: 1.6rem;
+  color: var(--tma-info-ink, #1d4ed8);
+  line-height: 1;
+}
+
+/* Hide the placeholder as soon as any callout is targeted. */
+.today-map__panel:has(article:target) .today-map__panel-empty {
+  display: none;
+}
+
+/* ── Callout cards: hidden by default, one visible on :target ───── */
+.today-map__card {
+  display: none;
+  position: relative;
+  padding: var(--space-4, 16px) var(--space-4, 16px) var(--space-3, 12px) var(--space-5, 20px);
+}
+
+.today-map__card:target {
+  display: block;
+}
+
+/* Small numbered chip on the callout mirrors the pin. Sits at the
+ * card's left edge, on top of the accent rail. */
+.today-map__card-pin {
+  position: absolute;
+  top: var(--space-3, 12px);
+  left: calc(var(--rail-w, 3px) + var(--space-2, 8px));
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--tma-info-ink, #1d4ed8);
+  color: #fff;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-weight: 800;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* Push the h3 past the pin without indenting other blocks. */
+.today-map__card .docs-card__title {
+  margin-left: 30px;
+  margin-top: 0;
+  font-size: 0.95rem;
+}
+
+.today-map__meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--space-3, 12px);
+  row-gap: var(--space-1, 4px);
+  margin: var(--space-2, 8px) 0 var(--space-2, 8px);
+  font-size: 0.82rem;
+}
+
+.today-map__meta dt {
+  color: var(--color-text-muted, var(--tma-text-tertiary));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+  padding-top: 2px;
+}
+
+.today-map__meta dd {
+  margin: 0;
+  color: var(--color-text, var(--tma-text-primary));
+  min-width: 0;
+  word-break: break-word;
+}
+
+.today-map__note {
+  margin: var(--space-2, 8px) 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--color-text-muted, var(--tma-text-secondary));
+}
+
+/* "Back to overview" link inside the active callout — resets the URL
+ * fragment so the placeholder returns. */
+.today-map__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--space-3, 12px);
+  font-size: 0.78rem;
+  color: var(--tma-ember-500, #ff6b47);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.today-map__back:hover,
+.today-map__back:focus-visible {
+  text-decoration: underline;
+}
+
+.today-map__back::before {
+  content: "←";
+  font-weight: 700;
+}
+
+/* ── Alternate states row ───────────────────────────────────────── */
+.today-map__states {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3, 12px);
+  margin: var(--space-3, 12px) 0 var(--space-6, 24px);
+}
+
+.today-map__state {
+  padding: var(--space-4, 16px) var(--space-4, 16px) var(--space-3, 12px) var(--space-5, 20px);
+}
+
+.today-map__state .docs-card__title {
+  margin-top: 0;
+  font-size: 0.95rem;
+}
+
+.today-map__state p {
+  margin: var(--space-2, 8px) 0 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-text-muted, var(--tma-text-secondary));
+}
+
+/* ── Mobile: stack, drop the sticky panel so the callouts follow the
+ *    mock in the reading order. ── */
+@media (max-width: 900px) {
+  .today-map {
+    grid-template-columns: 1fr;
+  }
+
+  .today-map__mock {
+    margin-inline: auto;
+  }
+
+  .today-map__panel {
+    position: static;
+    max-height: none;
+  }
+}
+
+/* Narrow phones: shrink the mock so the 384-px visual + hanging pins
+ * still fit the viewport. */
+@media (max-width: 440px) {
+  .today-map__mock .today-map__phone {
+    zoom: 1.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-map__pin {
+    transition: none;
+  }
+
+  .today-map__pin:hover {
+    transform: translate(55%, -50%);
+  }
+}
