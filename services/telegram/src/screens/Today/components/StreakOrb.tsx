@@ -44,8 +44,9 @@ export function StreakOrb({ data, dueToday, size = 'lg' }: Props) {
       }}
     >
       <div
-        className={`tma-orb ${sizeClass}`.trim()}
+        className={`tma-orb tma-tip tma-tip--below ${sizeClass}`.trim()}
         data-state={state}
+        data-tip={t('today.streak.tip')}
         role="img"
         aria-label={t('today.streak.aria', { count: data.current_days })}
         title={t('today.streak.tip')}

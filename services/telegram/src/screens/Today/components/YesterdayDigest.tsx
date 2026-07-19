@@ -29,9 +29,10 @@ export function YesterdayDigest({ data }: Props) {
 
   return (
     <div
-      className="tma-digest"
+      className="tma-digest tma-tip"
       role="group"
       aria-label={t('today.yesterday.title')}
+      data-tip={t('today.yesterday.tip')}
       title={t('today.yesterday.tip')}
     >
       <div className="tma-digest__icon" data-tone={tone} aria-hidden="true">

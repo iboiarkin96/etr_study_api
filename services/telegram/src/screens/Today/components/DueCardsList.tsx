@@ -25,9 +25,10 @@ export function DueCardsList({ items }: Props) {
   const { t } = useTranslation();
   return (
     <div
-      className="tma-section__plate"
+      className="tma-section__plate tma-section__plate--overflow tma-tip"
       role="list"
       aria-label={t('today.dueSection')}
+      data-tip={t('today.dueList.tip')}
       title={t('today.dueList.tip')}
     >
       {items.map((item) => (

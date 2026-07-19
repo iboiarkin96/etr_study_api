@@ -58,8 +58,10 @@ export function ScheduleSummaryStrip({ data }: Props) {
 
   return (
     <div
+      className="tma-tip"
       role="group"
       aria-label={t('today.summary.dueNow')}
+      data-tip={t('today.summary.tip')}
       title={t('today.summary.tip')}
       style={{
         display: 'flex',

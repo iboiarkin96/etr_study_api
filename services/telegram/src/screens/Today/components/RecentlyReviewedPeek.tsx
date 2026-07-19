@@ -27,8 +27,9 @@ export function RecentlyReviewedPeek({ items }: Props) {
       style={{ margin: '0 var(--tma-sp-4)' }}
     >
       <div
-        className="tma-peek tma-peek--lined"
+        className="tma-peek tma-peek--lined tma-tip"
         role="list"
+        data-tip={t('today.recent.tip')}
         title={t('today.recent.tip')}
       >
         <div className="tma-peek__label" id="recent-h">
