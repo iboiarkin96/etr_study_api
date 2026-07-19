@@ -1,13 +1,16 @@
 /**
- * 90-day heat-map — rendered on `.tma-heat-frame > .tma-heat` from
- * `tma-kit.css`. The kit lays cells left-to-right, wrapping into
- * `grid-template-columns: repeat(13, 1fr)`, and drives colour + hover
- * tooltip entirely through `data-level` / `data-count` / `data-date`
- * attributes — so this component is pure attribute glue, no inline
- * styling and no CSS of its own.
+ * 90-day heat-map — GitHub-contribution-style grid.
  *
- * Data source: `useDailyStats().heatmap` — mocked (deterministic seeded);
- * swaps onto `GET /api/v1/schedule/history?days=90` once the endpoint lands.
+ * Layout: columns = weeks, rows = days of the week (Mon top → Sun bottom).
+ * The kit's `.tma-heat` primitive uses `grid-auto-flow: column`, so cells
+ * pushed in chronological order automatically stack top-to-bottom per week
+ * before advancing to the next week to the right.
+ *
+ * Padding: leading empties for the first week (so Monday sits at the top),
+ * trailing empties for the last week (so Sunday sits at the bottom). Month
+ * labels above the grid appear once per month change.
+ *
+ * Data source: `useScheduleHistory` → `GET /api/v1/schedule/history?days=N`.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -18,23 +21,11 @@ type HeatmapDay = components['schemas']['HistoryDay'];
 
 type Props = { data: HeatmapDay[] };
 
-const MONTH_LABEL_INTL = new Intl.DateTimeFormat(undefined, {
-  month: 'short',
-});
+const MONTH_LABEL_INTL = new Intl.DateTimeFormat(undefined, { month: 'short' });
 
-function monthsAcross(days: HeatmapDay[], columnCount = 13): string[] {
-  if (days.length === 0) return [];
-  const step = Math.max(1, Math.floor(days.length / columnCount));
-  const labels: string[] = [];
-  let prev = '';
-  for (let i = 0; i < columnCount; i++) {
-    const idx = Math.min(i * step, days.length - 1);
-    const d = new Date(`${days[idx].date}T00:00:00Z`);
-    const label = MONTH_LABEL_INTL.format(d);
-    labels.push(label === prev ? '' : label);
-    prev = label;
-  }
-  return labels;
+/** Convert JS getDay() (Sun=0..Sat=6) to a Mon-first index (Mon=0..Sun=6). */
+function monWeekday(iso: string): number {
+  return (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
 }
 
 function shortDate(iso: string): string {
@@ -46,7 +37,8 @@ function shortDate(iso: string): string {
 export function HeatmapCalendar({ data }: Props) {
   const { t } = useTranslation();
   const todayIso = new Date().toISOString().slice(0, 10);
-  const months = monthsAcross(data);
+
+  const layout = buildLayout(data);
   const total = data.reduce((sum, d) => sum + d.count, 0);
   const activeDays = data.filter((d) => d.count > 0).length;
   const bestDay = data.reduce<HeatmapDay | null>(
@@ -60,27 +52,37 @@ export function HeatmapCalendar({ data }: Props) {
         {t('today.heatmap.title')}
       </div>
       <div className="tma-section__plate">
-        <div className="tma-heat-frame">
+        <div
+          className="tma-heat-frame"
+          style={{ ['--tma-heat-week-count' as string]: layout.weekCount }}
+        >
           <div className="tma-heat__months" aria-hidden="true">
-            {months.map((label, i) => (
+            {layout.monthLabels.map((label, i) => (
               <span key={i} className="tma-heat__month">
                 {label}
               </span>
             ))}
           </div>
           <div className="tma-heat" role="grid" aria-label={t('today.heatmap.title')}>
-            {data.map((d) => (
-              <div
-                key={d.date}
-                className="tma-heat__cell"
-                role="gridcell"
-                data-level={d.intensity}
-                data-count={d.count === 0 ? '0' : `${d.count} reviews`}
-                data-date={shortDate(d.date)}
-                data-today={d.date === todayIso ? 'true' : undefined}
-                aria-label={t('today.heatmap.cell', { date: d.date, count: d.count })}
-              />
-            ))}
+            {layout.cells.map((cell, i) =>
+              cell === null ? (
+                <div key={`pad-${i}`} aria-hidden="true" style={{ visibility: 'hidden' }} />
+              ) : (
+                <div
+                  key={cell.date}
+                  className="tma-heat__cell"
+                  role="gridcell"
+                  data-level={cell.intensity}
+                  data-count={cell.count === 0 ? '0' : `${cell.count} reviews`}
+                  data-date={shortDate(cell.date)}
+                  data-today={cell.date === todayIso ? 'true' : undefined}
+                  aria-label={t('today.heatmap.cell', {
+                    date: cell.date,
+                    count: cell.count,
+                  })}
+                />
+              ),
+            )}
           </div>
           <div className="tma-heat__legend" aria-hidden="true">
             <span>{t('today.heatmap.less')}</span>
@@ -123,4 +125,51 @@ export function HeatmapCalendar({ data }: Props) {
       </div>
     </section>
   );
+}
+
+type CellSlot = HeatmapDay | null;
+
+type Layout = {
+  cells: CellSlot[];
+  weekCount: number;
+  monthLabels: string[];
+};
+
+/**
+ * Build a column-first layout: leading nulls to push the first day into its
+ * correct weekday row, trailing nulls to complete the last column, and one
+ * month label per column (blank when the month hasn't changed since the
+ * previous column, so the header reads left-to-right as a rare stamp).
+ */
+function buildLayout(data: HeatmapDay[]): Layout {
+  if (data.length === 0) {
+    return { cells: [], weekCount: 0, monthLabels: [] };
+  }
+  const leadingPad = monWeekday(data[0].date);
+  const trailingPad = 6 - monWeekday(data[data.length - 1].date);
+  const cells: CellSlot[] = [
+    ...Array.from({ length: leadingPad }, () => null),
+    ...data,
+    ...Array.from({ length: trailingPad }, () => null),
+  ];
+  const weekCount = cells.length / 7;
+
+  const monthLabels: string[] = [];
+  let prev = '';
+  for (let w = 0; w < weekCount; w++) {
+    // Anchor month by the *earliest real day* in this column so partial
+    // leading/trailing columns don't produce a blank label.
+    let label = '';
+    for (let r = 0; r < 7; r++) {
+      const cell = cells[w * 7 + r];
+      if (cell) {
+        label = MONTH_LABEL_INTL.format(new Date(`${cell.date}T00:00:00Z`));
+        break;
+      }
+    }
+    monthLabels.push(label === prev ? '' : label);
+    if (label) prev = label;
+  }
+
+  return { cells, weekCount, monthLabels };
 }
