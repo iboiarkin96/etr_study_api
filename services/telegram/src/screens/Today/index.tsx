@@ -1,10 +1,13 @@
 /**
- * Today screen — data-layer wiring (T-14).
+ * Today screen — composed from the data hooks (T-14) and the four hero
+ * blocks (T-15): streak ring, Yesterday-digest, 90-day heat-map,
+ * Recently-reviewed carousel.
  *
- * Composes two data blocks (schedule summary + due list) with their
- * loading / empty / error / success variants. Structural rendering only;
- * the visual richness (streak ring, Yesterday-digest, 90-day heat-map,
- * carousel) lands in T-15.
+ * Streak / yesterday / heat-map read from `useDailyStats`, which returns
+ * deterministic mock data until the matching backend endpoints ship
+ * (`/api/v1/me/stats`, `/api/v1/me/yesterday`, `/api/v1/schedule/history`).
+ * Every rich block is opt-out — the auth / due / summary flow keeps
+ * working when swapping the mock hook for a real one.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -15,8 +18,13 @@ import { DueCardsList } from './components/DueCardsList';
 import { DueCardsSkeleton } from './components/DueCardsSkeleton';
 import { EmptyToday } from './components/EmptyToday';
 import { ErrorInline } from './components/ErrorInline';
+import { HeatmapCalendar } from './components/HeatmapCalendar';
+import { RecentlyReviewedCarousel } from './components/RecentlyReviewedCarousel';
 import { ScheduleSummaryStrip } from './components/ScheduleSummaryStrip';
+import { StreakRing } from './components/StreakRing';
+import { YesterdayDigest } from './components/YesterdayDigest';
 import { useConspectusesDue } from './hooks/useConspectusesDue';
+import { useDailyStats } from './hooks/useDailyStats';
 import { useScheduleSummary } from './hooks/useScheduleSummary';
 
 export function Today() {
@@ -24,6 +32,7 @@ export function Today() {
   const auth = useAuth();
   const due = useConspectusesDue();
   const summary = useScheduleSummary();
+  const stats = useDailyStats();
 
   return (
     <main
@@ -78,6 +87,9 @@ export function Today() {
 
         {auth.status === 'authenticated' && (
           <>
+            <StreakRing data={stats.streak} />
+            <YesterdayDigest data={stats.yesterday} />
+
             {summary.isPending && <ScheduleSummaryStripSkeleton />}
             {summary.isError && (
               <ErrorInline
@@ -110,6 +122,9 @@ export function Today() {
               {due.data && due.data.length === 0 && <EmptyToday />}
               {due.data && due.data.length > 0 && <DueCardsList items={due.data} />}
             </section>
+
+            <RecentlyReviewedCarousel items={stats.recentlyReviewed} />
+            <HeatmapCalendar data={stats.heatmap} />
           </>
         )}
       </div>
