@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Screen map · Focus · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/ui-kit/components/tma-kit.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-20" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Screen · Focus</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Spec · Screen</span>
+          <span class="docs-pill docs-pill--accent">telegram · Focus</span>
+        </p>
+        <h1>Screen map: Focus</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">The SRS review flow — a chrome-free full-screen surface with one card at a time, tap to reveal, four grade buttons. This is the screen users spend the most seconds in per <a href="../../../../governance/adr/0038-tma-screen-dna-amie-signature.html">ADR 0038</a>, so its DNA follows the «single tap surface deserves a moment» pick. Sibling of the <a href="../../design/screens.html#s-focus">design narrative</a>; this is the machine-readable anatomy.</p>
+      </header>
+
+      <section aria-labelledby="phases-h">
+        <h2 id="phases-h">Session phases</h2>
+        <p class="docs-prose__meta">The whole screen is a state machine driven by <a href="../../../../../../telegram/src/screens/Focus/hooks/useFocusSession.ts"><code>useFocusSession</code></a>. Every visible variant maps to exactly one phase; nothing else can be on screen.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Phase</th>
+                <th scope="col">Trigger</th>
+                <th scope="col">What renders</th>
+                <th scope="col">Transitions to</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>loading</code></td><td><code>useConspectusesDue.isPending</code></td><td>Full-screen skeleton — card + 4 grade skeletons.</td><td><code>prompt</code> · <code>empty</code> · <code>error</code></td></tr>
+              <tr><td><code>error</code></td><td>Queue fetch failed</td><td>Inline error + Retry.</td><td>Any (on retry).</td></tr>
+              <tr><td><code>empty</code></td><td><code>due.data.length === 0</code></td><td>«Nothing to review» + Back to Today.</td><td>Terminal.</td></tr>
+              <tr><td><code>prompt</code></td><td>Card mounted, answer hidden</td><td>Card with title + pulsing «Tap to reveal». Grade buttons visible but disabled.</td><td><code>revealed</code> (tap or Space)</td></tr>
+              <tr><td><code>revealed</code></td><td>User tapped the card</td><td>Card with title + dense_paragraph + bullets. Grade buttons enabled.</td><td><code>grading</code> (tap grade or 1-4)</td></tr>
+              <tr><td><code>grading</code></td><td>Grade fired, mutation in flight</td><td>Grade buttons disabled; interval-preview surfaces when server ack lands.</td><td><code>prompt</code> next card · <code>complete</code> · stays on <code>gradeError</code></td></tr>
+              <tr><td><code>complete</code></td><td><code>index &gt;= total</code></td><td>Session summary — count, elapsed, «Back to Today» + «Start another session».</td><td>Terminal (or <code>loading</code> on restart).</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="preview-h">
+        <h2 id="preview-h">Live preview</h2>
+        <p>Rendered from the production Storybook. Two stories cover the visually-distinct end-states; the in-session phases (prompt / revealed / grading) share the same layout and are covered by the <a href="../../../../../../telegram/storybook-static/index.html?path=/story/focus-gradebutton--good">GradeButton stories</a>.</p>
+        <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start">
+          <div class="today-map__live" style="--live-h:720">
+            <div class="today-map__live-clip">
+              <iframe class="today-map__live-frame" src="../../../../../../telegram/storybook-static/iframe.html?id=screens-focus--prompt&amp;viewMode=story&amp;globals=theme:dark" title="Focus · prompt" loading="lazy"></iframe>
+            </div>
+            <p class="today-map__live-caption"><strong>prompt</strong> · <a href="../../../../../../telegram/storybook-static/index.html?path=/story/screens-focus--prompt" target="_blank" rel="noopener">open ↗</a></p>
+          </div>
+          <div class="today-map__live" style="--live-h:720">
+            <div class="today-map__live-clip">
+              <iframe class="today-map__live-frame" src="../../../../../../telegram/storybook-static/iframe.html?id=screens-focus--empty&amp;viewMode=story&amp;globals=theme:dark" title="Focus · empty" loading="lazy"></iframe>
+            </div>
+            <p class="today-map__live-caption"><strong>empty</strong> · <a href="../../../../../../telegram/storybook-static/index.html?path=/story/screens-focus--empty" target="_blank" rel="noopener">open ↗</a></p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="regions-h">
+        <h2 id="regions-h">Regions</h2>
+        <p class="docs-prose__meta">The screen is composed of three stacked regions plus two end-states. Every region names the React component that draws it, the data source that feeds it, and the CSS primitive that styles it.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Region</th>
+                <th scope="col">Rendered by</th>
+                <th scope="col">Data source</th>
+                <th scope="col">CSS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1 · Session progress</td>
+                <td><a href="../../../../../../telegram/src/screens/Focus/components/SessionProgress.tsx"><code>SessionProgress.tsx</code></a></td>
+                <td><code>session.total</code>, <code>session.index</code></td>
+                <td><code>primitives/focus.css</code> · <code>.tma-focus__progress</code> · <code>.tma-focus__dot[data-state]</code></td>
+              </tr>
+              <tr>
+                <td>2 · Meta (N/M counter + Exit)</td>
+                <td>Inline in <code>Focus/index.tsx</code></td>
+                <td><code>session.index</code>, <code>session.total</code>; navigate to <code>/</code> on exit</td>
+                <td><code>.tma-focus__meta</code> · <code>.tma-focus__exit</code></td>
+              </tr>
+              <tr>
+                <td>3 · Card body</td>
+                <td><a href="../../../../../../telegram/src/screens/Focus/components/FocusCard.tsx"><code>FocusCard.tsx</code></a> · <a href="../components/grade-button.html">GradeButton spec</a></td>
+                <td><code>session.current</code> (a <code>DueConspectus</code>); tap triggers <code>session.reveal()</code></td>
+                <td><code>.tma-focus__card[data-revealed]</code> · <code>.tma-focus__prompt</code> · <code>.tma-focus__reveal-hint</code> · <code>.tma-focus__answer</code></td>
+              </tr>
+              <tr>
+                <td>4 · Interval preview (post-grade)</td>
+                <td>Inline in <code>Focus/index.tsx</code></td>
+                <td><code>session.nextPreviewAt</code> (from <code>POST /actions/review</code> response)</td>
+                <td><code>.tma-focus__interval-preview</code></td>
+              </tr>
+              <tr>
+                <td>5 · Grade strip</td>
+                <td><a href="../../../../../../telegram/src/screens/Focus/components/GradeButton.tsx"><code>GradeButton.tsx</code></a> ×4 (Again · Hard · Good · Easy)</td>
+                <td>Shared <code>GRADES</code> array; press → <code>session.grade(grade)</code> → <code>useReviewConspectus.mutate</code></td>
+                <td><code>.tma-focus__grades</code> · <code>.tma-focus__grade[data-tone]</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="grade-map-h">
+        <h2 id="grade-map-h">Grade → tag mapping</h2>
+        <p>Server accepts three tags — <code>easy</code>, <code>hard</code>, <code>forgot</code>. The Focus screen shows four buttons because the SM-2 tradition of <em>Again · Hard · Good · Easy</em> matches how users self-report recall, and analytics needs the finer resolution. Until the server contract grows a fourth tag, <strong>Good collapses to <code>hard</code></strong> — both mean «keep in rotation soon-ish»; only <em>Easy</em> earns the big interval bump and only <em>Again</em> resets. The distinction is preserved client-side in <code>SessionSummary.perGrade</code> for analytics.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Grade</th>
+                <th scope="col">Hotkey</th>
+                <th scope="col">Tone</th>
+                <th scope="col">Server tag</th>
+                <th scope="col">SM-2 meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Again</td><td><code>1</code></td><td>danger</td><td><code>forgot</code></td><td>Complete failure — reset the schedule.</td></tr>
+              <tr><td>Hard</td><td><code>2</code></td><td>warn</td><td><code>hard</code></td><td>Got it but struggled — short next-interval.</td></tr>
+              <tr><td>Good</td><td><code>3</code></td><td>accent</td><td><code>hard</code></td><td>Normal recall — same interval treatment as Hard until 4-tag lands.</td></tr>
+              <tr><td>Easy</td><td><code>4</code></td><td>success</td><td><code>easy</code></td><td>Trivial — big interval bump.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="hooks-h">
+        <h2 id="hooks-h">Hooks &amp; endpoints</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Hook</th>
+                <th scope="col">Endpoint</th>
+                <th scope="col">Query / mutation key</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="../../../../../../telegram/src/screens/Today/hooks/useConspectusesDue.ts"><code>useConspectusesDue</code></a> (via <a href="../../../../../../telegram/src/screens/Focus/hooks/useFocusSession.ts"><code>useFocusSession</code></a>)</td>
+                <td><a href="../../../api/reference/conspectus/operations/get-api-v1-conspectuses-due.html"><code>GET /api/v1/conspectuses/due</code></a></td>
+                <td><code>['today.conspectuses.due', client_uuid]</code> — snapshot on first success, capped at <code>SESSION_CAP = 20</code></td>
+              </tr>
+              <tr>
+                <td><a href="../../../../../../telegram/src/screens/Today/hooks/useReviewConspectus.ts"><code>useReviewConspectus</code></a></td>
+                <td><a href="../../../api/reference/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>POST /api/v1/conspectuses/{uuid}/actions/review</code></a></td>
+                <td>Pessimistic — row leaves the due-list cache on <code>onSuccess</code>; response's <code>next_review_at</code> drives the interval preview.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="docs-prose__meta">Reuse note: the mutation hook is the same one Today's swipe primitive uses (T-16). Both screens share pessimistic semantics, so the queue is trustworthy across route changes.</p>
+      </section>
+
+      <section aria-labelledby="interactions-h">
+        <h2 id="interactions-h">Interactions</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Input</th>
+                <th scope="col">In phase</th>
+                <th scope="col">Effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Tap card</td><td><code>prompt</code></td><td>Reveal — advance to <code>revealed</code>.</td></tr>
+              <tr><td><code>Space</code></td><td><code>prompt</code></td><td>Same as tap card.</td></tr>
+              <tr><td>Tap grade button</td><td><code>revealed</code></td><td>Fire <code>POST /actions/review</code> with the mapped tag; advance to next card on success.</td></tr>
+              <tr><td><code>1</code> · <code>2</code> · <code>3</code> · <code>4</code></td><td><code>revealed</code></td><td>Same as tapping Again · Hard · Good · Easy respectively.</td></tr>
+              <tr><td><code>Esc</code> · tap ×</td><td>any</td><td>Navigate to <code>/</code> (Today). Session state is discarded; graded cards stay graded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="docs-prose__meta">Keyboard shortcuts only bind under <code>hover: hover</code> (desktop / Telegram Desktop). Mobile users get on-canvas buttons; no invisible affordances.</p>
+      </section>
+
+      <section aria-labelledby="files-h">
+        <h2 id="files-h">Files</h2>
+        <ul>
+          <li><strong>Screen:</strong> <code>services/telegram/src/screens/Focus/index.tsx</code></li>
+          <li><strong>Components:</strong> <code>services/telegram/src/screens/Focus/components/{FocusCard,GradeButton,SessionProgress}.tsx</code>, <code>grade-spec.ts</code></li>
+          <li><strong>Hook:</strong> <code>services/telegram/src/screens/Focus/hooks/useFocusSession.ts</code></li>
+          <li><strong>Kit CSS:</strong> <code>services/telegram/src/styles/primitives/focus.css</code></li>
+          <li><strong>i18n:</strong> <code>services/telegram/src/shared/i18n/{en,ru}.json</code> · <code>focus.*</code></li>
+          <li><strong>Router:</strong> <code>services/telegram/src/app/router.tsx</code> · route <code>/focus</code></li>
+        </ul>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-20</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Screen map: Focus created — T-18 SRS review flow. Documents the seven-phase state machine, the four-region composition, the Grade → tag mapping (with the temporary Good→hard collapse), and the hook/endpoint contracts. Reuses <code>useReviewConspectus</code> pessimistic semantics shipped in T-16.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#phases-h">Session phases</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#preview-h">Live preview</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#regions-h">Regions</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#grade-map-h">Grade → tag mapping</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#hooks-h">Hooks &amp; endpoints</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#interactions-h">Interactions</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#files-h">Files</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

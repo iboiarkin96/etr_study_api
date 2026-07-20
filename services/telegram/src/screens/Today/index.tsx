@@ -7,12 +7,14 @@
  * whole screen; only the auth gate hides the composed body entirely.
  */
 
+import { Link } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
 import { LangSwitch } from '../../shared/i18n/LangSwitch';
+import { Assemble } from './components/Assemble';
 import { DueCardsList, type CommitDirection } from './components/DueCardsList';
 import { DueCardsSkeleton } from './components/DueCardsSkeleton';
 import { EmptyToday } from './components/EmptyToday';
@@ -188,13 +190,22 @@ export function Today() {
 
         {auth.status === 'authenticated' && (
           <>
-            {stats.data && <StreakOrb data={stats.data.streak} dueToday={dueToday} size="lg" />}
+            {stats.isPending && <OrbSlotPlaceholder />}
+            {stats.data && (
+              <Assemble hero>
+                <StreakOrb data={stats.data.streak} dueToday={dueToday} size="lg" />
+              </Assemble>
+            )}
             {stats.isError && (
               <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
                 <ErrorInline label={t('today.error.streak')} onRetry={() => stats.refetch()} />
               </div>
             )}
-            {yesterday.data && <YesterdayDigest data={yesterday.data.yesterday} />}
+            {yesterday.data && (
+              <Assemble order={1}>
+                <YesterdayDigest data={yesterday.data.yesterday} />
+              </Assemble>
+            )}
             {yesterday.isError && (
               <div style={{ padding: '0 var(--tma-sp-4)' }}>
                 <ErrorInline
@@ -204,17 +215,34 @@ export function Today() {
               </div>
             )}
 
-            {summary.isPending && <ScheduleSummaryStripSkeleton />}
-            {summary.isError && (
-              <div style={{ padding: '0 var(--tma-sp-4)' }}>
-                <ErrorInline
-                  label={t('today.error.summary')}
-                  onRetry={() => summary.refetch()}
-                />
-              </div>
-            )}
-            {summary.data && <ScheduleSummaryStrip data={summary.data} />}
+            <Assemble order={2}>
+              {summary.isPending && <ScheduleSummaryStripSkeleton />}
+              {summary.isError && (
+                <div style={{ padding: '0 var(--tma-sp-4)' }}>
+                  <ErrorInline
+                    label={t('today.error.summary')}
+                    onRetry={() => summary.refetch()}
+                  />
+                </div>
+              )}
+              {summary.data && <ScheduleSummaryStrip data={summary.data} />}
+            </Assemble>
 
+            {due.data && due.data.length > 0 && (
+              <Assemble order={3}>
+                <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
+                  <Link
+                    to="/focus"
+                    className="tma-btn tma-btn--primary"
+                    style={{ display: 'block', textAlign: 'center' }}
+                  >
+                    {t('focus.start')}
+                  </Link>
+                </div>
+              </Assemble>
+            )}
+
+            <Assemble order={4}>
             <section className="tma-section" aria-labelledby="due-h">
               <div className="tma-section__header" id="due-h">
                 {t('today.dueSection')}
@@ -263,9 +291,18 @@ export function Today() {
                 </div>
               )}
             </section>
+            </Assemble>
 
-            <RecentlyReviewedPeek items={recentlyReviewed} />
-            {history.data && <HeatmapCalendar data={history.data.days} />}
+            {recentlyReviewed.length > 0 && (
+              <Assemble order={5}>
+                <RecentlyReviewedPeek items={recentlyReviewed} />
+              </Assemble>
+            )}
+            {history.data && (
+              <Assemble order={6}>
+                <HeatmapCalendar data={history.data.days} />
+              </Assemble>
+            )}
             {history.isError && (
               <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
                 <ErrorInline
@@ -278,6 +315,31 @@ export function Today() {
         )}
       </div>
     </main>
+  );
+}
+
+/** Reserves the orb's exact footprint while `/me/stats` loads, so the hero
+ * fades into place instead of pushing everything below it down. */
+function OrbSlotPlaceholder() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        margin: 'var(--tma-sp-6, 24px) 0 var(--tma-sp-4, 16px)',
+      }}
+    >
+      <div
+        style={{
+          width: 260,
+          aspectRatio: '1 / 1',
+          borderRadius: '50%',
+          background: 'var(--tma-surface-plate)',
+          opacity: 0.4,
+        }}
+      />
+    </div>
   );
 }
 

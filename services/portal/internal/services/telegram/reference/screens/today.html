@@ -193,7 +193,7 @@
           </div>
           <div class="docs-card docs-card--rail today-map__state">
             <h3 class="docs-card__title">Loading skeleton</h3>
-            <p>Region 4 shows <code>ScheduleSummaryStripSkeleton</code> (three grey plates) and region 6 shows <a href="../../../../../../telegram/src/screens/Today/components/DueCardsSkeleton.tsx"><code>DueCardsSkeleton</code></a>. Orb / yesterday / heat-map render nothing until their hook resolves.</p>
+            <p>Region 4 shows <code>ScheduleSummaryStripSkeleton</code> (three grey plates) and region 6 shows <a href="../../../../../../telegram/src/screens/Today/components/DueCardsSkeleton.tsx"><code>DueCardsSkeleton</code></a>. Yesterday / heat-map render nothing until their hook resolves. <strong>Region 2 is different:</strong> while <code>useMeStats</code> is pending, an <code>OrbSlotPlaceholder</code> reserves the orb's exact footprint (260 px circle, opacity 0.4) so the hero doesn't shove neighbours down when it lands — the orb fades into the reserved space via the <a href="../components/assemble.html">Assemble</a> hero entrance.</p>
           </div>
           <div class="docs-card docs-card--rail today-map__state">
             <h3 class="docs-card__title">Empty state</h3>
@@ -204,6 +204,34 @@
             <p>Region 4 and region 6 mount <a href="../../../../../../telegram/src/screens/Today/components/ErrorInline.tsx"><code>ErrorInline</code></a> with a Retry button that calls the hook's <code>refetch()</code>. Non-critical blocks (2, 3, 8, 9) fail silently — the region simply doesn't render.</p>
           </div>
         </div>
+      </section>
+
+      <section aria-labelledby="assemble-h">
+        <h2 id="assemble-h">Entrance choreography</h2>
+        <p>Cold-open on Today lasts ~1 s of orchestrated block entrances rather than a single paint. Every block above is wrapped in <a href="../components/assemble.html">Assemble</a> — the orb is the <em>hero</em> (fade + soft scale, in place), every other block flies up 32 px with a 70 ms stagger between slots so the top-down assembly rhythm reinforces the D1 hierarchy. Transform-only — each block reserves its layout space at mount, so nothing shifts as siblings settle in.</p>
+        <div class="docs-table-wrap" role="region" aria-label="Assemble slot → block → timing">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Slot</th>
+                <th scope="col">Pin</th>
+                <th scope="col">Block</th>
+                <th scope="col">Role</th>
+                <th scope="col">Delay → completes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>hero</code></td><td>2</td><td>StreakOrb</td><td>fade + scale 0.92→1</td><td>0 → 420 ms</td></tr>
+              <tr><td><code>1</code></td><td>3</td><td>YesterdayDigest</td><td>fly-up 32 px</td><td>250 → 630 ms</td></tr>
+              <tr><td><code>2</code></td><td>4</td><td>ScheduleSummaryStrip</td><td>fly-up 32 px</td><td>320 → 700 ms</td></tr>
+              <tr><td><code>3</code></td><td>—</td><td>Start Focus CTA</td><td>fly-up 32 px</td><td>390 → 770 ms</td></tr>
+              <tr><td><code>4</code></td><td>5, 6</td><td>Due section (list / empty)</td><td>fly-up 32 px</td><td>460 → 840 ms</td></tr>
+              <tr><td><code>5</code></td><td>7</td><td>RecentlyReviewedPeek</td><td>fly-up 32 px</td><td>530 → 910 ms</td></tr>
+              <tr><td><code>6</code></td><td>8, 9</td><td>HeatmapCalendar</td><td>fly-up 32 px</td><td>600 → 980 ms</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="docs-prose__meta">Fires once at mount — a block toggling between skeleton and data doesn't replay the animation (the <code>Assemble</code> wrapper stays mounted, the CSS <code>animation-fill-mode: both</code> holds the final state). Under <code>prefers-reduced-motion: reduce</code>, all animations collapse to instant: blocks appear in place with no delay. On the cold-network path, if <code>me/stats</code> arrives last, the orb assembles <em>after</em> lower blocks — the <code>OrbSlotPlaceholder</code> keeps the layout stable but the visible rhythm inverts briefly.</p>
       </section>
 
       <section aria-labelledby="hooks-h">
@@ -261,7 +289,7 @@
         <h2 id="files-h">Files</h2>
         <ul>
           <li><strong>Screen:</strong> <code>services/telegram/src/screens/Today/index.tsx</code></li>
-          <li><strong>Components:</strong> <code>services/telegram/src/screens/Today/components/{StreakOrb,YesterdayDigest,ScheduleSummaryStrip,DueCardsList,DueCardsSkeleton,EmptyToday,ErrorInline,RecentlyReviewedPeek,HeatmapCalendar}.tsx</code></li>
+          <li><strong>Components:</strong> <code>services/telegram/src/screens/Today/components/{Assemble,StreakOrb,YesterdayDigest,ScheduleSummaryStrip,DueCardsList,DueCardsSkeleton,EmptyToday,ErrorInline,RecentlyReviewedPeek,HeatmapCalendar}.tsx</code></li>
           <li><strong>Hooks:</strong> <code>services/telegram/src/screens/Today/hooks/{useConspectusesDue,useScheduleSummary,useMeStats,useMeYesterday,useScheduleHistory,useReviewConspectus}.ts</code></li>
           <li><strong>Kit CSS:</strong> <code>services/telegram/src/styles/primitives/{orb,heat,cell,peek,digest,section,swipe,tip}.css</code></li>
           <li><strong>i18n:</strong> <code>services/telegram/src/shared/i18n/{en,ru}.json</code> · <code>today.*</code>, <code>auth.*</code></li>
@@ -274,6 +302,11 @@
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-20</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Added «Entrance choreography» section documenting the new <a href="../components/assemble.html">Assemble</a> wrapper — cold-open now plays a ~1 s orchestrated arrival (orb as hero, six slotted blocks flying up with a 70 ms stagger). Loading skeleton card updated to mention the <code>OrbSlotPlaceholder</code> that keeps the orb's footprint stable while <code>useMeStats</code> resolves. Files list picks up <code>Assemble.tsx</code>. TOC gains the new anchor.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-20</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
@@ -303,6 +336,7 @@
     <ol class="docs-toc__list">
       <li class="docs-toc__item"><a class="docs-toc__link" href="#map-h">The map</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#alt-states-h">Alternate states</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#assemble-h">Entrance choreography</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#hooks-h">Hooks &amp; endpoints</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#interactions-h">Interactions</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#files-h">Files</a></li>

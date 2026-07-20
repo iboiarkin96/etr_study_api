@@ -31,6 +31,7 @@ import { type TFunction } from 'i18next';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { formatRelative } from '../../../shared/time/formatRelative';
 import type { DueConspectus } from '../hooks/useConspectusesDue';
 import type { ReviewTag } from '../hooks/useReviewConspectus';
 import {
@@ -197,7 +198,7 @@ function SwipeRow({ item, t, onCommit, committing }: RowProps) {
             <div className="tma-cell__title">{item.title}</div>
             {item.next_review_at && (
               <div className="tma-cell__subtitle">
-                {formatNextReview(item.next_review_at, t)}
+                {formatRelative(item.next_review_at, t)}
               </div>
             )}
           </div>
@@ -209,17 +210,4 @@ function SwipeRow({ item, t, onCommit, committing }: RowProps) {
       </motion.div>
     </motion.div>
   );
-}
-
-function formatNextReview(iso: string, t: TFunction): string {
-  const now = Date.now();
-  const target = new Date(iso).getTime();
-  const diffMs = target - now;
-  if (diffMs <= 0) return t('today.nextReview.now');
-  const minutes = Math.round(diffMs / 60_000);
-  if (minutes < 60) return t('today.nextReview.inMinutes', { count: minutes });
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return t('today.nextReview.inHours', { count: hours });
-  const days = Math.round(hours / 24);
-  return t('today.nextReview.inDays', { count: days });
 }

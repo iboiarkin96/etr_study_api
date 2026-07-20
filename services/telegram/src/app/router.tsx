@@ -19,6 +19,7 @@ import {
 } from '@tanstack/react-router';
 
 import { ConspectusDetail } from '../screens/ConspectusDetail';
+import { Focus } from '../screens/Focus';
 import { Today } from '../screens/Today';
 
 const rootRoute = createRootRoute({
@@ -37,7 +38,13 @@ const conspectusDetailRoute = createRoute({
   component: ConspectusDetail,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, conspectusDetailRoute]);
+const focusRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/focus',
+  component: Focus,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, conspectusDetailRoute, focusRoute]);
 
 const router = createRouter({ routeTree, defaultPreload: 'intent' });
 
