@@ -27,6 +27,7 @@ import { FocusCard } from './components/FocusCard';
 import { GradeButton } from './components/GradeButton';
 import { GRADES } from './components/grade-spec';
 import { SessionCompleteOrb } from './components/SessionCompleteOrb';
+import { SessionRecap } from './components/SessionRecap';
 import { resolveScenario } from './components/session-scenario';
 import { SessionProgress } from './components/SessionProgress';
 import { useFocusSession, type FocusGrade } from './hooks/useFocusSession';
@@ -142,7 +143,9 @@ export function Focus() {
             secondaryLabel={t('focus.restart')}
             onSecondary={session.restart}
             visual={<SessionCompleteOrb summary={session.summary} />}
-          />
+          >
+            <SessionRecap misses={session.sessionMisses} />
+          </FocusEndState>
         )}
 
         <AnimatePresence initial={false} mode="wait">
@@ -241,14 +244,17 @@ type EndStateProps = {
   secondaryLabel?: string;
   onSecondary?: () => void;
   visual?: React.ReactNode;
+  /** Slot between the copy and the exit buttons — the session debrief. */
+  children?: React.ReactNode;
 };
 
-function FocusEndState({ title, body, primaryLabel, onPrimary, secondaryLabel, onSecondary, visual }: EndStateProps) {
+function FocusEndState({ title, body, primaryLabel, onPrimary, secondaryLabel, onSecondary, visual, children }: EndStateProps) {
   return (
     <div className="tma-focus__end">
       {visual}
       <h1 className="tma-focus__end-title">{title}</h1>
       <p className="tma-focus__end-body">{body}</p>
+      {children}
       <div className="tma-focus__end-actions">
         <button type="button" className="tma-btn tma-btn--primary" onClick={onPrimary}>
           {primaryLabel}

@@ -14,11 +14,14 @@ type Props = {
   open: boolean;
   saving: boolean;
   errorText?: string | null;
+  /** Small labelled chip above the textarea — used by the Focus → Errors
+   * pre-fill hook to show which conspectus the miss will be linked to. */
+  contextLabel?: string | null;
   onClose: () => void;
   onSave: (message: string) => void;
 };
 
-export function MissSheet({ open, saving, errorText, onClose, onSave }: Props) {
+export function MissSheet({ open, saving, errorText, contextLabel, onClose, onSave }: Props) {
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const ref = useRef<HTMLTextAreaElement | null>(null);
@@ -35,10 +38,15 @@ export function MissSheet({ open, saving, errorText, onClose, onSave }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !saving) onClose();
+      if (e.key !== 'Escape') return;
+      // Capture-phase + stopPropagation: while the sheet is modal, Escape
+      // must only close the sheet — never leak to screen-level listeners
+      // (Focus binds Escape to «exit to Today» on the same window).
+      e.stopPropagation();
+      if (!saving) onClose();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [open, saving, onClose]);
 
   if (!open) return null;
@@ -116,6 +124,22 @@ export function MissSheet({ open, saving, errorText, onClose, onSave }: Props) {
         >
           {t('errors.sheet.title')}
         </h2>
+        {contextLabel && (
+          <p
+            style={{
+              margin: '0 0 var(--tma-sp-3)',
+              padding: 'var(--tma-sp-2) var(--tma-sp-3)',
+              fontSize: 'var(--tma-fs-small)',
+              color: 'var(--tma-text-secondary)',
+              background: 'color-mix(in oklab, var(--tma-tone-accent) 10%, transparent)',
+              borderLeft: '2px solid var(--tma-tone-accent)',
+              borderRadius: 'var(--tma-rad-2)',
+              lineHeight: 1.4,
+            }}
+          >
+            {contextLabel}
+          </p>
+        )}
         <textarea
           ref={ref}
           value={text}

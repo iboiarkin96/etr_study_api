@@ -161,3 +161,65 @@ describe('useFocusSession · session cap', () => {
     expect(hook.result.current.queue.length).toBe(SESSION_CAP);
   });
 });
+
+describe('useFocusSession · session misses (T-20a)', () => {
+  test('again + hard append to sessionMisses; good + easy do not', async () => {
+    const auth = makeAuth();
+    seed(auth, [
+      { conspectus_uuid: 'a', title: 'CAP theorem', schedule_revision: 1 },
+      { conspectus_uuid: 'b', title: 'SOLID', schedule_revision: 1 },
+      { conspectus_uuid: 'c', title: 'Kafka partitions', schedule_revision: 1 },
+      { conspectus_uuid: 'd', title: 'B-tree', schedule_revision: 1 },
+    ]);
+    (auth.api.POST as ApiFn).mockResolvedValue({
+      data: { conspectus_uuid: 'x', next_review_at: '2026-07-25T10:00:00Z' },
+      error: undefined,
+    });
+
+    const { hook } = renderSession(auth);
+    await waitFor(() => expect(hook.result.current.phase).toBe('prompt'));
+
+    // Card a → again (miss)
+    act(() => hook.result.current.reveal());
+    act(() => hook.result.current.grade('again'));
+    await waitFor(() => expect(hook.result.current.summary.graded).toBe(1));
+
+    // Card b → hard (miss)
+    act(() => hook.result.current.reveal());
+    act(() => hook.result.current.grade('hard'));
+    await waitFor(() => expect(hook.result.current.summary.graded).toBe(2));
+
+    // Card c → good (NOT a miss — client-only collapse to server hard, but user got it)
+    act(() => hook.result.current.reveal());
+    act(() => hook.result.current.grade('good'));
+    await waitFor(() => expect(hook.result.current.summary.graded).toBe(3));
+
+    // Card d → easy (NOT a miss)
+    act(() => hook.result.current.reveal());
+    act(() => hook.result.current.grade('easy'));
+    await waitFor(() => expect(hook.result.current.phase).toBe('complete'));
+
+    expect(hook.result.current.sessionMisses).toEqual([
+      { conspectus_uuid: 'a', title: 'CAP theorem', grade: 'again' },
+      { conspectus_uuid: 'b', title: 'SOLID', grade: 'hard' },
+    ]);
+  });
+
+  test('restart() clears sessionMisses', async () => {
+    const auth = makeAuth();
+    seed(auth, [{ conspectus_uuid: 'a', title: 'A', schedule_revision: 1 }]);
+    (auth.api.POST as ApiFn).mockResolvedValue({
+      data: { conspectus_uuid: 'a', next_review_at: '2026-07-25T10:00:00Z' },
+      error: undefined,
+    });
+
+    const { hook } = renderSession(auth);
+    await waitFor(() => expect(hook.result.current.phase).toBe('prompt'));
+    act(() => hook.result.current.reveal());
+    act(() => hook.result.current.grade('again'));
+    await waitFor(() => expect(hook.result.current.sessionMisses).toHaveLength(1));
+
+    act(() => hook.result.current.restart());
+    expect(hook.result.current.sessionMisses).toEqual([]);
+  });
+});

@@ -134,6 +134,26 @@
           </table>
         </div>
         <p class="docs-prose__meta">Accuracy = <code>(perGrade.easy + perGrade.good) / graded</code>. Ratios stay client-side — nothing about the outcome is persisted server-side yet. See <a href="../../../../../../telegram/src/screens/Focus/components/session-scenario.ts"><code>session-scenario.ts</code></a> for the pinned thresholds.</p>
+
+        <h3 id="recap-h">Session debrief (SessionRecap)</h3>
+        <p>Under the orb + copy, the complete state renders a <a href="../components/session-recap.html">SessionRecap</a> ledger — one row per card the user marked Again or Hard this round (from <code>useFocusSession.sessionMisses</code>). Each row quotes the ink of the grade that produced it (danger = Again, warn = Hard); tapping a row opens the shared <a href="../components/miss-sheet.html">MissSheet</a> composer pre-linked to that conspectus, so the miss note is saved via <code>POST /api/v1/errors</code> <strong>without leaving Focus</strong>. A saved row cools to success («✓ Noted») and locks for the rest of the session. Clean sweep → the ledger doesn't render at all; «Back to Today» stays the one hero action (D2 intact).</p>
+        <p class="docs-prose__meta">This replaces the earlier quiet «Log a miss →» link that deep-linked to <code>/errors?prefill_from=session</code> with only the <em>last</em> miss — a session with N misses could log exactly one. The deep-link stays a valid URL contract on <code>/errors</code>; the in-app producer is now the recap.</p>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:16px">
+          <div class="storybook-embed storybook-embed--component" style="--sb-h:360px;flex:0 0 auto;width:320px">
+            <div class="storybook-embed__frame">
+              <iframe class="storybook-embed__iframe" src="../../../../../../telegram/storybook-static/iframe.html?id=screens-focus-sessionrecap--two-misses&amp;viewMode=story&amp;globals=theme:dark" title="SessionRecap · two misses" loading="lazy"></iframe>
+              <div class="storybook-embed__loading" aria-hidden="true"><span>loading</span></div>
+            </div>
+            <div class="storybook-embed__caption"><strong>two misses</strong> · grade-toned rows, tap → MissSheet<a class="storybook-embed__link" href="../../../../../../telegram/storybook-static/index.html?path=/story/screens-focus-sessionrecap--two-misses" target="_blank" rel="noopener">open ↗</a></div>
+          </div>
+          <div class="storybook-embed storybook-embed--component" style="--sb-h:360px;flex:0 0 auto;width:320px">
+            <div class="storybook-embed__frame">
+              <iframe class="storybook-embed__iframe" src="../../../../../../telegram/storybook-static/iframe.html?id=screens-focus-sessionrecap--long-titles-and-untitled&amp;viewMode=story&amp;globals=theme:dark" title="SessionRecap · long titles" loading="lazy"></iframe>
+              <div class="storybook-embed__loading" aria-hidden="true"><span>loading</span></div>
+            </div>
+            <div class="storybook-embed__caption"><strong>long titles + untitled</strong> · single-line ellipsis, fallback title<a class="storybook-embed__link" href="../../../../../../telegram/storybook-static/index.html?path=/story/screens-focus-sessionrecap--long-titles-and-untitled" target="_blank" rel="noopener">open ↗</a></div>
+          </div>
+        </div>
       </section>
 
       <section aria-labelledby="regions-h">
@@ -253,7 +273,8 @@
               <tr><td><code>Space</code></td><td><code>prompt</code></td><td>Same as tap card.</td></tr>
               <tr><td>Tap grade button</td><td><code>revealed</code></td><td>Fire <code>POST /actions/review</code> with the mapped tag; advance to next card on success.</td></tr>
               <tr><td><code>1</code> · <code>2</code> · <code>3</code> · <code>4</code></td><td><code>revealed</code></td><td>Same as tapping Again · Hard · Good · Easy respectively.</td></tr>
-              <tr><td><code>Esc</code> · tap ×</td><td>any</td><td>Navigate to <code>/</code> (Today). Session state is discarded; graded cards stay graded.</td></tr>
+              <tr><td>Tap recap row</td><td><code>complete</code></td><td>Open the MissSheet composer pre-linked to that conspectus; save fires <code>POST /api/v1/errors</code>, row locks as «Noted».</td></tr>
+              <tr><td><code>Esc</code> · tap ×</td><td>any</td><td>Navigate to <code>/</code> (Today). Session state is discarded; graded cards stay graded. Exception: while the MissSheet is open, <code>Esc</code> is captured by the sheet and only closes it.</td></tr>
             </tbody>
           </table>
         </div>
@@ -264,7 +285,7 @@
         <h2 id="files-h">Files</h2>
         <ul>
           <li><strong>Screen:</strong> <code>services/telegram/src/screens/Focus/index.tsx</code></li>
-          <li><strong>Components:</strong> <code>services/telegram/src/screens/Focus/components/{FocusCard,GradeButton,SessionProgress}.tsx</code>, <code>grade-spec.ts</code></li>
+          <li><strong>Components:</strong> <code>services/telegram/src/screens/Focus/components/{FocusCard,GradeButton,SessionProgress,SessionRecap}.tsx</code>, <code>grade-spec.ts</code> · shared <code>Errors/components/MissSheet.tsx</code></li>
           <li><strong>Hook:</strong> <code>services/telegram/src/screens/Focus/hooks/useFocusSession.ts</code></li>
           <li><strong>Kit CSS:</strong> <code>services/telegram/src/styles/primitives/focus.css</code></li>
           <li><strong>i18n:</strong> <code>services/telegram/src/shared/i18n/{en,ru}.json</code> · <code>focus.*</code></li>
@@ -277,6 +298,11 @@
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-21</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Session debrief added — <code>SessionRecap</code> ledger on the complete state: one grade-toned row per Again/Hard card, tap opens the shared MissSheet pre-linked to the conspectus, saved rows lock as «Noted». Replaces the quiet «Log a miss →» link that could only log the <em>last</em> miss of the session. MissSheet now captures <code>Esc</code> so it can't leak into the screen-level exit binding.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-20</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

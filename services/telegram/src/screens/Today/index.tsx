@@ -13,6 +13,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
+import { useSearch } from '../Search/search-context';
 import { LangSwitch } from '../../shared/i18n/LangSwitch';
 import { Assemble } from './components/Assemble';
 import { DueCardsList, type CommitDirection } from './components/DueCardsList';
@@ -21,6 +22,7 @@ import { EmptyToday } from './components/EmptyToday';
 import { ErrorInline } from './components/ErrorInline';
 import { ErrorScreen } from './components/ErrorScreen';
 import { HeatmapCalendar } from './components/HeatmapCalendar';
+import { MissPeek } from './components/MissPeek';
 import { RecentlyReviewedPeek } from './components/RecentlyReviewedPeek';
 import { ScheduleSummaryStrip } from './components/ScheduleSummaryStrip';
 import { StreakOrb } from './components/StreakOrb';
@@ -34,6 +36,7 @@ import { useScheduleSummary } from './hooks/useScheduleSummary';
 
 export function Today() {
   const { t } = useTranslation();
+  const search = useSearch();
   const auth = useAuth();
   const due = useConspectusesDue();
   const summary = useScheduleSummary();
@@ -168,6 +171,28 @@ export function Today() {
               {t('today.greeting')}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => search.open()}
+            aria-label={t('search.open')}
+            style={{
+              appearance: 'none',
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--tma-text-tertiary)',
+              fontSize: 'var(--tma-fs-lead)',
+              padding: 'var(--tma-sp-2)',
+              borderRadius: 'var(--tma-rad-2)',
+              cursor: 'pointer',
+              minWidth: 44,
+              minHeight: 44,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ⌕
+          </button>
           <LangSwitch />
         </header>
 
@@ -215,7 +240,14 @@ export function Today() {
               </div>
             )}
 
+            {/* Weekly miss peek — quiet 1-line pill under YesterdayDigest.
+             * Renders only when at least one miss has been logged in the
+             * last 7 days; own Assemble slot so the stagger looks intentional. */}
             <Assemble order={2}>
+              <MissPeek />
+            </Assemble>
+
+            <Assemble order={3}>
               {summary.isPending && <ScheduleSummaryStripSkeleton />}
               {summary.isError && (
                 <div style={{ padding: '0 var(--tma-sp-4)' }}>
@@ -229,7 +261,7 @@ export function Today() {
             </Assemble>
 
             {due.data && due.data.length > 0 && (
-              <Assemble order={3}>
+              <Assemble order={4}>
                 <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
                   <Link
                     to="/focus"
@@ -242,7 +274,7 @@ export function Today() {
               </Assemble>
             )}
 
-            <Assemble order={4}>
+            <Assemble order={5}>
             <section className="tma-section" aria-labelledby="due-h">
               <div className="tma-section__header" id="due-h">
                 {t('today.dueSection')}
@@ -294,7 +326,7 @@ export function Today() {
             </Assemble>
 
             {history.data && (
-              <Assemble order={5}>
+              <Assemble order={6}>
                 {/* Tapping the heat-map opens the dedicated /schedule surface —
                  * the same 90-day window at full width, with the summary strip
                  * up top and screen-level empty state. The link wraps the whole
@@ -309,7 +341,7 @@ export function Today() {
               </Assemble>
             )}
             {recentlyReviewed.length > 0 && (
-              <Assemble order={6}>
+              <Assemble order={7}>
                 <RecentlyReviewedPeek items={recentlyReviewed} />
               </Assemble>
             )}

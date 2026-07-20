@@ -17,6 +17,16 @@ Prints the URL-encoded ``initData`` query string to stdout. Pipe it into a
 file, an env var, or paste it directly into ``mockTelegramEnv()`` in the Vite
 scaffold. ``--format env`` prints ``VITE_DEV_INIT_DATA=...`` for direct
 sourcing into ``services/telegram/.env.local``.
+
+Reset flow::
+
+    python tools/dev/sign_init_data.py \\
+        --user-id 42 --first-name Dev --format env --wipe-all
+
+``--wipe-all`` deletes every learner-owned row for the given Telegram user
+before signing (learning_errors → conspectus_review_logs → conspectuses, in
+FK order). Use to verify empty-state renders on Today / Errors / Schedule
+without spinning up a fresh account. Talks to Postgres via ``DATABASE_URL``.
 """
 
 from __future__ import annotations
@@ -90,6 +100,20 @@ def _build_parser() -> argparse.ArgumentParser:
             "'env': `VITE_DEV_INIT_DATA=<string>` line for sourcing into .env.local."
         ),
     )
+    parser.add_argument(
+        "--wipe-all",
+        action="store_true",
+        help=(
+            "Before signing, wipe every learner-owned row for the target "
+            "telegram user: learning_errors, conspectus_review_logs, and "
+            "conspectuses (dependent tables cascade). After the wipe every "
+            "empty state renders: /errors shows «no misses this week», Today's "
+            "MissPeek stays hidden, streak resets, heat-map goes flat, due "
+            "list empties. Rerun `seed_dev_data.py --telegram-user-id …` to "
+            "repopulate. Talks to Postgres directly via DATABASE_URL (default: "
+            "postgresql://study_app:study_app@localhost:5432/study_app)."
+        ),
+    )
     return parser
 
 
@@ -115,6 +139,70 @@ def _build_extra_fields(args: argparse.Namespace) -> dict[str, str]:
     return extras
 
 
+def _wipe_learner_data(telegram_user_id: int) -> None:
+    """Delete every learner-owned row for the given Telegram user, in FK order.
+
+    Uses psycopg directly (already a project dep) rather than SQLAlchemy so
+    this script stays close to stdlib. Order: learning_errors →
+    conspectus_review_logs → conspectuses. Each DELETE is scoped by
+    ``owner_client_uuid`` resolved from ``telegram_users``. If the telegram
+    user row doesn't exist yet, nothing to wipe — the message is printed and
+    the function returns without erroring.
+    """
+    try:
+        import psycopg
+    except ImportError:  # pragma: no cover — dev-only path
+        print(
+            "error: psycopg not installed. Install it in your venv or run "
+            "from services/api's .venv (make -C services/api setup).",
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from None
+
+    # DATABASE_URL uses the SQLAlchemy `postgresql+psycopg://` scheme in
+    # env/dev; psycopg's own connector wants plain `postgresql://`. Strip the
+    # dialect prefix if present so the same env var works for both callers.
+    dsn = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://study_app:study_app@localhost:5432/study_app",
+    ).replace("postgresql+psycopg://", "postgresql://", 1)
+
+    with psycopg.connect(dsn, autocommit=False) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT client_uuid FROM telegram_users WHERE telegram_user_id = %s",
+            (telegram_user_id,),
+        )
+        row = cur.fetchone()
+        if row is None:
+            print(
+                f"[wipe] no telegram_users row for telegram_user_id={telegram_user_id} "
+                "— nothing to wipe (user will be created on first successful login)."
+            )
+            return
+        owner = row[0]
+
+        cur.execute("DELETE FROM learning_errors WHERE owner_client_uuid = %s", (owner,))
+        errors_deleted = cur.rowcount
+        cur.execute(
+            "DELETE FROM conspectus_review_logs "
+            "WHERE conspectus_uuid IN "
+            "(SELECT conspectus_uuid FROM conspectuses WHERE owner_client_uuid = %s)",
+            (owner,),
+        )
+        reviews_deleted = cur.rowcount
+        cur.execute("DELETE FROM conspectuses WHERE owner_client_uuid = %s", (owner,))
+        conspectuses_deleted = cur.rowcount
+        conn.commit()
+
+    print(
+        f"[wipe] owner={owner} · "
+        f"learning_errors={errors_deleted} · "
+        f"conspectus_review_logs={reviews_deleted} · "
+        f"conspectuses={conspectuses_deleted}",
+        file=sys.stderr,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """Parse CLI args, sign one ``initData``, print it to stdout.
 
@@ -132,6 +220,9 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
+
+    if args.wipe_all:
+        _wipe_learner_data(args.user_id)
 
     auth_date = args.auth_date if args.auth_date is not None else int(time.time())
     encoded = build_init_data_for_tests(

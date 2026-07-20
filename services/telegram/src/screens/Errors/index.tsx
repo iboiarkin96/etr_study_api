@@ -17,8 +17,8 @@
  * reply on retry never creates a duplicate row (ADR 0006).
  */
 
-import { useNavigate } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
@@ -33,13 +33,33 @@ import { useErrors } from './hooks/useErrors';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
+type Prefill = { conspectus_uuid: string; title: string | null };
+
 export function Errors() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const search = useSearch({ from: '/errors' });
   const auth = useAuth();
   const list = useErrors();
   const create = useCreateError();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [prefill, setPrefill] = useState<Prefill | null>(null);
+
+  /** Consume `?prefill_from=session&conspectus_uuid=…` exactly once per mount:
+   * open the sheet, store the linked conspectus for the POST body, then strip
+   * the params so a page-refresh doesn't re-open the sheet on the same row. */
+  const consumedRef = useRef(false);
+  useEffect(() => {
+    if (consumedRef.current) return;
+    if (search.prefill_from !== 'session' || !search.conspectus_uuid) return;
+    consumedRef.current = true;
+    setPrefill({
+      conspectus_uuid: search.conspectus_uuid,
+      title: search.conspectus_title ?? null,
+    });
+    setSheetOpen(true);
+    void navigate({ to: '/errors', search: {}, replace: true });
+  }, [search.prefill_from, search.conspectus_uuid, search.conspectus_title, navigate]);
 
   const weeklyCount = useMemo(() => {
     if (!list.data) return 0;
@@ -70,11 +90,19 @@ export function Errors() {
 
   const submit = (message: string) => {
     create.mutate(
-      { message },
+      { message, conspectus_uuid: prefill?.conspectus_uuid ?? null },
       {
-        onSuccess: () => setSheetOpen(false),
+        onSuccess: () => {
+          setSheetOpen(false);
+          setPrefill(null);
+        },
       },
     );
+  };
+
+  const openBlankSheet = () => {
+    setPrefill(null);
+    setSheetOpen(true);
   };
 
   const hasItems = (list.data?.length ?? 0) > 0;
@@ -146,7 +174,7 @@ export function Errors() {
           </div>
           <button
             type="button"
-            onClick={() => setSheetOpen(true)}
+            onClick={openBlankSheet}
             aria-label={t('errors.add')}
             style={{
               appearance: 'none',
@@ -275,7 +303,7 @@ export function Errors() {
                   <button
                     type="button"
                     className="tma-btn tma-btn--primary tma-btn--block"
-                    onClick={() => setSheetOpen(true)}
+                    onClick={openBlankSheet}
                   >
                     {t('errors.cta')} →
                   </button>
@@ -290,9 +318,17 @@ export function Errors() {
         open={sheetOpen}
         saving={create.isPending}
         errorText={create.isError ? t('errors.error.save') : null}
+        contextLabel={
+          prefill
+            ? prefill.title
+              ? t('errors.sheet.contextTitle', { title: prefill.title })
+              : t('errors.sheet.contextGeneric')
+            : null
+        }
         onClose={() => {
           if (!create.isPending) {
             setSheetOpen(false);
+            setPrefill(null);
             create.reset();
           }
         }}

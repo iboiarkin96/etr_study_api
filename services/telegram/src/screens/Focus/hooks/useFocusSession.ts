@@ -67,6 +67,15 @@ export type FocusPhase =
   | 'grading'
   | 'complete';
 
+/** A single card the user marked Again/Hard in this session — kept in-order,
+ * newest last. Consumed by the completion screen's «Log a miss» hook: the
+ * last entry becomes the pre-filled conspectus link on `/errors`. */
+export type SessionMiss = {
+  conspectus_uuid: string;
+  title: string | null;
+  grade: Extract<FocusGrade, 'again' | 'hard'>;
+};
+
 export type FocusSession = {
   phase: FocusPhase;
   queue: readonly DueConspectus[];
@@ -74,6 +83,10 @@ export type FocusSession = {
   index: number;
   total: number;
   summary: SessionSummary;
+  /** Cards the user marked Again or Hard in this session, in grade order. Good
+   * counts as recall (client-only distinction — server tag is still `hard`);
+   * Easy is obviously not a miss. Reset on `restart()`. */
+  sessionMisses: readonly SessionMiss[];
   nextPreviewAt: string | null;
   /** The last grade the user tried to submit — persists through the error
    * banner so `retryLastGrade` can re-send the same intent. */
@@ -96,6 +109,7 @@ export function useFocusSession(): FocusSession {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [summary, setSummary] = useState<SessionSummary>(emptySummary);
+  const [sessionMisses, setSessionMisses] = useState<readonly SessionMiss[]>([]);
   const [nextPreviewAt, setNextPreviewAt] = useState<string | null>(null);
   const [lastAttempt, setLastAttempt] = useState<FocusGrade | null>(null);
   /** Bump on restart so the queue-snapshot effect re-fires and pulls fresh
@@ -165,6 +179,15 @@ export function useFocusSession(): FocusSession {
               perTag: { ...s.perTag, [tag]: s.perTag[tag] + 1 },
               elapsedMs: Date.now() - startedAtRef.current,
             }));
+            if (g === 'again' || g === 'hard') {
+              // Snapshot the card that was just missed so the completion
+              // screen's «Log a miss» hook can pre-fill /errors with the
+              // right conspectus_uuid + title.
+              setSessionMisses((prev) => [
+                ...prev,
+                { conspectus_uuid: current.conspectus_uuid, title: current.title ?? null, grade: g },
+              ]);
+            }
             setNextPreviewAt(data?.next_review_at ?? null);
             setIndex((i) => i + 1);
             setRevealed(false);
@@ -184,6 +207,7 @@ export function useFocusSession(): FocusSession {
     setIndex(0);
     setRevealed(false);
     setSummary(emptySummary());
+    setSessionMisses([]);
     setNextPreviewAt(null);
     setLastAttempt(null);
     startedAtRef.current = Date.now();
@@ -202,6 +226,7 @@ export function useFocusSession(): FocusSession {
     index,
     total,
     summary,
+    sessionMisses,
     nextPreviewAt,
     lastAttempt,
     reveal,
