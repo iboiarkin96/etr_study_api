@@ -293,14 +293,24 @@ export function Today() {
             </section>
             </Assemble>
 
-            {recentlyReviewed.length > 0 && (
+            {history.data && (
               <Assemble order={5}>
-                <RecentlyReviewedPeek items={recentlyReviewed} />
+                {/* Tapping the heat-map opens the dedicated /schedule surface —
+                 * the same 90-day window at full width, with the summary strip
+                 * up top and screen-level empty state. The link wraps the whole
+                 * block so it reads as a single tap-target for screen readers. */}
+                <Link
+                  to="/schedule"
+                  style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
+                  aria-label={t('today.heatmap.openSchedule')}
+                >
+                  <HeatmapCalendar data={history.data.days} />
+                </Link>
               </Assemble>
             )}
-            {history.data && (
+            {recentlyReviewed.length > 0 && (
               <Assemble order={6}>
-                <HeatmapCalendar data={history.data.days} />
+                <RecentlyReviewedPeek items={recentlyReviewed} />
               </Assemble>
             )}
             {history.isError && (

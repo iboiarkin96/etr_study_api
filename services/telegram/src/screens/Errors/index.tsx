@@ -1,0 +1,332 @@
+/**
+ * Errors screen — the miss log, T-20.
+ *
+ * Append-only journal of retrieval misses — the ETR methodology's memory
+ * of «where I fell down». Composition follows Screen 05 of ADR 0038:
+ *
+ *   - back-header (X to Today · title · «+» add button)
+ *   - Assemble choreography:
+ *       hero  = MissOrb (weekly count as the breathing element)
+ *       order 1 = eyebrow + list title
+ *       order 2 = MissLog rows (or empty card)
+ *       order 3 = «Log a miss» primary CTA (D2)
+ *   - MissSheet slides up over everything when the user adds a miss;
+ *     mutation is optimistic (prepend + rollback on error).
+ *
+ * Idempotency-Key auto-injected by the client middleware — a lost 4G
+ * reply on retry never creates a duplicate row (ADR 0006).
+ */
+
+import { useNavigate } from '@tanstack/react-router';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { useAuth } from '../../app/use-auth';
+import { Assemble } from '../Today/components/Assemble';
+import { ErrorInline } from '../Today/components/ErrorInline';
+import { ErrorScreen } from '../Today/components/ErrorScreen';
+import { MissLog } from './components/MissLog';
+import { MissOrb } from './components/MissOrb';
+import { MissSheet } from './components/MissSheet';
+import { useCreateError } from './hooks/useCreateError';
+import { useErrors } from './hooks/useErrors';
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function Errors() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const auth = useAuth();
+  const list = useErrors();
+  const create = useCreateError();
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const weeklyCount = useMemo(() => {
+    if (!list.data) return 0;
+    const cutoff = Date.now() - WEEK_MS;
+    return list.data.filter((r) => new Date(r.created_at).getTime() >= cutoff).length;
+  }, [list.data]);
+
+  if (auth.status === 'error') {
+    return (
+      <main
+        className="tma-scope"
+        data-density="regular"
+        style={{
+          minHeight: 'var(--tma-viewport-h, 100dvh)',
+          background: 'var(--tma-surface-canvas)',
+          color: 'var(--tma-text-primary)',
+        }}
+      >
+        <ErrorScreen
+          title={t('auth.error.title')}
+          body={t('auth.error.body')}
+          ctaLabel={t('auth.error.cta')}
+          onRetry={() => auth.retry()}
+        />
+      </main>
+    );
+  }
+
+  const submit = (message: string) => {
+    create.mutate(
+      { message },
+      {
+        onSuccess: () => setSheetOpen(false),
+      },
+    );
+  };
+
+  const hasItems = (list.data?.length ?? 0) > 0;
+
+  return (
+    <main
+      className="tma-scope"
+      data-density="regular"
+      style={{
+        minHeight: 'var(--tma-viewport-h, 100dvh)',
+        paddingTop: 'var(--tma-safe-top, 0)',
+        paddingBottom: 'var(--tma-safe-bottom, 0)',
+        background: 'var(--tma-surface-canvas)',
+        color: 'var(--tma-text-primary)',
+      }}
+    >
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--tma-sp-5) 0 var(--tma-sp-12)' }}>
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--tma-sp-3)',
+            padding: '0 var(--tma-sp-4)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => void navigate({ to: '/' })}
+            aria-label={t('errors.back')}
+            style={{
+              appearance: 'none',
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--tma-text-tertiary)',
+              fontSize: 'var(--tma-fs-lead)',
+              padding: 'var(--tma-sp-2)',
+              borderRadius: 'var(--tma-rad-2)',
+              cursor: 'pointer',
+              minWidth: 44,
+              minHeight: 44,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ‹
+          </button>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h1
+              style={{
+                fontSize: 'var(--tma-fs-h3)',
+                fontWeight: 'var(--tma-fw-bold)',
+                margin: 0,
+                color: 'var(--tma-text-primary)',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {t('errors.title')}
+            </h1>
+            <p
+              style={{
+                margin: 'var(--tma-sp-1) 0 0',
+                fontSize: 'var(--tma-fs-small)',
+                color: 'var(--tma-text-tertiary)',
+              }}
+            >
+              {t('errors.subtitle')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            aria-label={t('errors.add')}
+            style={{
+              appearance: 'none',
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--tma-tone-accent)',
+              fontSize: 24,
+              lineHeight: 1,
+              padding: 'var(--tma-sp-2)',
+              borderRadius: 'var(--tma-rad-2)',
+              cursor: 'pointer',
+              minWidth: 44,
+              minHeight: 44,
+              fontWeight: 'var(--tma-fw-semi)',
+            }}
+          >
+            ＋
+          </button>
+        </header>
+
+        {auth.status === 'authenticating' && (
+          <div
+            role="status"
+            style={{
+              margin: 'var(--tma-sp-6) var(--tma-sp-4) 0',
+              padding: 'var(--tma-sp-4)',
+              borderRadius: 'var(--tma-rad-3)',
+              background: 'var(--tma-surface-plate)',
+              fontSize: 'var(--tma-fs-small)',
+              color: 'var(--tma-text-tertiary)',
+              boxShadow: 'var(--tma-elev-1)',
+            }}
+          >
+            {t('auth.connecting')}
+          </div>
+        )}
+
+        {auth.status === 'authenticated' && (
+          <>
+            {/* Orb — hero (fade + scale into place). */}
+            <Assemble hero>
+              <MissOrb count={weeklyCount} />
+            </Assemble>
+
+            {/* Eyebrow + list header (slot 1). */}
+            {list.data && (
+              <Assemble order={1}>
+                <div
+                  style={{
+                    padding: '0 var(--tma-sp-4)',
+                    textAlign: 'center',
+                    marginBottom: 'var(--tma-sp-3)',
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 10,
+                      color: 'var(--tma-text-tertiary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.12em',
+                      fontWeight: 'var(--tma-fw-semi)',
+                    }}
+                  >
+                    {t('errors.eyebrow')}
+                  </p>
+                  <p
+                    style={{
+                      margin: 'var(--tma-sp-1) 0 0',
+                      fontSize: 'var(--tma-fs-body)',
+                      color: 'var(--tma-text-primary)',
+                      fontWeight: 'var(--tma-fw-semi)',
+                    }}
+                  >
+                    {hasItems
+                      ? t('errors.listTitle', { count: weeklyCount })
+                      : t('errors.empty.title')}
+                  </p>
+                </div>
+              </Assemble>
+            )}
+
+            {list.isPending && <MissLogSkeleton />}
+            {list.isError && (
+              <div style={{ padding: 'var(--tma-sp-4)' }}>
+                <ErrorInline label={t('errors.error.load')} onRetry={() => list.refetch()} />
+              </div>
+            )}
+
+            {/* Rows or empty card (slot 2). */}
+            {list.data && (
+              <Assemble order={2}>
+                <div style={{ padding: '0 var(--tma-sp-4)' }}>
+                  {hasItems ? (
+                    <MissLog items={list.data} />
+                  ) : (
+                    <div
+                      style={{
+                        padding: 'var(--tma-sp-5)',
+                        borderRadius: 'var(--tma-rad-3)',
+                        background: 'var(--tma-surface-plate)',
+                        boxShadow: 'var(--tma-elev-1)',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 'var(--tma-fs-small)',
+                          color: 'var(--tma-text-tertiary)',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {t('errors.empty.body')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Assemble>
+            )}
+
+            {/* Primary CTA (slot 3, D2 — the one hero action). */}
+            {list.data && (
+              <Assemble order={3}>
+                <div style={{ padding: 'var(--tma-sp-5) var(--tma-sp-4) 0' }}>
+                  <button
+                    type="button"
+                    className="tma-btn tma-btn--primary tma-btn--block"
+                    onClick={() => setSheetOpen(true)}
+                  >
+                    {t('errors.cta')} →
+                  </button>
+                </div>
+              </Assemble>
+            )}
+          </>
+        )}
+      </div>
+
+      <MissSheet
+        open={sheetOpen}
+        saving={create.isPending}
+        errorText={create.isError ? t('errors.error.save') : null}
+        onClose={() => {
+          if (!create.isPending) {
+            setSheetOpen(false);
+            create.reset();
+          }
+        }}
+        onSave={submit}
+      />
+    </main>
+  );
+}
+
+function MissLogSkeleton() {
+  const row = (i: number) => (
+    <div
+      key={i}
+      style={{
+        height: 40,
+        borderRadius: 'var(--tma-rad-2)',
+        background: 'var(--tma-surface-plate)',
+        opacity: 0.6,
+      }}
+    />
+  );
+  return (
+    <div
+      style={{
+        margin: 'var(--tma-sp-4) var(--tma-sp-4) 0',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--tma-sp-2)',
+      }}
+      aria-label="Miss log loading"
+    >
+      {row(0)}
+      {row(1)}
+      {row(2)}
+    </div>
+  );
+}

@@ -16,7 +16,7 @@
 
 import { useNavigate } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
@@ -26,8 +26,11 @@ import { formatRelative } from '../../shared/time/formatRelative';
 import { FocusCard } from './components/FocusCard';
 import { GradeButton } from './components/GradeButton';
 import { GRADES } from './components/grade-spec';
+import { SessionCompleteOrb } from './components/SessionCompleteOrb';
+import { resolveScenario } from './components/session-scenario';
 import { SessionProgress } from './components/SessionProgress';
 import { useFocusSession, type FocusGrade } from './hooks/useFocusSession';
+import type { SessionSummary } from './hooks/useFocusSession';
 
 const ACTIVE_PHASES = new Set(['prompt', 'revealed', 'grading']);
 
@@ -132,12 +135,13 @@ export function Focus() {
         {session.phase === 'empty' && <FocusEndState title={t('focus.empty.title')} body={t('focus.empty.body')} primaryLabel={t('focus.backToToday')} onPrimary={() => void navigate({ to: '/' })} />}
         {session.phase === 'complete' && (
           <FocusEndState
-            title={t('focus.complete.title')}
-            body={t('focus.complete.body', { count: session.summary.graded, seconds: Math.round(session.summary.elapsedMs / 1000) })}
+            title={t(completeTitleKey(session.summary))}
+            body={t(completeBodyKey(session.summary), { count: session.summary.graded, seconds: Math.round(session.summary.elapsedMs / 1000) })}
             primaryLabel={t('focus.backToToday')}
             onPrimary={() => void navigate({ to: '/' })}
             secondaryLabel={t('focus.restart')}
             onSecondary={session.restart}
+            visual={<SessionCompleteOrb summary={session.summary} />}
           />
         )}
 
@@ -236,11 +240,13 @@ type EndStateProps = {
   onPrimary: () => void;
   secondaryLabel?: string;
   onSecondary?: () => void;
+  visual?: React.ReactNode;
 };
 
-function FocusEndState({ title, body, primaryLabel, onPrimary, secondaryLabel, onSecondary }: EndStateProps) {
+function FocusEndState({ title, body, primaryLabel, onPrimary, secondaryLabel, onSecondary, visual }: EndStateProps) {
   return (
     <div className="tma-focus__end">
+      {visual}
       <h1 className="tma-focus__end-title">{title}</h1>
       <p className="tma-focus__end-body">{body}</p>
       <div className="tma-focus__end-actions">
@@ -255,4 +261,15 @@ function FocusEndState({ title, body, primaryLabel, onPrimary, secondaryLabel, o
       </div>
     </div>
   );
+}
+
+/** Pick scenario-specific title/body keys so celebrate / solid / rough
+ * each carry copy that matches the visual. */
+function completeTitleKey(summary: SessionSummary): 'focus.complete.celebrate.title' | 'focus.complete.solid.title' | 'focus.complete.rough.title' {
+  const s = resolveScenario(summary);
+  return `focus.complete.${s}.title` as const;
+}
+function completeBodyKey(summary: SessionSummary): 'focus.complete.celebrate.body' | 'focus.complete.solid.body' | 'focus.complete.rough.body' {
+  const s = resolveScenario(summary);
+  return `focus.complete.${s}.body` as const;
 }

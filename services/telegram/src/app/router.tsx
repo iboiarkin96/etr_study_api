@@ -4,10 +4,12 @@
  * Routes:
  *   * `/` — Today (T-11 → T-15d)
  *   * `/conspectus/$conspectus_uuid` — Conspectus detail (T-17)
+ *   * `/focus` — Focus (T-18)
+ *   * `/schedule` — Schedule (T-19)
+ *   * `/errors` — Errors miss log (T-20)
  *
- * Additional routes (Focus, Conspectus list, Schedule, Errors, Search,
- * Profile, Onboarding) land in T-16 / T-18 / T-19 / T-20 / T-22 / T-23
- * / T-24 per the epic's design contract.
+ * Additional routes (Conspectus list, Search, Profile, Onboarding) land
+ * in T-22 / T-23 / T-24 per the epic's design contract.
  */
 
 import {
@@ -19,7 +21,9 @@ import {
 } from '@tanstack/react-router';
 
 import { ConspectusDetail } from '../screens/ConspectusDetail';
+import { Errors } from '../screens/Errors';
 import { Focus } from '../screens/Focus';
+import { Schedule } from '../screens/Schedule';
 import { Today } from '../screens/Today';
 
 const rootRoute = createRootRoute({
@@ -44,7 +48,25 @@ const focusRoute = createRoute({
   component: Focus,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, conspectusDetailRoute, focusRoute]);
+const scheduleRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/schedule',
+  component: Schedule,
+});
+
+const errorsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/errors',
+  component: Errors,
+});
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  conspectusDetailRoute,
+  focusRoute,
+  scheduleRoute,
+  errorsRoute,
+]);
 
 const router = createRouter({ routeTree, defaultPreload: 'intent' });
 
