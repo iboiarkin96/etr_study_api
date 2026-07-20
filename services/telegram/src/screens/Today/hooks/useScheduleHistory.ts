@@ -14,7 +14,11 @@ import type { components } from '../../../shared/api/schema';
 
 export type ScheduleHistory = components['schemas']['ScheduleHistoryResponse'];
 
-export function useScheduleHistory(days = 90) {
+/** Canonical days-window for the heat-map — shared with mutations that need
+ * to invalidate the exact query key (3-tuple, not just the 2-tuple prefix). */
+export const HISTORY_DAYS = 90;
+
+export function useScheduleHistory(days = HISTORY_DAYS) {
   const auth = useAuth();
 
   return useQuery({

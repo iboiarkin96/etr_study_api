@@ -7,11 +7,13 @@
  * whole screen; only the auth gate hides the composed body entirely.
  */
 
+import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
 import { LangSwitch } from '../../shared/i18n/LangSwitch';
-import { DueCardsList } from './components/DueCardsList';
+import { DueCardsList, type CommitDirection } from './components/DueCardsList';
 import { DueCardsSkeleton } from './components/DueCardsSkeleton';
 import { EmptyToday } from './components/EmptyToday';
 import { ErrorInline } from './components/ErrorInline';
@@ -24,6 +26,7 @@ import { YesterdayDigest } from './components/YesterdayDigest';
 import { useConspectusesDue } from './hooks/useConspectusesDue';
 import { useMeStats } from './hooks/useMeStats';
 import { useMeYesterday } from './hooks/useMeYesterday';
+import { useReviewConspectus } from './hooks/useReviewConspectus';
 import { useScheduleHistory } from './hooks/useScheduleHistory';
 import { useScheduleSummary } from './hooks/useScheduleSummary';
 
@@ -35,6 +38,49 @@ export function Today() {
   const stats = useMeStats();
   const yesterday = useMeYesterday();
   const history = useScheduleHistory(90);
+  const review = useReviewConspectus();
+
+  /** Per-row in-flight direction — drives the swipe-off animation on the
+   * matching SwipeRow, independent of the useMutation's singleton state. */
+  const [committing, setCommitting] = useState<Map<string, CommitDirection>>(new Map());
+  /** Uuids whose review request failed — the inline banner names them. */
+  const [failedUuids, setFailedUuids] = useState<Set<string>>(new Set());
+
+  const handleReview = useCallback(
+    (uuid: string, tag: 'easy' | 'hard' | 'forgot', direction: CommitDirection, expected: number | null) => {
+      setCommitting((m) => {
+        const n = new Map(m);
+        n.set(uuid, direction);
+        return n;
+      });
+      setFailedUuids((s) => {
+        if (!s.has(uuid)) return s;
+        const n = new Set(s);
+        n.delete(uuid);
+        return n;
+      });
+      review.mutate(
+        { conspectus_uuid: uuid, tag, expected_schedule_revision: expected },
+        {
+          onError: () =>
+            setFailedUuids((s) => {
+              const n = new Set(s);
+              n.add(uuid);
+              return n;
+            }),
+          onSettled: () =>
+            setCommitting((m) => {
+              const n = new Map(m);
+              n.delete(uuid);
+              return n;
+            }),
+        },
+      );
+    },
+    [review],
+  );
+
+  const clearFailed = useCallback(() => setFailedUuids(new Set()), []);
 
   const dueToday = summary.data?.due_now ?? due.data?.length ?? 0;
   const recentlyReviewed = (due.data ?? []).slice(0, 5);
@@ -186,8 +232,36 @@ export function Today() {
                   />
                 </div>
               )}
-              {due.data && due.data.length === 0 && <EmptyToday />}
-              {due.data && due.data.length > 0 && <DueCardsList items={due.data} />}
+              {due.data && (
+                <AnimatePresence initial={false} mode="wait">
+                  {due.data.length === 0 ? (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <EmptyToday />
+                    </motion.div>
+                  ) : (
+                    <motion.div key="list" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
+                      <DueCardsList
+                        items={due.data}
+                        committing={committing}
+                        onReview={handleReview}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
+              {failedUuids.size > 0 && (
+                <div style={{ padding: 'var(--tma-sp-2) var(--tma-sp-4) 0' }}>
+                  <ErrorInline
+                    label={t('today.reviewError', { count: failedUuids.size })}
+                    onRetry={clearFailed}
+                  />
+                </div>
+              )}
             </section>
 
             <RecentlyReviewedPeek items={recentlyReviewed} />

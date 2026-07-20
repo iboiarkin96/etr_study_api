@@ -1,0 +1,123 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * swipe.css — Horizontal swipe-to-review primitive for due cards.
+ *
+ * Anatomy:
+ *   .tma-swipe                 — row container, isolates the two layers
+ *   .tma-swipe__bg             — full-bleed action bar behind the row;
+ *                                tone flips via `data-tone` (accent/warn/danger)
+ *   .tma-swipe__bg-label       — the tag copy on the action bar,
+ *                                justified to the swipe direction
+ *   .tma-swipe__fg             — the draggable foreground; wraps `.tma-cell`
+ *   .tma-swipe[data-armed-dir] — which side is currently armed (right|left)
+ *   .tma-swipe[data-committing]— visual acknowledgement of the fired review
+ *
+ * Motion is CSS-cheap; framer-motion drives x transforms on `.tma-swipe__fg`
+ * from the React side. Under `prefers-reduced-motion: reduce` we suppress
+ * every keyframe here — the swipe still works, but no colour throb.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.tma-swipe {
+  position: relative;
+  isolation: isolate;
+  /* No `overflow: hidden` here — the fg's commit-flyoff crosses the row edge.
+     The parent `.tma-section__plate--overflow` owns the clip. */
+}
+
+/* Row separator matches the `.tma-cell::after` inset (past the icon column)
+   so due-list dividers look identical to every other `.tma-cell` list in
+   the app. Anchored on the wrapper because each swipe row's cell is its
+   only child, so `.tma-cell:not(:last-child)::after` never matches. */
+.tma-swipe:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--tma-sp-4) + 32px + var(--tma-sp-3));
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--tma-border-regular);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tma-swipe__bg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--tma-sp-4);
+  font-size: var(--tma-fs-small);
+  font-weight: var(--tma-fw-semi);
+  letter-spacing: var(--tma-tr-wide);
+  text-transform: uppercase;
+  color: var(--tma-text-primary);
+  background: color-mix(in oklab, var(--tma-swipe-ink, var(--tma-tone-accent)) 22%, transparent);
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--tma-dur-fast) var(--tma-ease-out),
+    background-color var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-swipe__bg[data-tone='accent'] { --tma-swipe-ink: var(--tma-tone-accent); }
+.tma-swipe__bg[data-tone='warn']   { --tma-swipe-ink: var(--tma-tone-warn); }
+.tma-swipe__bg[data-tone='danger'] { --tma-swipe-ink: var(--tma-tone-danger); }
+
+.tma-swipe__bg--right { justify-content: flex-start; }
+.tma-swipe__bg--left  { justify-content: flex-end; }
+
+/* Reveal only the bar matching the current drag direction — never both. */
+.tma-swipe[data-armed-dir='right'] .tma-swipe__bg--right,
+.tma-swipe[data-armed-dir='left']  .tma-swipe__bg--left {
+  opacity: 1;
+}
+
+/* Intensify the trailing bar past the commit threshold. */
+.tma-swipe[data-armed-dir='right'][data-commit='true'] .tma-swipe__bg--right,
+.tma-swipe[data-armed-dir='left'][data-commit='true']  .tma-swipe__bg--left {
+  background: color-mix(in oklab, var(--tma-swipe-ink, var(--tma-tone-accent)) 45%, transparent);
+}
+
+.tma-swipe__bg-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tma-sp-2);
+}
+
+.tma-swipe__bg-glyph {
+  width: var(--tma-sp-6);
+  height: var(--tma-sp-6);
+  border-radius: var(--tma-rad-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--tma-swipe-ink, var(--tma-tone-accent)) 55%, transparent);
+  color: var(--tma-text-inverse);
+  font-size: var(--tma-fs-small);
+  font-weight: var(--tma-fw-bold);
+}
+
+.tma-swipe__fg {
+  position: relative;
+  z-index: 1;
+  background: var(--tma-surface-plate);
+  will-change: transform;
+  user-select: none;
+  /* touch-action must live on the pointer target, not the wrapper — it does
+     NOT inherit. Without this the browser can steal horizontal gestures for
+     back-nav / scroll on iOS + Chromium mobile and cancel the drag mid-way. */
+  touch-action: pan-y;
+}
+
+/* Framer-motion drives x + opacity inline during commit; the CSS keeps only
+   the interaction lockout (opacity is animated on the motion.div side). */
+.tma-swipe[data-committing='true'] .tma-swipe__fg {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tma-swipe__bg,
+  .tma-swipe__fg {
+    transition: none;
+  }
+}

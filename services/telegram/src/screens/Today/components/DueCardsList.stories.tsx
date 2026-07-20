@@ -15,6 +15,7 @@ function due(over: Partial<DueConspectus>): DueConspectus {
     title: 'Untitled',
     slot: 'A',
     next_review_at: '2026-07-19T09:00:00Z',
+    schedule_revision: 1,
     ...over,
   } as DueConspectus;
 }
@@ -24,7 +25,17 @@ const meta = {
   component: DueCardsList,
   parameters: {
     layout: 'padded',
-    docs: { description: { component: "Due cards — slot-tinted rows routing to the conspectus detail. Docs: reference/screens/today.html (pin 6)." } },
+    docs: {
+      description: {
+        component:
+          'Due cards — slot-tinted rows routing to the conspectus detail. Swipe right → easy, swipe left → hard, swipe left further → forgot (fires `onReview`). Docs: reference/screens/today.html (pin 6) · reference/components/due-cards-list.html.',
+      },
+    },
+  },
+  args: {
+    onReview: (uuid, tag) => {
+      console.info('[DueCardsList] onReview', { uuid, tag });
+    },
   },
 } satisfies Meta<typeof DueCardsList>;
 

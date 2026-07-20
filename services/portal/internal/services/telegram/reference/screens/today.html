@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
   <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/ui-kit/components/tma-kit.css">
 </head>
-<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-20" data-role="architect">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -133,13 +133,14 @@
 
             <article class="docs-card docs-card--rail today-map__card" id="pin-6">
               <span class="today-map__card-pin">6</span>
-              <h3 class="docs-card__title">Due card row</h3>
+              <h3 class="docs-card__title">Due card row · swipe primitive</h3>
               <dl class="today-map__meta">
-                <dt>Rendered by</dt><dd><a href="../../../../../../telegram/src/screens/Today/components/DueCardsList.tsx"><code>DueCardsList.tsx</code></a> (row = <code>&lt;Link&gt;.tma-cell</code>)</dd>
+                <dt>Rendered by</dt><dd><a href="../../../../../../telegram/src/screens/Today/components/DueCardsList.tsx"><code>DueCardsList.tsx</code></a> · <a href="../components/due-cards-list.html">component spec</a></dd>
                 <dt>Data source</dt><dd><code>useConspectusesDue()</code> → <a href="../../../api/reference/conspectus/operations/get-api-v1-conspectuses-due.html"><code>GET /api/v1/conspectuses/due</code></a></dd>
-                <dt>CSS</dt><dd><code>src/styles/primitives/cell.css</code> · <code>.tma-cell</code>, <code>.tma-cell__icon</code></dd>
+                <dt>Mutation</dt><dd><code>useReviewConspectus()</code> → <a href="../../../api/reference/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>POST /api/v1/conspectuses/{uuid}/actions/review</code></a></dd>
+                <dt>CSS</dt><dd><code>src/styles/primitives/swipe.css</code> · <code>.tma-swipe</code>, <code>.tma-swipe__bg</code>, <code>.tma-swipe__fg</code>; row body still <code>.tma-cell</code> from <code>primitives/cell.css</code></dd>
               </dl>
-              <p class="today-map__note">Row = one conspectus with <code>next_review_at ≤ now</code>. Icon tone maps ETR slot (A → accent, B → info, C → success, D → warn). Subtitle formatted by <code>formatNextReview</code> — «now» / «in Nm» / «in Nh» / «in Nd».</p>
+              <p class="today-map__note">Row = one conspectus with <code>next_review_at ≤ now</code>. Icon tone maps ETR slot (A → accent, B → info, C → success, D → warn). Subtitle formatted by <code>formatNextReview</code> — «now» / «in Nm» / «in Nh» / «in Nd». <strong>Interaction:</strong> tap opens detail; horizontal drag past the commit threshold fires a review — swipe right → <code>easy</code>, swipe left → <code>hard</code>, swipe left further → <code>forgot</code>. The row optimistically leaves the list on commit (see mutation hook <code>onMutate</code>); on server error it snaps back and the parent surfaces <code>ErrorInline</code>.</p>
               <a class="today-map__back" href="#">Back to overview</a>
             </article>
 
@@ -222,6 +223,7 @@
               <tr><td>3</td><td><code>useMeYesterday</code></td><td><a href="../../../api/reference/me/operations/get-api-v1-me-yesterday.html"><code>GET /api/v1/me/yesterday</code></a></td><td><code>['me.yesterday', client_uuid]</code></td></tr>
               <tr><td>4</td><td><code>useScheduleSummary</code></td><td><a href="../../../api/reference/schedule/operations/get-api-v1-schedule-summary.html"><code>GET /api/v1/schedule/summary</code></a></td><td><code>['today.schedule.summary', client_uuid]</code></td></tr>
               <tr><td>6, 7</td><td><code>useConspectusesDue</code></td><td><a href="../../../api/reference/conspectus/operations/get-api-v1-conspectuses-due.html"><code>GET /api/v1/conspectuses/due</code></a></td><td><code>['today.conspectuses.due', client_uuid]</code></td></tr>
+              <tr><td>6</td><td><code>useReviewConspectus</code> (mutation)</td><td><a href="../../../api/reference/conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>POST /api/v1/conspectuses/{uuid}/actions/review</code></a></td><td>optimistic on <code>['today.conspectuses.due', client_uuid]</code>; invalidates summary + stats + history on success</td></tr>
               <tr><td>8, 9</td><td><code>useScheduleHistory(90)</code></td><td><a href="../../../api/reference/schedule/operations/get-api-v1-schedule-history.html"><code>GET /api/v1/schedule/history</code></a></td><td><code>['schedule.history', client_uuid, 90]</code></td></tr>
             </tbody>
           </table>
@@ -243,8 +245,9 @@
             </thead>
             <tbody>
               <tr><td>6, 7</td><td>Tap due card</td><td>Route to <code>/conspectus/$conspectus_uuid</code>.</td></tr>
-              <tr><td>6</td><td>Swipe right on due card</td><td>Mark reviewed with <code>tag: easy</code>.</td></tr>
-              <tr><td>6</td><td>Swipe left on due card</td><td>Snooze with <code>tag: forgot</code> or <code>tag: hard</code>.</td></tr>
+              <tr><td>6</td><td>Swipe right past +100 px</td><td>Fire <code>POST …/actions/review</code> with <code>tag: easy</code>. Card leaves the list optimistically.</td></tr>
+              <tr><td>6</td><td>Swipe left past −100 px</td><td>Fire the same endpoint with <code>tag: hard</code>. Same optimistic path.</td></tr>
+              <tr><td>6</td><td>Swipe left past −200 px (deep)</td><td>Fire with <code>tag: forgot</code> — the «snooze» outcome per the ETR contract. Danger tone action bar.</td></tr>
               <tr><td>2</td><td>Tap streak orb</td><td>Route to Profile.</td></tr>
               <tr><td>8</td><td>Tap heat-map cell</td><td>Route to <code>/schedule?day=YYYY-MM-DD</code>.</td></tr>
               <tr><td>—</td><td>Pull to refresh</td><td>Invalidate all five query keys and trigger a medium-impact haptic.</td></tr>
@@ -259,8 +262,8 @@
         <ul>
           <li><strong>Screen:</strong> <code>services/telegram/src/screens/Today/index.tsx</code></li>
           <li><strong>Components:</strong> <code>services/telegram/src/screens/Today/components/{StreakOrb,YesterdayDigest,ScheduleSummaryStrip,DueCardsList,DueCardsSkeleton,EmptyToday,ErrorInline,RecentlyReviewedPeek,HeatmapCalendar}.tsx</code></li>
-          <li><strong>Hooks:</strong> <code>services/telegram/src/screens/Today/hooks/{useConspectusesDue,useScheduleSummary,useMeStats,useMeYesterday,useScheduleHistory}.ts</code></li>
-          <li><strong>Kit CSS:</strong> <code>services/telegram/src/styles/primitives/{orb,heat,cell,peek,digest,section,tip}.css</code></li>
+          <li><strong>Hooks:</strong> <code>services/telegram/src/screens/Today/hooks/{useConspectusesDue,useScheduleSummary,useMeStats,useMeYesterday,useScheduleHistory,useReviewConspectus}.ts</code></li>
+          <li><strong>Kit CSS:</strong> <code>services/telegram/src/styles/primitives/{orb,heat,cell,peek,digest,section,swipe,tip}.css</code></li>
           <li><strong>i18n:</strong> <code>services/telegram/src/shared/i18n/{en,ru}.json</code> · <code>today.*</code>, <code>auth.*</code></li>
           <li><strong>Server logic:</strong> <code>services/api/app/services/me_service.py</code> · <code>services/api/app/services/schedule_service.py</code> · <code>services/api/app/api/v1/{me,schedule,conspectus}.py</code></li>
         </ul>
@@ -271,6 +274,11 @@
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-20</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">T-16 · added the swipe interaction to pin 6 (Due card row) — the row is now a <code>.tma-swipe</code> primitive with two colour-coded action bars behind a draggable <code>.tma-swipe__fg</code>. Interactions table + hooks table now name <code>useReviewConspectus</code> and the three-tag gesture map (right → <code>easy</code>, left → <code>hard</code>, deep-left → <code>forgot</code>). Files block picks up <code>swipe.css</code> + the new mutation hook.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-19</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
