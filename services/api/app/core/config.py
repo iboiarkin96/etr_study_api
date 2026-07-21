@@ -146,6 +146,9 @@ class Settings:
         log_format: ``text`` (human-readable) or ``json`` (NDJSON for log platforms).
         log_service_name: Stable service identifier in JSON logs (``service`` field).
         cors_allow_origins: Allowed CORS origin URLs.
+        cors_allow_origin_regex: Optional regex matched against ``Origin`` when a request's
+            origin is not in ``cors_allow_origins``. Useful in dev for accepting rotating
+            tunnel hostnames (e.g. ``https://.*\\.trycloudflare\\.com``). Forbidden in prod.
         cors_allow_methods: Allowed CORS HTTP methods (or ``*``).
         cors_allow_headers: Allowed CORS request header names.
         cors_expose_headers: Response header names browsers may read on cross-origin responses.
@@ -182,6 +185,7 @@ class Settings:
     log_format: str
     log_service_name: str
     cors_allow_origins: tuple[str, ...]
+    cors_allow_origin_regex: str
     cors_allow_methods: tuple[str, ...]
     cors_allow_headers: tuple[str, ...]
     cors_expose_headers: tuple[str, ...]
@@ -286,6 +290,7 @@ def get_settings() -> Settings:
             os.getenv("CORS_ALLOW_ORIGINS", "http://127.0.0.1:3000,http://localhost:3000"),
             ("http://127.0.0.1:3000", "http://localhost:3000"),
         ),
+        cors_allow_origin_regex=os.getenv("CORS_ALLOW_ORIGIN_REGEX", "").strip(),
         cors_allow_methods=_split_csv(
             os.getenv("CORS_ALLOW_METHODS", "GET,POST,PUT,PATCH,DELETE,OPTIONS"), ("*",)
         ),
@@ -353,6 +358,8 @@ def get_settings() -> Settings:
             for marker in localhost_markers
         ):
             raise ValueError("CORS_ALLOW_ORIGINS must not contain localhost in prod.")
+        if settings.cors_allow_origin_regex:
+            raise ValueError("CORS_ALLOW_ORIGIN_REGEX must be empty in prod.")
         if settings.log_level == "DEBUG":
             raise ValueError("LOG_LEVEL=DEBUG is not allowed in prod.")
 

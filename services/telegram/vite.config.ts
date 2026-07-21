@@ -7,6 +7,8 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: false,
+    host: true,
+    allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.ngrok.io'],
   },
   build: {
     target: 'es2022',

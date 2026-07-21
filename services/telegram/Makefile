@@ -35,13 +35,14 @@ NPM ?= npm
 VITE_PORT ?= 5173
 SB_PORT ?= 6006
 
-.PHONY: help install install-if-missing dev build preview typecheck lint lint-fix test gen-api verify clean storybook storybook-build test-visual test-visual-update test-a11y install-browsers
+.PHONY: help install install-if-missing dev build preview typecheck lint lint-fix test gen-api verify clean storybook storybook-build test-visual test-visual-update test-a11y install-browsers tunnel
 
 help:
 	@echo "services/telegram — make targets"
 	@echo ""
 	@echo "  make install       npm ci (deterministic install from package-lock.json)"
 	@echo "  make dev           Vite dev server on http://localhost:$(VITE_PORT)"
+	@echo "  make tunnel        Cloudflare quick tunnel over :$(VITE_PORT) (for @BotFather)"
 	@echo "  make build         Vite production build → dist/"
 	@echo "  make preview       Serve the built bundle locally"
 	@echo "  make typecheck     tsc --noEmit"
@@ -77,6 +78,9 @@ install-if-missing:
 dev: install-if-missing
 	@printf "$(ICON_STEP) %s\n" "Starting Vite dev server on http://localhost:$(VITE_PORT)…"
 	@$(NPM) run dev -- --port $(VITE_PORT)
+
+tunnel:
+	@TMA_TUNNEL_PORT=$(VITE_PORT) ./scripts/tunnel.sh
 
 build: install-if-missing
 	@printf "$(ICON_STEP) %s\n" "Building production bundle…"

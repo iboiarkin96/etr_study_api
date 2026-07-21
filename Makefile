@@ -38,7 +38,8 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
         docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check docs-storybook-check \
         catalog-render catalog-render-check serve open sync-staging \
         visual-test visual-test-update \
-        tma-dev tma-storybook-dev tma-typecheck tma-lint tma-test tma-build tma-verify
+        tma-dev tma-storybook-dev tma-typecheck tma-lint tma-test tma-build tma-verify \
+        tma-tunnel-up tma-tunnel-down
 
 # ──────────────────────────────────────────────
 # Help
@@ -53,6 +54,10 @@ help:
 	@echo "                                prometheus, grafana, blackbox, elasticsearch, kibana,"
 	@echo "                                filebeat + local portal server + telegram Vite dev"
 	@echo "                                + telegram Storybook. Prints all URLs at end."
+	@echo "    TMA_TUNNEL=1 make up        Same, plus Cloudflare quick tunnels for :8000 and :5173"
+	@echo "                                (auto-wires VITE_API_BASE_URL, copies front URL to clipboard)."
+	@echo "    make tma-tunnel-up          Bring the two Cloudflare quick tunnels up (needs make up first)"
+	@echo "    make tma-tunnel-down        Stop the tunnels, drop VITE_API_BASE_URL from .env.local"
 	@echo "    make down                   Stop everything (preserves docker volumes)"
 	@echo "    make down-volumes           Same as down, but WIPES prometheus/grafana/es data"
 	@echo "    make status                 Show which services are up and where to reach them"
@@ -267,6 +272,10 @@ up:
 		sleep 0.5; \
 		printf "  $(ICON_OK) telegram Storybook started (PID $$(cat .runtime/tma-storybook.pid), log: .runtime/tma-storybook.log)\n"; \
 	fi
+	@if [ "$${TMA_TUNNEL:-0}" = "1" ]; then \
+		printf "$(ICON_INFO) %s\n" "[+] Cloudflare quick tunnels (TMA_TUNNEL=1)"; \
+		$(MAKE) --no-print-directory tma-tunnel-up; \
+	fi
 	@printf "\n"
 	@printf "  $(COLOR_GREEN)Stack is up.$(COLOR_RESET) Open any of these in a browser:\n\n"
 	@printf "    $(COLOR_CYAN)API$(COLOR_RESET)        http://127.0.0.1:8000        (Swagger UI at /docs, ReDoc at /redoc)\n"
@@ -322,6 +331,10 @@ down:
 		rm -f .runtime/tma-storybook.pid; \
 	else \
 		printf "  $(ICON_INFO) telegram Storybook not running\n"; \
+	fi
+	@if [ -f .runtime/tma-tunnel-api.pid ] || [ -f .runtime/tma-tunnel-front.pid ]; then \
+		printf "$(ICON_INFO) %s\n" "[+] Cloudflare quick tunnels"; \
+		services/telegram/scripts/tunnels-down.sh; \
 	fi
 	@printf "$(ICON_INFO) %s\n" "[4/4] api + monitoring (docker compose down)"
 	@docker compose down
@@ -565,6 +578,18 @@ tma-storybook-check:
 	else \
 		printf "$(ICON_ERR) storybook-static/ missing — run 'make tma-storybook' first\n"; exit 1; \
 	fi
+
+# Cloudflare quick tunnels for the TMA dev loop — publish the local API and
+# Vite dev server over HTTPS so Telegram can load the Mini App on device.
+# tma-tunnel-up assumes `make up` already brought api + Vite up; it writes
+# VITE_API_BASE_URL into services/telegram/.env.local, restarts Vite so the
+# env takes effect, and copies the frontend URL to the clipboard for pasting
+# into @BotFather → Menu Button.
+tma-tunnel-up:
+	@services/telegram/scripts/tunnels-up.sh
+
+tma-tunnel-down:
+	@services/telegram/scripts/tunnels-down.sh
 
 # ──────────────────────────────────────────────
 # Release pipeline — ADR 0034 dual-Pages

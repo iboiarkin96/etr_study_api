@@ -293,6 +293,7 @@ async def request_logging_middleware(request: Request, call_next) -> Response:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list[str](settings.cors_allow_origins),
+    allow_origin_regex=settings.cors_allow_origin_regex or None,
     allow_credentials=settings.cors_allow_credentials,
     allow_methods=list[str](settings.cors_allow_methods),
     allow_headers=list[str](settings.cors_allow_headers),
