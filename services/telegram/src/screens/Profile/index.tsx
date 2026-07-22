@@ -28,6 +28,7 @@ import { ErrorInline } from '../Today/components/ErrorInline';
 import { StreakOrb } from '../Today/components/StreakOrb';
 import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
+import { useToast } from '../../shared/toast/toast';
 import { useConspectusesDue } from '../Today/hooks/useConspectusesDue';
 import { useMeStats } from '../Today/hooks/useMeStats';
 import { AchievementChips } from './components/AchievementChips';
@@ -50,6 +51,7 @@ export function Profile() {
   // T-25d — native BackButton returns to Today.
   useTelegramBackButton(() => void navigate({ to: '/' }));
   const isTelegramClient = useIsTelegramClient();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -71,7 +73,15 @@ export function Profile() {
   const saveNudge = (draft: { enabled: boolean; time: string }) => {
     reminder.mutate(
       { reminder_enabled: draft.enabled ? 1 : 0, reminder_at: draft.time },
-      { onSuccess: () => setSheetOpen(false) },
+      {
+        onSuccess: () => {
+          setSheetOpen(false);
+          toast({ tone: 'success', message: t('profile.toast.nudgeSaved') });
+        },
+        onError: () => {
+          toast({ tone: 'error', message: t('profile.toast.nudgeFailed') });
+        },
+      },
     );
   };
 

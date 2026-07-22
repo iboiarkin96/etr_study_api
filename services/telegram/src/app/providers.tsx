@@ -14,6 +14,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { ToastProvider, Toaster } from '../shared/toast/toast';
 import { AuthGate } from './AuthGate';
 import { AuthProvider } from './auth-provider';
 import { Router } from './router';
@@ -41,9 +42,16 @@ export function Providers() {
       <ThemeProvider>
         <ViewportProvider>
           <AuthProvider>
-            <AuthGate>
-              <Router />
-            </AuthGate>
+            <ToastProvider>
+              <AuthGate>
+                <Router />
+              </AuthGate>
+              {/* Toaster mounts inside ToastProvider AND inside AuthProvider so
+                * a mutation callback can push a toast during the auth handshake
+                * itself. Kept above AuthGate so the toast survives a gate flip
+                * (splash → app) without unmount. */}
+              <Toaster />
+            </ToastProvider>
           </AuthProvider>
         </ViewportProvider>
       </ThemeProvider>

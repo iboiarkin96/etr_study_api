@@ -25,6 +25,7 @@ import type { ErrorsSearch } from '../../app/router';
 import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { haptic } from '../../shared/haptics/haptics';
+import { useToast } from '../../shared/toast/toast';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
 import { MissLog } from './components/MissLog';
@@ -53,6 +54,7 @@ export function Errors() {
   // T-25d — native BackButton returns to Today.
   useTelegramBackButton(() => void navigate({ to: '/' }));
   const isTelegramClient = useIsTelegramClient();
+  const { toast } = useToast();
 
   /** Consume `?prefill_from=session&conspectus_uuid=…` exactly once per mount:
    * open the sheet, store the linked conspectus for the POST body, then strip
@@ -86,9 +88,11 @@ export function Errors() {
           haptic('notifySuccess');
           setSheetOpen(false);
           setPrefill(null);
+          toast({ tone: 'success', message: t('errors.toast.saved') });
         },
         onError: () => {
           haptic('notifyError');
+          toast({ tone: 'error', message: t('errors.toast.saveFailed') });
         },
       },
     );
