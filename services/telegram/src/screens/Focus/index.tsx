@@ -23,6 +23,11 @@ import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { haptic } from '../../shared/haptics/haptics';
+import {
+  DURATION_FAST_MS,
+  SPRING_MEDIUM,
+  durationSec,
+} from '../../shared/motion/tokens';
 import { ErrorInline } from '../Today/components/ErrorInline';
 import { formatRelative } from '../../shared/time/formatRelative';
 import { FocusCard } from './components/FocusCard';
@@ -186,8 +191,8 @@ export function Focus() {
               key={session.current.conspectus_uuid}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12, transition: { duration: 0.18 } }}
-              transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+              exit={{ opacity: 0, y: -12, transition: { duration: durationSec(DURATION_FAST_MS) } }}
+              transition={SPRING_MEDIUM}
               className="tma-focus__stage"
             >
               <FocusCard

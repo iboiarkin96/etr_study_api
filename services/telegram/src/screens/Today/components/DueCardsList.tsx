@@ -32,6 +32,11 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { haptic, type HapticTone } from '../../../shared/haptics/haptics';
+import {
+  DURATION_BASE_MS,
+  SPRING_STIFF,
+  durationSec,
+} from '../../../shared/motion/tokens';
 import { formatRelative } from '../../../shared/time/formatRelative';
 import type { DueConspectus } from '../hooks/useConspectusesDue';
 import type { ReviewTag } from '../hooks/useReviewConspectus';
@@ -159,7 +164,7 @@ function SwipeRow({ item, t, onCommit, committing }: RowProps) {
       exit={
         reduce
           ? { opacity: 0 }
-          : { opacity: 0, height: 0, transition: { duration: 0.25 } }
+          : { opacity: 0, height: 0, transition: { duration: durationSec(DURATION_BASE_MS) } }
       }
       layout="position"
     >
@@ -196,7 +201,7 @@ function SwipeRow({ item, t, onCommit, committing }: RowProps) {
             ? { x: committing * window.innerWidth, opacity: 0 }
             : { x: 0 }
         }
-        transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+        transition={SPRING_STIFF}
       >
         <Link
           to="/conspectus/$conspectus_uuid"

@@ -57,8 +57,9 @@ export const DURATION_BASE_MS = 220;
 
 /** The «watchable» transition — reserved for the Focus card flip and
  *  full-screen route transitions where the movement itself is content.
- *  Under 450 ms so it never blocks a rapid tap-tap flow. */
-export const DURATION_SLOW_MS = 450;
+ *  Pinned at 550 ms because dropping FocusCard's flip below that reads
+ *  as «snap», not as a controlled reveal. */
+export const DURATION_SLOW_MS = 550;
 
 /** Framer expresses durations in seconds, DOM APIs in milliseconds.
  *  These helpers keep unit conversions on ONE line instead of every
@@ -68,9 +69,11 @@ export const durationMs = (sec: number): number => sec * 1000;
 
 /** The glassy card-flip easing — asymmetric cubic-bezier that leans
  *  into the halfway point (peak visual interest at ~55 % progress).
- *  Same numbers ship on FocusCard's 180° rotation. */
-export const EASE_GLASS = [0.7, 0, 0.3, 1] as const;
+ *  Same numbers ship on FocusCard's 180° rotation. Typed as a mutable
+ *  `number[]` (rather than `as const` readonly-tuple) so callsites can
+ *  pass it straight into framer's `ease` prop without a spread. */
+export const EASE_GLASS: number[] = [0.7, 0, 0.3, 1];
 
 /** Standard ease-out for exits — quick handoff to the next state
  *  without the classic material-design bounce-back. */
-export const EASE_OUT = [0.2, 0, 0, 1] as const;
+export const EASE_OUT: number[] = [0.2, 0, 0, 1];

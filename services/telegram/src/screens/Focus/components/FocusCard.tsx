@@ -30,6 +30,12 @@ import { motion, useReducedMotion } from 'framer-motion';
 import type { KeyboardEvent } from 'react';
 
 import { haptic } from '../../../shared/haptics/haptics';
+import {
+  DURATION_SLOW_MS,
+  EASE_GLASS,
+  SPRING_MEDIUM,
+  durationSec,
+} from '../../../shared/motion/tokens';
 import type { DueConspectus } from '../../Today/hooks/useConspectusesDue';
 
 type Props = {
@@ -49,7 +55,7 @@ const ITEM_VARIANTS_FULL = {
   shown: {
     opacity: 1,
     y: 0,
-    transition: { type: 'spring' as const, stiffness: 260, damping: 26 },
+    transition: SPRING_MEDIUM,
   },
 } as const;
 
@@ -97,7 +103,7 @@ export function FocusCard({ item, revealed, onReveal, revealHint }: Props) {
         aria-live="polite"
         aria-expanded={revealed}
         animate={reduce ? { rotateY: 0 } : { rotateY: revealed ? 180 : 0 }}
-        transition={{ duration: 0.55, ease: [0.7, 0, 0.3, 1] }}
+        transition={{ duration: durationSec(DURATION_SLOW_MS), ease: EASE_GLASS }}
         style={{
           transformStyle: 'preserve-3d',
           WebkitTransformStyle: 'preserve-3d',

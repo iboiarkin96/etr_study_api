@@ -28,6 +28,11 @@ import { YesterdayDigest } from './components/YesterdayDigest';
 import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { useTelegramSettingsButton } from '../../shared/chrome/useTelegramSettingsButton';
+import {
+  DURATION_BASE_MS,
+  DURATION_FAST_MS,
+  durationSec,
+} from '../../shared/motion/tokens';
 import { useConspectusesDue } from './hooks/useConspectusesDue';
 import { useMeStats } from './hooks/useMeStats';
 import { useMeYesterday } from './hooks/useMeYesterday';
@@ -327,12 +332,12 @@ export function Today() {
                       key="empty"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: durationSec(DURATION_BASE_MS) }}
                     >
                       <EmptyToday />
                     </motion.div>
                   ) : (
-                    <motion.div key="list" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
+                    <motion.div key="list" exit={{ opacity: 0, transition: { duration: durationSec(DURATION_FAST_MS) } }}>
                       <DueCardsList
                         items={due.data}
                         committing={committing}

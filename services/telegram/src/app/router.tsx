@@ -152,7 +152,11 @@ const routeTree = rootRoute.addChildren([
   debugHapticsRoute,
 ]);
 
-const router = createRouter({ routeTree, defaultPreload: 'intent' });
+const router = createRouter({
+  routeTree,
+  defaultPreload: 'intent',
+  defaultViewTransition: true,
+});
 
 declare module '@tanstack/react-router' {
   interface Register {
