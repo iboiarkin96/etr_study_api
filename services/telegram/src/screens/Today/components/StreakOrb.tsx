@@ -45,8 +45,17 @@ export function StreakOrb({ data, dueToday, size = 'lg' }: Props) {
     >
       {/* Tip lives on a wrapper — the orb owns its own ::before / ::after
        * pseudo-elements for the radial body and the celebration halo, so
-       * `.tma-tip` can't sit directly on it or those visuals disappear. */}
-      <div className="tma-tip tma-tip--below" data-tip={t('today.streak.tip')}>
+       * `.tma-tip` can't sit directly on it or those visuals disappear.
+       * `--right` puts the popover next to the orb instead of overlapping
+       * the yesterday-digest card below it; `tabIndex={0}` makes the
+       * wrapper focusable so a tap on mobile (no hover) reveals it too. */}
+      <div
+        className="tma-tip tma-tip--right"
+        data-tip={t('today.streak.tip')}
+        tabIndex={0}
+        role="group"
+        aria-label={t('today.streak.tip')}
+      >
         <div
           className={`tma-orb ${sizeClass}`.trim()}
           data-state={state}
