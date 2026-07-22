@@ -178,14 +178,25 @@ function buildMockWebApp(): MockWebApp {
 }
 
 /**
- * Install the mock. Idempotent; no-op inside real Telegram (which sets
- * `initData` to a non-empty signed string).
+ * Install the mock. Idempotent; no-op inside real Telegram.
+ *
+ * IMPORTANT: we skip mock installation if `window.Telegram.WebApp`
+ * exists in ANY form — not just when `initData` is non-empty. Some
+ * launch modes (Menu Button re-entries, background/foreground swaps
+ * on iOS) briefly hand us a WebApp object with an empty `initData`
+ * that gets populated a tick later. If we overwrote it with the mock
+ * here, HapticFeedback / BackButton / MainButton would all become
+ * no-op stubs for the rest of the session — the user reads that as
+ * «haptics stopped working» and «native chrome buttons disappeared».
+ * Better to serve stale-but-real than fresh-but-fake.
  */
 export function installTelegramMock(): void {
   if (typeof window === 'undefined') return;
   const existing = window.Telegram?.WebApp;
-  if (existing && existing.initData !== '') {
-    // Real Telegram — leave it alone.
+  if (existing) {
+    // Real Telegram (initData may or may not be populated yet) — leave
+    // it alone. The retry loop in `useIsTelegramClient` will pick up
+    // the real `initData` once the SDK finishes hydrating.
     return;
   }
   window.Telegram = { WebApp: buildMockWebApp() };
