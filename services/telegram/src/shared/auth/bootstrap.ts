@@ -46,8 +46,14 @@ export type BootstrapResult = {
 };
 
 function apiBaseUrl(): string {
+  // Empty string = relative URL — fetch resolves against the current origin,
+  // which the Vite dev-server proxies to the local API. This is the default
+  // for the on-device tunnel workflow (one tunnel, one origin, no CORS).
+  // Only set VITE_API_BASE_URL if the frontend and API live on different
+  // origins (e.g. Cloudflare Pages front + separately-hosted API in prod).
   const explicit = import.meta.env.VITE_API_BASE_URL as string | undefined;
-  return (explicit ?? 'http://localhost:8000').replace(/\/+$/, '');
+  if (!explicit) return '';
+  return explicit.replace(/\/+$/, '');
 }
 
 /** Extract the initData string to sign against `/auth/telegram`. */
@@ -56,6 +62,18 @@ function readInitData(): string {
   if (real.length > 0) return real;
   const dev = import.meta.env.VITE_DEV_INIT_DATA as string | undefined;
   return dev ?? '';
+}
+
+/** Numeric Telegram user id from the SDK's `initDataUnsafe`. Returns 0
+ * when unavailable (dev-fallback loop or shim). Used to detect a stale
+ * CloudStorage cache when the current Telegram session belongs to a
+ * different account than the one the token was minted for. */
+function readInitDataUserId(): number {
+  const wa = window.Telegram?.WebApp as
+    | { initDataUnsafe?: { user?: { id?: number } } }
+    | undefined;
+  const id = wa?.initDataUnsafe?.user?.id;
+  return typeof id === 'number' && id > 0 ? id : 0;
 }
 
 /** Decode a JWT payload without verifying (verify happens on the server). */
@@ -152,7 +170,22 @@ export function bootstrapAuth(): Promise<BootstrapResult> {
     const cached = await readCachedJwt();
     if (cached) {
       const user = await readCachedUser(cached);
-      if (user) {
+      // Reject the cache when the current Telegram session belongs to a
+      // different account than the token was minted for. Without this
+      // guard, switching accounts (or graduating from VITE_DEV_INIT_DATA
+      // to a real Telegram session) silently hands the new user the old
+      // user's JWT — every /me/* query then resolves to a stranger's owner
+      // row and Today either hangs on «Connecting to the server…» or
+      // renders someone else's data.
+      const currentSessionUserId = readInitDataUserId();
+      const cacheBelongsToOtherUser =
+        user !== null &&
+        currentSessionUserId > 0 &&
+        user.telegram_user_id !== currentSessionUserId;
+      if (cacheBelongsToOtherUser) {
+        await cloudRemove(JWT_STORAGE_KEY);
+        await cloudRemove(USER_STORAGE_KEY);
+      } else if (user) {
         const exp = decodeExpiry(cached) ?? 0;
         return { jwt: cached, expiresAtEpoch: exp, user, cached: true };
       }

@@ -68,8 +68,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--user-id",
         type=int,
-        default=999_000_001,
-        help="Telegram numeric user id (int64). Default: 999000001 (a synthetic dev id).",
+        default=int(os.environ.get("TMA_DEV_TELEGRAM_USER_ID", "42")),
+        help=(
+            "Telegram numeric user id (int64). Default: 42 (the shared dev id "
+            "used by seed_dev_data.py and services/telegram/scripts/tunnels-up.sh). "
+            "Override via --user-id or TMA_DEV_TELEGRAM_USER_ID env."
+        ),
     )
     parser.add_argument("--first-name", default="Dev User", help="Default: 'Dev User'.")
     parser.add_argument("--last-name", default=None)

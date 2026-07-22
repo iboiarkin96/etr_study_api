@@ -15,6 +15,7 @@
 
 import { forwardRef } from 'react';
 
+import { haptic } from '../../../shared/haptics/haptics';
 import type { FocusGrade } from '../hooks/useFocusSession';
 import type { GradeSpec } from './grade-spec';
 
@@ -37,7 +38,10 @@ export const GradeButton = forwardRef<HTMLButtonElement, Props>(function GradeBu
       className="tma-focus__grade"
       data-grade={spec.grade}
       data-tone={spec.tone}
-      onClick={() => onPress(spec.grade)}
+      onClick={() => {
+        haptic(spec.haptic);
+        onPress(spec.grade);
+      }}
       disabled={disabled}
       aria-keyshortcuts={spec.hotkey}
     >

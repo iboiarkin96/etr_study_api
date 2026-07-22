@@ -29,6 +29,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import type { KeyboardEvent } from 'react';
 
+import { haptic } from '../../../shared/haptics/haptics';
 import type { DueConspectus } from '../../Today/hooks/useConspectusesDue';
 
 type Props = {
@@ -72,10 +73,15 @@ export function FocusCard({ item, revealed, onReveal, revealHint }: Props) {
   const itemVariants = reduce ? ITEM_VARIANTS_REDUCED : ITEM_VARIANTS_FULL;
   const staggerVariants = reduce ? STAGGER_REDUCED : STAGGER_FULL;
 
+  const handleReveal = () => {
+    haptic('selection');
+    onReveal();
+  };
+
   const handleKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') {
       e.preventDefault();
-      onReveal();
+      handleReveal();
     }
   };
 
@@ -86,7 +92,7 @@ export function FocusCard({ item, revealed, onReveal, revealHint }: Props) {
         tabIndex={0}
         className="tma-focus__card"
         data-revealed={revealed ? 'true' : 'false'}
-        onClick={onReveal}
+        onClick={handleReveal}
         onKeyDown={handleKey}
         aria-live="polite"
         aria-expanded={revealed}

@@ -43,3 +43,4 @@ strip_env_key() {
 stop_tunnel front
 stop_tunnel api
 strip_env_key VITE_API_BASE_URL
+strip_env_key TMA_FRONTEND_URL

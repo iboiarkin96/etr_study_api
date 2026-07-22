@@ -148,9 +148,19 @@ function buildMockWebApp(): MockWebApp {
     MainButton: { ..._noopButton(), setText: () => {} },
     SettingsButton: _noopButton(),
     HapticFeedback: {
-      impactOccurred: () => {},
-      notificationOccurred: () => {},
-      selectionChanged: () => {},
+      // Log every haptic call so the browser dev loop shows *when* haptics
+      // fire even though the plain-tab shim has no vibration motor. Real
+      // Telegram never runs this branch (the shim skips when initData is
+      // non-empty), so production users see no console noise.
+      impactOccurred: (style) => {
+        console.debug(`[haptic] impactOccurred(${style})`);
+      },
+      notificationOccurred: (type) => {
+        console.debug(`[haptic] notificationOccurred(${type})`);
+      },
+      selectionChanged: () => {
+        console.debug('[haptic] selectionChanged()');
+      },
     },
     CloudStorage: {
       setItem: (key, value, cb) => {

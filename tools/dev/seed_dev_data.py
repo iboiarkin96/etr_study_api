@@ -119,8 +119,10 @@ class SeedRow:
 # Slot distribution: 3 × A (learning stage), 3 × B, 2 × C, 2 × D — matches a
 # real-world learner's tail-heavy repertoire (many recent items, fewer mastered).
 #
-# Time distribution: 2 overdue, 2 next-few-hours (both feed due_now), 2 in
-# next-24h, 4 later so ScheduleSummaryStrip shows non-trivial numbers.
+# Time distribution: 5 overdue (all feed due_now AND the Focus queue —
+# `useFocusSession` reads /conspectuses/due which filters next_review_at <=
+# NOW), 2 in the next 24h, 3 later so ScheduleSummaryStrip still shows
+# non-trivial numbers.
 _SEED_ROWS: tuple[SeedRow, ...] = (
     SeedRow(
         "a1",
@@ -169,7 +171,7 @@ _SEED_ROWS: tuple[SeedRow, ...] = (
         "TCP · handshake → CLOSE_WAIT",
         "A",
         0,
-        timedelta(hours=1),
+        timedelta(hours=-1),
         (
             "TCP connection lifecycle через 6 состояний. Установка: SYN → SYN-ACK → "
             "ACK. Закрытие асимметрично: одна сторона шлёт FIN, попадает в "
@@ -190,7 +192,7 @@ _SEED_ROWS: tuple[SeedRow, ...] = (
         "SLI / SLO / SLA — как формулировать",
         "B",
         0,
-        timedelta(hours=3),
+        timedelta(minutes=-30),
         (
             "SLI — измеряемый показатель (доля успешных запросов, p99 latency). "
             "SLO — внутренняя цель на SLI («99.9% за 30 дней»). SLA — контракт с "
@@ -210,7 +212,7 @@ _SEED_ROWS: tuple[SeedRow, ...] = (
         "CAP теорема — что реально гарантируется",
         "B",
         0,
-        timedelta(hours=8),
+        timedelta(minutes=-10),
         (
             "CAP говорит: во время сетевого раздела (P) distributed-система "
             "выбирает между Consistency и Availability. В спокойное время (нет "
@@ -563,8 +565,13 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--telegram-user-id",
         type=int,
-        default=12345,
-        help="Telegram user id whose Today should be populated (default: 12345).",
+        default=int(os.environ.get("TMA_DEV_TELEGRAM_USER_ID", "42")),
+        help=(
+            "Telegram user id whose Today should be populated. Default: 42 — "
+            "the same dev id sign_init_data.py and tunnels-up.sh sign initData "
+            "for, so seed + auth resolve to the same owner without flags. "
+            "Override via --telegram-user-id or TMA_DEV_TELEGRAM_USER_ID env."
+        ),
     )
     parser.add_argument(
         "--reset",

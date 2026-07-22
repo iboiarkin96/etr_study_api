@@ -229,6 +229,28 @@ export function Today() {
             </svg>
           </button>
           <LangSwitch />
+          {import.meta.env.DEV && (
+            <Link
+              to="/debug/haptics"
+              aria-label="Debug haptics"
+              title="Debug haptics"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--tma-rad-full)',
+                background: 'color-mix(in oklab, var(--tma-tone-warn) 20%, transparent)',
+                color: 'var(--tma-tone-warn)',
+                fontSize: 16,
+                textDecoration: 'none',
+                marginLeft: 4,
+              }}
+            >
+              🐛
+            </Link>
+          )}
         </header>
 
         {auth.status === 'authenticating' && (

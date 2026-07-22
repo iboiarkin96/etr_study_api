@@ -18,6 +18,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
+import { haptic } from '../../shared/haptics/haptics';
 import { Assemble } from '../Today/components/Assemble';
 import { EtrMoves } from './components/EtrMoves';
 import { OnboardingHero } from './components/OnboardingHero';
@@ -29,6 +30,7 @@ export function Onboarding() {
   const { markSeen } = useOnboardingSeen();
 
   const finish = () => {
+    haptic('impactLight');
     markSeen();
     void navigate({ to: '/' });
   };

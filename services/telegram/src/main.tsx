@@ -19,6 +19,12 @@ installTelegramMock();
 // once the handshake resolves (see auth-provider.tsx).
 initI18n();
 
+// `WebApp.ready()` is called from App's first useEffect (see App.tsx) — the
+// Telegram docs say to fire it once UI is ready to be displayed, not at
+// script-load time. Calling too early dismisses the splash before React has
+// committed a frame and, on iOS, may leave HapticFeedback in a not-yet-ready
+// state so subsequent impactOccurred() calls silently no-op.
+
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('#root not found');
 

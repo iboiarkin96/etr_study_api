@@ -39,7 +39,8 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
         catalog-render catalog-render-check serve open sync-staging \
         visual-test visual-test-update \
         tma-dev tma-storybook-dev tma-typecheck tma-lint tma-test tma-build tma-verify \
-        tma-tunnel-up tma-tunnel-down open-web
+        tma-tunnel-up tma-tunnel-down open-web \
+        gen-test-data
 
 # ──────────────────────────────────────────────
 # Help
@@ -49,23 +50,19 @@ help:
 	@echo "  Study App — root Makefile"
 	@echo "  ─────────────────────────"
 	@echo ""
-	@echo "  ★ One-shot lifecycle (start / stop the whole thing)"
-	@echo "    make up                     Start EVERYTHING — api (docker, with migrations),"
-	@echo "                                prometheus, grafana, blackbox, elasticsearch, kibana,"
-	@echo "                                filebeat + local portal server + telegram Vite dev"
-	@echo "                                + telegram Storybook. Prints all URLs at end."
-	@echo "    TMA_TUNNEL=1 make up        Same, plus Cloudflare quick tunnels for :8000 and :5173"
-	@echo "                                (auto-wires VITE_API_BASE_URL, copies front URL to clipboard)."
-	@echo "    make tma-tunnel-up          Bring the two Cloudflare quick tunnels up (needs make up first)"
-	@echo "    make tma-tunnel-down        Stop the tunnels, drop VITE_API_BASE_URL from .env.local"
-	@echo "    make open-web               Open all 8 web UIs (API docs · Portal · TMA · Storybook · Kibana · Grafana · Prometheus · Blackbox)"
-	@echo "    OPEN=0 make up              Same as up, but do NOT auto-open browser tabs (default: OPEN=1)"
-	@echo "    make down                   Stop everything (preserves docker volumes)"
-	@echo "    make down-volumes           Same as down, but WIPES prometheus/grafana/es data"
-	@echo "    make status                 Show which services are up and where to reach them"
-	@echo "    (logs)                      Structured service logs → Kibana http://127.0.0.1:5601"
-	@echo "                                (Discover). Raw stdout of background procs → files"
-	@echo "                                under .runtime/ (portal.log, tma.log, tma-storybook.log)."
+	@echo "  ★ Daily use — start / stop everything"
+	@echo "    make up                     Start EVERYTHING + Cloudflare tunnels for on-device Telegram."
+	@echo "                                Prints ONE URL at the end — paste it into @BotFather → Menu Button."
+	@echo "    make down                   Stop everything (docker volumes preserved)."
+	@echo "    make status                 Show what's running + all URLs."
+	@echo ""
+	@echo "  Toggles (rarely needed)"
+	@echo "    NO_TUNNEL=1 make up         Skip Cloudflare tunnels (local browser only, no on-device test)."
+	@echo "    OPEN=0 make up              Do NOT auto-open browser tabs."
+	@echo "    make down-volumes           down + WIPE prometheus/grafana/es data."
+	@echo "    make open-web               Re-open all 8 web UIs in the browser."
+	@echo "    (logs)                      Service logs → Kibana http://127.0.0.1:5601 (Discover)."
+	@echo "                                Background procs → .runtime/*.log (portal, tma, tma-storybook)."
 	@echo ""
 	@echo "  First-time setup"
 	@echo "    make setup                  .venv + install deps + .env from template"
@@ -274,8 +271,12 @@ up:
 		sleep 0.5; \
 		printf "  $(ICON_OK) telegram Storybook started (PID $$(cat .runtime/tma-storybook.pid), log: .runtime/tma-storybook.log)\n"; \
 	fi
-	@if [ "$${TMA_TUNNEL:-0}" = "1" ]; then \
-		printf "$(ICON_INFO) %s\n" "[+] Cloudflare quick tunnels (TMA_TUNNEL=1)"; \
+	@if [ "$${NO_TUNNEL:-0}" = "1" ]; then \
+		printf "$(ICON_INFO) %s\n" "[+] Cloudflare tunnels skipped (NO_TUNNEL=1) — Mini App will only work in local browser"; \
+	elif ! command -v cloudflared >/dev/null 2>&1; then \
+		printf "$(ICON_INFO) %s\n" "[+] Cloudflare tunnels skipped — 'cloudflared' not installed. Run: brew install cloudflared"; \
+	else \
+		printf "$(ICON_INFO) %s\n" "[+] Cloudflare tunnels (for on-device Telegram testing)"; \
 		$(MAKE) --no-print-directory tma-tunnel-up; \
 	fi
 	@if [ "$${OPEN:-1}" = "1" ]; then \
@@ -283,16 +284,23 @@ up:
 		$(MAKE) --no-print-directory open-web; \
 	fi
 	@printf "\n"
-	@printf "  $(COLOR_GREEN)Stack is up.$(COLOR_RESET) Open any of these in a browser:\n\n"
-	@printf "    $(COLOR_CYAN)API$(COLOR_RESET)        http://127.0.0.1:8000        (Swagger UI at /docs, ReDoc at /redoc)\n"
+	@if [ -f services/telegram/.env.local ] && grep -qE '^TMA_FRONTEND_URL=' services/telegram/.env.local; then \
+		front_url=$$(grep -E '^TMA_FRONTEND_URL=' services/telegram/.env.local | tail -1 | cut -d= -f2-); \
+		printf "  $(COLOR_GREEN)╔══════════════════════════════════════════════════════════════════════════╗$(COLOR_RESET)\n"; \
+		printf "  $(COLOR_GREEN)║$(COLOR_RESET)  $(COLOR_CYAN)📱 Open in Telegram — paste this URL into @BotFather → Menu Button$(COLOR_RESET)  $(COLOR_GREEN)║$(COLOR_RESET)\n"; \
+		printf "  $(COLOR_GREEN)╠══════════════════════════════════════════════════════════════════════════╣$(COLOR_RESET)\n"; \
+		printf "  $(COLOR_GREEN)║$(COLOR_RESET)  %-72s$(COLOR_GREEN)║$(COLOR_RESET)\n" "$$front_url"; \
+		printf "  $(COLOR_GREEN)╚══════════════════════════════════════════════════════════════════════════╝$(COLOR_RESET)\n\n"; \
+	fi
+	@printf "  $(COLOR_GREEN)Stack is up.$(COLOR_RESET) Local URLs:\n\n"
+	@printf "    $(COLOR_CYAN)API$(COLOR_RESET)        http://127.0.0.1:8000        (Swagger /docs · ReDoc /redoc)\n"
 	@printf "    $(COLOR_CYAN)Portal$(COLOR_RESET)     http://127.0.0.1:8080/portal/\n"
-	@printf "    $(COLOR_CYAN)Telegram$(COLOR_RESET)   http://127.0.0.1:5173         (TMA Vite dev · log: .runtime/tma.log)\n"
-	@printf "    $(COLOR_CYAN)Storybook$(COLOR_RESET)  http://127.0.0.1:6006         (TMA component gallery · log: .runtime/tma-storybook.log)\n"
-	@printf "    $(COLOR_CYAN)Kibana$(COLOR_RESET)     http://127.0.0.1:5601        (logs UI — Discover; first load takes 30-60s while ES warms up)\n"
-	@printf "    $(COLOR_CYAN)Grafana$(COLOR_RESET)    http://127.0.0.1:3010        (login and password: in env file GRAFANA_ADMIN_USER и GRAFANA_ADMIN_PASSWORD)\n"
+	@printf "    $(COLOR_CYAN)Telegram$(COLOR_RESET)   http://127.0.0.1:5173         (TMA Vite dev)\n"
+	@printf "    $(COLOR_CYAN)Storybook$(COLOR_RESET)  http://127.0.0.1:6006         (TMA component gallery)\n"
+	@printf "    $(COLOR_CYAN)Kibana$(COLOR_RESET)     http://127.0.0.1:5601        (logs · first load 30-60s)\n"
+	@printf "    $(COLOR_CYAN)Grafana$(COLOR_RESET)    http://127.0.0.1:3010        (creds in .env: GRAFANA_ADMIN_USER/PASSWORD)\n"
 	@printf "    $(COLOR_CYAN)Prometheus$(COLOR_RESET) http://127.0.0.1:9090\n"
 	@printf "    $(COLOR_CYAN)Blackbox$(COLOR_RESET)   http://127.0.0.1:9115\n\n"
-# 	@printf "  Logs:  service stdout → $(COLOR_CYAN)Kibana → Discover$(COLOR_RESET) (http://127.0.0.1:5601)  ·  background procs → .runtime/portal.log · .runtime/tma.log · .runtime/tma-storybook.log\n"
 	@printf "  Next:  $(COLOR_CYAN)make status$(COLOR_RESET) shows state  ·  $(COLOR_CYAN)make down$(COLOR_RESET) stops everything\n"
 	@printf "$(COLOR_GREEN)== UP: SUCCESS ==$(COLOR_RESET)\n"
 
@@ -594,6 +602,56 @@ tma-tunnel-up:
 
 tma-tunnel-down:
 	@services/telegram/scripts/tunnels-down.sh
+
+# ──────────────────────────────────────────────
+# Dev-time test data
+# ──────────────────────────────────────────────
+# One-shot regen of the plain-browser dev loop:
+#   1) fresh VITE_DEV_INIT_DATA in services/telegram/.env.local
+#   2) reset the 10 known seed conspectuses (drop → reinsert) so their
+#      next_review_at land at the intended offsets from NOW — otherwise a
+#      previous swipe/grade in the Mini App would have pushed the SM-2
+#      schedule forward, and Today would render «All caught up» even
+#      though the DB has 10 rows.
+#   3) seed 162 review-logs (12-day streak + 60-day heatmap).
+# All three use the shared dev user id (env TMA_DEV_TELEGRAM_USER_ID,
+# default 42) so the initData resolves to the same owner the seed data
+# belongs to. Pass `KEEP=1` to skip the reset (incremental add, e.g. after
+# hand-crafting extra rows the seeder shouldn't wipe).
+#
+# Reads TELEGRAM_BOT_TOKEN from .env; falls back to shell env.
+gen-test-data:
+	@printf "$(COLOR_CYAN)== GEN-TEST-DATA: START ==$(COLOR_RESET)\n"
+	@set -e; \
+	if [ -f .env ]; then \
+		token="$$(grep '^TELEGRAM_BOT_TOKEN=' .env | tail -1 | cut -d= -f2- | tr -d '\r' | tr -d '"' | tr -d "'")"; \
+	fi; \
+	token="$${token:-$$TELEGRAM_BOT_TOKEN}"; \
+	if [ -z "$$token" ]; then \
+		printf "$(ICON_ERR) TELEGRAM_BOT_TOKEN not found in .env or shell — set it and retry\n" >&2; \
+		exit 1; \
+	fi; \
+	user_id="$${TMA_DEV_TELEGRAM_USER_ID:-42}"; \
+	printf "$(ICON_INFO) %s\n" "[1/2] sign fresh VITE_DEV_INIT_DATA for user_id=$$user_id"; \
+	line="$$(TMA_DEV_TELEGRAM_USER_ID=$$user_id $(PYTHON) tools/dev/sign_init_data.py --bot-token $$token --format env)"; \
+	env_file=services/telegram/.env.local; \
+	touch "$$env_file"; \
+	tmp="$$env_file.tmp"; \
+	grep -vE '^VITE_DEV_INIT_DATA=' "$$env_file" > "$$tmp" || true; \
+	printf '%s\n' "$$line" >> "$$tmp"; \
+	mv "$$tmp" "$$env_file"; \
+	printf "  $(ICON_OK) $$env_file updated\n"; \
+	printf "$(ICON_INFO) %s\n" "[2/2] seed conspectuses + review logs"; \
+	reset_flag="--reset"; \
+	if [ "$${KEEP:-0}" = "1" ]; then \
+		reset_flag=""; \
+		printf "  $(ICON_INFO) KEEP=1 — skipping --reset (incremental seed, existing rows preserved)\n"; \
+	else \
+		printf "  $(ICON_INFO) resetting the 10 known seed UUIDs so next_review_at lands fresh\n"; \
+	fi; \
+	TMA_DEV_TELEGRAM_USER_ID=$$user_id $(PYTHON) tools/dev/seed_dev_data.py --telegram-user-id $$user_id $$reset_flag
+	@printf "$(COLOR_GREEN)== GEN-TEST-DATA: SUCCESS ==$(COLOR_RESET)\n"
+	@printf "  Refresh the Mini App at http://127.0.0.1:5173 — Today should show 10 due cards.\n"
 
 # open-web — fan out every stack UI into the default browser. Called from
 # `make up` unless OPEN=0. macOS only (`open` binary); silently skipped on

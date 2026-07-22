@@ -17,6 +17,7 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
+import { haptic } from '../../shared/haptics/haptics';
 import { LangSwitch } from '../../shared/i18n/LangSwitch';
 import { ErrorInline } from '../Today/components/ErrorInline';
 import { ErrorScreen } from '../Today/components/ErrorScreen';
@@ -211,9 +212,10 @@ export function ConspectusDetail() {
                   <button
                     type="button"
                     className="tma-btn tma-btn--primary tma-btn--block"
-                    onClick={() =>
-                      void navigate({ to: '/focus', search: { conspectus_uuid: uuid } })
-                    }
+                    onClick={() => {
+                      haptic('impactLight');
+                      void navigate({ to: '/focus', search: { conspectus_uuid: uuid } });
+                    }}
                   >
                     {t('detail.reviewNow')}
                   </button>

@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { ErrorsSearch } from '../../app/router';
 import { useAuth } from '../../app/use-auth';
+import { haptic } from '../../shared/haptics/haptics';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
 import { ErrorScreen } from '../Today/components/ErrorScreen';
@@ -98,14 +99,19 @@ export function Errors() {
       { message, conspectus_uuid: prefill?.conspectus_uuid ?? null },
       {
         onSuccess: () => {
+          haptic('notifySuccess');
           setSheetOpen(false);
           setPrefill(null);
+        },
+        onError: () => {
+          haptic('notifyError');
         },
       },
     );
   };
 
   const openBlankSheet = () => {
+    haptic('impactLight');
     setPrefill(null);
     setSheetOpen(true);
   };

@@ -22,6 +22,7 @@ import {
 } from '@tanstack/react-router';
 
 import { ConspectusDetail } from '../screens/ConspectusDetail';
+import { DebugHaptics } from '../screens/DebugHaptics';
 import { Errors } from '../screens/Errors';
 import { Focus } from '../screens/Focus';
 import { Onboarding } from '../screens/Onboarding';
@@ -131,6 +132,15 @@ const meRoute = createRoute({
   component: Profile,
 });
 
+// Hand-testing surface for the haptic vocabulary (T-25c). Not linked from
+// the nav; typed into the URL or opened through the CF quick tunnel to feel
+// each pattern on a real device.
+const debugHapticsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/debug/haptics',
+  component: DebugHaptics,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   onboardingRoute,
@@ -139,6 +149,7 @@ const routeTree = rootRoute.addChildren([
   scheduleRoute,
   errorsRoute,
   meRoute,
+  debugHapticsRoute,
 ]);
 
 const router = createRouter({ routeTree, defaultPreload: 'intent' });

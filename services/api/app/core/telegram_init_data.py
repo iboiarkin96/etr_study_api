@@ -95,6 +95,12 @@ def verify_init_data(
     provided_hash = fields.pop("hash", None)
     if not provided_hash:
         raise InvalidInitData("initData is missing `hash` field")
+    # NOTE on `signature` (Bot API 7.2+): the field IS part of the HMAC
+    # data-check-string on iOS Telegram 9.6+, verified live against a real
+    # Menu-Button launch. We initially assumed it should be stripped (some
+    # third-party libraries do); that broke on-device handshakes with
+    # «signature does not match» while our own dev signer round-tripped
+    # green because it never emits `signature`. Keep it in the string.
 
     data_check_string = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
     secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()

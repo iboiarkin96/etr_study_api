@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
-# tunnels-up.sh — publish local Vite (:5173) + API (:8000) via Cloudflare quick
-# tunnels, wire the fresh API URL into services/telegram/.env.local, restart
-# Vite so the new env is picked up, and copy the frontend URL to the clipboard.
+# tunnels-up.sh — publish local Vite (:5173) via a single Cloudflare quick
+# tunnel and copy its URL to the clipboard for pasting into @BotFather →
+# Menu Button.
 #
-# Called from the root Makefile via `TMA_TUNNEL=1 make up` or `make tma-tunnel-up`.
-# PIDs / logs land under <repo>/.runtime/ next to the other background procs.
+# Called from the root Makefile via `make up` (unless NO_TUNNEL=1) or
+# `make tma-tunnel-up`. PID / log land under <repo>/.runtime/ next to the
+# other background procs.
 #
-# Idempotent: if a tunnel is already running (PID file live), skips it.
+# WHY ONE TUNNEL AND NOT TWO — the earlier version of this script published
+# BOTH :5173 (front) AND :8000 (API) and wrote the API tunnel URL into
+# services/telegram/.env.local as VITE_API_BASE_URL. That doubled the
+# maintenance surface: every restart handed out fresh URLs on BOTH tunnels,
+# and a stale VITE_API_BASE_URL silently broke the auth handshake with a
+# network error the user reads as «Authorization failed». The Vite dev
+# server now proxies /api/* to http://localhost:8000 (vite.config.ts),
+# so the frontend can talk to the API through the SAME origin as itself —
+# one tunnel is enough, and the client uses relative URLs so nothing in
+# .env.local needs updating between restarts.
+#
+# Idempotent: if the front tunnel is already running (PID file live), skips.
 
 set -euo pipefail
 
@@ -16,7 +28,6 @@ cd "$REPO_ROOT"
 RUNTIME_DIR=".runtime"
 ENV_LOCAL="services/telegram/.env.local"
 
-API_PORT="${API_PORT:-8000}"
 FRONT_PORT="${FRONT_PORT:-5173}"
 
 mkdir -p "$RUNTIME_DIR"
@@ -29,12 +40,10 @@ command -v cloudflared >/dev/null 2>&1 || {
 # -- helpers -----------------------------------------------------------------
 
 is_alive() {
-  # $1 = pidfile
   [ -f "$1" ] && kill -0 "$(cat "$1")" 2>/dev/null
 }
 
 start_tunnel() {
-  # $1 = local port, $2 = name (api|front)
   local port="$1" name="$2"
   local pidfile="$RUNTIME_DIR/tma-tunnel-$name.pid"
   local logfile="$RUNTIME_DIR/tma-tunnel-$name.log"
@@ -57,7 +66,6 @@ start_tunnel() {
 }
 
 wait_for_url() {
-  # $1 = name, echoes URL on stdout
   local name="$1"
   local logfile="$RUNTIME_DIR/tma-tunnel-$name.log"
   local url=""
@@ -72,12 +80,10 @@ wait_for_url() {
 }
 
 upsert_env() {
-  # $1 = key, $2 = value; writes to services/telegram/.env.local
   local key="$1" value="$2"
   local file="$ENV_LOCAL"
   touch "$file"
   if grep -qE "^${key}=" "$file"; then
-    # in-place replace, portable across macOS/GNU sed
     local tmp="${file}.tmp"
     awk -v k="$key" -v v="$value" \
       'BEGIN{FS=OFS="="} $1==k {print k"="v; next} {print}' \
@@ -87,55 +93,83 @@ upsert_env() {
   fi
 }
 
-restart_vite() {
-  local pidfile="$RUNTIME_DIR/tma.pid"
-  local logfile="$RUNTIME_DIR/tma.log"
+strip_env_key() {
+  # Idempotently remove a key from .env.local — used to erase a stale
+  # VITE_API_BASE_URL left over from the previous (two-tunnel) setup.
+  local key="$1"
+  local file="$ENV_LOCAL"
+  [ -f "$file" ] || return 0
+  if grep -qE "^${key}=" "$file"; then
+    local tmp="${file}.tmp"
+    grep -vE "^${key}=" "$file" > "$tmp" || true
+    mv "$tmp" "$file"
+    printf '  ✓ removed stale %s from %s (proxy handles /api now)\n' "$key" "$file"
+  fi
+}
 
-  if is_alive "$pidfile"; then
-    local pid; pid="$(cat "$pidfile")"
-    pkill -TERM -P "$pid" 2>/dev/null || true
+stop_orphan_api_tunnel() {
+  # Older tunnels-up.sh (before we switched to proxy) started an API tunnel
+  # on :8000 and left its PID at .runtime/tma-tunnel-api.pid. Kill it so
+  # `make down` doesn't need to worry about it, and the .env.local doesn't
+  # get rewritten on the next `make up`.
+  local pidfile="$RUNTIME_DIR/tma-tunnel-api.pid"
+  [ -f "$pidfile" ] || return 0
+  local pid; pid="$(cat "$pidfile")"
+  if kill -0 "$pid" 2>/dev/null; then
     kill "$pid" 2>/dev/null || true
-    # wait up to 5s for the port to free
-    for _ in $(seq 1 10); do
-      lsof -nP -iTCP:"$FRONT_PORT" -sTCP:LISTEN >/dev/null 2>&1 || break
-      sleep 0.5
-    done
-    rm -f "$pidfile"
+    printf '  ✓ stopped orphan API tunnel (PID %s) — proxy handles /api now\n' "$pid"
   fi
+  rm -f "$pidfile" "$RUNTIME_DIR/tma-tunnel-api.log"
+}
 
-  if [ ! -x services/telegram/node_modules/.bin/vite ]; then
-    printf '  ✗ services/telegram/node_modules missing — run: make -C services/telegram install\n' >&2
-    exit 1
+regenerate_dev_init_data() {
+  # VITE_DEV_INIT_DATA lets the plain-browser dev loop (no real Telegram)
+  # complete the auth handshake. Telegram's initData has a 24 h TTL
+  # (TELEGRAM_INIT_DATA_MAX_AGE_SECONDS in env/dev) — a stale one served
+  # the client returns 401 from /api/v1/auth/telegram, which the user
+  # reads as «Authorization failed» and can't easily diagnose. Regenerate
+  # on every `make up` (cheap; the signer is stdlib-only) so the
+  # local browser loop is always ready.
+  local token
+  token="$(grep -E '^TELEGRAM_BOT_TOKEN=' "$REPO_ROOT/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r' | sed -e "s/^['\"]//" -e "s/['\"]$//")"
+  if [ -z "$token" ]; then
+    printf '  i skipping VITE_DEV_INIT_DATA regen — no TELEGRAM_BOT_TOKEN in .env\n'
+    return 0
   fi
-
-  nohup sh -c "cd services/telegram && exec ./node_modules/.bin/vite --port $FRONT_PORT" \
-    > "$logfile" 2>&1 &
-  echo $! > "$pidfile"
-  # wait for Vite to bind
-  for _ in $(seq 1 20); do
-    lsof -nP -iTCP:"$FRONT_PORT" -sTCP:LISTEN >/dev/null 2>&1 && break
-    sleep 0.5
-  done
-  printf '  ✓ vite restarted (PID %s) with fresh VITE_API_BASE_URL\n' "$(cat "$pidfile")"
+  local signer="$REPO_ROOT/tools/dev/sign_init_data.py"
+  if [ ! -f "$signer" ]; then
+    printf '  i skipping VITE_DEV_INIT_DATA regen — %s missing\n' "$signer" >&2
+    return 0
+  fi
+  local user_id="${TMA_DEV_TELEGRAM_USER_ID:-42}"
+  local fresh
+  fresh="$(python3 "$signer" --bot-token "$token" --user-id "$user_id" --format env 2>/dev/null || true)"
+  if [ -z "$fresh" ]; then
+    printf '  ✗ VITE_DEV_INIT_DATA regen failed (see: python3 %s --bot-token …)\n' "$signer" >&2
+    return 0
+  fi
+  # `fresh` is a `KEY=value` line — split and upsert.
+  local key value
+  key="${fresh%%=*}"
+  value="${fresh#*=}"
+  upsert_env "$key" "$value"
+  printf '  ✓ regenerated %s (24 h TTL) — plain-browser dev loop is ready\n' "$key"
 }
 
 # -- main --------------------------------------------------------------------
 
-printf '  → Cloudflare tunnel for API (:%s)\n' "$API_PORT"
-start_tunnel "$API_PORT" api
-API_URL="$(wait_for_url api)"
-printf '  ✓ api tunnel: %s\n' "$API_URL"
-
-printf '  → writing VITE_API_BASE_URL to %s\n' "$ENV_LOCAL"
-upsert_env VITE_API_BASE_URL "$API_URL"
-
-printf '  → restarting Vite to pick up new env\n'
-restart_vite
+stop_orphan_api_tunnel
+strip_env_key VITE_API_BASE_URL
+regenerate_dev_init_data
 
 printf '  → Cloudflare tunnel for frontend (:%s)\n' "$FRONT_PORT"
 start_tunnel "$FRONT_PORT" front
 FRONT_URL="$(wait_for_url front)"
 printf '  ✓ frontend tunnel: %s\n' "$FRONT_URL"
+
+# Sticky note for the human: no code reads TMA_FRONTEND_URL — it is only
+# echoed back by `make up` so you can see the current tunnel address.
+upsert_env TMA_FRONTEND_URL "$FRONT_URL"
 
 CLIP_HINT=''
 if command -v pbcopy >/dev/null 2>&1; then
@@ -146,10 +180,10 @@ fi
 cat <<EOF
 
 ╔══════════════════════════════════════════════════════════════════════╗
-║  TMA tunnels are live${CLIP_HINT}
+║  TMA tunnel is live${CLIP_HINT}
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  Frontend  ${FRONT_URL}
-║  API       ${API_URL}
+║  API       proxied via Vite → http://localhost:8000 (no tunnel needed)
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  Paste the frontend URL into @BotFather:
 ║    /mybots → <bot> → Bot Settings → Menu Button → Configure → paste

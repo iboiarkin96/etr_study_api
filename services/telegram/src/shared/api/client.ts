@@ -30,8 +30,14 @@ function uuidv4(): string {
 }
 
 function buildBaseUrl(): string {
+  // Empty string = relative URL — fetch resolves against the current origin,
+  // which the Vite dev-server proxies to the local API. This is the default
+  // for the on-device tunnel workflow (one tunnel, one origin, no CORS).
+  // Only set VITE_API_BASE_URL when frontend and API live on different
+  // origins (e.g. Cloudflare Pages front + separately-hosted API in prod).
   const explicit = import.meta.env.VITE_API_BASE_URL as string | undefined;
-  return (explicit ?? 'http://localhost:8000').replace(/\/+$/, '');
+  if (!explicit) return '';
+  return explicit.replace(/\/+$/, '');
 }
 
 export function createApiClient(jwt: JwtProvider) {

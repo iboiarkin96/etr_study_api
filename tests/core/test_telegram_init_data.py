@@ -177,6 +177,34 @@ def test_round_trip_encodes_last_name_with_utf8() -> None:
     assert verified.user.last_name == "Боярков"
 
 
+def test_signature_field_participates_in_hmac_check_bot_api_7_2() -> None:
+    """Bot API 7.2+ adds a `signature` (Ed25519) field for third-party
+    validation. Verified on iOS Telegram 9.6: the field IS part of the
+    HMAC data-check-string, not excluded from it. Pin the behaviour so a
+    future refactor doesn't «helpfully» strip it and break every real
+    on-device handshake.
+    """
+    now = 1_800_000_000
+    # Sign a payload that INCLUDES the signature field the way real
+    # Telegram does — the signature value is arbitrary here; the HMAC only
+    # depends on it being part of the data-check-string.
+    raw_with_sig = build_init_data_for_tests(
+        bot_token=_BOT_TOKEN,
+        user={"id": 42, "first_name": "Ada"},
+        auth_date=now,
+        extra_fields={"signature": "opaque_ed25519_value_from_telegram"},
+    )
+
+    verified = verify_init_data(
+        raw_with_sig, _BOT_TOKEN, max_age_seconds=_MAX_AGE, now_epoch_seconds=now
+    )
+
+    assert verified.user.id == 42
+    # Ensure signature actually reached the verifier's field set (would be
+    # gone if we'd stripped it before HMAC).
+    assert "signature" in verified.raw_fields
+
+
 def test_json_dumps_preserves_field_order_between_signer_and_verifier() -> None:
     """Regression pin: signer must feed the same string the verifier reconstructs."""
     now = 1_800_000_000

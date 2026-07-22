@@ -20,6 +20,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
+import { haptic } from '../../shared/haptics/haptics';
 import { ErrorInline } from '../Today/components/ErrorInline';
 import { ErrorScreen } from '../Today/components/ErrorScreen';
 import { formatRelative } from '../../shared/time/formatRelative';
@@ -59,6 +60,7 @@ export function Focus() {
       const s = sessionRef.current;
       if (s.phase === 'prompt' && (e.code === 'Space' || e.key === ' ')) {
         e.preventDefault();
+        haptic('selection');
         s.reveal();
         return;
       }
@@ -66,6 +68,9 @@ export function Focus() {
         const g = KEY_TO_GRADE[e.key];
         if (g) {
           e.preventDefault();
+          // Keyboard path routes through the same GRADES tone map as the tap
+          // path so Space + 1..4 feels identical to Reveal + tap Again.
+          haptic(GRADES.find((spec) => spec.grade === g)?.haptic ?? 'impactLight');
           s.grade(g);
           return;
         }
@@ -78,6 +83,26 @@ export function Focus() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [navigate]);
+
+  // Phase-transition haptics. Fires exactly once per transition: notifySuccess
+  // when a session finishes, notifyError when a grade mutation surfaces an
+  // error. Both are decorative acknowledgements — errors also get an inline
+  // banner + Retry, so a swallowed haptic doesn't degrade recovery.
+  const prevPhaseRef = useRef(session.phase);
+  useEffect(() => {
+    if (prevPhaseRef.current !== 'complete' && session.phase === 'complete') {
+      haptic('notifySuccess');
+    }
+    prevPhaseRef.current = session.phase;
+  }, [session.phase]);
+
+  const prevGradeErrorRef = useRef<Error | null>(null);
+  useEffect(() => {
+    if (!prevGradeErrorRef.current && session.gradeError) {
+      haptic('notifyError');
+    }
+    prevGradeErrorRef.current = session.gradeError;
+  }, [session.gradeError]);
 
   if (auth.status === 'error') {
     return (

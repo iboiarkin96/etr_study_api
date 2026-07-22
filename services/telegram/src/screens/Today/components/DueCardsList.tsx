@@ -31,6 +31,7 @@ import { type TFunction } from 'i18next';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { haptic, type HapticTone } from '../../../shared/haptics/haptics';
 import { formatRelative } from '../../../shared/time/formatRelative';
 import type { DueConspectus } from '../hooks/useConspectusesDue';
 import type { ReviewTag } from '../hooks/useReviewConspectus';
@@ -60,6 +61,15 @@ const SLOT_TONE: Record<string, 'accent' | 'success' | 'info' | 'warn'> = {
   B: 'info',
   C: 'success',
   D: 'warn',
+};
+
+/** Swipe-tag → haptic tone. Mirrors the Focus GradeButton ladder so a
+ * swipe on the Today list feels the same weight as tapping the equivalent
+ * grade in Focus (Again ⇢ forgot ⇢ heaviest; Easy ⇢ softest impact). */
+const TAG_HAPTIC: Record<ReviewTag, HapticTone> = {
+  forgot: 'impactHeavy',
+  hard: 'impactMedium',
+  easy: 'impactLight',
 };
 
 const { ARM, COMMIT, COMMIT_DEEP } = SWIPE_THRESHOLDS;
@@ -129,6 +139,10 @@ function SwipeRow({ item, t, onCommit, committing }: RowProps) {
     const tag = resolveTag(info.offset.x);
     if (tag === null) return; // let the `animate={{ x: 0 }}` prop spring us back
     const direction: CommitDirection = info.offset.x > 0 ? 1 : -1;
+    // Tag-appropriate feedback — «forgot» is the miss acknowledgement so
+    // it gets the heaviest impact, «easy» the softest. Keeps the swipe
+    // feel congruent with Focus's GradeButton haptics.
+    haptic(TAG_HAPTIC[tag]);
     onCommit(tag, direction);
   };
 
