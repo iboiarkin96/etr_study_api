@@ -111,13 +111,15 @@
       </section>
 
       <section aria-labelledby="policy-h">
-        <h2 id="policy-h">Design policy — native chrome complements, not replaces</h2>
-        <p>The on-canvas «Start Focus» button, «Review now» ember CTA, and «← Back» links are <em>not</em> removed when the native chrome lands the same action. Three reasons:</p>
+        <h2 id="policy-h">Design policy — native replaces on-canvas in real Telegram</h2>
+        <p>Where a native chrome control mirrors an on-canvas primary CTA or back link, the on-canvas copy is <strong>hidden</strong> in real Telegram — otherwise the user sees two buttons doing the same thing (documented complaint on the Focus completion state: MainButton «Back to Today» at the bottom + on-canvas «Back to Today» primary, right above each other). The switch is driven by <a href="../../../../../../telegram/src/shared/chrome/useIsTelegramClient.ts"><code>useIsTelegramClient()</code></a>: it returns true when <code>WebApp.initData</code> is non-empty (i.e. we are inside a real WebView), false in the plain-browser dev loop / Storybook / vitest, and stays stable per mount.</p>
+        <p>What still ships on canvas in real Telegram:</p>
         <ul>
-          <li><strong>Plain-browser dev loop.</strong> Vite dev / Storybook / vitest have no <code>window.Telegram.WebApp</code>. The on-canvas affordance is the only way to complete the flow there.</li>
-          <li><strong>Older Telegram builds.</strong> Some Android WebViews from before Bot API 6.9 lack SettingsButton; some pre-6.1 builds drop HapticFeedback. The on-canvas CTA is the last-known-good baseline.</li>
-          <li><strong>Muscle memory in-viewport.</strong> Even on-device, a user scrolled inside the note doesn't always look at the very bottom of the sheet. The native MainButton is a supplement, not a substitute.</li>
+          <li>Ghost / secondary actions the native chrome has no equivalent for — e.g. Focus completion's «Restart» button, Onboarding's «Skip» ghost.</li>
+          <li>All non-primary controls in the header (search icon on Today, «+» on Errors) — the SettingsButton at the sheet head only carries the profile hop.</li>
         </ul>
+        <p>What stays on canvas <em>outside</em> real Telegram — everything. The on-canvas primary CTAs, «← Back» links and Focus's «✕» exit are the plain-browser dev loop's only way to complete a flow; Storybook and vitest have no SDK at all.</p>
+        <p>Older Telegram builds without a given control (pre-6.9 SettingsButton, pre-6.1 haptics) still see the missing native affordance's on-canvas equivalent, because <code>useIsTelegramClient()</code> only trips on <code>initData</code> — <em>having</em> a Telegram host doesn't mean having every control. If we ever ship a screen whose primary action only exists on the native chrome, that assumption needs a per-control fallback check; today no such screen ships.</p>
       </section>
 
       <section aria-labelledby="degrade-h">
@@ -144,6 +146,7 @@
           <li><a href="../../../../../../telegram/src/shared/chrome/useTelegramMainButton.ts"><code>services/telegram/src/shared/chrome/useTelegramMainButton.ts</code></a></li>
           <li><a href="../../../../../../telegram/src/shared/chrome/useTelegramSettingsButton.ts"><code>services/telegram/src/shared/chrome/useTelegramSettingsButton.ts</code></a></li>
           <li><a href="../../../../../../telegram/src/shared/chrome/chrome-buttons.test.ts"><code>chrome-buttons.test.ts</code></a> — 8 vitest cases (show/hide/click routing/cleanup/no-op paths)</li>
+          <li><a href="../../../../../../telegram/src/shared/chrome/useIsTelegramClient.ts"><code>useIsTelegramClient.ts</code></a> — the flag every screen reads to hide its on-canvas equivalent</li>
         </ul>
       </section>
 
@@ -152,6 +155,11 @@
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-22</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note"><strong>Policy flipped: native <em>replaces</em> on-canvas in real Telegram.</strong> Original ship kept both — user surfaced Focus completion carrying MainButton + on-canvas «Back to Today» stacked. Added <code>useIsTelegramClient()</code>: reads <code>WebApp.initData</code> once at mount, screens hide their on-canvas primary CTA / back header / Focus <code>✕</code> when true. Six screens updated (Today, ConspectusDetail, Focus, Schedule, Errors, Profile, Onboarding). Plain-browser dev loop + Storybook + older builds untouched.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-22</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

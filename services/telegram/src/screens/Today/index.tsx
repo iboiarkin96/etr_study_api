@@ -25,6 +25,7 @@ import { RecentlyReviewedPeek } from './components/RecentlyReviewedPeek';
 import { ScheduleSummaryStrip } from './components/ScheduleSummaryStrip';
 import { StreakOrb } from './components/StreakOrb';
 import { YesterdayDigest } from './components/YesterdayDigest';
+import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { useTelegramSettingsButton } from '../../shared/chrome/useTelegramSettingsButton';
 import { useConspectusesDue } from './hooks/useConspectusesDue';
@@ -48,9 +49,10 @@ export function Today() {
   // Native SDK chrome (T-25d): Telegram-drawn Settings gear in the header
   // deep-links to Profile; MainButton at the bottom carries the primary
   // «Start Focus» CTA and disappears when there is nothing to review.
-  // Both no-op outside real Telegram, so the on-canvas «Start Focus»
-  // button and profile pill continue to work in the plain-browser dev
-  // loop and in Storybook.
+  // Both no-op outside real Telegram — the on-canvas «Start Focus» button
+  // below hides via `isTelegramClient` so the user never sees two primary
+  // CTAs that do the same thing.
+  const isTelegramClient = useIsTelegramClient();
   useTelegramSettingsButton(() => {
     void navigate({ to: '/me' });
   });
@@ -286,7 +288,7 @@ export function Today() {
               {summary.data && <ScheduleSummaryStrip data={summary.data} />}
             </Assemble>
 
-            {due.data && due.data.length > 0 && (
+            {due.data && due.data.length > 0 && !isTelegramClient && (
               <Assemble order={4}>
                 <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
                   <Link

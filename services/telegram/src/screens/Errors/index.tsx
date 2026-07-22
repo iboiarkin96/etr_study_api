@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ErrorsSearch } from '../../app/router';
+import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { haptic } from '../../shared/haptics/haptics';
 import { Assemble } from '../Today/components/Assemble';
@@ -51,6 +52,7 @@ export function Errors() {
 
   // T-25d — native BackButton returns to Today.
   useTelegramBackButton(() => void navigate({ to: '/' }));
+  const isTelegramClient = useIsTelegramClient();
 
   /** Consume `?prefill_from=session&conspectus_uuid=…` exactly once per mount:
    * open the sheet, store the linked conspectus for the POST body, then strip
@@ -121,28 +123,30 @@ export function Errors() {
             padding: '0 var(--tma-sp-4)',
           }}
         >
-          <button
-            type="button"
-            onClick={() => void navigate({ to: '/' })}
-            aria-label={t('errors.back')}
-            style={{
-              appearance: 'none',
-              border: 'none',
-              background: 'transparent',
-              color: 'var(--tma-text-tertiary)',
-              fontSize: 'var(--tma-fs-lead)',
-              padding: 'var(--tma-sp-2)',
-              borderRadius: 'var(--tma-rad-2)',
-              cursor: 'pointer',
-              minWidth: 44,
-              minHeight: 44,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            ‹
-          </button>
+          {!isTelegramClient && (
+            <button
+              type="button"
+              onClick={() => void navigate({ to: '/' })}
+              aria-label={t('errors.back')}
+              style={{
+                appearance: 'none',
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--tma-text-tertiary)',
+                fontSize: 'var(--tma-fs-lead)',
+                padding: 'var(--tma-sp-2)',
+                borderRadius: 'var(--tma-rad-2)',
+                cursor: 'pointer',
+                minWidth: 44,
+                minHeight: 44,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ‹
+            </button>
+          )}
           <div style={{ minWidth: 0, flex: 1 }}>
             <h1
               style={{

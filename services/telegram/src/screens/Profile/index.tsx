@@ -26,6 +26,7 @@ import { useAuth } from '../../app/use-auth';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
 import { StreakOrb } from '../Today/components/StreakOrb';
+import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { useConspectusesDue } from '../Today/hooks/useConspectusesDue';
 import { useMeStats } from '../Today/hooks/useMeStats';
@@ -48,6 +49,7 @@ export function Profile() {
 
   // T-25d — native BackButton returns to Today.
   useTelegramBackButton(() => void navigate({ to: '/' }));
+  const isTelegramClient = useIsTelegramClient();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -87,14 +89,16 @@ export function Profile() {
     >
       <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--tma-sp-5) 0 var(--tma-sp-12)' }}>
         <header className="tma-profile__header">
-          <button
-            type="button"
-            onClick={() => void navigate({ to: '/' })}
-            aria-label={t('profile.back')}
-            className="tma-profile__back"
-          >
-            ‹
-          </button>
+          {!isTelegramClient && (
+            <button
+              type="button"
+              onClick={() => void navigate({ to: '/' })}
+              aria-label={t('profile.back')}
+              className="tma-profile__back"
+            >
+              ‹
+            </button>
+          )}
           <div style={{ minWidth: 0, flex: 1 }}>
             <h1 className="tma-profile__title">{t('profile.title')}</h1>
           </div>

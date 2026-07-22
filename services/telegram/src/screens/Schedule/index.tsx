@@ -20,6 +20,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
+import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
@@ -36,6 +37,7 @@ export function Schedule() {
 
   // T-25d — native BackButton returns to Today.
   useTelegramBackButton(() => void navigate({ to: '/' }));
+  const isTelegramClient = useIsTelegramClient();
 
   // Auth loading/error handled by <AuthGate>.
 
@@ -65,28 +67,30 @@ export function Schedule() {
             padding: '0 var(--tma-sp-4)',
           }}
         >
-          <button
-            type="button"
-            onClick={() => void navigate({ to: '/' })}
-            aria-label={t('schedule.back')}
-            style={{
-              appearance: 'none',
-              border: 'none',
-              background: 'transparent',
-              color: 'var(--tma-text-tertiary)',
-              fontSize: 'var(--tma-fs-lead)',
-              padding: 'var(--tma-sp-2)',
-              borderRadius: 'var(--tma-rad-2)',
-              cursor: 'pointer',
-              minWidth: 44,
-              minHeight: 44,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            ‹
-          </button>
+          {!isTelegramClient && (
+            <button
+              type="button"
+              onClick={() => void navigate({ to: '/' })}
+              aria-label={t('schedule.back')}
+              style={{
+                appearance: 'none',
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--tma-text-tertiary)',
+                fontSize: 'var(--tma-fs-lead)',
+                padding: 'var(--tma-sp-2)',
+                borderRadius: 'var(--tma-rad-2)',
+                cursor: 'pointer',
+                minWidth: 44,
+                minHeight: 44,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ‹
+            </button>
+          )}
           <div style={{ minWidth: 0, flex: 1 }}>
             <h1
               style={{

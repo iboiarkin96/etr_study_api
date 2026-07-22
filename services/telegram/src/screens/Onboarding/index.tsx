@@ -18,6 +18,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
+import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { haptic } from '../../shared/haptics/haptics';
 import { Assemble } from '../Today/components/Assemble';
@@ -29,6 +30,7 @@ export function Onboarding() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { markSeen } = useOnboardingSeen();
+  const isTelegramClient = useIsTelegramClient();
 
   const finish = () => {
     haptic('impactLight');
@@ -84,13 +86,15 @@ export function Onboarding() {
 
         <Assemble order={3}>
           <div className="tma-onboarding__cta">
-            <button
-              type="button"
-              className="tma-btn tma-btn--primary tma-btn--block"
-              onClick={finish}
-            >
-              {t('onboarding.cta')}
-            </button>
+            {!isTelegramClient && (
+              <button
+                type="button"
+                className="tma-btn tma-btn--primary tma-btn--block"
+                onClick={finish}
+              >
+                {t('onboarding.cta')}
+              </button>
+            )}
             <button type="button" className="tma-onboarding__skip" onClick={finish}>
               {t('onboarding.skip')}
             </button>

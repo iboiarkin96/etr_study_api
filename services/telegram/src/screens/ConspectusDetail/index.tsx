@@ -16,6 +16,7 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
+import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { haptic } from '../../shared/haptics/haptics';
@@ -29,6 +30,7 @@ export function ConspectusDetail() {
   const params = useParams({ strict: false }) as { conspectus_uuid?: string };
   const uuid = params.conspectus_uuid ?? '';
   const query = useConspectus(uuid);
+  const isTelegramClient = useIsTelegramClient();
 
   // T-25d — native SDK chrome. BackButton in the header returns to Today;
   // MainButton at the bottom carries the same «Review now» primary action
@@ -71,18 +73,20 @@ export function ConspectusDetail() {
             padding: '0 var(--tma-sp-4)',
           }}
         >
-          <Link
-            to="/"
-            className="tma-btn tma-btn--ghost"
-            style={{
-              minHeight: 0,
-              padding: '6px 10px',
-              fontSize: 'var(--tma-fs-small)',
-              textDecoration: 'none',
-            }}
-          >
-            ← {t('detail.back')}
-          </Link>
+          {!isTelegramClient && (
+            <Link
+              to="/"
+              className="tma-btn tma-btn--ghost"
+              style={{
+                minHeight: 0,
+                padding: '6px 10px',
+                fontSize: 'var(--tma-fs-small)',
+                textDecoration: 'none',
+              }}
+            >
+              ← {t('detail.back')}
+            </Link>
+          )}
           <LangSwitch />
         </header>
 
@@ -175,18 +179,20 @@ export function ConspectusDetail() {
                   </section>
                 )}
 
-                <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
-                  <button
-                    type="button"
-                    className="tma-btn tma-btn--primary tma-btn--block"
-                    onClick={() => {
-                      haptic('impactLight');
-                      void navigate({ to: '/focus', search: { conspectus_uuid: uuid } });
-                    }}
-                  >
-                    {t('detail.reviewNow')}
-                  </button>
-                </div>
+                {!isTelegramClient && (
+                  <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
+                    <button
+                      type="button"
+                      className="tma-btn tma-btn--primary tma-btn--block"
+                      onClick={() => {
+                        haptic('impactLight');
+                        void navigate({ to: '/focus', search: { conspectus_uuid: uuid } });
+                      }}
+                    >
+                      {t('detail.reviewNow')}
+                    </button>
+                  </div>
+                )}
               </article>
             )}
         </>

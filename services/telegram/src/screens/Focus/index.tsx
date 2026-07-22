@@ -19,6 +19,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { haptic } from '../../shared/haptics/haptics';
@@ -44,6 +45,7 @@ export function Focus() {
   // that render <Focus/> without a router-in-the-tree still work.
   const search = useSearch({ strict: false }) as { conspectus_uuid?: string };
   const session = useFocusSession({ singleConspectusUuid: search.conspectus_uuid ?? null });
+  const isTelegramClient = useIsTelegramClient();
   const hoverCapable = useHoverCapable();
 
   // T-25d — native SDK chrome. BackButton returns to Today mid-session
@@ -143,14 +145,16 @@ export function Focus() {
               ? `${String(Math.min(session.index + 1, session.total)).padStart(2, '0')} / ${String(session.total).padStart(2, '0')}`
               : '00 / 00'}
           </span>
-          <button
-            type="button"
-            className="tma-focus__exit"
-            onClick={() => void navigate({ to: '/' })}
-            aria-label={t('focus.exit')}
-          >
-            ✕
-          </button>
+          {!isTelegramClient && (
+            <button
+              type="button"
+              className="tma-focus__exit"
+              onClick={() => void navigate({ to: '/' })}
+              aria-label={t('focus.exit')}
+            >
+              ✕
+            </button>
+          )}
         </div>
       </header>
 
@@ -277,6 +281,10 @@ type EndStateProps = {
 };
 
 function FocusEndState({ title, body, primaryLabel, onPrimary, secondaryLabel, onSecondary, visual, children }: EndStateProps) {
+  // In real Telegram the MainButton carries the primary action, so the
+  // on-canvas primary duplicates it visually. Hide the on-canvas primary,
+  // keep the ghost secondary — MainButton doesn't cover restarting.
+  const isTelegramClient = useIsTelegramClient();
   return (
     <div className="tma-focus__end">
       {visual}
@@ -284,9 +292,11 @@ function FocusEndState({ title, body, primaryLabel, onPrimary, secondaryLabel, o
       <p className="tma-focus__end-body">{body}</p>
       {children}
       <div className="tma-focus__end-actions">
-        <button type="button" className="tma-btn tma-btn--primary" onClick={onPrimary}>
-          {primaryLabel}
-        </button>
+        {!isTelegramClient && (
+          <button type="button" className="tma-btn tma-btn--primary" onClick={onPrimary}>
+            {primaryLabel}
+          </button>
+        )}
         {secondaryLabel && onSecondary && (
           <button type="button" className="tma-btn tma-btn--ghost" onClick={onSecondary}>
             {secondaryLabel}
