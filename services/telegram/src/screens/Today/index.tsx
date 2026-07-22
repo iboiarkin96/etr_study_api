@@ -12,7 +12,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useAuth } from '../../app/use-auth';
 import { useSearch } from '../Search/search-context';
 import { LangSwitch } from '../../shared/i18n/LangSwitch';
 import { Assemble } from './components/Assemble';
@@ -20,7 +19,6 @@ import { DueCardsList, type CommitDirection } from './components/DueCardsList';
 import { DueCardsSkeleton } from './components/DueCardsSkeleton';
 import { EmptyToday } from './components/EmptyToday';
 import { ErrorInline } from './components/ErrorInline';
-import { ErrorScreen } from './components/ErrorScreen';
 import { HeatmapCalendar } from './components/HeatmapCalendar';
 import { MissPeek } from './components/MissPeek';
 import { RecentlyReviewedPeek } from './components/RecentlyReviewedPeek';
@@ -40,7 +38,6 @@ export function Today() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const search = useSearch();
-  const auth = useAuth();
   const due = useConspectusesDue();
   const summary = useScheduleSummary();
   const stats = useMeStats();
@@ -112,42 +109,9 @@ export function Today() {
   const dueToday = summary.data?.due_now ?? due.data?.length ?? 0;
   const recentlyReviewed = (due.data ?? []).slice(0, 5);
 
-  /** Distinguish «server unreachable» (fetch throws `TypeError: Failed to fetch`)
-   * from a real 401-style auth denial so users see a copy that matches the
-   * actual failure mode. Returns the i18n namespace key so callers can
-   * resolve `.title` / `.body` / `.cta` off of it. */
-  const authErrorNs = (): 'auth.unreachable' | 'auth.denied' | 'auth.error' => {
-    const msg = auth.error?.message ?? '';
-    if (/failed to fetch|networkerror|network error|fetch failed/i.test(msg)) {
-      return 'auth.unreachable';
-    }
-    if (/401|unauthori[sz]ed|token|jwt|signature/i.test(msg)) {
-      return 'auth.denied';
-    }
-    return 'auth.error';
-  };
-
-  if (auth.status === 'error') {
-    const ns = authErrorNs();
-    return (
-      <main
-        className="tma-scope"
-        data-density="regular"
-        style={{
-          minHeight: 'var(--tma-viewport-h, 100dvh)',
-          background: 'var(--tma-surface-canvas)',
-          color: 'var(--tma-text-primary)',
-        }}
-      >
-        <ErrorScreen
-          title={t(`${ns}.title`)}
-          body={t(`${ns}.body`)}
-          ctaLabel={t(`${ns}.cta`)}
-          onRetry={() => auth.retry()}
-        />
-      </main>
-    );
-  }
+  // Auth loading + error states handled globally by <AuthGate>; by the
+  // time this screen renders, `auth.status === 'authenticated'` is a
+  // given. Local `auth.status === 'authenticating'` plates were removed.
 
   return (
     <main
@@ -274,26 +238,10 @@ export function Today() {
           )}
         </header>
 
-        {auth.status === 'authenticating' && (
-          <div
-            role="status"
-            style={{
-              margin: 'var(--tma-sp-6) var(--tma-sp-4) 0',
-              padding: 'var(--tma-sp-4)',
-              borderRadius: 'var(--tma-rad-3)',
-              background: 'var(--tma-surface-plate)',
-              fontSize: 'var(--tma-fs-small)',
-              color: 'var(--tma-text-tertiary)',
-              boxShadow: 'var(--tma-elev-1)',
-            }}
-          >
-            {t('auth.connecting')}
-          </div>
-        )}
-
-        {auth.status === 'authenticated' && (
-          <>
-            {stats.isPending && <OrbSlotPlaceholder />}
+        {/* AuthGate guarantees auth.status === 'authenticated' by the time
+            we render here. */}
+        <>
+          {stats.isPending && <OrbSlotPlaceholder />}
             {stats.data && (
               <Assemble hero>
                 <StreakOrb data={stats.data.streak} dueToday={dueToday} size="lg" />
@@ -431,8 +379,7 @@ export function Today() {
                 />
               </div>
             )}
-          </>
-        )}
+        </>
       </div>
     </main>
   );

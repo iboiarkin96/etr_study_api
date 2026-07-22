@@ -20,11 +20,9 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
-import { useAuth } from '../../app/use-auth';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
-import { ErrorScreen } from '../Today/components/ErrorScreen';
 import { HeatmapCalendar } from '../Today/components/HeatmapCalendar';
 import { ScheduleSummaryStrip } from '../Today/components/ScheduleSummaryStrip';
 import { useScheduleHistory } from '../Today/hooks/useScheduleHistory';
@@ -33,33 +31,13 @@ import { useScheduleSummary } from '../Today/hooks/useScheduleSummary';
 export function Schedule() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const auth = useAuth();
   const summary = useScheduleSummary();
   const history = useScheduleHistory(90);
 
   // T-25d — native BackButton returns to Today.
   useTelegramBackButton(() => void navigate({ to: '/' }));
 
-  if (auth.status === 'error') {
-    return (
-      <main
-        className="tma-scope"
-        data-density="regular"
-        style={{
-          minHeight: 'var(--tma-viewport-h, 100dvh)',
-          background: 'var(--tma-surface-canvas)',
-          color: 'var(--tma-text-primary)',
-        }}
-      >
-        <ErrorScreen
-          title={t('auth.error.title')}
-          body={t('auth.error.body')}
-          ctaLabel={t('auth.error.cta')}
-          onRetry={() => auth.retry()}
-        />
-      </main>
-    );
-  }
+  // Auth loading/error handled by <AuthGate>.
 
   const totalReviews = history.data?.days?.reduce((s, d) => s + (d.count ?? 0), 0) ?? 0;
   const totalDue = summary.data?.total ?? 0;
@@ -133,25 +111,7 @@ export function Schedule() {
           </div>
         </header>
 
-        {auth.status === 'authenticating' && (
-          <div
-            role="status"
-            style={{
-              margin: 'var(--tma-sp-6) var(--tma-sp-4) 0',
-              padding: 'var(--tma-sp-4)',
-              borderRadius: 'var(--tma-rad-3)',
-              background: 'var(--tma-surface-plate)',
-              fontSize: 'var(--tma-fs-small)',
-              color: 'var(--tma-text-tertiary)',
-              boxShadow: 'var(--tma-elev-1)',
-            }}
-          >
-            {t('auth.connecting')}
-          </div>
-        )}
-
-        {auth.status === 'authenticated' && (
-          <>
+        <>
             {/* Summary strip — hero of this screen (three-count read at a glance). */}
             {summary.isPending && <ScheduleSummaryStripSkeleton />}
             {summary.isError && (
@@ -213,8 +173,7 @@ export function Schedule() {
                 </div>
               </Assemble>
             )}
-          </>
-        )}
+        </>
       </div>
     </main>
   );

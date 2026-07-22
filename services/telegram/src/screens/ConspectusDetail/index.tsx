@@ -16,18 +16,15 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
-import { useAuth } from '../../app/use-auth';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { haptic } from '../../shared/haptics/haptics';
 import { LangSwitch } from '../../shared/i18n/LangSwitch';
 import { ErrorInline } from '../Today/components/ErrorInline';
-import { ErrorScreen } from '../Today/components/ErrorScreen';
 import { useConspectus } from './hooks/useConspectus';
 
 export function ConspectusDetail() {
   const { t } = useTranslation();
-  const auth = useAuth();
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { conspectus_uuid?: string };
   const uuid = params.conspectus_uuid ?? '';
@@ -50,38 +47,7 @@ export function ConspectusDetail() {
       : null,
   );
 
-  const authErrorNs = (): 'auth.unreachable' | 'auth.denied' | 'auth.error' => {
-    const msg = auth.error?.message ?? '';
-    if (/failed to fetch|networkerror|network error|fetch failed/i.test(msg)) {
-      return 'auth.unreachable';
-    }
-    if (/401|unauthori[sz]ed|token|jwt|signature/i.test(msg)) {
-      return 'auth.denied';
-    }
-    return 'auth.error';
-  };
-
-  if (auth.status === 'error') {
-    const ns = authErrorNs();
-    return (
-      <main
-        className="tma-scope"
-        data-density="regular"
-        style={{
-          minHeight: 'var(--tma-viewport-h, 100dvh)',
-          background: 'var(--tma-surface-canvas)',
-          color: 'var(--tma-text-primary)',
-        }}
-      >
-        <ErrorScreen
-          title={t(`${ns}.title`)}
-          body={t(`${ns}.body`)}
-          ctaLabel={t(`${ns}.cta`)}
-          onRetry={() => auth.retry()}
-        />
-      </main>
-    );
-  }
+  // Auth loading/error handled by <AuthGate>.
 
   return (
     <main
@@ -120,25 +86,7 @@ export function ConspectusDetail() {
           <LangSwitch />
         </header>
 
-        {auth.status === 'authenticating' && (
-          <div
-            role="status"
-            style={{
-              margin: 'var(--tma-sp-6) var(--tma-sp-4) 0',
-              padding: 'var(--tma-sp-4)',
-              borderRadius: 'var(--tma-rad-3)',
-              background: 'var(--tma-surface-plate)',
-              fontSize: 'var(--tma-fs-small)',
-              color: 'var(--tma-text-tertiary)',
-              boxShadow: 'var(--tma-elev-1)',
-            }}
-          >
-            {t('auth.connecting')}
-          </div>
-        )}
-
-        {auth.status === 'authenticated' && (
-          <>
+        <>
             {query.isPending && <DetailSkeleton />}
             {query.isError && (
               <div style={{ margin: 'var(--tma-sp-4) var(--tma-sp-4)' }}>
@@ -241,8 +189,7 @@ export function ConspectusDetail() {
                 </div>
               </article>
             )}
-          </>
-        )}
+        </>
       </div>
     </main>
   );

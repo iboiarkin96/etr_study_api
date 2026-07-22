@@ -19,12 +19,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useAuth } from '../../app/use-auth';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { haptic } from '../../shared/haptics/haptics';
 import { ErrorInline } from '../Today/components/ErrorInline';
-import { ErrorScreen } from '../Today/components/ErrorScreen';
 import { formatRelative } from '../../shared/time/formatRelative';
 import { FocusCard } from './components/FocusCard';
 import { GradeButton } from './components/GradeButton';
@@ -41,7 +39,6 @@ const ACTIVE_PHASES = new Set(['prompt', 'revealed', 'grading']);
 export function Focus() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const auth = useAuth();
   // Single-card mode from the Conspectus detail «Review now» CTA (T-17c);
   // `strict: false` keeps this file decoupled from the route id so tests
   // that render <Focus/> without a router-in-the-tree still work.
@@ -120,21 +117,7 @@ export function Focus() {
     prevGradeErrorRef.current = session.gradeError;
   }, [session.gradeError]);
 
-  if (auth.status === 'error') {
-    return (
-      <main
-        className="tma-scope"
-        data-density="regular"
-        style={{
-          minHeight: 'var(--tma-viewport-h, 100dvh)',
-          background: 'var(--tma-surface-canvas)',
-          color: 'var(--tma-text-primary)',
-        }}
-      >
-        <ErrorScreen title={t('auth.error.title')} body={t('auth.error.body')} ctaLabel={t('auth.error.cta')} onRetry={() => auth.retry()} />
-      </main>
-    );
-  }
+  // Auth loading/error handled by <AuthGate>.
 
   return (
     <main

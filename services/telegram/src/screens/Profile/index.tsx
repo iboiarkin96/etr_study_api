@@ -25,7 +25,6 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../app/use-auth';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
-import { ErrorScreen } from '../Today/components/ErrorScreen';
 import { StreakOrb } from '../Today/components/StreakOrb';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { useConspectusesDue } from '../Today/hooks/useConspectusesDue';
@@ -62,26 +61,7 @@ export function Profile() {
     return () => window.removeEventListener('keydown', onKey);
   }, [navigate]);
 
-  if (auth.status === 'error') {
-    return (
-      <main
-        className="tma-scope"
-        data-density="regular"
-        style={{
-          minHeight: 'var(--tma-viewport-h, 100dvh)',
-          background: 'var(--tma-surface-canvas)',
-          color: 'var(--tma-text-primary)',
-        }}
-      >
-        <ErrorScreen
-          title={t('auth.error.title')}
-          body={t('auth.error.body')}
-          ctaLabel={t('auth.error.cta')}
-          onRetry={() => auth.retry()}
-        />
-      </main>
-    );
-  }
+  // Auth loading/error handled by <AuthGate>.
 
   const nudgeOn = (me.data?.reminder_enabled ?? 1) === 1;
   const nudgeAt = me.data?.reminder_at ?? '09:00';
@@ -120,25 +100,7 @@ export function Profile() {
           </div>
         </header>
 
-        {auth.status === 'authenticating' && (
-          <div
-            role="status"
-            style={{
-              margin: 'var(--tma-sp-6) var(--tma-sp-4) 0',
-              padding: 'var(--tma-sp-4)',
-              borderRadius: 'var(--tma-rad-3)',
-              background: 'var(--tma-surface-plate)',
-              fontSize: 'var(--tma-fs-small)',
-              color: 'var(--tma-text-tertiary)',
-              boxShadow: 'var(--tma-elev-1)',
-            }}
-          >
-            {t('auth.connecting')}
-          </div>
-        )}
-
-        {auth.status === 'authenticated' && (
-          <>
+        <>
             {/* Orb — hero. Same component + cache as Today, so navigating
              * back and forth never re-fetches or re-animates from zero. */}
             {stats.isPending && <ProfileSkeleton />}
@@ -220,8 +182,7 @@ export function Profile() {
                 </button>
               </div>
             </Assemble>
-          </>
-        )}
+        </>
       </div>
 
       <NudgeSheet

@@ -22,12 +22,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ErrorsSearch } from '../../app/router';
-import { useAuth } from '../../app/use-auth';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { haptic } from '../../shared/haptics/haptics';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
-import { ErrorScreen } from '../Today/components/ErrorScreen';
 import { MissLog } from './components/MissLog';
 import { MissOrb } from './components/MissOrb';
 import { MissSheet } from './components/MissSheet';
@@ -46,7 +44,6 @@ export function Errors() {
   // (stories mount on '/'; `from: '/errors'` throws there). The app router
   // still validates the params via validateSearch on /errors.
   const search = useSearch({ strict: false }) as ErrorsSearch;
-  const auth = useAuth();
   const list = useErrors();
   const create = useCreateError();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -77,26 +74,7 @@ export function Errors() {
     return list.data.filter((r) => new Date(r.created_at).getTime() >= cutoff).length;
   }, [list.data]);
 
-  if (auth.status === 'error') {
-    return (
-      <main
-        className="tma-scope"
-        data-density="regular"
-        style={{
-          minHeight: 'var(--tma-viewport-h, 100dvh)',
-          background: 'var(--tma-surface-canvas)',
-          color: 'var(--tma-text-primary)',
-        }}
-      >
-        <ErrorScreen
-          title={t('auth.error.title')}
-          body={t('auth.error.body')}
-          ctaLabel={t('auth.error.cta')}
-          onRetry={() => auth.retry()}
-        />
-      </main>
-    );
-  }
+  // Auth loading/error handled by <AuthGate>.
 
   const submit = (message: string) => {
     create.mutate(
@@ -210,25 +188,7 @@ export function Errors() {
           </button>
         </header>
 
-        {auth.status === 'authenticating' && (
-          <div
-            role="status"
-            style={{
-              margin: 'var(--tma-sp-6) var(--tma-sp-4) 0',
-              padding: 'var(--tma-sp-4)',
-              borderRadius: 'var(--tma-rad-3)',
-              background: 'var(--tma-surface-plate)',
-              fontSize: 'var(--tma-fs-small)',
-              color: 'var(--tma-text-tertiary)',
-              boxShadow: 'var(--tma-elev-1)',
-            }}
-          >
-            {t('auth.connecting')}
-          </div>
-        )}
-
-        {auth.status === 'authenticated' && (
-          <>
+        <>
             {/* Orb — hero (fade + scale into place). */}
             <Assemble hero>
               <MissOrb count={weeklyCount} />
@@ -325,8 +285,7 @@ export function Errors() {
                 </div>
               </Assemble>
             )}
-          </>
-        )}
+        </>
       </div>
 
       <MissSheet

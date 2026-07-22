@@ -14,6 +14,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { AuthGate } from './AuthGate';
 import { AuthProvider } from './auth-provider';
 import { Router } from './router';
 import { ThemeProvider } from './theme-provider';
@@ -40,7 +41,9 @@ export function Providers() {
       <ThemeProvider>
         <ViewportProvider>
           <AuthProvider>
-            <Router />
+            <AuthGate>
+              <Router />
+            </AuthGate>
           </AuthProvider>
         </ViewportProvider>
       </ThemeProvider>

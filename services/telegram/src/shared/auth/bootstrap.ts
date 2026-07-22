@@ -175,7 +175,7 @@ export function bootstrapAuth(): Promise<BootstrapResult> {
       // guard, switching accounts (or graduating from VITE_DEV_INIT_DATA
       // to a real Telegram session) silently hands the new user the old
       // user's JWT — every /me/* query then resolves to a stranger's owner
-      // row and Today either hangs on «Connecting to the server…» or
+      // row and Today either hangs on the BootScreen splash or
       // renders someone else's data.
       const currentSessionUserId = readInitDataUserId();
       const cacheBelongsToOtherUser =
