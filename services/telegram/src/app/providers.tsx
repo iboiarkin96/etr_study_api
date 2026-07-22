@@ -15,6 +15,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { ToastProvider, Toaster } from '../shared/toast/toast';
+import { AppErrorBoundary } from './AppErrorBoundary';
 import { AuthGate } from './AuthGate';
 import { AuthProvider } from './auth-provider';
 import { Router } from './router';
@@ -41,18 +42,25 @@ export function Providers() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ViewportProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <AuthGate>
-                <Router />
-              </AuthGate>
-              {/* Toaster mounts inside ToastProvider AND inside AuthProvider so
-                * a mutation callback can push a toast during the auth handshake
-                * itself. Kept above AuthGate so the toast survives a gate flip
-                * (splash → app) without unmount. */}
-              <Toaster />
-            </ToastProvider>
-          </AuthProvider>
+          {/* AppErrorBoundary sits inside ThemeProvider + ViewportProvider so
+            * its `<ErrorScreen>` fallback still resolves the app's tokens and
+            * safe-area vars, but outside AuthProvider so an error thrown *by*
+            * the auth bootstrap surfaces here instead of vanishing under a
+            * broken auth gate. */}
+          <AppErrorBoundary>
+            <AuthProvider>
+              <ToastProvider>
+                <AuthGate>
+                  <Router />
+                </AuthGate>
+                {/* Toaster mounts inside ToastProvider AND inside AuthProvider
+                  * so a mutation callback can push a toast during the auth
+                  * handshake itself. Kept above AuthGate so the toast survives
+                  * a gate flip (splash → app) without unmount. */}
+                <Toaster />
+              </ToastProvider>
+            </AuthProvider>
+          </AppErrorBoundary>
         </ViewportProvider>
       </ThemeProvider>
     </QueryClientProvider>
