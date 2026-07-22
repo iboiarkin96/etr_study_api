@@ -15,8 +15,10 @@
  * failure becomes readable instead of vanishing into `console.debug`.
  */
 
+import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
+import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { haptic, type HapticTone } from '../../shared/haptics/haptics';
 
 type Row = {
@@ -115,9 +117,12 @@ function fireRaw(tone: HapticTone): { ok: boolean; error?: string } {
 }
 
 export function DebugHaptics() {
+  const navigate = useNavigate();
   const [diag, setDiag] = useState<Diagnostic | null>(null);
   const [flashed, setFlashed] = useState<HapticTone | null>(null);
   const [lastResult, setLastResult] = useState<{ tone: HapticTone; ok: boolean; error?: string } | null>(null);
+
+  useTelegramBackButton(() => void navigate({ to: '/' }));
 
   useEffect(() => {
     setDiag(readDiagnostic());

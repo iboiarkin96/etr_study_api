@@ -27,6 +27,7 @@ import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
 import { ErrorScreen } from '../Today/components/ErrorScreen';
 import { StreakOrb } from '../Today/components/StreakOrb';
+import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { useConspectusesDue } from '../Today/hooks/useConspectusesDue';
 import { useMeStats } from '../Today/hooks/useMeStats';
 import { AchievementChips } from './components/AchievementChips';
@@ -45,6 +46,9 @@ export function Profile() {
   const due = useConspectusesDue();
   const reminder = useUpdateReminder();
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // T-25d — native BackButton returns to Today.
+  useTelegramBackButton(() => void navigate({ to: '/' }));
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

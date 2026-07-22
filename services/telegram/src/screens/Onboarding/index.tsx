@@ -18,6 +18,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
+import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { haptic } from '../../shared/haptics/haptics';
 import { Assemble } from '../Today/components/Assemble';
 import { EtrMoves } from './components/EtrMoves';
@@ -34,6 +35,11 @@ export function Onboarding() {
     markSeen();
     void navigate({ to: '/' });
   };
+
+  // T-25d — Telegram-drawn primary action mirroring the on-canvas
+  // «Start today →» button. Native chrome puts the CTA below the safe
+  // area on iOS so first-run users see it immediately.
+  useTelegramMainButton({ text: t('onboarding.cta'), onClick: finish });
 
   return (
     <main

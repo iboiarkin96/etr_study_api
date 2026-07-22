@@ -27,6 +27,8 @@ import { RecentlyReviewedPeek } from './components/RecentlyReviewedPeek';
 import { ScheduleSummaryStrip } from './components/ScheduleSummaryStrip';
 import { StreakOrb } from './components/StreakOrb';
 import { YesterdayDigest } from './components/YesterdayDigest';
+import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
+import { useTelegramSettingsButton } from '../../shared/chrome/useTelegramSettingsButton';
 import { useConspectusesDue } from './hooks/useConspectusesDue';
 import { useMeStats } from './hooks/useMeStats';
 import { useMeYesterday } from './hooks/useMeYesterday';
@@ -45,6 +47,25 @@ export function Today() {
   const yesterday = useMeYesterday();
   const history = useScheduleHistory(90);
   const review = useReviewConspectus();
+
+  // Native SDK chrome (T-25d): Telegram-drawn Settings gear in the header
+  // deep-links to Profile; MainButton at the bottom carries the primary
+  // «Start Focus» CTA and disappears when there is nothing to review.
+  // Both no-op outside real Telegram, so the on-canvas «Start Focus»
+  // button and profile pill continue to work in the plain-browser dev
+  // loop and in Storybook.
+  useTelegramSettingsButton(() => {
+    void navigate({ to: '/me' });
+  });
+  const dueCount = due.data?.length ?? 0;
+  useTelegramMainButton(
+    dueCount > 0
+      ? {
+          text: t('focus.start'),
+          onClick: () => void navigate({ to: '/focus' }),
+        }
+      : null,
+  );
 
   /** Per-row in-flight direction — drives the swipe-off animation on the
    * matching SwipeRow, independent of the useMutation's singleton state. */

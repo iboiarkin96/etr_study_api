@@ -21,6 +21,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
+import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
 import { ErrorScreen } from '../Today/components/ErrorScreen';
@@ -35,6 +36,9 @@ export function Schedule() {
   const auth = useAuth();
   const summary = useScheduleSummary();
   const history = useScheduleHistory(90);
+
+  // T-25d — native BackButton returns to Today.
+  useTelegramBackButton(() => void navigate({ to: '/' }));
 
   if (auth.status === 'error') {
     return (

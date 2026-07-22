@@ -17,6 +17,8 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
+import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
+import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { haptic } from '../../shared/haptics/haptics';
 import { LangSwitch } from '../../shared/i18n/LangSwitch';
 import { ErrorInline } from '../Today/components/ErrorInline';
@@ -30,6 +32,23 @@ export function ConspectusDetail() {
   const params = useParams({ strict: false }) as { conspectus_uuid?: string };
   const uuid = params.conspectus_uuid ?? '';
   const query = useConspectus(uuid);
+
+  // T-25d — native SDK chrome. BackButton in the header returns to Today;
+  // MainButton at the bottom carries the same «Review now» primary action
+  // as the on-canvas CTA, so on-device users get a persistent native
+  // affordance that doesn't scroll away.
+  useTelegramBackButton(() => void navigate({ to: '/' }));
+  useTelegramMainButton(
+    uuid
+      ? {
+          text: t('detail.reviewNow'),
+          onClick: () => {
+            haptic('impactLight');
+            void navigate({ to: '/focus', search: { conspectus_uuid: uuid } });
+          },
+        }
+      : null,
+  );
 
   const authErrorNs = (): 'auth.unreachable' | 'auth.denied' | 'auth.error' => {
     const msg = auth.error?.message ?? '';

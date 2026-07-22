@@ -20,6 +20,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
+import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
+import { useTelegramMainButton } from '../../shared/chrome/useTelegramMainButton';
 import { haptic } from '../../shared/haptics/haptics';
 import { ErrorInline } from '../Today/components/ErrorInline';
 import { ErrorScreen } from '../Today/components/ErrorScreen';
@@ -46,6 +48,20 @@ export function Focus() {
   const search = useSearch({ strict: false }) as { conspectus_uuid?: string };
   const session = useFocusSession({ singleConspectusUuid: search.conspectus_uuid ?? null });
   const hoverCapable = useHoverCapable();
+
+  // T-25d — native SDK chrome. BackButton returns to Today mid-session
+  // (equivalent to Esc on desktop); MainButton at the bottom carries the
+  // «Back to Today» primary action on the completion state so on-device
+  // users don't have to reach for the on-canvas button.
+  useTelegramBackButton(() => void navigate({ to: '/' }));
+  useTelegramMainButton(
+    session.phase === 'complete'
+      ? {
+          text: t('focus.backToToday'),
+          onClick: () => void navigate({ to: '/' }),
+        }
+      : null,
+  );
 
   /** Stable ref to the latest session so the keyboard listener effect can
    * install ONCE and still call the current callbacks. Depending on

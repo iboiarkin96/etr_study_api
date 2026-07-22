@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { ErrorsSearch } from '../../app/router';
 import { useAuth } from '../../app/use-auth';
+import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { haptic } from '../../shared/haptics/haptics';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
@@ -50,6 +51,9 @@ export function Errors() {
   const create = useCreateError();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [prefill, setPrefill] = useState<Prefill | null>(null);
+
+  // T-25d — native BackButton returns to Today.
+  useTelegramBackButton(() => void navigate({ to: '/' }));
 
   /** Consume `?prefill_from=session&conspectus_uuid=…` exactly once per mount:
    * open the sheet, store the linked conspectus for the POST body, then strip
