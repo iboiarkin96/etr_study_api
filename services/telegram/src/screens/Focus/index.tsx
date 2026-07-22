@@ -14,7 +14,7 @@
  * back to Today. Mobile users get on-canvas buttons only.
  */
 
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -39,7 +39,11 @@ export function Focus() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const auth = useAuth();
-  const session = useFocusSession();
+  // Single-card mode from the Conspectus detail «Review now» CTA (T-17c);
+  // `strict: false` keeps this file decoupled from the route id so tests
+  // that render <Focus/> without a router-in-the-tree still work.
+  const search = useSearch({ strict: false }) as { conspectus_uuid?: string };
+  const session = useFocusSession({ singleConspectusUuid: search.conspectus_uuid ?? null });
   const hoverCapable = useHoverCapable();
 
   /** Stable ref to the latest session so the keyboard listener effect can

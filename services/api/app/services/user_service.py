@@ -182,6 +182,10 @@ class UserService:
             su = self._uuid_to_str(data["system_uuid"])
             if su is not None:
                 user.system_uuid = cast(Any, su)
+        if "reminder_enabled" in data and data["reminder_enabled"] is not None:
+            user.reminder_enabled = data["reminder_enabled"]
+        if "reminder_at" in data and data["reminder_at"] is not None:
+            user.reminder_at = data["reminder_at"]
         return self.repository.save(user)
 
     def get_or_404(self, *, system_user_id: str, system_uuid: str) -> User:

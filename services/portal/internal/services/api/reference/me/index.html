@@ -46,7 +46,7 @@
       </header>
 
       <h2 id="overview">Overview</h2>
-      <p>Me is a <strong>computed projection</strong>, not a writable resource. Both endpoints read from <code>conspectus_review_logs</code> (with a small helper join into <code>conspectus_schedules</code> for the «still-due» count on <code>yesterday</code>) and return an aggregated view scoped to the caller. The client never writes here — writes happen through <a href="../conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a>, which appends the log rows this resource projects over.</p>
+      <p>Me is a <strong>computed projection</strong>, not a writable resource. All endpoints read from <code>conspectus_review_logs</code> (with a small helper join into <code>conspectus_schedules</code> for the «still-due» count on <code>yesterday</code>, and owner-scoped COUNTs over <code>conspectuses</code> + <code>learning_errors</code> for <code>achievements</code>) and return an aggregated view scoped to the caller. The client never writes here — writes happen through <a href="../conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a>, which appends the log rows this resource projects over.</p>
       <p>Two operations serve the two hero blocks on the Today screen:</p>
       <ul>
         <li><strong>Stats</strong> — current + longest streak of consecutive review days for the streak orb.</li>
@@ -107,11 +107,11 @@
         <li><strong>Row creation.</strong> A fresh <code>conspectus_review_logs</code> row is appended by <a href="../conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a> in the same transaction as the schedule advance.</li>
         <li><strong>Immutable log.</strong> Review logs are append-only — there is no update or delete path. Streak / yesterday counts always reflect the full history.</li>
         <li><strong>Soft delete of a note.</strong> <a href="../conspectus/operations/delete-api-v1-conspectuses-conspectus_uuid.html"><code>deleteConspectus</code></a> flips <code>is_row_invalid = 1</code> on the schedule row — the «still-due» proxy on <code>yesterday</code> filters it out. Review-log rows are retained.</li>
-        <li><strong>Reads.</strong> <a href="operations/get-api-v1-me-stats.html"><code>getMeStats</code></a> and <a href="operations/get-api-v1-me-yesterday.html"><code>getMeYesterday</code></a>. No <code>Idempotency-Key</code>.</li>
+        <li><strong>Reads.</strong> <a href="operations/get-api-v1-me-stats.html"><code>getMeStats</code></a>, <a href="operations/get-api-v1-me-yesterday.html"><code>getMeYesterday</code></a>, and <a href="operations/get-api-v1-me-achievements.html"><code>getMeAchievements</code></a>. No <code>Idempotency-Key</code>.</li>
       </ul>
 
       <h2 id="operations">Operations</h2>
-      <p>Two read-only projections. Both scoped implicitly to the calling tenant via composite key.</p>
+      <p>Three read-only projections. All scoped implicitly to the calling tenant via composite key.</p>
       <div class="docs-table-wrap" role="region" aria-label="Me operations">
         <table class="docs-table docs-table--sticky-head docs-table--zebra">
           <thead><tr><th>Method &amp; path</th><th>operationId</th><th>Status</th><th>Idempotency</th><th>Success</th><th>Spec page</th></tr></thead>
@@ -131,6 +131,14 @@
               <td>Not used (read)</td>
               <td><code>200 OK</code></td>
               <td><a href="operations/get-api-v1-me-yesterday.html">Open spec →</a></td>
+            </tr>
+            <tr>
+              <td><span class="docs-pill docs-pill--success">GET</span> <code>/api/v1/me/achievements</code></td>
+              <td><code>getMeAchievements</code></td>
+              <td><span class="docs-pill docs-pill--neutral">Draft</span></td>
+              <td>Not used (read)</td>
+              <td><code>200 OK</code></td>
+              <td><a href="operations/get-api-v1-me-achievements.html">Open spec →</a></td>
             </tr>
           </tbody>
         </table>

@@ -84,6 +84,19 @@ class User(Base):
         nullable=False,
         default="UTC",
     )
+    reminder_enabled: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+    )
+    # Wall-clock 'HH:MM' in the user's own `timezone` — the bot resolves it to
+    # an absolute instant at send time, so a timezone move never shifts the
+    # user's chosen local hour.
+    reminder_at: Mapped[str] = mapped_column(
+        String(5),
+        nullable=False,
+        default="09:00",
+    )
 
     system: Mapped[System] = relationship(back_populates="users")
     invalidation_reason: Mapped[InvalidationReason | None] = relationship(

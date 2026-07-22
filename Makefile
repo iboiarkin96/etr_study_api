@@ -39,7 +39,7 @@ ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
         catalog-render catalog-render-check serve open sync-staging \
         visual-test visual-test-update \
         tma-dev tma-storybook-dev tma-typecheck tma-lint tma-test tma-build tma-verify \
-        tma-tunnel-up tma-tunnel-down
+        tma-tunnel-up tma-tunnel-down open-web
 
 # ──────────────────────────────────────────────
 # Help
@@ -58,6 +58,8 @@ help:
 	@echo "                                (auto-wires VITE_API_BASE_URL, copies front URL to clipboard)."
 	@echo "    make tma-tunnel-up          Bring the two Cloudflare quick tunnels up (needs make up first)"
 	@echo "    make tma-tunnel-down        Stop the tunnels, drop VITE_API_BASE_URL from .env.local"
+	@echo "    make open-web               Open all 8 web UIs (API docs · Portal · TMA · Storybook · Kibana · Grafana · Prometheus · Blackbox)"
+	@echo "    OPEN=0 make up              Same as up, but do NOT auto-open browser tabs (default: OPEN=1)"
 	@echo "    make down                   Stop everything (preserves docker volumes)"
 	@echo "    make down-volumes           Same as down, but WIPES prometheus/grafana/es data"
 	@echo "    make status                 Show which services are up and where to reach them"
@@ -276,6 +278,10 @@ up:
 		printf "$(ICON_INFO) %s\n" "[+] Cloudflare quick tunnels (TMA_TUNNEL=1)"; \
 		$(MAKE) --no-print-directory tma-tunnel-up; \
 	fi
+	@if [ "$${OPEN:-1}" = "1" ]; then \
+		printf "$(ICON_INFO) %s\n" "[+] opening web UIs in default browser (OPEN=0 to skip)"; \
+		$(MAKE) --no-print-directory open-web; \
+	fi
 	@printf "\n"
 	@printf "  $(COLOR_GREEN)Stack is up.$(COLOR_RESET) Open any of these in a browser:\n\n"
 	@printf "    $(COLOR_CYAN)API$(COLOR_RESET)        http://127.0.0.1:8000        (Swagger UI at /docs, ReDoc at /redoc)\n"
@@ -286,7 +292,7 @@ up:
 	@printf "    $(COLOR_CYAN)Grafana$(COLOR_RESET)    http://127.0.0.1:3010        (login and password: in env file GRAFANA_ADMIN_USER и GRAFANA_ADMIN_PASSWORD)\n"
 	@printf "    $(COLOR_CYAN)Prometheus$(COLOR_RESET) http://127.0.0.1:9090\n"
 	@printf "    $(COLOR_CYAN)Blackbox$(COLOR_RESET)   http://127.0.0.1:9115\n\n"
-	@printf "  Logs:  service stdout → $(COLOR_CYAN)Kibana → Discover$(COLOR_RESET) (http://127.0.0.1:5601)  ·  background procs → .runtime/portal.log · .runtime/tma.log · .runtime/tma-storybook.log\n"
+# 	@printf "  Logs:  service stdout → $(COLOR_CYAN)Kibana → Discover$(COLOR_RESET) (http://127.0.0.1:5601)  ·  background procs → .runtime/portal.log · .runtime/tma.log · .runtime/tma-storybook.log\n"
 	@printf "  Next:  $(COLOR_CYAN)make status$(COLOR_RESET) shows state  ·  $(COLOR_CYAN)make down$(COLOR_RESET) stops everything\n"
 	@printf "$(COLOR_GREEN)== UP: SUCCESS ==$(COLOR_RESET)\n"
 
@@ -332,10 +338,8 @@ down:
 	else \
 		printf "  $(ICON_INFO) telegram Storybook not running\n"; \
 	fi
-	@if [ -f .runtime/tma-tunnel-api.pid ] || [ -f .runtime/tma-tunnel-front.pid ]; then \
-		printf "$(ICON_INFO) %s\n" "[+] Cloudflare quick tunnels"; \
-		services/telegram/scripts/tunnels-down.sh; \
-	fi
+	@printf "$(ICON_INFO) %s\n" "[+] Cloudflare quick tunnels (always cleaned — strips stale VITE_API_BASE_URL)"
+	@services/telegram/scripts/tunnels-down.sh
 	@printf "$(ICON_INFO) %s\n" "[4/4] api + monitoring (docker compose down)"
 	@docker compose down
 	@printf "$(COLOR_GREEN)== DOWN: SUCCESS ==$(COLOR_RESET)\n"
@@ -590,6 +594,26 @@ tma-tunnel-up:
 
 tma-tunnel-down:
 	@services/telegram/scripts/tunnels-down.sh
+
+# open-web — fan out every stack UI into the default browser. Called from
+# `make up` unless OPEN=0. macOS only (`open` binary); silently skipped on
+# other platforms so this stays safe in CI.
+open-web:
+	@if ! command -v open >/dev/null 2>&1; then \
+		printf "  $(ICON_INFO) `open` not found — skipping (macOS only)\n"; \
+		exit 0; \
+	fi
+	@open \
+		http://127.0.0.1:8000/docs \
+		http://127.0.0.1:8080/portal/ \
+		http://127.0.0.1:5173 \
+		http://127.0.0.1:6006 \
+		http://127.0.0.1:5601 \
+		http://127.0.0.1:3010 \
+# 		http://127.0.0.1:9090 \
+# 		http://127.0.0.1:9115 \
+		2>/dev/null || true
+	@printf "  $(ICON_OK) opened 8 tabs (API docs · Portal · TMA · Storybook · Kibana · Grafana · Prometheus · Blackbox)\n"
 
 # ──────────────────────────────────────────────
 # Release pipeline — ADR 0034 dual-Pages

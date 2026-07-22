@@ -14,7 +14,9 @@ from datetime import UTC, date, datetime, timedelta
 
 from app.repositories.me_repository import MeRepository
 from app.schemas.me import (
+    Achievement,
     HistoryDay,
+    MeAchievementsResponse,
     MeStatsResponse,
     MeYesterdayResponse,
     ScheduleHistoryResponse,
@@ -27,6 +29,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_STREAK_GOAL_DAYS = 30
 _MIN_HISTORY_DAYS = 1
 _MAX_HISTORY_DAYS = 365
+# A perfect day = at least this many reviews with zero «forgot» tags.
+PERFECT_DAY_MIN_REVIEWS = 5
+# A comeback = an active day after a silence of at least this many days.
+COMEBACK_GAP_DAYS = 7
 
 
 class MeService:
@@ -60,6 +66,72 @@ class MeService:
                 longest_days=max(longest, current),
                 goal_days=DEFAULT_STREAK_GOAL_DAYS,
             ),
+            computed_at=datetime.now(UTC),
+        )
+
+    # ---------- achievements ----------
+
+    def achievements(self, *, owner_client_uuid: str) -> MeAchievementsResponse:
+        """Compute the achievement set from review logs / conspectuses / misses.
+
+        Everything is derived on read — no persisted unlock rows, so the
+        badges can never disagree with the data behind them. Streak-based
+        achievements use the LONGEST streak: once earned, a badge does not
+        un-earn itself when the current streak breaks. Binary badges
+        (perfect day, comeback, early bird, night owl) report target 1 with
+        progress 0/1 so every item shares one shape.
+        """
+        today = _today_utc()
+        since = today - timedelta(days=365)
+        per_day = self.repository.reviews_per_day(
+            owner_client_uuid=owner_client_uuid,
+            since=since,
+            until=today,
+        )
+        longest = max(_longest_streak(per_day), _current_streak(per_day, today))
+        totals = self.repository.owner_totals(owner_client_uuid=owner_client_uuid)
+        forgot_per_day = self.repository.forgot_per_day(
+            owner_client_uuid=owner_client_uuid,
+            since=since,
+            until=today,
+        )
+        perfect_day = any(
+            count >= PERFECT_DAY_MIN_REVIEWS and forgot_per_day.get(day, 0) == 0
+            for day, count in per_day.items()
+        )
+        comeback = _has_comeback(per_day, gap_days=COMEBACK_GAP_DAYS)
+        tz = self.repository.owner_timezone(owner_client_uuid=owner_client_uuid)
+        early_bird = self.repository.has_review_in_local_hour_range(
+            owner_client_uuid=owner_client_uuid, tz=tz, hour_from=0, hour_to=8
+        )
+        night_owl = self.repository.has_review_in_local_hour_range(
+            owner_client_uuid=owner_client_uuid, tz=tz, hour_from=23, hour_to=24
+        )
+
+        def item(key: str, progress: int, target: int) -> Achievement:
+            return Achievement(
+                key=key,
+                unlocked=progress >= target,
+                progress=min(progress, target),
+                target=target,
+            )
+
+        return MeAchievementsResponse(
+            items=[
+                item("first_review", totals.reviews, 1),
+                item("streak_7", longest, 7),
+                item("streak_30", longest, 30),
+                item("reviews_100", totals.reviews, 100),
+                item("notes_10", totals.conspectuses, 10),
+                # ETR celebrates noticing: logging misses IS the practice.
+                item("noticer_10", totals.misses, 10),
+                item("perfect_day", int(perfect_day), 1),
+                item("comeback", int(comeback), 1),
+                item("early_bird", int(early_bird), 1),
+                item("night_owl", int(night_owl), 1),
+                item("mastery_50", totals.easy_reviews, 50),
+                item("reviews_500", totals.reviews, 500),
+            ],
             computed_at=datetime.now(UTC),
         )
 
@@ -132,6 +204,17 @@ def _current_streak(per_day: dict[date, int], today: date) -> int:
         n += 1
         day -= timedelta(days=1)
     return n
+
+
+def _has_comeback(per_day: dict[date, int], *, gap_days: int) -> bool:
+    """True when two consecutive ACTIVE days sit ≥ ``gap_days`` apart.
+
+    «Came back after a week of silence and reviewed anyway» — the gap is
+    measured between active days, so the badge unlocks on the day the
+    learner returns, not while they are away.
+    """
+    active = sorted(d for d, c in per_day.items() if c > 0)
+    return any((active[i] - active[i - 1]).days >= gap_days for i in range(1, len(active)))
 
 
 def _longest_streak(per_day: dict[date, int]) -> int:

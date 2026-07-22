@@ -3,14 +3,20 @@
  *
  * Sequence:
  *
- *   1. Try the JWT already cached in `WebApp.CloudStorage`. If present and
- *      still valid (5-min safety margin before `exp`), we are done — no
- *      network round-trip on a warm reopen.
+ *   1. Try the JWT + user profile already cached in `WebApp.CloudStorage`.
+ *      If both are present and the JWT is still valid (5-min safety margin
+ *      before `exp`), we are done — no network round-trip on a warm reopen.
  *   2. Otherwise, POST `WebApp.initData` to `/api/v1/auth/telegram`.
  *      In the plain-browser dev loop the SDK's `initData` is empty; fall
  *      back to `VITE_DEV_INIT_DATA` (produced by `tools/dev/sign_init_data.py`).
- *   3. Persist the new JWT into `CloudStorage` so the next cold open skips
- *      the round-trip; keep the same value in memory for the current session.
+ *   3. Persist the new JWT AND the user profile into `CloudStorage` so the
+ *      next cold open skips the round-trip.
+ *
+ * The profile must be cached alongside the token: the JWT only carries
+ * `sub` (client_uuid), but every `/api/v1/*` call builds its owner params
+ * from `user.telegram_user_id`. Rehydrating with a placeholder id used to
+ * make every list query ask the server for user «0» (USER_404 → screens
+ * looked empty after a page refresh even though the data was saved).
  *
  * The function is idempotent — safe to call twice; the in-flight promise is
  * memoised so React StrictMode's double-invoke does not double-hit
@@ -18,6 +24,7 @@
  */
 
 const JWT_STORAGE_KEY = 'auth.jwt';
+const USER_STORAGE_KEY = 'auth.user';
 const REFRESH_MARGIN_SECONDS = 5 * 60;
 
 import { cloudGet, cloudRemove, cloudSet } from './cloud-storage';
@@ -95,6 +102,7 @@ async function exchangeInitData(initData: string): Promise<BootstrapResult> {
     user: BootstrapedUser;
   };
   await cloudSet(JWT_STORAGE_KEY, parsed.jwt);
+  await cloudSet(USER_STORAGE_KEY, JSON.stringify(parsed.user));
   return {
     jwt: parsed.jwt,
     expiresAtEpoch: parsed.expires_at_epoch,
@@ -103,30 +111,34 @@ async function exchangeInitData(initData: string): Promise<BootstrapResult> {
   };
 }
 
-/**
- * Rehydrate the cached user from a still-valid JWT. Skipped when the
- * bootstrap has to hit the wire — that path already carries the user block.
- */
-async function fetchMe(jwt: string): Promise<BootstrapedUser | null> {
-  // Placeholder — a dedicated `/api/v1/auth/me` endpoint lands with T-17+.
-  // Until then the cached JWT gets treated as authoritative for the sub
-  // claim (client_uuid), and the rest of the profile is refreshed the next
-  // time we exchange initData for a fresh token.
+/** Decode the `sub` claim (client_uuid) without verifying. */
+function decodeSub(jwt: string): string | null {
   const parts = jwt.split('.');
   if (parts.length !== 3) return null;
   try {
     const padded = parts[1].padEnd(parts[1].length + ((4 - (parts[1].length % 4)) % 4), '=');
     const json = atob(padded.replaceAll('-', '+').replaceAll('_', '/'));
     const payload = JSON.parse(json) as { sub?: string };
-    if (!payload.sub) return null;
-    return {
-      client_uuid: payload.sub,
-      telegram_user_id: 0,
-      telegram_username: null,
-      telegram_photo_url: null,
-      locale: null,
-      full_name: '',
-    };
+    return payload.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Rehydrate the profile cached alongside a still-valid JWT. Returns null —
+ * forcing a fresh initData exchange — when the profile is missing, corrupt,
+ * carries no usable telegram_user_id, or belongs to a different account
+ * than the token's `sub` (a second Telegram account on the same device).
+ */
+async function readCachedUser(jwt: string): Promise<BootstrapedUser | null> {
+  const raw = await cloudGet(USER_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const user = JSON.parse(raw) as BootstrapedUser;
+    if (typeof user.telegram_user_id !== 'number' || user.telegram_user_id <= 0) return null;
+    if (!user.client_uuid || user.client_uuid !== decodeSub(jwt)) return null;
+    return user;
   } catch {
     return null;
   }
@@ -139,7 +151,7 @@ export function bootstrapAuth(): Promise<BootstrapResult> {
   pending = (async () => {
     const cached = await readCachedJwt();
     if (cached) {
-      const user = await fetchMe(cached);
+      const user = await readCachedUser(cached);
       if (user) {
         const exp = decodeExpiry(cached) ?? 0;
         return { jwt: cached, expiresAtEpoch: exp, user, cached: true };
@@ -165,4 +177,5 @@ export function bootstrapAuth(): Promise<BootstrapResult> {
 export async function resetAuthForTests(): Promise<void> {
   pending = null;
   await cloudRemove(JWT_STORAGE_KEY);
+  await cloudRemove(USER_STORAGE_KEY);
 }

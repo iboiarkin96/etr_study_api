@@ -45,7 +45,27 @@ function seed(auth: AuthContextValue, items: Partial<DueConspectus>[]) {
   (auth.api.GET as ApiFn).mockResolvedValue({ data: items, error: undefined });
 }
 
-function renderSession(auth: AuthContextValue) {
+/** Route GET calls to the right endpoint — single-mode reads /conspectuses/{id},
+ * batch-mode reads /conspectuses/due. Different response shapes (object vs list). */
+function seedRouted(
+  auth: AuthContextValue,
+  handlers: {
+    due?: Partial<DueConspectus>[];
+    detail?: Partial<DueConspectus>;
+  },
+) {
+  (auth.api.GET as ApiFn).mockImplementation(async (path: string) => {
+    if (path === '/api/v1/conspectuses/{conspectus_uuid}') {
+      return { data: handlers.detail ?? null, error: undefined };
+    }
+    return { data: handlers.due ?? [], error: undefined };
+  });
+}
+
+function renderSession(
+  auth: AuthContextValue,
+  options?: Parameters<typeof useFocusSession>[0],
+) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -55,7 +75,7 @@ function renderSession(auth: AuthContextValue) {
       { client: qc },
       createElement(AuthContext.Provider, { value: auth }, children),
     );
-  return { hook: renderHook(() => useFocusSession(), { wrapper }), qc };
+  return { hook: renderHook(() => useFocusSession(options), { wrapper }), qc };
 }
 
 describe('useFocusSession · state machine', () => {
@@ -159,6 +179,54 @@ describe('useFocusSession · session cap', () => {
     await waitFor(() => expect(hook.result.current.phase).toBe('prompt'));
     expect(hook.result.current.total).toBe(SESSION_CAP);
     expect(hook.result.current.queue.length).toBe(SESSION_CAP);
+  });
+});
+
+describe('useFocusSession · single-card mode (T-17c)', () => {
+  test('seeds queue with exactly the requested conspectus, SESSION_CAP does not apply', async () => {
+    const auth = makeAuth();
+    seedRouted(auth, {
+      // Due list has 40 unrelated cards; single-mode must ignore it entirely.
+      due: Array.from({ length: 40 }, (_, i) => ({
+        conspectus_uuid: `noise-${i}`,
+        title: `Noise ${i}`,
+        schedule_revision: 1,
+      })),
+      detail: { conspectus_uuid: 'target', title: 'Target', schedule_revision: 1 },
+    });
+
+    const { hook } = renderSession(auth, { singleConspectusUuid: 'target' });
+    await waitFor(() => expect(hook.result.current.phase).toBe('prompt'));
+
+    expect(hook.result.current.total).toBe(1);
+    expect(hook.result.current.queue.length).toBe(1);
+    expect(hook.result.current.current?.conspectus_uuid).toBe('target');
+
+    // No GET on /conspectuses/due — single-mode disables that hook.
+    const dueCalls = (auth.api.GET as ApiFn).mock.calls.filter(
+      (c: unknown[]) => c[0] === '/api/v1/conspectuses/due',
+    );
+    expect(dueCalls.length).toBe(0);
+  });
+
+  test('phase → complete after grading the one card', async () => {
+    const auth = makeAuth();
+    seedRouted(auth, {
+      detail: { conspectus_uuid: 'target', title: 'Target', schedule_revision: 1 },
+    });
+    (auth.api.POST as ApiFn).mockResolvedValue({
+      data: { conspectus_uuid: 'target', next_review_at: '2026-07-25T10:00:00Z' },
+      error: undefined,
+    });
+
+    const { hook } = renderSession(auth, { singleConspectusUuid: 'target' });
+    await waitFor(() => expect(hook.result.current.phase).toBe('prompt'));
+
+    act(() => hook.result.current.reveal());
+    act(() => hook.result.current.grade('easy'));
+
+    await waitFor(() => expect(hook.result.current.phase).toBe('complete'));
+    expect(hook.result.current.summary.graded).toBe(1);
   });
 });
 

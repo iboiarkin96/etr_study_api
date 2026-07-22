@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Hook spec · useOnboardingSeen · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-21" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Hook · useOnboardingSeen</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Spec · Hook</span>
+          <span class="docs-pill docs-pill--accent">telegram · first-run flag</span>
+        </p>
+        <h1>Hook spec: useOnboardingSeen</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Single source of truth for the Onboarding «has the user finished the flow?» flag. Reads and writes <code>WebApp.CloudStorage['onboarding_done']</code> with a localStorage mirror so a warm reopen resolves synchronously and a fresh device syncs once from the cloud.</p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Hook</dt>
+          <dd><code>useOnboardingSeen()</code></dd>
+          <dt>Consumers</dt>
+          <dd>Onboarding screen (calls <code>markSeen</code>) · OnboardingGate (reads <code>state</code>)</dd>
+          <dt>Implementation</dt>
+          <dd><code>services/telegram/src/screens/Onboarding/hooks/useOnboardingSeen.ts</code></dd>
+          <dt>Test</dt>
+          <dd><code>services/telegram/src/screens/Onboarding/hooks/useOnboardingSeen.test.ts</code> · 5 vitest cases</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-07-21">2026-07-21</time></dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="overview-h">
+        <h2 id="overview-h">Overview</h2>
+        <p>The hook returns a three-state machine that avoids the first-frame flash that a naive «cloud read on mount» would cause. The trick is a <strong>lazy initializer</strong> that reads the local mirror on render #1:</p>
+        <ol>
+          <li>On mount, the <code>useState</code> initializer reads <code>window.localStorage['onboarding_done']</code> synchronously. If <code>'1'</code>, initial state is <code>'seen'</code> — <strong>the first render already knows</strong>, so OnboardingGate mounts already resolving to Today with no blank frame between navigations.</li>
+          <li>Otherwise the initial state is <code>'unknown'</code> and an effect fires the cloud read; while it's in flight OnboardingGate renders nothing so no wrong surface flashes.</li>
+          <li>When the cloud read resolves, state flips to <code>'seen'</code> or <code>'unseen'</code>. If the initial state was already <code>'seen'</code>, the effect short-circuits and no cloud round-trip fires at all.</li>
+        </ol>
+        <p><code>markSeen()</code> is fire-and-forget: it writes the local mirror synchronously (flips the state on the next commit), then writes the cloud in the background. A dropped cloud write only re-shows the screen once on a fresh device — an acceptable failure mode that saves the surface from having to render a loading spinner on the write path.</p>
+      </section>
+
+      <section aria-labelledby="signature-h">
+        <h2 id="signature-h">Signature</h2>
+        <pre><code>type OnboardingSeenState = 'unknown' | 'unseen' | 'seen';
+
+function useOnboardingSeen(): {
+  state: OnboardingSeenState;
+  markSeen: () =&gt; void;
+};</code></pre>
+      </section>
+
+      <section aria-labelledby="states-h">
+        <h2 id="states-h">State machine</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr><th>State</th><th>When</th><th>Gate behaviour</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>'unknown'</code></td><td>No local mirror at first render; cloud read in flight.</td><td>OnboardingGate renders nothing. First frame is neutral.</td></tr>
+              <tr><td><code>'unseen'</code></td><td>Cloud read resolved without a value and no local mirror.</td><td>OnboardingGate effect-navigates to <code>/onboarding</code>.</td></tr>
+              <tr><td><code>'seen'</code></td><td>Local mirror already <code>'1'</code> at first render (lazy init) <em>or</em> cloud read returned <code>'1'</code> <em>or</em> <code>markSeen()</code> was called this session.</td><td>OnboardingGate renders Today inline.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="tests-h">
+        <h2 id="tests-h">Test coverage</h2>
+        <ul>
+          <li><strong>Fresh user hydrates to <code>'unseen'</code>.</strong> No local mirror, cloud returns <code>null</code> → state resolves after microtask.</li>
+          <li><strong>Local mirror short-circuits to <code>'seen'</code>.</strong> Cloud is not consulted; useful for the warm-reopen path.</li>
+          <li><strong>Prior cloud value hydrates to <code>'seen'</code>.</strong> A device that finished the flow elsewhere in Telegram syncs on first mount.</li>
+          <li><strong><code>markSeen()</code> flips state + writes both mirrors.</strong> Local write synchronous; cloud write recorded on the mock <code>setItem</code> log.</li>
+          <li><strong>Missing CloudStorage shim → falls back to <code>'unseen'</code> without crashing.</strong> Plain-browser dev (no Telegram host) still renders the flow.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="used-on-h">
+        <h2 id="used-on-h">Used on</h2>
+        <ul>
+          <li><a href="../screens/onboarding.html">Screen · Onboarding</a> — reads <code>markSeen</code> in the CTA handler.</li>
+          <li><code>OnboardingGate.tsx</code> (route wrapper on <code>/</code>) — reads <code>state</code> to decide redirect vs render.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="related-h">
+        <h2 id="related-h">Related</h2>
+        <ul>
+          <li><a href="../../../../governance/adr/0038-tma-screen-dna-amie-signature.html">ADR 0038 · Screen 08</a> — the client-owned-flag deviation this hook implements.</li>
+          <li><code>services/telegram/src/shared/auth/cloud-storage.ts</code> — the promise wrappers around <code>WebApp.CloudStorage</code> this hook builds on.</li>
+        </ul>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-21</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Hook spec: useOnboardingSeen created — T-24 first-run flag. Three-state machine over <code>WebApp.CloudStorage['onboarding_done']</code> + localStorage mirror, fire-and-forget writes. Documents the flash-avoidance contract, the acceptable failure mode («shown once more on a fresh device»), and the 5-case vitest suite.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#overview-h">Overview</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#signature-h">Signature</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#states-h">State machine</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tests-h">Test coverage</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#used-on-h">Used on</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related-h">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

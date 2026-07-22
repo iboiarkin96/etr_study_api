@@ -138,11 +138,20 @@ describe('bootstrapAuth', () => {
     expect(first.user.client_uuid).toBe('client-uuid-1');
   });
 
-  test('reuses a cached, still-valid JWT from CloudStorage', async () => {
+  test('reuses a cached, still-valid JWT + profile from CloudStorage', async () => {
     const stillValid = fakeJwt(Math.floor(Date.now() / 1000) + 3600, 'cached-uuid');
-    (window.Telegram!.WebApp as unknown as { _store: Map<string, string> })._store.set(
-      SECRET_KEY,
-      stillValid,
+    const store = (window.Telegram!.WebApp as unknown as { _store: Map<string, string> })._store;
+    store.set(SECRET_KEY, stillValid);
+    store.set(
+      'auth.user',
+      JSON.stringify({
+        client_uuid: 'cached-uuid',
+        telegram_user_id: 42,
+        telegram_username: 'ada',
+        telegram_photo_url: null,
+        locale: 'en',
+        full_name: 'Ada',
+      }),
     );
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -153,6 +162,73 @@ describe('bootstrapAuth', () => {
     expect(result.jwt).toBe(stillValid);
     expect(result.cached).toBe(true);
     expect(result.user.client_uuid).toBe('cached-uuid');
+    // The rehydrated profile must carry the REAL telegram id — owner params
+    // for every /api/v1/* call are built from it. A placeholder «0» here
+    // made all list queries 404 after a page refresh.
+    expect(result.user.telegram_user_id).toBe(42);
+  });
+
+  test('re-exchanges initData when the JWT is cached but the profile is missing', async () => {
+    const stillValid = fakeJwt(Math.floor(Date.now() / 1000) + 3600, 'cached-uuid');
+    (window.Telegram!.WebApp as unknown as { _store: Map<string, string> })._store.set(
+      SECRET_KEY,
+      stillValid,
+    );
+    const fetchMock = mockFetchResponse({
+      jwt: fakeJwt(Math.floor(Date.now() / 1000) + 3600, 'cached-uuid'),
+      expires_at_epoch: Math.floor(Date.now() / 1000) + 3600,
+      user: {
+        client_uuid: 'cached-uuid',
+        telegram_user_id: 42,
+        telegram_username: null,
+        telegram_photo_url: null,
+        locale: null,
+        full_name: 'Ada',
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await bootstrapAuth();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.cached).toBe(false);
+    expect(result.user.telegram_user_id).toBe(42);
+  });
+
+  test('ignores a cached profile that belongs to a different account', async () => {
+    const stillValid = fakeJwt(Math.floor(Date.now() / 1000) + 3600, 'account-B');
+    const store = (window.Telegram!.WebApp as unknown as { _store: Map<string, string> })._store;
+    store.set(SECRET_KEY, stillValid);
+    store.set(
+      'auth.user',
+      JSON.stringify({
+        client_uuid: 'account-A',
+        telegram_user_id: 7,
+        telegram_username: null,
+        telegram_photo_url: null,
+        locale: null,
+        full_name: 'Old Account',
+      }),
+    );
+    const fetchMock = mockFetchResponse({
+      jwt: fakeJwt(Math.floor(Date.now() / 1000) + 3600, 'account-B'),
+      expires_at_epoch: Math.floor(Date.now() / 1000) + 3600,
+      user: {
+        client_uuid: 'account-B',
+        telegram_user_id: 42,
+        telegram_username: null,
+        telegram_photo_url: null,
+        locale: null,
+        full_name: 'Ada',
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await bootstrapAuth();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.user.client_uuid).toBe('account-B');
+    expect(result.user.telegram_user_id).toBe(42);
   });
 
   test('exchanges again when the cached JWT is inside the 5-min refresh margin', async () => {

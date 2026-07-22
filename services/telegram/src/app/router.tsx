@@ -7,9 +7,10 @@
  *   * `/focus` — Focus (T-18)
  *   * `/schedule` — Schedule (T-19)
  *   * `/errors` — Errors miss log (T-20)
+ *   * `/me` — Profile (T-23)
+ *   * `/onboarding` — First-run flow (T-24)
  *
- * Additional routes (Conspectus list, Search, Profile, Onboarding) land
- * in T-22 / T-23 / T-24 per the epic's design contract.
+ * The Conspectus list route lands in a later epic slice.
  */
 
 import {
@@ -23,6 +24,9 @@ import {
 import { ConspectusDetail } from '../screens/ConspectusDetail';
 import { Errors } from '../screens/Errors';
 import { Focus } from '../screens/Focus';
+import { Onboarding } from '../screens/Onboarding';
+import { OnboardingGate } from '../screens/Onboarding/OnboardingGate';
+import { Profile } from '../screens/Profile';
 import { Schedule } from '../screens/Schedule';
 import { SearchProvider } from '../screens/Search/SearchProvider';
 import { Today } from '../screens/Today';
@@ -40,10 +44,24 @@ const rootRoute = createRootRoute({
   ),
 });
 
+// `OnboardingGate` wraps Today: on the first cold open it redirects to
+// `/onboarding`; once the flag is set (locally or in CloudStorage) Today
+// renders inline. The gate lives on `/` only — `/onboarding` bypasses it
+// so a re-entry from the flow itself never bounces the redirect.
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: Today,
+  component: () => (
+    <OnboardingGate>
+      <Today />
+    </OnboardingGate>
+  ),
+});
+
+const onboardingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/onboarding',
+  component: Onboarding,
 });
 
 const conspectusDetailRoute = createRoute({
@@ -52,10 +70,24 @@ const conspectusDetailRoute = createRoute({
   component: ConspectusDetail,
 });
 
+/** Query params for /focus. Default (no params) opens the batch flow reading
+ * the due list. `?conspectus_uuid=<uuid>` opens the ad-hoc single-card flow
+ * from the Conspectus detail «Review now» CTA (T-17c). */
+export type FocusSearch = {
+  conspectus_uuid?: string;
+};
+
 const focusRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/focus',
   component: Focus,
+  validateSearch: (raw: Record<string, unknown>): FocusSearch => {
+    const out: FocusSearch = {};
+    if (typeof raw.conspectus_uuid === 'string' && raw.conspectus_uuid.length > 0) {
+      out.conspectus_uuid = raw.conspectus_uuid;
+    }
+    return out;
+  },
 });
 
 const scheduleRoute = createRoute({
@@ -93,12 +125,20 @@ const errorsRoute = createRoute({
   },
 });
 
+const meRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/me',
+  component: Profile,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  onboardingRoute,
   conspectusDetailRoute,
   focusRoute,
   scheduleRoute,
   errorsRoute,
+  meRoute,
 ]);
 
 const router = createRouter({ routeTree, defaultPreload: 'intent' });

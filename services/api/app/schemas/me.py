@@ -27,6 +27,36 @@ class MeStatsResponse(BaseModel):
     computed_at: _dt.datetime = Field(..., description="Server clock at read time (UTC).")
 
 
+class Achievement(BaseModel):
+    """One achievement with its unlock state and progress toward the target.
+
+    Keys are a closed enum-like set the client maps to icon + copy:
+    ``first_review`` · ``streak_7`` · ``streak_30`` · ``reviews_100`` ·
+    ``notes_10`` · ``noticer_10`` · ``perfect_day`` · ``comeback`` ·
+    ``early_bird`` · ``night_owl`` · ``mastery_50`` · ``reviews_500``.
+    The set is additive-only; clients must ignore unknown keys.
+    """
+
+    key: str = Field(
+        ..., description="Stable achievement identifier the client maps to icon + copy."
+    )
+    unlocked: bool = Field(..., description="True once progress reached the target.")
+    progress: int = Field(..., ge=0, description="Current progress, clamped to `target`.")
+    target: int = Field(..., ge=1, description="Threshold that unlocks the achievement.")
+
+
+class MeAchievementsResponse(BaseModel):
+    """Payload for ``GET /api/v1/me/achievements`` — Profile screen chips.
+
+    Computed on read from review logs / conspectuses / miss log — no
+    unlock timestamps are persisted, so the set is always consistent with
+    the underlying data (a wiped dev account loses its badges too).
+    """
+
+    items: list[Achievement]
+    computed_at: _dt.datetime = Field(..., description="Server clock at read time (UTC).")
+
+
 class YesterdayDigest(BaseModel):
     """Recap of the previous day's review activity."""
 

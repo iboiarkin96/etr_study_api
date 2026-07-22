@@ -14,7 +14,7 @@ from app.core.database import get_db_session
 from app.openapi.responses import common_protected_route_responses
 from app.repositories.me_repository import MeRepository
 from app.schemas.errors import ApiErrorResponse
-from app.schemas.me import MeStatsResponse, MeYesterdayResponse
+from app.schemas.me import MeAchievementsResponse, MeStatsResponse, MeYesterdayResponse
 from app.services.me_service import MeService
 from app.services.owner_resolver import resolve_owner_client_uuid
 
@@ -68,6 +68,61 @@ def get_me_stats(
         system_uuid=system_uuid,
     )
     return MeService(MeRepository(session)).stats(owner_client_uuid=owner_client_uuid)
+
+
+@router.get(
+    "/achievements",
+    response_model=MeAchievementsResponse,
+    operation_id="getMeAchievements",
+    summary="Achievement set computed from the learner's own data.",
+    description=(
+        "Derives every achievement on read — no persisted unlock rows, so the "
+        "badges can never disagree with the data behind them. Inputs: per-day "
+        "review counts (streaks), all-time review count, active conspectus "
+        "count, miss-log count.\n\n"
+        "Keys (closed set the client maps to icon + copy):\n\n"
+        "| key | target | progress source |\n"
+        "|---|---|---|\n"
+        "| `first_review` | 1 | total reviews |\n"
+        "| `streak_7` | 7 | longest streak (days) |\n"
+        "| `streak_30` | 30 | longest streak (days) |\n"
+        "| `reviews_100` | 100 | total reviews |\n"
+        "| `notes_10` | 10 | active conspectuses |\n"
+        "| `noticer_10` | 10 | logged misses |\n"
+        "| `perfect_day` | 1 | any day with ≥5 reviews and zero «forgot» |\n"
+        "| `comeback` | 1 | an active day ≥7 days after the previous one |\n"
+        "| `early_bird` | 1 | any review before 08:00 local (user timezone) |\n"
+        "| `night_owl` | 1 | any review at/after 23:00 local (user timezone) |\n"
+        "| `mastery_50` | 50 | reviews tagged `easy` |\n"
+        "| `reviews_500` | 500 | total reviews |\n\n"
+        "Streak achievements use the LONGEST streak — once earned, a badge "
+        "does not un-earn itself when the current streak breaks. Binary "
+        "badges report target 1 with progress 0/1. `progress` is clamped "
+        "to `target`. Clients must ignore unknown keys (the set is "
+        "additive-only)."
+    ),
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ApiErrorResponse,
+            "description": "User not found for the composite key.",
+        },
+        **common_protected_route_responses(),
+    },
+)
+def get_me_achievements(
+    session: Annotated[Session, Depends(get_db_session)],
+    system_user_id: Annotated[str, Query(min_length=1, max_length=36)],
+    system_uuid: Annotated[UUID, Query()],
+    api_key: Annotated[str | None, Security(api_key_security)] = None,
+) -> MeAchievementsResponse:
+    """Handle ``GET /api/v1/me/achievements``."""
+    _ = api_key
+    owner_client_uuid = resolve_owner_client_uuid(
+        session,
+        system_user_id=system_user_id,
+        system_uuid=system_uuid,
+    )
+    return MeService(MeRepository(session)).achievements(owner_client_uuid=owner_client_uuid)
 
 
 @router.get(

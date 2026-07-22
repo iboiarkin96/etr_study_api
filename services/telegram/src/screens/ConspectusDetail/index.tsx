@@ -7,13 +7,13 @@
  *   * Bullets — key facts as `.tma-cell` rows in a `.tma-section__plate`.
  *   * Cue-sheet preview — raw JSON pretty-printed (rich rendering in T-18+).
  *
- * The primary action ("Review now" → Focus flow) is stubbed as a disabled
- * `.tma-btn--primary`; wiring lands with T-16 / T-18. AI micro-actions
- * from the mock (§ ed-inter «Explain differently», «Generate quiz») are
- * out of scope for T-17.
+ * «Review now» opens Focus on this single conspectus via
+ * `/focus?conspectus_uuid=<uuid>` (T-17c). AI micro-actions from the mock
+ * (§ ed-inter «Explain differently», «Generate quiz») are out of scope
+ * for T-17.
  */
 
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../app/use-auth';
@@ -25,6 +25,7 @@ import { useConspectus } from './hooks/useConspectus';
 export function ConspectusDetail() {
   const { t } = useTranslation();
   const auth = useAuth();
+  const navigate = useNavigate();
   const params = useParams({ strict: false }) as { conspectus_uuid?: string };
   const uuid = params.conspectus_uuid ?? '';
   const query = useConspectus(uuid);
@@ -210,8 +211,9 @@ export function ConspectusDetail() {
                   <button
                     type="button"
                     className="tma-btn tma-btn--primary tma-btn--block"
-                    disabled
-                    aria-disabled="true"
+                    onClick={() =>
+                      void navigate({ to: '/focus', search: { conspectus_uuid: uuid } })
+                    }
                   >
                     {t('detail.reviewNow')}
                   </button>

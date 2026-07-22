@@ -144,11 +144,11 @@
               <span class="today-map__card-pin">5</span>
               <h3 class="docs-card__title">«Review now» CTA</h3>
               <dl class="today-map__meta">
-                <dt>Rendered by</dt><dd><code>&lt;button className="tma-btn tma-btn--primary tma-btn--block" disabled&gt;</code></dd>
-                <dt>Data source</dt><dd>None — action stub</dd>
+                <dt>Rendered by</dt><dd><code>&lt;button className="tma-btn tma-btn--primary tma-btn--block" onClick=…&gt;</code></dd>
+                <dt>On tap</dt><dd><code>navigate({ to: '/focus', search: { conspectus_uuid: uuid } })</code></dd>
                 <dt>CSS</dt><dd><code>src/styles/primitives/btn.css</code> · <code>.tma-btn</code>, <code>.tma-btn--primary</code>, <code>.tma-btn--block</code></dd>
               </dl>
-              <p class="today-map__note">The button is visible but disabled: reviewing belongs to the Focus flow, which wires it to <code>POST /conspectuses/{id}/actions/review</code>. The swipe gestures on the Today due list give the same action. Keeping the button visible keeps the layout stable across states.</p>
+              <p class="today-map__note">Opens Focus in single-card mode on this exact conspectus, regardless of whether it's on today's due list — «Review now» is the ad-hoc entry point for anything the reader wants to lock in <em>right now</em>. Batch review still flows through <a href="../../../../governance/backlog/telegram-mini-app-epic.html">Today's «Start Focus»</a>; both surfaces reuse the shipped pessimistic <code>useReviewConspectus</code> mutation, so grading here drops the row from Today's cache identically.</p>
               <a class="today-map__back" href="#">Back to overview</a>
             </article>
           </aside>
@@ -198,7 +198,7 @@
           <li><strong>Back link (top-left).</strong> <code>&lt;Link to="/"&gt;</code> — returns to Today, router-cached. No re-fetch of Today's five hooks; state (open panels, scroll) survives.</li>
           <li><strong>Browser back / gesture back.</strong> Same route change — TanStack Router treats it identically.</li>
           <li><strong>Deep link.</strong> <code>startapp=conspectus_&lt;uuid&gt;</code> (T-28) lands here without going through Today first. Router opens the URL directly.</li>
-          <li><strong>Review now.</strong> Disabled in T-17. T-18 (Focus mode) wires it up. T-16 delivers the same action via a swipe gesture on the Today due list.</li>
+          <li><strong>Review now.</strong> Navigates to <code>/focus?conspectus_uuid=&lt;uuid&gt;</code> — Focus opens with a queue of exactly this card (T-17c). Batch review still starts from Today's «Start Focus»; both entry points share <code>useReviewConspectus</code>, so grading here drops the row from Today's due-list cache the same way.</li>
           <li><strong>LangSwitch.</strong> Same behaviour as on Today — i18n flip + <code>localStorage</code> pin.</li>
         </ul>
       </section>
@@ -208,7 +208,7 @@
         <ul>
           <li><strong>Landmark structure.</strong> One <code>&lt;main class="tma-scope"&gt;</code>, one <code>&lt;article&gt;</code> wrapping the note, semantic <code>&lt;h1&gt;</code> for the title, <code>&lt;section&gt;</code> for bullets with <code>aria-labelledby="bullets-h"</code>.</li>
           <li><strong>Back link.</strong> The <code>←</code> symbol is inside the anchor's text so screen readers announce it. i18n text is «Back» / «Назад».</li>
-          <li><strong>Focus order.</strong> Header buttons → title (not focusable) → paragraph (not focusable) → bullets (rows are not links in T-17, so not focusable either) → Review-now (currently disabled, so skipped by focus). Once T-18 wires review, the disabled attribute drops and focus resumes.</li>
+          <li><strong>Focus order.</strong> Header buttons → title (not focusable) → paragraph (not focusable) → bullets (rows are not links in T-17, so not focusable either) → Review-now button (T-17c makes it a real tab-stop and the primary action for keyboard users on this screen).</li>
           <li><strong>State messaging.</strong> Loading skeleton is decorative (<code>aria-hidden="true"</code> would be appropriate — currently just visual). Error plate is a plain <code>&lt;div&gt;</code> — should get <code>role="alert"</code> in the follow-up that unifies error styling with the shared <code>ErrorInline</code> primitive.</li>
           <li><strong>Reduced motion.</strong> Screen has no motion of its own; the back-link hover uses a token transition (short, non-essential).</li>
         </ul>
@@ -225,7 +225,7 @@
               <tr><td><code>detail.untitled</code></td><td>«Untitled»</td><td>«Без заголовка»</td><td>Title fallback</td></tr>
               <tr><td><code>detail.contentVersion</code></td><td>«content v{{v}}»</td><td>«версия v{{v}}»</td><td>Slot chip row · <code>v</code> = <code>content_version</code></td></tr>
               <tr><td><code>detail.bullets</code></td><td>«Key points»</td><td>«Ключевые моменты»</td><td>Bullets section header</td></tr>
-              <tr><td><code>detail.reviewNow</code></td><td>«Review now»</td><td>«Повторить сейчас»</td><td>Primary CTA (disabled in T-17)</td></tr>
+              <tr><td><code>detail.reviewNow</code></td><td>«Review now»</td><td>«Повторить сейчас»</td><td>Primary CTA → <code>/focus?conspectus_uuid=&lt;uuid&gt;</code> (T-17c)</td></tr>
               <tr><td><code>detail.error</code></td><td>«Couldn't load this note.»</td><td>«Не смог загрузить конспект.»</td><td>Error state plate</td></tr>
             </tbody>
           </table>
@@ -249,6 +249,11 @@
     <footer class="docs-history" aria-label="History">
       <h2 class="docs-history__title">History</h2>
       <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-22</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note"><strong>T-17c · «Review now» activated.</strong> Pin 5 rewired: the button navigates to <code>/focus?conspectus_uuid=&lt;uuid&gt;</code> and Focus opens with a queue of exactly this card. <code>useFocusSession</code> gained a <code>singleConspectusUuid</code> option that swaps its data source (<code>useConspectus(uuid)</code> instead of <code>useConspectusesDue</code>) and bypasses <code>SESSION_CAP</code>; the pessimistic <code>useReviewConspectus</code> mutation is shared, so grading here drops the row from Today's cache identically. Two new vitest cases (queue-of-one + phase→complete after single grade) — 79/79 green, bundle 168 KB gz under 200 KB.</span>
+        </li>
         <li class="docs-history__row">
           <span class="docs-history__date">2026-07-19</span>
           <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>

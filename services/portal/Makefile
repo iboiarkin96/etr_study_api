@@ -34,7 +34,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check docs-storybook-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check
+.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check docs-storybook-check docs-token-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check
 
 PORTAL_PORT ?= 8080
 PORTAL_URL  := http://127.0.0.1:$(PORTAL_PORT)/portal/
@@ -197,6 +197,11 @@ docs-storybook-check:
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_storybook_refs.py
 	@printf "$(COLOR_GREEN)== DOCS-STORYBOOK-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
+docs-token-check:
+	@printf "$(COLOR_CYAN)== DOCS-TOKEN-CHECK: START ==$(COLOR_RESET)\n"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_token_drift.py
+	@printf "$(COLOR_GREEN)== DOCS-TOKEN-CHECK: SUCCESS ==$(COLOR_RESET)\n"
+
 # ─────────────────────────────────────────────
 # Drift gate (used by CI + `make verify`)
 # ─────────────────────────────────────────────
@@ -207,6 +212,7 @@ docs-check:
 	@$(MAKE) docs-spec-check
 	@$(MAKE) docs-nav-check
 	@$(MAKE) docs-storybook-check
+	@$(MAKE) docs-token-check
 	@cd $(REPO_ROOT) && tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
 	git diff HEAD ':(exclude)services/portal/internal/services/api/code-reference/search.js' > "$$tmp_before"; \
 	$(MAKE) -C services/portal docs-fix; \

@@ -20,6 +20,7 @@ import { useMemo } from 'react';
 
 import { AuthContext, type AuthContextValue } from '../../app/auth-context';
 import type { ApiClient } from '../../shared/api/client';
+import { SearchProvider } from '../Search/SearchProvider';
 
 import { Today } from './index';
 import {
@@ -56,6 +57,13 @@ function TodayHost() {
       days: mockHistory(90),
       computed_at: `2026-07-19T09:00:00Z`,
     });
+    // Seed the search index too — SearchProvider mounts SearchOverlay, whose
+    // list hook would otherwise hit the NOOP api and error (invisible while
+    // closed, but a seeded cache keeps the story deterministic).
+    c.setQueryData(['conspectuses.list', MOCK_USER.client_uuid], {
+      items: [],
+      hasMore: false,
+    });
     return c;
   }, []);
 
@@ -74,7 +82,9 @@ function TodayHost() {
   return (
     <QueryClientProvider client={client}>
       <AuthContext.Provider value={auth}>
-        <Today />
+        <SearchProvider>
+          <Today />
+        </SearchProvider>
       </AuthContext.Provider>
     </QueryClientProvider>
   );

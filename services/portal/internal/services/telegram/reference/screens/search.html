@@ -41,7 +41,7 @@
         </p>
         <h1>Screen map: Search</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede">The keyboard-first jump-to-anything surface — a full-viewport command palette that opens on <kbd>Cmd</kbd>+<kbd>K</kbd> / <kbd>Ctrl</kbd>+<kbd>K</kbd> or the header <span aria-hidden="true">⌕</span> icon on Today. Unlike every other screen in the TMA, Search is <strong>not a route</strong>: it's a React portal mounted at <code>document.body</code> from a provider that sits inside the router, so any route can trigger it without a navigation. Filtering is pure client-side substring over a pre-warmed 500-title cache; there is no search endpoint. Sibling of the <a href="../../design/screens.html#s-search">design narrative</a>; this is the machine-readable anatomy.</p>
+        <p class="lede">The keyboard-first jump-to-anything surface — a full-viewport command palette that opens on <kbd>Cmd</kbd>+<kbd>K</kbd> / <kbd>Ctrl</kbd>+<kbd>K</kbd> or the header <span aria-hidden="true">⌕</span> icon on Today. Unlike every other screen in the TMA, Search is <strong>not a route</strong>: it's a React portal mounted at <code>document.body</code> from a provider that sits inside the router, so any route can trigger it without a navigation. Filtering is pure client-side substring over a pre-warmed 100-title cache (the server hard-caps <code>limit</code> at 100); there is no search endpoint. Sibling of the <a href="../../design/screens.html#s-search">design narrative</a>; this is the machine-readable anatomy.</p>
       </header>
 
       <section aria-labelledby="metadata-h">
@@ -63,7 +63,7 @@
       <section aria-labelledby="preview-h">
         <h2 id="preview-h">Live preview</h2>
         <p>Four stories cover the four visible states. Same width contract as every other TMA screen-map (331 px iframe via kit default; override <code>--live-h</code> only).</p>
-        <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start">
+        <div class="tma-map-row">
           <div class="today-map__live" style="--live-h:720">
             <div class="today-map__live-clip">
               <iframe class="today-map__live-frame" src="../../../../../../telegram/storybook-static/iframe.html?id=screens-search-searchoverlay--hint&amp;viewMode=story&amp;globals=theme:dark" title="Search · hint" loading="lazy"></iframe>
@@ -179,7 +179,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td>Type in input</td><td>Re-run the client-side filter — pure substring over the pre-lowercased title index, ranked by earliest match position, then shorter title. Runs per keystroke; no debounce (the index is bounded at 500).</td></tr>
+              <tr><td>Type in input</td><td>Re-run the client-side filter — pure substring over the pre-lowercased title index, ranked by earliest match position, then shorter title. Runs per keystroke; no debounce (the index is bounded at 100).</td></tr>
               <tr><td><kbd>↓</kbd></td><td>Move cursor down one row (wraps at the bottom).</td></tr>
               <tr><td><kbd>↑</kbd></td><td>Move cursor up one row (wraps at the top).</td></tr>
               <tr><td><kbd>Ctrl</kbd>+<kbd>J</kbd> · <kbd>Ctrl</kbd>+<kbd>N</kbd></td><td>Down (vim + Chrome parity).</td></tr>
@@ -208,13 +208,13 @@
             <tbody>
               <tr>
                 <td><a href="../../../../../../telegram/src/screens/Search/hooks/useConspectusesList.ts"><code>useConspectusesList</code></a></td>
-                <td><a href="../../../api/reference/conspectus/operations/get-api-v1-conspectuses.html"><code>GET /api/v1/conspectuses?limit=500</code></a></td>
-                <td><code>['search.conspectuses.list']</code> · <code>staleTime: Infinity</code> · <code>enabled: auth.status === 'authenticated'</code></td>
+                <td><a href="../../../api/reference/conspectus/operations/get-api-v1-conspectuses.html"><code>GET /api/v1/conspectuses?limit=100</code></a></td>
+                <td><code>['conspectuses.list', client_uuid]</code> · <code>staleTime: Infinity</code> · <code>enabled: auth.status === 'authenticated'</code></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p class="docs-prose__meta">Exactly one hook. It fires once per session (opening the overlay for the first time), warms the shared TanStack Query cache, and never re-fetches on its own — a mutation elsewhere in the app is what invalidates the key. The 500-row cap is a hard ceiling; past that we'll switch to a server-side <code>?q=</code> endpoint (see Non-goals). Filtering itself is a synchronous, allocation-free pass in <a href="../../../../../../telegram/src/screens/Search/search-filter.ts"><code>search-filter.ts</code></a> against a pre-lowercased index built once on cache resolve.</p>
+        <p class="docs-prose__meta">Exactly one hook. It fires once per session (opening the overlay for the first time), warms the shared TanStack Query cache, and never re-fetches on its own — a mutation elsewhere in the app is what invalidates the key. The 100-row cap is a hard server ceiling (<code>Query(ge=1, le=100)</code>); past it the overlay surfaces a «showing first N» hint via <code>hasMore</code>, and we'll switch to a server-side <code>?q=</code> endpoint (see Non-goals). Filtering itself is a synchronous, allocation-free pass in <a href="../../../../../../telegram/src/screens/Search/search-filter.ts"><code>search-filter.ts</code></a> against a pre-lowercased index built once on cache resolve.</p>
       </section>
 
       <section aria-labelledby="a11y-h">
@@ -231,7 +231,7 @@
       <section aria-labelledby="non-goals-h">
         <h2 id="non-goals-h">Non-goals</h2>
         <ul>
-          <li><strong>Fuzzy matching.</strong> No Levenshtein, no trigram, no typo tolerance — a substring match against 500 rows is fast, deterministic, and easy to explain. Fuzzy scoring gets added the same day we hit the 500-row cap.</li>
+          <li><strong>Fuzzy matching.</strong> No Levenshtein, no trigram, no typo tolerance — a substring match against 100 rows is fast, deterministic, and easy to explain. Fuzzy scoring gets added the same day we hit the 100-row cap.</li>
           <li><strong>Server-side ranking.</strong> Ranking is «earliest-match, then shorter title», computed on the client. There is no <code>?q=</code> parameter on the endpoint; there is no relevance score.</li>
           <li><strong>Recent-history section.</strong> No «recently opened» rail above results — deferred to T-25 with the rest of the palette-expansion work.</li>
           <li><strong>Pull-down mobile gesture.</strong> Opening Search from a mobile pull-down on Today is deferred to T-25; today the mobile entry is the header <span aria-hidden="true">⌕</span> icon only.</li>

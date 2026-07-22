@@ -16,11 +16,11 @@ import type { components } from '../../../shared/api/schema';
 
 export type DueConspectus = components['schemas']['ConspectusResponse'];
 
-export function useConspectusesDue() {
+export function useConspectusesDue({ enabled = true }: { enabled?: boolean } = {}) {
   const auth = useAuth();
 
   return useQuery({
-    enabled: auth.status === 'authenticated' && !!auth.user,
+    enabled: enabled && auth.status === 'authenticated' && !!auth.user,
     queryKey: ['today.conspectuses.due', auth.user?.client_uuid],
     queryFn: async (): Promise<DueConspectus[]> => {
       const { data, error } = await auth.api.GET('/api/v1/conspectuses/due', {

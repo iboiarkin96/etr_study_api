@@ -113,6 +113,19 @@ class UserPatchRequest(BaseModel):
         description="Invalid row flag (0/1).",
         examples=IS_ROW_INVALID_EXAMPLES,
     )
+    reminder_enabled: int | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="Daily reminder toggle (0/1); omit to leave unchanged.",
+        examples=[1],
+    )
+    reminder_at: str | None = Field(
+        default=None,
+        pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
+        description="Daily reminder wall-clock time 'HH:MM' in the user's timezone; omit to leave unchanged.",
+        examples=["09:00"],
+    )
 
 
 class UserUpdateRequest(BaseModel):
@@ -171,6 +184,8 @@ class UserCreateResponse(BaseModel):
         username: Optional display username.
         full_name: Required full name.
         timezone: IANA timezone string stored for the user.
+        reminder_enabled: Daily reminder toggle (0/1).
+        reminder_at: Daily reminder wall-clock time 'HH:MM' in the user's timezone.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -185,3 +200,5 @@ class UserCreateResponse(BaseModel):
     username: str | None
     full_name: str
     timezone: str
+    reminder_enabled: int
+    reminder_at: str

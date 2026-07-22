@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useConspectus } from '../../ConspectusDetail/hooks/useConspectus';
 import type { DueConspectus } from '../../Today/hooks/useConspectusesDue';
 import { useConspectusesDue } from '../../Today/hooks/useConspectusesDue';
 import {
@@ -99,8 +100,23 @@ export type FocusSession = {
   reload: () => void;
 };
 
-export function useFocusSession(): FocusSession {
-  const due = useConspectusesDue();
+export type FocusSessionOptions = {
+  /** Ad-hoc single-card mode — Focus on one specific conspectus fetched by
+   * uuid, instead of pulling from the due list. Wired to the «Review now»
+   * CTA on `/conspectus/$conspectus_uuid` (T-17c). When set, the queue is
+   * exactly one card and SESSION_CAP is bypassed; grading it drops the row
+   * from the due-list cache the same way the batch flow does. */
+  singleConspectusUuid?: string | null;
+};
+
+export function useFocusSession(options?: FocusSessionOptions): FocusSession {
+  const singleUuid = options?.singleConspectusUuid ?? null;
+  const isSingleMode = !!singleUuid;
+  // Both hooks must be called every render for stable hook order. The unused
+  // one is disabled via its own gate (empty uuid / `enabled: false`) so no
+  // network fires.
+  const due = useConspectusesDue({ enabled: !isSingleMode });
+  const single = useConspectus(singleUuid ?? '');
   const review = useReviewConspectus();
 
   /** Session start-time in a ref so `restart()` can reset it without going
@@ -122,24 +138,34 @@ export function useFocusSession(): FocusSession {
    * from due-list) from silently reshuffling the queue behind the user. */
   const seededEpochRef = useRef(-1);
 
+  /** Unified query for phase/refetch — the driving hook depends on mode.
+   * Single-mode fetches one specific conspectus by uuid; batch-mode reads
+   * the due list. */
+  const source = isSingleMode ? single : due;
+
   /** Seed the queue exactly once per epoch — on first success at epoch N, or
-   * on `restart()` which bumps sessionEpoch. Later `due.data` mutations at
-   * the same epoch DON'T reshuffle the frozen snapshot (that's the whole
-   * point of a session queue). */
+   * on `restart()` which bumps sessionEpoch. Later source mutations at the
+   * same epoch DON'T reshuffle the frozen snapshot (that's the whole point
+   * of a session queue). In single-mode the queue is exactly one card;
+   * SESSION_CAP is a batch-only concern. */
   useEffect(() => {
-    if (!due.isSuccess) return;
+    if (!source.isSuccess) return;
     if (seededEpochRef.current === sessionEpoch) return;
-    const fresh = (due.data ?? []).slice(0, SESSION_CAP);
+    const fresh: DueConspectus[] = isSingleMode
+      ? single.data
+        ? [single.data]
+        : []
+      : (due.data ?? []).slice(0, SESSION_CAP);
     seededEpochRef.current = sessionEpoch;
     setQueue(fresh);
-  }, [due.isSuccess, sessionEpoch, due.data]);
+  }, [source.isSuccess, sessionEpoch, isSingleMode, single.data, due.data]);
 
   const total = queue.length;
   const current = index < total ? queue[index] : null;
 
   const phase: FocusPhase = (() => {
-    if (due.isPending) return 'loading';
-    if (due.isError) return 'error';
+    if (source.isPending) return 'loading';
+    if (source.isError) return 'error';
     if (total === 0) return 'empty';
     if (current === null) return 'complete';
     if (review.isPending) return 'grading';
@@ -212,12 +238,12 @@ export function useFocusSession(): FocusSession {
     setLastAttempt(null);
     startedAtRef.current = Date.now();
     setSessionEpoch((e) => e + 1);
-    void due.refetch();
-  }, [due]);
+    void source.refetch();
+  }, [source]);
 
   const reload = useCallback(() => {
-    void due.refetch();
-  }, [due]);
+    void source.refetch();
+  }, [source]);
 
   return {
     phase,

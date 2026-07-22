@@ -21,6 +21,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import type { ErrorsSearch } from '../../app/router';
 import { useAuth } from '../../app/use-auth';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
@@ -38,7 +39,11 @@ type Prefill = { conspectus_uuid: string; title: string | null };
 export function Errors() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const search = useSearch({ from: '/errors' });
+  // strict:false — reads the current match's search params without pinning the
+  // route id, so the screen also renders inside Storybook's in-memory router
+  // (stories mount on '/'; `from: '/errors'` throws there). The app router
+  // still validates the params via validateSearch on /errors.
+  const search = useSearch({ strict: false }) as ErrorsSearch;
   const auth = useAuth();
   const list = useErrors();
   const create = useCreateError();

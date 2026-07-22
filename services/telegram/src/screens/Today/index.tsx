@@ -7,7 +7,7 @@
  * whole screen; only the auth gate hides the composed body entirely.
  */
 
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +36,7 @@ import { useScheduleSummary } from './hooks/useScheduleSummary';
 
 export function Today() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const search = useSearch();
   const auth = useAuth();
   const due = useConspectusesDue();
@@ -192,6 +193,40 @@ export function Today() {
             }}
           >
             ⌕
+          </button>
+          <button
+            type="button"
+            onClick={() => void navigate({ to: '/me' })}
+            aria-label={t('today.openProfile')}
+            style={{
+              appearance: 'none',
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--tma-text-tertiary)',
+              padding: 'var(--tma-sp-2)',
+              borderRadius: 'var(--tma-rad-2)',
+              cursor: 'pointer',
+              minWidth: 44,
+              minHeight: 44,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4 3.6-6.5 8-6.5S20 17 20 21" />
+            </svg>
           </button>
           <LangSwitch />
         </header>
