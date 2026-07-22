@@ -52,7 +52,7 @@
           <dt>Sibling primitives</dt>
           <dd><a href="../../../../../../telegram/src/screens/Today/components/ErrorInline.tsx"><code>ErrorInline</code></a> (single-block error surface)</dd>
           <dt>Used on</dt>
-          <dd><a href="../screens/today.html">Today</a> · <a href="../screens/conspectus-detail.html">Conspectus detail</a> — both wire it to the auth-gate error branch</dd>
+          <dd><a href="auth-gate.html"><code>AuthGate</code></a> — the sole consumer; renders this component in place of the app tree when <code>auth.status === 'error'</code>. See <a href="../screens/auth-error.html">Screen · Auth error</a>.</dd>
           <dt>Owner</dt>
           <dd><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
           <dt>Last reviewed</dt>
@@ -63,7 +63,7 @@
       <section aria-labelledby="overview-h">
         <h2 id="overview-h">Overview</h2>
         <p>When a hook errors out on a data block, the user still sees the rest of the screen and the block itself gets an <a href="../../../../../../telegram/src/screens/Today/components/ErrorInline.tsx"><code>ErrorInline</code></a> plate — that's a <em>partial</em> failure. When the whole app can't proceed (auth failed, backend gone, no JWT to work with), the calm-but-clear thing is a <em>total</em> error surface — a full-viewport screen with one job: get the user to retry.</p>
-        <p><code>ErrorScreen</code> is that surface. It's rendered <em>instead</em> of the normal screen output — the Today / detail entry points return an <code>ErrorScreen</code>-wrapped <code>&lt;main&gt;</code> and short-circuit before rendering their real content.</p>
+        <p><code>ErrorScreen</code> is that surface. Since AuthGate shipped, it is rendered from one place: <a href="auth-gate.html"><code>AuthGate</code></a>'s error branch, in place of the app tree, whenever <code>auth.status === 'error'</code>. Screens no longer inline the short-circuit — by the time they mount, <code>authenticated</code> is a given.</p>
         <aside class="docs-card docs-card--rail" data-tone="info" role="note" aria-labelledby="why-signature-h">
           <h3 id="why-signature-h" class="docs-card__title">Why the broken-orb SVG</h3>
           <div class="docs-card__body">
@@ -155,18 +155,18 @@
       </section>
 
       <section aria-labelledby="usage-h">
-        <h2 id="usage-h">Usage — auth-gate short-circuit pattern</h2>
-        <p>Both consumers share the same shape: they early-return an <code>ErrorScreen</code>-wrapped <code>&lt;main&gt;</code> when <code>auth.status === 'error'</code>, instead of trying to render the screen with an empty <code>auth.user</code>. The i18n namespace is picked from the exception message via a small helper.</p>
-        <pre><code>function authErrorNs():
+        <h2 id="usage-h">Usage — one gate, one classifier</h2>
+        <p><a href="auth-gate.html"><code>AuthGate</code></a> renders this component from a single branch. Screens do not import it or short-circuit for auth themselves — before AuthGate landed, five screens each carried a copy of the pattern below and drifted whenever one of them changed.</p>
+        <pre><code>function classifyAuthError(message: string):
   'auth.unreachable' | 'auth.denied' | 'auth.error' {
-  const msg = auth.error?.message ?? '';
-  if (/failed to fetch|networkerror|fetch failed/i.test(msg)) return 'auth.unreachable';
-  if (/401|unauthori[sz]ed|token|jwt|signature/i.test(msg))    return 'auth.denied';
+  if (/failed to fetch|networkerror|fetch failed/i.test(message)) return 'auth.unreachable';
+  if (/401|unauthori[sz]ed|token|jwt|signature/i.test(message))    return 'auth.denied';
   return 'auth.error';
 }
 
+// Inside &lt;AuthGate&gt;:
 if (auth.status === 'error') {
-  const ns = authErrorNs();
+  const ns = classifyAuthError(auth.error?.message ?? '');
   return (
     &lt;main className="tma-scope"&gt;
       &lt;ErrorScreen
@@ -260,8 +260,8 @@ if (auth.status === 'error') {
         <h2 id="related-h">Related</h2>
         <ul>
           <li><a href="../../../../../../telegram/src/screens/Today/components/ErrorInline.tsx"><code>ErrorInline</code></a> — single-block error surface (used for per-hook failures on Today: streak, yesterday, summary, cards, history).</li>
-          <li><a href="../screens/today.html">Screen · Today</a> — the auth gate branch uses this component.</li>
-          <li><a href="../screens/conspectus-detail.html">Screen · Conspectus detail</a> — same auth gate short-circuit.</li>
+          <li><a href="auth-gate.html">Component · AuthGate + BootScreen</a> — the wrapper that mounts this screen and its splash sibling.</li>
+          <li><a href="../screens/auth-error.html">Screen · Auth error</a> — the full-viewport rendering of this component.</li>
           <li><a href="streak-orb.html">Component · StreakOrb</a> — the signature primitive whose absence the broken-orb SVG signals.</li>
         </ul>
       </section>

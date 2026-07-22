@@ -41,16 +41,16 @@
         </p>
         <h1>Screen map: Auth error</h1>
         <div id="docs-top-nav"></div>
-        <p class="lede">Full-viewport blocking-error state — shown instead of the normal screen output when the auth handshake fails (server unreachable, 401, unexpected exception). Every data screen — Today, Conspectus detail, Focus, Schedule, Errors, Profile — short-circuits to this surface when <code>auth.status === 'error'</code>. This map annotates every visible region with the source and copy that feeds it.</p>
+        <p class="lede">Full-viewport blocking-error state — shown by <a href="../components/auth-gate.html">AuthGate</a> instead of the app tree when the auth handshake fails (server unreachable, 401, unexpected exception). Before AuthGate landed, each data screen inline-rendered its own copy of this branch; the gate now owns it in one place. This map annotates every visible region with the source and copy that feeds it.</p>
       </header>
 
       <section aria-labelledby="metadata-h">
         <h2 id="metadata-h">Metadata</h2>
         <dl class="svc-meta svc-meta--neutral">
           <dt>Route</dt>
-          <dd>N/A — rendered inline by any screen whose <code>auth.status === 'error'</code></dd>
+          <dd>N/A — rendered globally by <a href="../components/auth-gate.html"><code>AuthGate</code></a> when <code>auth.status === 'error'</code>, in place of the app tree</dd>
           <dt>Entry point</dt>
-          <dd><a href="../../../../../../telegram/src/screens/Today/components/ErrorScreen.tsx"><code>ErrorScreen.tsx</code></a> · used by <a href="../../../../../../telegram/src/screens/Today/index.tsx"><code>Today/index.tsx</code></a> and <a href="../../../../../../telegram/src/screens/ConspectusDetail/index.tsx"><code>ConspectusDetail/index.tsx</code></a></dd>
+          <dd><a href="../../../../../../telegram/src/app/AuthGate.tsx"><code>AuthGate.tsx</code></a> renders <a href="../../../../../../telegram/src/screens/Today/components/ErrorScreen.tsx"><code>ErrorScreen.tsx</code></a> · one classifier <code>classifyAuthError()</code> resolves the i18n namespace</dd>
           <dt>Data hook</dt>
           <dd>None — copy is chosen from <code>auth.error?.message</code> via a small pattern-match helper</dd>
           <dt>Backing endpoint</dt>
@@ -109,7 +109,7 @@
               <h3 class="docs-card__title">Title</h3>
               <dl class="today-map__meta">
                 <dt>Rendered by</dt><dd><code>&lt;h1&gt;</code> in <code>ErrorScreen.tsx</code>, copy threaded through the <code>title</code> prop</dd>
-                <dt>Data source</dt><dd>i18n key — one of <code>auth.unreachable.title</code>, <code>auth.denied.title</code>, <code>auth.error.title</code>, selected by <code>authErrorNs()</code> in <code>Today/index.tsx</code> / <code>ConspectusDetail/index.tsx</code></dd>
+                <dt>Data source</dt><dd>i18n key — one of <code>auth.unreachable.title</code>, <code>auth.denied.title</code>, <code>auth.error.title</code>, selected by <code>classifyAuthError()</code> inside <code>AuthGate.tsx</code></dd>
                 <dt>Tokens</dt><dd><code>--tma-fs-h2</code> (28 px), <code>--tma-fw-heavy</code> (800), <code>--tma-lh-tight</code>, letter-spacing <code>-0.02em</code>, colour <code>--tma-text-primary</code></dd>
               </dl>
               <p class="today-map__note">Three variants: «Server unreachable» when <code>fetch()</code> threw, «Authorization failed» on 401 / bad token, «Something went wrong» for everything else. Short, no jargon, no HTTP codes.</p>
@@ -145,7 +145,7 @@
 
       <section aria-labelledby="variants-h">
         <h2 id="variants-h">Copy variants — three failure modes</h2>
-        <p class="docs-prose__meta">The visual is identical; only the copy shifts. <code>authErrorNs()</code> in the parent screen picks the namespace by matching <code>auth.error?.message</code>.</p>
+        <p class="docs-prose__meta">The visual is identical; only the copy shifts. <code>classifyAuthError()</code> inside <a href="../components/auth-gate.html"><code>AuthGate</code></a> picks the namespace by matching <code>auth.error?.message</code>.</p>
         <div class="docs-table-wrap">
           <table class="docs-table docs-table--zebra docs-table--sticky-head">
             <thead><tr><th>Namespace</th><th>Trigger</th><th>Title · body · CTA (EN)</th><th>Title · body · CTA (RU)</th></tr></thead>
@@ -182,13 +182,13 @@
             <tbody>
               <tr>
                 <td><a href="../../../../../../telegram/src/app/use-auth.ts"><code>useAuth()</code></a> · <code>auth.status === 'error'</code></td>
-                <td>Gate — when this is true, the screen renders instead of the normal <code>Today</code> / <code>ConspectusDetail</code> output.</td>
-                <td>Parent early-return branch.</td>
+                <td>Gate — when this is true, <a href="../components/auth-gate.html"><code>AuthGate</code></a> renders this screen instead of the app tree.</td>
+                <td><code>AuthGate</code>'s error branch.</td>
               </tr>
               <tr>
                 <td><code>auth.error?.message</code></td>
                 <td>Raw exception message from <code>bootstrapAuth()</code>. Two regexes classify it into <code>unreachable</code> / <code>denied</code> / generic <code>error</code>.</td>
-                <td><code>authErrorNs()</code> helper in each parent.</td>
+                <td><code>classifyAuthError()</code> — one function inside <code>AuthGate.tsx</code>.</td>
               </tr>
               <tr>
                 <td><code>auth.retry()</code></td>
@@ -236,7 +236,7 @@
               <tr><td><code>auth.unreachable.title</code> · <code>.body</code> · <code>.cta</code></td><td>Full-screen (server-down variant)</td></tr>
               <tr><td><code>auth.denied.title</code> · <code>.body</code> · <code>.cta</code></td><td>Full-screen (401 / bad-token variant)</td></tr>
               <tr><td><code>auth.error.title</code> · <code>.body</code> · <code>.cta</code></td><td>Full-screen (generic / catch-all variant)</td></tr>
-              <tr><td><code>auth.connecting</code></td><td><em>Not</em> shown here — that's the <code>authenticating</code> plate on Today; this screen only appears once auth fully failed</td></tr>
+              <tr><td><code>boot.tagline</code> / <code>boot.hint</code></td><td><em>Not</em> shown here — that's the <a href="boot.html">BootScreen splash</a> AuthGate renders while <code>authenticating</code>; this screen only appears once auth fully failed</td></tr>
             </tbody>
           </table>
         </div>
@@ -246,7 +246,7 @@
         <h2 id="files-h">Files</h2>
         <ul>
           <li><a href="../../../../../../telegram/src/screens/Today/components/ErrorScreen.tsx"><code>services/telegram/src/screens/Today/components/ErrorScreen.tsx</code></a> — component (~90 lines including the SVG)</li>
-          <li><a href="../../../../../../telegram/src/screens/Today/index.tsx"><code>services/telegram/src/screens/Today/index.tsx</code></a> — <code>authErrorNs()</code> helper + early-return</li>
+          <li><a href="../../../../../../telegram/src/app/AuthGate.tsx"><code>services/telegram/src/app/AuthGate.tsx</code></a> — <code>classifyAuthError()</code> + the error branch that mounts this screen</li>
           <li><a href="../../../../../../telegram/src/screens/ConspectusDetail/index.tsx"><code>services/telegram/src/screens/ConspectusDetail/index.tsx</code></a> — same helper + early-return</li>
           <li><a href="../../../../../../telegram/src/shared/i18n/en.json"><code>services/telegram/src/shared/i18n/en.json</code></a> · <a href="../../../../../../telegram/src/shared/i18n/ru.json"><code>ru.json</code></a> — three copy variants under <code>auth.*</code></li>
           <li>Kit primitive borrowed: <code>src/styles/primitives/btn.css</code></li>
