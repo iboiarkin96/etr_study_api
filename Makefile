@@ -625,13 +625,14 @@ gen-test-data:
 	@set -e; \
 	if [ -f .env ]; then \
 		token="$$(grep '^TELEGRAM_BOT_TOKEN=' .env | tail -1 | cut -d= -f2- | tr -d '\r' | tr -d '"' | tr -d "'")"; \
+		env_user_id="$$(grep '^TMA_DEV_TELEGRAM_USER_ID=' .env | tail -1 | cut -d= -f2- | tr -d '\r' | tr -d '"' | tr -d "'")"; \
 	fi; \
 	token="$${token:-$$TELEGRAM_BOT_TOKEN}"; \
 	if [ -z "$$token" ]; then \
 		printf "$(ICON_ERR) TELEGRAM_BOT_TOKEN not found in .env or shell — set it and retry\n" >&2; \
 		exit 1; \
 	fi; \
-	user_id="$${TMA_DEV_TELEGRAM_USER_ID:-42}"; \
+	user_id="$${TMA_DEV_TELEGRAM_USER_ID:-$${env_user_id:-42}}"; \
 	printf "$(ICON_INFO) %s\n" "[1/2] sign fresh VITE_DEV_INIT_DATA for user_id=$$user_id"; \
 	line="$$(TMA_DEV_TELEGRAM_USER_ID=$$user_id $(PYTHON) tools/dev/sign_init_data.py --bot-token $$token --format env)"; \
 	env_file=services/telegram/.env.local; \

@@ -141,7 +141,14 @@ regenerate_dev_init_data() {
     printf '  i skipping VITE_DEV_INIT_DATA regen — %s missing\n' "$signer" >&2
     return 0
   fi
-  local user_id="${TMA_DEV_TELEGRAM_USER_ID:-42}"
+  # Prefer shell env, then a persisted value in root .env (same file the
+  # bot token lives in), fall back to 42 — the historical dev default.
+  local env_user_id=""
+  if [ -f "$REPO_ROOT/.env" ]; then
+    env_user_id="$(grep -E '^TMA_DEV_TELEGRAM_USER_ID=' "$REPO_ROOT/.env" 2>/dev/null \
+      | tail -1 | cut -d= -f2- | tr -d '\r' | tr -d '"' | tr -d "'")"
+  fi
+  local user_id="${TMA_DEV_TELEGRAM_USER_ID:-${env_user_id:-42}}"
   local fresh
   fresh="$(python3 "$signer" --bot-token "$token" --user-id "$user_id" --format env 2>/dev/null || true)"
   if [ -z "$fresh" ]; then
@@ -154,6 +161,42 @@ regenerate_dev_init_data() {
   value="${fresh#*=}"
   upsert_env "$key" "$value"
   printf '  ✓ regenerated %s (24 h TTL) — plain-browser dev loop is ready\n' "$key"
+}
+
+update_bot_menu_button() {
+  # Point the bot's default Menu Button at the fresh tunnel URL so the user
+  # doesn't have to touch @BotFather on every restart. Cloudflare quick
+  # tunnels hand out a new hostname each time cloudflared starts; the old
+  # URL 404s once the process dies, and the user reads that as "Server not
+  # found" in the WebView. setChatMenuButton overwrites the default one on
+  # the bot side — no chat_id needed. Requires TELEGRAM_BOT_TOKEN in .env.
+  local front_url="$1"
+  local repo_env="$REPO_ROOT/.env"
+  local token=""
+  if [ -f "$repo_env" ]; then
+    token="$(grep -E '^TELEGRAM_BOT_TOKEN=' "$repo_env" 2>/dev/null | tail -1 \
+      | cut -d= -f2- | tr -d '\r' | tr -d '"' | tr -d "'")"
+  fi
+  if [ -z "$token" ]; then
+    printf '  i skipping Menu Button update — no TELEGRAM_BOT_TOKEN in .env\n'
+    return 0
+  fi
+  local text="${TMA_MENU_BUTTON_TEXT:-Open}"
+  local body
+  body="$(python3 -c "import json,sys; print(json.dumps({'menu_button':{'type':'web_app','text':'$text','web_app':{'url':'$front_url'}}}))")"
+  local resp
+  resp="$(curl -sS -m 8 -X POST "https://api.telegram.org/bot${token}/setChatMenuButton" \
+    -H 'Content-Type: application/json' \
+    --data "$body" 2>/dev/null || true)"
+  case "$resp" in
+    *'"ok":true'*)
+      printf '  ✓ Menu Button updated on @BotFather side — reopen the bot chat to see it\n'
+      ;;
+    *)
+      printf '  ! setChatMenuButton did not confirm ok — falling back to manual paste\n'
+      printf '    response: %s\n' "${resp:-<empty>}"
+      ;;
+  esac
 }
 
 # -- main --------------------------------------------------------------------
@@ -171,6 +214,11 @@ printf '  ✓ frontend tunnel: %s\n' "$FRONT_URL"
 # echoed back by `make up` so you can see the current tunnel address.
 upsert_env TMA_FRONTEND_URL "$FRONT_URL"
 
+# Push the fresh URL straight to Telegram so the Menu Button in every
+# private chat with the bot points at it. Failure here is non-fatal —
+# script falls back to the printed «paste it into @BotFather» banner.
+update_bot_menu_button "$FRONT_URL"
+
 CLIP_HINT=''
 if command -v pbcopy >/dev/null 2>&1; then
   printf '%s' "$FRONT_URL" | pbcopy
@@ -185,9 +233,9 @@ cat <<EOF
 ║  Frontend  ${FRONT_URL}
 ║  API       proxied via Vite → http://localhost:8000 (no tunnel needed)
 ╠══════════════════════════════════════════════════════════════════════╣
-║  Paste the frontend URL into @BotFather:
-║    /mybots → <bot> → Bot Settings → Menu Button → Configure → paste
-║  Then close and reopen the Mini App in Telegram.
+║  Menu Button auto-updated via Bot API — reopen the bot chat and tap
+║  the button. Fallback (if the API call didn't confirm ok):
+║    @BotFather → /mybots → <bot> → Bot Settings → Menu Button → paste
 ║
 ║  Stop with: make tma-tunnel-down  (or  make down  — stops everything)
 ╚══════════════════════════════════════════════════════════════════════╝
