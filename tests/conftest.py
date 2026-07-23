@@ -42,14 +42,22 @@ os.environ.setdefault("APP_NAME", "ETR Study App API (tests)")
 os.environ["APP_ENV"] = "qa"
 os.environ.setdefault("APP_HOST", "127.0.0.1")
 os.environ.setdefault("APP_PORT", "8001")
-os.environ.setdefault("API_AUTH_STRATEGY", "mock_api_key")
 os.environ.setdefault("API_AUTH_HEADER", "X-API-Key")
-os.environ.setdefault("API_MOCK_API_KEY", "test-api-key")
+os.environ.setdefault("API_AUTH_KEY", "test-api-key")
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-at-least-32-bytes-long-XXXXXXX")
+os.environ.setdefault("JWT_TTL_SECONDS", "3600")
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-bot-token-1234567890")
+os.environ.setdefault("TELEGRAM_INIT_DATA_MAX_AGE_SECONDS", "86400")
 os.environ.setdefault("API_RATE_LIMIT_REQUESTS", "100")
 os.environ.setdefault("API_RATE_LIMIT_WINDOW_SECONDS", "60")
 os.environ.setdefault("API_BODY_MAX_BYTES", "1048576")
 
 from app.core.database import SessionLocal, engine
+from app.core.telegram_identity import (
+    TELEGRAM_SYSTEM_CODE,
+    TELEGRAM_SYSTEM_NAME,
+    TELEGRAM_SYSTEM_UUID,
+)
 from app.main import app
 from app.models import Base
 from fastapi.testclient import TestClient
@@ -70,6 +78,7 @@ _PER_TEST_TABLES = (
     "conspectus_events",
     "conspectus_schedules",
     "conspectuses",
+    "telegram_users",
     "users",
 )
 
@@ -97,6 +106,14 @@ def _seed_reference_data() -> None:
                 "(:uuid, 'test-system-alt', 'Test system alt')"
             ),
             {"uuid": TEST_SYSTEM_UUID_ALT},
+        )
+        session.execute(
+            text("INSERT INTO systems (system_uuid, code, name) VALUES (:uuid, :code, :name)"),
+            {
+                "uuid": TELEGRAM_SYSTEM_UUID,
+                "code": TELEGRAM_SYSTEM_CODE,
+                "name": TELEGRAM_SYSTEM_NAME,
+            },
         )
         session.execute(
             text(
@@ -152,7 +169,7 @@ def clean_users_table() -> None:
 
 @pytest.fixture()
 def client() -> TestClient:
-    """ASGI test client with the same mock API key as ``API_MOCK_API_KEY`` in this module.
+    """ASGI test client with the same API key as ``API_AUTH_KEY`` in this module.
 
     Returns:
         :class:`fastapi.testclient.TestClient` bound to :data:`app.main.app`.

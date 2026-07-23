@@ -77,7 +77,7 @@ ALLOWED_PAGE_TYPES = {
     "landing-section",
     "blog",
 }
-ALLOWED_SERVICES = {"api", "portal", "datastore", "monitoring", "ui-kit", "none"}
+ALLOWED_SERVICES = {"api", "portal", "datastore", "monitoring", "ui-kit", "telegram", "none"}
 ALLOWED_ROLES = {"swe", "sa", "qa", "sre", "architect", "manager"}
 ALLOWED_LIFECYCLES = {"draft", "review", "published", "deprecated"}
 

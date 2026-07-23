@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Add a screen · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="swe">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Add a screen</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Add a new screen</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">End-to-end recipe: add a screen that has a route, hits an endpoint, renders loading / empty / error / success states, and ships a smoke test. Uses «Bookmarks» (<code>/bookmarks</code>) as the running example — a hypothetical screen that lists starred conspectuses.</p>
+
+      <section aria-labelledby="before-h">
+        <h2 id="before-h">Before you start</h2>
+        <ul>
+          <li>Design mock approved (or absent — the mock can follow, per <a href="../../../governance/backlog/telegram-mini-app-epic.html#tasks-h">Milestone 1</a>).</li>
+          <li>Screen entry added to <a href="../design/screens.html">Screens</a> and — if it has a URL — to <a href="../design/information-architecture.html#routes-h">Route table</a>. Docs first, then code.</li>
+          <li>Endpoint documented in the API canon (<code>services/api/openapi.json</code>). If a new endpoint is needed, that's a separate PR against <code>services/api</code>.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="steps-h">
+        <h2 id="steps-h">Steps</h2>
+        <ol class="numbered-step-list">
+          <li>
+            <div>
+              <strong>Create the screen directory.</strong>
+              <pre><code>services/telegram/src/screens/Bookmarks/
+├── index.tsx           # &lt;BookmarksScreen /&gt; — top-level React component
+├── useBookmarks.ts     # data hook (wraps generated API client + TanStack Query)
+├── BookmarkRow.tsx     # per-row presentation
+└── Bookmarks.stories.ts  # Storybook stories (loading / empty / error / success)</code></pre>
+              One directory per screen; nothing shared with other screens goes here — put shared logic in <code>src/shared/</code>.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Wire the route.</strong> Add to <code>src/app/router.tsx</code>:
+              <pre><code>createRoute({
+  path: '/bookmarks',
+  component: BookmarksScreen,
+})</code></pre>
+              TanStack Router is type-safe — TypeScript now knows about the new route. Deep-linking to it works immediately.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Declare the Telegram chrome preset.</strong> Add to <code>src/app/shell.tsx</code>:
+              <pre><code>'/bookmarks': {
+  back: 'today',            // Back → Today
+  main: 'hidden',
+  settings: 'profile',
+}</code></pre>
+              See <a href="../design/interactions.html#chrome-h">Telegram chrome</a> for the vocabulary. The shell auto-applies this on route change.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Fetch data via the generated API client.</strong> In <code>useBookmarks.ts</code>:
+              <pre><code>import { useQuery } from '@tanstack/react-query';
+import { api } from '@/shared/api';
+
+export const useBookmarks = () =&gt;
+  useQuery({
+    queryKey: ['bookmarks'],
+    queryFn: () =&gt; api.GET('/api/v1/conspectuses', { params: { query: { starred: true } } }),
+  });</code></pre>
+              The generated client already carries <code>Authorization: Bearer &lt;jwt&gt;</code> (from the auth bootstrap on cold open) and, for mutations, <code>Idempotency-Key</code>. Never bypass it — a hand-rolled <code>fetch</code> is a review block.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Render four states — always.</strong> Loading / empty / error / success. In <code>index.tsx</code>:
+              <pre><code>const { data, isLoading, error } = useBookmarks();
+if (isLoading) return &lt;BookmarksSkeleton /&gt;;
+if (error) return &lt;ErrorToast onRetry={refetch} /&gt;;
+if (!data?.length) return &lt;EmptyState illustration="bookmark" tip="Star a conspectus to bookmark it." /&gt;;
+return &lt;ul&gt;{data.map(c =&gt; &lt;BookmarkRow key={c.id} conspectus={c} /&gt;)}&lt;/ul&gt;;</code></pre>
+              A screen without an empty state is a review block. See <a href="../design/screens.html">Screens</a> — every entry lists its states.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Add i18n keys.</strong> Every user-facing string goes through <code>t()</code>. Add to both <code>src/locales/{ru,en}/bookmarks.json</code>. See <a href="translate-a-string.html">Add or update a translation</a>.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Ship a smoke test.</strong> Playwright, one test per new screen:
+              <pre><code>test('bookmarks screen', async ({ page }) =&gt; {
+  await page.goto('/bookmarks');
+  await expect(page.getByRole('heading', { name: /bookmarks/i })).toBeVisible();
+});</code></pre>
+              Runs under <code>make -C services/telegram test:e2e</code>.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Add Storybook stories.</strong> One per state (loading / empty / error / success). Storybook is the visual QA loop — don't test states in the browser by mangling MSW every time.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Update the design docs.</strong> Add the screen row to <a href="../design/screens.html#matrix-h">screen matrix</a> and the full per-screen section. Add the route to <a href="../design/information-architecture.html#routes-h">route table</a>.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Run the local gate.</strong>
+              <pre><code>make -C services/telegram verify</code></pre>
+              Typecheck + lint + build all green → open a PR.
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="verify-h">
+        <h2 id="verify-h">Verify</h2>
+        <ul>
+          <li>[ ] Route added to <code>router.tsx</code>.</li>
+          <li>[ ] Chrome preset added to <code>shell.tsx</code>.</li>
+          <li>[ ] Data hook uses the generated API client (no hand-rolled <code>fetch</code>).</li>
+          <li>[ ] All four states render (loading / empty / error / success).</li>
+          <li>[ ] Every string goes through <code>t()</code>; ru + en keys added.</li>
+          <li>[ ] Playwright smoke test lands.</li>
+          <li>[ ] Storybook stories cover all states.</li>
+          <li>[ ] <a href="../design/screens.html">Screens</a> and <a href="../design/information-architecture.html">Information architecture</a> updated.</li>
+          <li>[ ] <code>make -C services/telegram verify</code> green locally.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="related-h">
+        <h2 id="related-h">Related</h2>
+        <ul>
+          <li><a href="../design/screens.html">Screens design contract</a> — where the screen must be declared before code lands.</li>
+          <li><a href="../design/information-architecture.html">Information architecture</a> — where the route must be declared.</li>
+          <li><a href="translate-a-string.html">Add or update a translation</a> — the i18n step in detail.</li>
+        </ul>
+      </section>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Read against the shipped W1 contract. Step 4 already carries the corrected auth interceptor line («<code>Authorization: Bearer &lt;jwt&gt;</code> from the auth bootstrap on cold open»); step 6's i18n cross-link + step 9's docs-first sequence still hold. No content changes needed. Storybook (step 8) + Playwright (step 7) parts describe the target — neither harness is on <code>main</code> yet; Storybook lands with T-13, Playwright with W5.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Add-a-screen recipe created. 10-step walkthrough using a hypothetical /bookmarks screen as the example. Ends with a PR checklist.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#before-h">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps-h">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify-h">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related-h">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

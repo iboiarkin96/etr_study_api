@@ -16,6 +16,11 @@
 
 include:
   - path: services/monitoring/docker-compose.observability.yml
+  # Elasticsearch + Kibana + Filebeat. ~2 GiB RAM combined; included so a plain
+  # `make up` gives you searchable logs at Kibana :5601 without a second command.
+  # Standalone bring-up (without the API stack) still works via
+  # `docker compose -f services/monitoring/docker-compose.logging.yml up -d`.
+  - path: services/monitoring/docker-compose.logging.yml
 
 services:
   postgres:
@@ -46,6 +51,28 @@ services:
       context: ./services/api
     image: study-app-api:local
     container_name: study-app-api
+    # Layered env per ADR 0010 · «Where each key lives»:
+    #
+    #   1. env/<profile>   — public behavior: CORS_ALLOW_ORIGINS, API_AUTH_KEY
+    #                        (dev-default), JWT_SECRET (dev-default),
+    #                        rate limits, LOG_LEVEL, etc. Committed to git.
+    #   2. .env            — private secrets: real TELEGRAM_BOT_TOKEN,
+    #                        OPENROUTER_API_KEY, GRAFANA creds, etc.
+    #                        Git-ignored; overrides the empty slots in env/*.
+    #   3. environment:    — container-specific overrides that MUST differ
+    #                        from the host-run values (bind address = 0.0.0.0
+    #                        so uvicorn listens outside the container,
+    #                        DATABASE_URL pointing at the compose postgres
+    #                        service, log path inside /var/log/study-app).
+    #
+    # `required: false` on the env_file entries — if a fresh clone hasn't
+    # generated .env yet, compose still boots and the config guards in
+    # config.py catch the resulting empty secrets (with a clear error).
+    env_file:
+      - path: ./env/${APP_ENV:-dev}
+        required: false
+      - path: ./.env
+        required: false
     environment:
       APP_ENV: ${APP_ENV:-dev}
       APP_HOST: 0.0.0.0

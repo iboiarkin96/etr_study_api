@@ -11,7 +11,8 @@ from fastapi import Request
 from starlette.responses import JSONResponse, Response
 
 from app.core.config import Settings
-from app.errors.common import COMMON_401, COMMON_500
+from app.core.jwt_tokens import InvalidJWT, decode_jwt
+from app.errors.common import COMMON_401
 from app.errors.types import StableError
 
 
@@ -139,6 +140,13 @@ def extract_client_id(request: Request) -> str:
     return "unknown-client"
 
 
+#: Paths under ``api_protected_prefix`` that stay anonymous — the client cannot
+#: possess a Bearer JWT before hitting ``POST /auth/telegram`` since that is the
+#: very endpoint that mints one. Kept as a tuple so the middleware short-circuit
+#: is a hot-path membership test.
+ANONYMOUS_API_PATHS: tuple[str, ...] = ("/api/v1/auth/telegram",)
+
+
 def is_protected_api_request(request: Request, settings: Settings) -> bool:
     """Return whether the request must go through auth and rate-limit middleware.
 
@@ -147,49 +155,76 @@ def is_protected_api_request(request: Request, settings: Settings) -> bool:
         settings: Application settings (path prefix, etc.).
 
     Returns:
-        ``False`` for ``OPTIONS``; otherwise ``True`` if the path starts with
-        ``settings.api_protected_prefix``.
+        ``False`` for ``OPTIONS`` and for :data:`ANONYMOUS_API_PATHS`; otherwise
+        ``True`` if the path starts with ``settings.api_protected_prefix``.
     """
     if request.method.upper() == "OPTIONS":
+        return False
+    if request.url.path in ANONYMOUS_API_PATHS:
         return False
     return request.url.path.startswith(settings.api_protected_prefix)
 
 
+def _extract_bearer_token(request: Request) -> str | None:
+    """Return the token following ``Authorization: Bearer `` or ``None``."""
+    raw = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not raw:
+        return None
+    scheme, _, token = raw.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return token.strip()
+
+
 def authenticate_request(request: Request, settings: Settings) -> JSONResponse | None:
-    """Validate credentials according to ``settings.api_auth_strategy``.
+    """Validate the caller's identity via Bearer JWT or, as a fallback, API key.
+
+    Bearer JWT is preferred and, when present, is the only credential checked
+    (a wrong/expired Bearer never falls through to X-API-Key). On success the
+    JWT's ``sub`` claim is written to ``request.state.current_user_client_uuid``
+    so downstream handlers can scope queries. The fallback X-API-Key path stays
+    for internal tools + backwards-compatible tests; it does not populate
+    ``current_user_client_uuid``.
 
     Args:
         request: Incoming ASGI request (headers inspected).
-        settings: Auth strategy and secret configuration.
+        settings: Auth header name, expected API key, and JWT secret.
 
     Returns:
-        ``None`` if the request is allowed, otherwise a ready-to-send error
-        :class:`~starlette.responses.JSONResponse` (401 or 500).
+        ``None`` if the request is allowed, otherwise a ready-to-send 401
+        :class:`~starlette.responses.JSONResponse`.
     """
-    strategy = settings.api_auth_strategy.strip().lower()
-    if strategy in {"disabled", "none", "off"}:
+    bearer = _extract_bearer_token(request)
+    if bearer is not None:
+        try:
+            payload = decode_jwt(bearer, secret=settings.jwt_secret)
+        except InvalidJWT as exc:
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "detail": build_security_error_payload(
+                        COMMON_401,
+                        message=f"Bearer token rejected: {exc}.",
+                    )
+                },
+            )
+        request.state.current_user_client_uuid = payload.sub
         return None
 
-    if strategy == "mock_api_key":
-        provided_key = request.headers.get(settings.api_auth_header)
-        if provided_key == settings.api_mock_api_key:
-            return None
-        return JSONResponse(
-            status_code=401,
-            content={
-                "detail": build_security_error_payload(
-                    COMMON_401,
-                    message=(f"Missing or invalid API key in header `{settings.api_auth_header}`."),
-                )
-            },
-        )
-
+    provided_key = request.headers.get(settings.api_auth_header)
+    if provided_key == settings.api_auth_key:
+        return None
     return JSONResponse(
-        status_code=500,
+        status_code=401,
         content={
             "detail": build_security_error_payload(
-                COMMON_500,
-                message=f"Unsupported auth strategy: `{settings.api_auth_strategy}`.",
+                COMMON_401,
+                message=(
+                    "Missing or invalid credentials. Provide either "
+                    "`Authorization: Bearer <jwt>` (minted at "
+                    "`POST /api/v1/auth/telegram`) or the "
+                    f"`{settings.api_auth_header}` header."
+                ),
             )
         },
     )

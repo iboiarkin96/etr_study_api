@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Translate a string · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="swe">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Translate a string</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Add or update a translation</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Every user-facing string in the Mini App goes through <code>i18next</code>. This recipe covers the three-file change: add the key in both locales, reference it in code, verify by flipping <code>language_code</code>. ~2 minutes.</p>
+
+      <section aria-labelledby="before-h">
+        <h2 id="before-h">Before you start</h2>
+        <ul>
+          <li>Locale files live at <code>services/telegram/src/locales/{ru,en}/*.json</code>. One JSON per screen (or shared namespace).</li>
+          <li>Every key exists in <em>both</em> <code>ru</code> and <code>en</code>. Missing key in either = build fails.</li>
+          <li>User's locale is chosen from Telegram's <code>WebApp.initDataUnsafe.user.language_code</code>. Fallback is <code>en</code>.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="steps-h">
+        <h2 id="steps-h">Steps</h2>
+        <ol class="numbered-step-list">
+          <li>
+            <div>
+              <strong>Add the key to both locale files.</strong> Example: add a «star» tooltip to the Today screen.
+              <p><em><code>src/locales/en/today.json</code></em></p>
+              <pre><code>{
+  "due_cards": {
+    "title": "Due today",
+    "star_tooltip": "Star to keep visible"
+  }
+}</code></pre>
+              <p><em><code>src/locales/ru/today.json</code></em></p>
+              <pre><code>{
+  "due_cards": {
+    "title": "К повторению сегодня",
+    "star_tooltip": "В избранное — не уйдёт из списка"
+  }
+}</code></pre>
+              Keep the key structure identical across locales. Nested keys are namespaced by screen; shared strings live in <code>common.json</code>.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Reference the key in the component.</strong>
+              <pre><code>import { useTranslation } from 'react-i18next';
+
+export function StarButton() {
+  const { t } = useTranslation('today');
+  return &lt;button title={t('due_cards.star_tooltip')}&gt;⭐&lt;/button&gt;;
+}</code></pre>
+              Never hardcode a user-facing string. Even placeholders like «TODO» must go through <code>t()</code> so the missing translation surfaces during review.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Verify in the browser.</strong> With the dev server up, open the app. Then in DevTools console:
+              <pre><code>window.i18next.changeLanguage('ru');
+window.i18next.changeLanguage('en');</code></pre>
+              The tooltip should flip between the two languages instantly. This confirms the key resolves in both.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Run the local gate.</strong>
+              <pre><code>make -C services/telegram verify</code></pre>
+              A build-time check confirms both locale files have the same set of keys (guard against dropped translations).
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="verify-h">
+        <h2 id="verify-h">Verify</h2>
+        <ul>
+          <li>Switching <code>window.i18next.changeLanguage(...)</code> in DevTools flips the string between <code>ru</code> and <code>en</code> in-place — no missing-key placeholder.</li>
+          <li><code>make -C services/telegram verify</code> passes: the parity check confirms both locale files carry the same key set.</li>
+          <li>Storybook renders the string correctly in both language stories (if a story exists for the component).</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="rules-h">
+        <h2 id="rules-h">Style rules</h2>
+        <ul>
+          <li><strong>No format strings for numbers or dates.</strong> Use <code>Intl.NumberFormat</code> and <code>Intl.RelativeTimeFormat</code>. i18n keys handle labels, not formatting.</li>
+          <li><strong>Interpolation via <code>{{name}}</code>.</strong> Example: <code>"greeting": "Привет, {{name}}"</code>, then <code>t('greeting', { name: 'Иван' })</code>.</li>
+          <li><strong>Pluralization via <code>_one / _other</code> keys.</strong> Example: <code>"cards_one": "{{count}} карточка", "cards_other": "{{count}} карточек"</code>.</li>
+          <li><strong>No HTML in translations.</strong> Rich formatting is composed in code, not in JSON.</li>
+          <li><strong>Keep RU concise.</strong> Russian tends to be ~15 % longer than English; if a phrase overflows, shorten the RU version rather than expand the layout.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="troubleshooting-h">
+        <h2 id="troubleshooting-h">Troubleshooting</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr><th scope="col">Symptom</th><th scope="col">Fix</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Key renders as literal string («today:due_cards.star_tooltip»).</td><td>Namespace is wrong or file not registered. Check <code>src/i18n.ts</code> — every new locale JSON must be added to the resources list.</td></tr>
+              <tr><td>Build fails: «Missing key <code>foo</code> in <code>en</code>».</td><td>You added it in one locale but not the other. Add it, keep the same nested path.</td></tr>
+              <tr><td>Text renders in English on a Russian Telegram.</td><td><code>language_code</code> from initData isn't reaching i18next. Check <code>src/i18n.ts</code> reads <code>WebApp.initDataUnsafe.user.language_code</code>. In dev, <code>mockTelegramEnv()</code> defaults to <code>en</code>.</td></tr>
+              <tr><td>Long RU translation overflows the button.</td><td>Shorten the RU. Don't expand the button (breaks the design token). If shorter isn't possible, ellipsize with a title-attribute tooltip.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="related-h">
+        <h2 id="related-h">Related</h2>
+        <ul>
+          <li><a href="add-a-screen.html">Add a new screen</a> — the step that first requires new translations.</li>
+          <li><a href="../architecture.html">Architecture</a> — where the i18n module sits in the code layout.</li>
+        </ul>
+      </section>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Read against the shipped W1 contract. Language-code source (<code>WebApp.initDataUnsafe.user.language_code</code>) is still the right client-side pick — the server-side copy that ends up in <code>telegram_users.locale</code> is populated by the auth bootstrap but the UI does not need to wait on it for the initial paint. No content changes needed.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">i18n recipe created. Four steps + style rules (formatting, interpolation, pluralization) + troubleshooting for the 4 common issues.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#before-h">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps-h">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify-h">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rules-h">Style rules</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting-h">Troubleshooting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related-h">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

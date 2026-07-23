@@ -78,8 +78,14 @@ def test_json_formatter_includes_error_when_exc_info() -> None:
         )
     RequestContextFilter().filter(record)
     data = json.loads(formatter.format(record))
+    # ECS shape — ``error`` is an object with a ``stack_trace`` string.
+    # A bare-string form collides with Elasticsearch's default mapping and
+    # makes filebeat drop every ERROR event as a 400, so the object form
+    # is a load-bearing contract of :class:`JsonLogFormatter`.
     assert "error" in data
-    assert "ValueError" in data["error"]
+    assert isinstance(data["error"], dict)
+    assert "ValueError" in data["error"]["stack_trace"]
+    assert "boom" in data["error"]["stack_trace"]
 
 
 def test_text_formatter_appends_traceback_when_exc_info() -> None:

@@ -34,7 +34,7 @@ ICON_ERR  := $(COLOR_RED)✗$(COLOR_RESET)
 ICON_STEP := $(COLOR_CYAN)→$(COLOR_RESET)
 ICON_INFO := $(COLOR_CYAN)i$(COLOR_RESET)
 
-.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check
+.PHONY: help verify verify-local docs-fix docs-check docs-html-check docs-design-check docs-a11y-check docs-feedback-check docs-spec-check docs-nav-check docs-storybook-check docs-token-check catalog-render catalog-render-check serve open visual-test visual-test-update api-check
 
 PORTAL_PORT ?= 8080
 PORTAL_URL  := http://127.0.0.1:$(PORTAL_PORT)/portal/
@@ -47,6 +47,7 @@ help:
 	@echo "  make docs-html-check       HTML structure validation"
 	@echo "  make docs-design-check     Design baseline (cards, skeleton)"
 	@echo "  make docs-a11y-check       WCAG baseline accessibility"
+	@echo "  make docs-storybook-check  Storybook iframe/story-id references resolve"
 	@echo "  make docs-feedback-check   Page-level feedback smoke"
 	@echo "  make docs-spec-check       Spec consistency + lint"
 	@echo "  make docs-nav-check        Sidebar coverage — fails on pages not in nav-tree-internal.json"
@@ -137,20 +138,20 @@ docs-fix:
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/sync_docs.py
 	@printf "$(ICON_INFO) %s\n" "[3/11] render docs markdown to html companions"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[4/11] repair docs html structure"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/repair_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[5/11] normalize docs html template"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/format_docs_html.py
-	@printf "$(ICON_INFO) %s\n" "[6/11] render service catalog (YAML → HTML)"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_service_descriptors.py
-	@printf "$(ICON_INFO) %s\n" "[7/11] ensure docs body maintainers"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/ensure_docs_maintainers.py
-	@printf "$(ICON_INFO) %s\n" "[8/11] regenerate runtime OpenAPI spec (public Scalar source)"
-	@cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) tools/api/openapi_governance.py regen
-	@printf "$(ICON_INFO) %s\n" "[9/11] Python API reference (pdoc; skipped when app/**.py unchanged)"
-	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/regenerate_pdoc.py
-	@printf "$(ICON_INFO) %s\n" "[10/11] rebuild internal catalog (quadrant / service / topic / recent)"
+	@printf "$(ICON_INFO) %s\n" "[4/11] rebuild internal catalog (quadrant / service / topic / recent)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_catalog.py
+	@printf "$(ICON_INFO) %s\n" "[5/11] render service catalog (YAML → HTML)"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/render_service_descriptors.py
+	@printf "$(ICON_INFO) %s\n" "[6/11] repair docs html structure"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/repair_docs_html.py
+	@printf "$(ICON_INFO) %s\n" "[7/11] normalize docs html template"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/format_docs_html.py
+	@printf "$(ICON_INFO) %s\n" "[8/11] ensure docs body maintainers"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/ensure_docs_maintainers.py
+	@printf "$(ICON_INFO) %s\n" "[9/11] regenerate runtime OpenAPI spec (public Scalar source)"
+	@cd $(REPO_ROOT) && PYTHONPATH=services/api $(PYTHON) tools/api/openapi_governance.py regen
+	@printf "$(ICON_INFO) %s\n" "[10/11] Python API reference (pdoc; skipped when app/**.py unchanged)"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/regenerate_pdoc.py
 	@printf "$(ICON_INFO) %s\n" "[11/11] build pagefind index (ADR-0033)"
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/build_pagefind_index.py
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_pagefind_visibility.py
@@ -191,6 +192,16 @@ docs-nav-check:
 	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_sidebar_coverage.py
 	@printf "$(COLOR_GREEN)== DOCS-NAV-CHECK: SUCCESS ==$(COLOR_RESET)\n"
 
+docs-storybook-check:
+	@printf "$(COLOR_CYAN)== DOCS-STORYBOOK-CHECK: START ==$(COLOR_RESET)\n"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_storybook_refs.py
+	@printf "$(COLOR_GREEN)== DOCS-STORYBOOK-CHECK: SUCCESS ==$(COLOR_RESET)\n"
+
+docs-token-check:
+	@printf "$(COLOR_CYAN)== DOCS-TOKEN-CHECK: START ==$(COLOR_RESET)\n"
+	@cd $(REPO_ROOT) && $(PYTHON) tools/docs/check_token_drift.py
+	@printf "$(COLOR_GREEN)== DOCS-TOKEN-CHECK: SUCCESS ==$(COLOR_RESET)\n"
+
 # ─────────────────────────────────────────────
 # Drift gate (used by CI + `make verify`)
 # ─────────────────────────────────────────────
@@ -200,6 +211,8 @@ docs-check:
 	@$(MAKE) docs-feedback-check
 	@$(MAKE) docs-spec-check
 	@$(MAKE) docs-nav-check
+	@$(MAKE) docs-storybook-check
+	@$(MAKE) docs-token-check
 	@cd $(REPO_ROOT) && tmp_before=$$(mktemp); tmp_after=$$(mktemp); \
 	git diff HEAD ':(exclude)services/portal/internal/services/api/code-reference/search.js' > "$$tmp_before"; \
 	$(MAKE) -C services/portal docs-fix; \

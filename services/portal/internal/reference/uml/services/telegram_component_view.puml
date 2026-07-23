@@ -1,0 +1,52 @@
+@startuml
+title Study App · Telegram Mini App — C4 Level 3 (components)
+
+' No package/cluster wrappers: arrow labels then never sit on a boundary.
+' Node names already spell out the `services/telegram/src/` tree.
+skinparam nodesep 34
+skinparam ranksep 54
+skinparam linetype ortho
+skinparam shadowing false
+scale max 780 width
+
+top to bottom direction
+
+actor "User\n(inside Telegram)" as User
+cloud "Telegram WebView" as WebView
+cloud "Cloudflare Pages\n(static CDN)" as Pages
+
+[main.tsx\nSDK bootstrap] as Main
+[app/\nrouter · providers · shell] as AppPkg
+[screens/\n9 screens\nToday · Focus · Conspectus …] as Screens
+[shared/ui · theme · haptics\nwrappers over telegram-ui] as SharedUi
+[shared/api/\nOpenAPI client\n+ JWT bootstrap\n+ CloudStorage cache] as SharedApi
+
+[POST /api/v1/auth/telegram\nHMAC-verify initData\n→ upsert users + telegram_users\n→ mint 24 h JWT] as AuthEndpoint
+[/api/v1/*\nJWT middleware\n(Bearer required)] as ApiRoutes
+
+database "Postgres" as Db
+
+' -- Cold-open handshake --------------------------------------------------
+User    --> WebView : launch\nor deep-link
+Pages   --> WebView : bundle (cached)
+WebView --> Main    : evaluate JS
+
+' -- Bundle wiring --------------------------------------------------------
+Main    --> AppPkg
+AppPkg  --> Screens
+Screens --> SharedUi
+Screens --> SharedApi
+
+' -- Runtime traffic — labels sit in open whitespace now ------------------
+SharedApi --> AuthEndpoint : cold open\nPOST initData
+SharedApi --> ApiRoutes    : Bearer <jwt>\n+ Idempotency-Key
+
+AuthEndpoint --> Db
+ApiRoutes    --> Db
+
+note bottom of Db
+  users + telegram_users
+  identity anchor: telegram_user_id
+end note
+
+@enduml

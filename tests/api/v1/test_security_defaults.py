@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app import main as app_main
 from app.core.security import InMemoryRateLimiter
+from fastapi.testclient import TestClient
 
 from tests.api.v1.user_test_utils import USER_HTTP_BASE_PATH, user_create_body
 
@@ -62,6 +63,17 @@ def test_metrics_endpoint_exposes_prometheus_metrics(client) -> None:
     assert "http_requests_total" in payload
     assert "http_request_duration_seconds" in payload
     assert "db_operation_duration_seconds" in payload
+
+
+def test_protected_route_rejects_wrong_api_key() -> None:
+    wrong_client = TestClient(app_main.app, headers={"X-API-Key": "wrong-key"})
+
+    response = wrong_client.get("/api/v1/conspectuses")
+
+    assert response.status_code == 401
+    detail = response.json()["detail"]
+    assert detail["code"] == "COMMON_401"
+    assert detail["key"] == "SECURITY_AUTH_REQUIRED"
 
 
 def test_create_user_rejects_too_large_body(client) -> None:

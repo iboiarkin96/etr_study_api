@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Event contract template · Templates · Documentation handbook</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-07-14" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Handbook</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">SA</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Templates</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Event contract</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Spec · Event contract</span>
+          <span class="docs-pill docs-pill--warn">template</span>
+          <span class="docs-pill docs-pill--neutral">Draft</span>
+        </p>
+        <h1>Event contract template</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          One contract per event — domain event (another service reacts) or analytics event (a metric consumes it).
+          An event is a wire schema exactly like a response body: named, versioned, owned, and tested for continuity.
+          Copy this file into <code>services/&lt;svc&gt;/reference/events/&lt;event.name&gt;.html</code> and fill in each section.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Event</dt>
+          <dd><code>&lt;domain.action&gt;</code> — e.g. <code>conspectus.reviewed</code></dd>
+          <dt>Kind</dt>
+          <dd>domain | analytics</dd>
+          <dt>Producer</dt>
+          <dd><code>&lt;service&gt;</code> · <code>&lt;operation or module that emits&gt;</code></dd>
+          <dt>Consumers</dt>
+          <dd>&lt;each consumer + what it does with the event; "none yet" is a valid, honest answer&gt;</dd>
+          <dt>Transport</dt>
+          <dd>in-process | outbox table | queue (&lt;which&gt;)</dd>
+          <dt>Schema version</dt>
+          <dd><code>1</code></dd>
+          <dt>Owner</dt>
+          <dd><a href="../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Last reviewed</dt>
+          <dd><time datetime="2026-07-14">2026-07-14</time></dd>
+        </dl>
+      </section>
+
+      <h2 id="trigger-h">1 · Trigger — when exactly it fires</h2>
+      <p>&lt;The operation and the condition. «<code>POST /api/v1/conspectuses/{id}/review</code> commits» is a trigger; «when a review happens» is not. State whether the emit is inside or outside the DB transaction, and what that means for consistency.&gt;</p>
+
+      <h2 id="semantics-h">2 · Delivery semantics</h2>
+      <ul>
+        <li><strong>Guarantee:</strong> at-most-once | at-least-once (consumers must dedup by <code>event_id</code>) | exactly-once (name the mechanism).</li>
+        <li><strong>Ordering:</strong> guaranteed per <code>&lt;key&gt;</code> | not guaranteed — consumers must not assume order.</li>
+        <li><strong>Emit failure:</strong> what happens to the triggering request when the emit fails — blocks | logged and dropped | parked in outbox for retry.</li>
+      </ul>
+
+      <h2 id="payload-h">3 · Payload schema</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Data class</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>event_id</code></td><td>uuid</td><td>yes</td><td>operational</td><td>Unique per emission; consumer dedup key.</td></tr>
+            <tr><td><code>event_type</code></td><td>string</td><td>yes</td><td>operational</td><td>The event name above, verbatim.</td></tr>
+            <tr><td><code>schema_version</code></td><td>int</td><td>yes</td><td>operational</td><td>Version of this contract.</td></tr>
+            <tr><td><code>occurred_at</code></td><td>timestamp (UTC)</td><td>yes</td><td>operational</td><td>Business moment, not emit moment.</td></tr>
+            <tr><td><code>&lt;field&gt;</code></td><td>&lt;type&gt;</td><td>&lt;yes/no&gt;</td><td>PII | user content | behavioural | operational</td><td>&lt;meaning; data classes per <a href="../../../services/datastore/data-lifecycle.html">data lifecycle</a>&gt;</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>PII rule:</strong> analytics events carry identifiers (<code>client_uuid</code>), never direct PII (<code>full_name</code>, free-text content). If a consumer needs PII, it joins at read time under its own access control — the event stream must stay safe to fan out.</p>
+
+      <h2 id="versioning-h">4 · Versioning &amp; compatibility</h2>
+      <ul>
+        <li><strong>Additive-only within a version.</strong> New optional fields do not bump <code>schema_version</code>; removing or renaming a field does — a rename is a removal, same rule as the API schema contract.</li>
+        <li><strong>Consumers tolerate unknown fields.</strong> Non-negotiable; it is what makes additive change safe.</li>
+        <li><strong>Version bumps are announced</strong> in the producing service's changelog, with a deprecation window for the old version.</li>
+      </ul>
+
+      <h2 id="observability-h">5 · Observability</h2>
+      <ul>
+        <li><strong>Emit metric:</strong> <code>events_emitted_total{event="&lt;name&gt;"}</code> — a silent producer is indistinguishable from a broken one.</li>
+        <li><strong>Consumer lag / failure signal:</strong> &lt;metric or alert per consumer; "n/a — in-process" is honest for the current transport&gt;.</li>
+      </ul>
+
+      <h2 id="tests-h">6 · Test plan</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Level</th><th>Asserts</th></tr></thead>
+          <tbody>
+            <tr><td>Contract</td><td>Emitted payload validates against this schema; continuity against the committed baseline (a schema test that only asserts the current shape misses breaks).</td></tr>
+            <tr><td>Producer</td><td>Trigger condition emits exactly the documented number of events; failure path behaves as §2 says.</td></tr>
+            <tr><td>Consumer</td><td>Dedup on <code>event_id</code>; unknown-field tolerance.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="traceability-h">7 · Traceability</h2>
+      <ul>
+        <li>Requirement / acceptance criteria: <code>&lt;FR-…, AC-…&gt;</code></li>
+        <li>Producing operation spec: <code>&lt;link to §14 Observability of the API spec that names this event&gt;</code></li>
+        <li>Related ADRs: <code>&lt;links&gt;</code></li>
+      </ul>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created. Closes the "no event/async contract template" gap: the SA canon covered request/response contracts only, leaving domain and analytics events without a documented shape, PII rule, or continuity-test requirement.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#trigger-h">1 · Trigger</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#semantics-h">2 · Delivery semantics</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#payload-h">3 · Payload schema</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#versioning-h">4 · Versioning</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#observability-h">5 · Observability</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#tests-h">6 · Test plan</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#traceability-h">7 · Traceability</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

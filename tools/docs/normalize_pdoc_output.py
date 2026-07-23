@@ -120,6 +120,21 @@ _SETTINGS_DATABASE_URL = re.compile(
 # builds. Split on ``', '`` between quoted strings, sort, reassemble.
 _FROZENSET_STRINGS = re.compile(rf"frozenset\(\{{({_Q}[^\}}]*{_Q})\}}\)")
 
+# ``VALID_TIMEZONES`` default-value block — the *contents* of the frozenset
+# (which timezones exist) depend on the host OS's ``/usr/share/zoneinfo`` /
+# ``tzdata`` bundle. macOS ships ~600 zones, Ubuntu CI runners ship a slightly
+# different set (aliases removed, new zones added between tzdata releases).
+# Sorting alone is not enough — the *set membership* differs. Replace the
+# rendered value with a canonical placeholder so contributors on any OS produce
+# the same HTML. The variable's docstring / annotation are unaffected.
+_VALID_TIMEZONES_VALUE = re.compile(
+    r'(<label class="view-value-button pdoc-button" '
+    r'for="VALID_TIMEZONES-view-value"></label>'
+    r'<span class="default_value">)'
+    r"frozenset\(\{[^}]*\}\)"
+    r"(</span>)"
+)
+
 
 def _canonicalize_module_from_path(match: re.Match[str]) -> str:
     """Drop the ``from '…'`` clause from a rendered ``<module …>`` repr."""
@@ -153,6 +168,10 @@ def _canonicalize_env_specific_reprs(text: str) -> str:
     )
     text = _ENGINE_REPR.sub("Engine(***HOST:5432/DB)", text)
     text = _FROZENSET_STRINGS.sub(_canonicalize_frozenset_of_strings, text)
+    text = _VALID_TIMEZONES_VALUE.sub(
+        r"\1frozenset({&lt;IANA-timezones · OS-dependent&gt;})\2",
+        text,
+    )
     return text
 
 

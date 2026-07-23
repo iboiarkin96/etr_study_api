@@ -48,6 +48,14 @@
       <p>The model covers the runtime request path described in <a href="../../explanation/architecture-narrative.html#shape">architecture narrative § The shape</a>: <strong>Integrator</strong> (someone else's mobile/web app, talking HTTP) → <strong>api service</strong> (FastAPI on Python 3.11) → <strong>database</strong> (containerized PostgreSQL 16, see <a href="../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>). The docs portal is out of scope here — it is a static site with no PII surface; threats against it are misinformation/defacement, not data theft, and they live in the portal's own threat surface.</p>
       <p><strong>Status legend.</strong> <span class="docs-pill docs-pill--success">covered</span> — mitigation is in code today and verified. <span class="docs-pill docs-pill--warn">partial</span> — mitigation exists but has known gaps named in this row. <span class="docs-pill docs-pill--danger">open</span> — no mitigation; recorded as a known risk.</p>
 
+      <h2 id="dfd">Data-flow diagram — trust boundaries at a glance</h2>
+      <p>Every dashed-boundary crossing below is an attack surface; the STRIDE letters on the edges anchor the per-component tables that follow.</p>
+      <figure>
+        <!-- Diagram pending render — regenerator scans only reference/uml today; run make docs-fix once handbook/uml is picked up. -->
+        <!-- <img class="diagram" alt="Data-flow diagram: integrator and operator crossing into the Docker-network trust boundary (api, postgres, prometheus, elasticsearch) and the host-filesystem boundary (log files, postgres volume), with STRIDE annotations per edge" loading="lazy" src="../uml/rendered/architecture__threat_model_dfd.svg" data-component="diagram-lightbox"> -->
+        <figcaption>Regenerate with <code>make docs-fix</code>. Source: <code>services/portal/internal/handbook/uml/architecture/threat_model_dfd.puml</code>.</figcaption>
+      </figure>
+
       <h2 id="integrator">Component 1 — Integrator (untrusted client)</h2>
       <p>The integrator is anyone who holds an <code>X-API-Key</code>. The threat surface here is "the client behaves badly", whether intentionally or by misconfiguration. Per <a href="../../governance/adr/0005-api-security-defaults.html">ADR 0005</a> the principle is: trust the API key for tenancy, never trust the body for identity.</p>
       <div class="docs-table-wrap" role="region" aria-label="Integrator threats">
@@ -91,7 +99,7 @@
             <tr><td><strong>T</strong>ampering</td><td>Direct DB writes that bypass service-layer validation.</td><td>Only the api service holds the application role's credentials; writes go through ORM + Alembic migrations. Revoking direct DDL from the app role is roadmap.</td><td><span class="docs-pill docs-pill--warn">partial</span> — app role still has DDL; split into DML-only + migrations role is planned</td></tr>
             <tr><td><strong>R</strong>epudiation</td><td>Application can deny what was committed.</td><td>Postgres WAL; <code>idempotency_keys</code> table stores the response served; <code>conspectus_events</code> records every state-changing write with diff. See <a href="../../services/api/reference/conspectus/operations/patch-api-v1-conspectuses-conspectus_uuid.html#side-effects">PATCH conspectus § side-effects</a> for the event-row pattern.</td><td><span class="docs-pill docs-pill--success">covered</span></td></tr>
             <tr><td><strong>I</strong>nformation disclosure</td><td>Backup files or DB dumps end up in places they shouldn't.</td><td>No backup automation today; the <code>./var/postgres/</code> volume is excluded from git via <code>.gitignore</code>. Backup discipline (encrypted <code>pg_basebackup</code>, retention policy, restore drills) is called out in <a href="../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a> follow-ups.</td><td><span class="docs-pill docs-pill--danger">open</span> — no formal backup policy</td></tr>
-            <tr><td><strong>D</strong>enial of service</td><td>Connection-pool exhaustion under retry storm.</td><td>Historic SQLite single-writer bottleneck is gone with the Postgres swap (see <a href="../../services/datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">postmortem 2026-04-02</a>); the new ceiling is connection-pool size × DB CPU. Load tests run with client retries disabled to measure raw saturation; live alerting on pool saturation is not wired yet.</td><td><span class="docs-pill docs-pill--warn">partial</span> — new ceiling not re-measured, no live pool-saturation alert</td></tr>
+            <tr><td><strong>D</strong>enial of service</td><td>Connection-pool exhaustion under retry storm.</td><td>Historic SQLite single-writer bottleneck is gone with the Postgres swap (<a href="../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>); the new ceiling is connection-pool size × DB CPU. Load tests run with client retries disabled to measure raw saturation; live alerting on pool saturation is not wired yet.</td><td><span class="docs-pill docs-pill--warn">partial</span> — new ceiling not re-measured, no live pool-saturation alert</td></tr>
             <tr><td><strong>E</strong>levation of privilege</td><td>Service connection used for DDL beyond its scope.</td><td>Single application role today; migrations use the same role. Splitting into a DML-only app role and a separate migration role with DDL is a Postgres hardening follow-up.</td><td><span class="docs-pill docs-pill--danger">open</span> — no role separation yet</td></tr>
           </tbody>
         </table>
@@ -138,6 +146,7 @@
     <p class="docs-toc__title">On this page</p>
     <ol class="docs-toc__list">
       <li class="docs-toc__item"><a class="docs-toc__link" href="#scope">Scope</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#dfd">Data-flow diagram</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#integrator">Integrator</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#api">api service</a></li>
       <li class="docs-toc__item"><a class="docs-toc__link" href="#database">Database</a></li>

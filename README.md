@@ -69,27 +69,38 @@ study_app/
     │   │   └── provisioning/
     │   └── prometheus/  # Scrape config, rules, Blackbox
     │       └── rules/
-    └── portal/
-        ├── internal/
-        │   ├── blog/
-        │   ├── catalog/
-        │   ├── explanation/
-        │   ├── governance/
-        │   ├── handbook/
-        │   ├── how-to/
-        │   ├── onboarding/
-        │   ├── operating-model/
-        │   ├── reference/
-        │   ├── services/
-        │   ├── team/
-        │   └── tutorials/
-        ├── public/
-        │   ├── explanation/
-        │   ├── how-to/
-        │   ├── reference/
-        │   └── tutorials/
-        └── ui-kit/
-            └── pages/
+    ├── portal/
+    │   ├── internal/
+    │   │   ├── blog/
+    │   │   ├── catalog/
+    │   │   ├── explanation/
+    │   │   ├── governance/
+    │   │   ├── handbook/
+    │   │   ├── how-to/
+    │   │   ├── onboarding/
+    │   │   ├── operating-model/
+    │   │   ├── reference/
+    │   │   ├── services/
+    │   │   ├── team/
+    │   │   └── tutorials/
+    │   ├── public/
+    │   │   ├── explanation/
+    │   │   ├── how-to/
+    │   │   ├── reference/
+    │   │   └── tutorials/
+    │   └── ui-kit/
+    │       └── pages/
+    └── telegram/
+        ├── .storybook/
+        ├── scripts/
+        ├── src/
+        │   ├── app/
+        │   ├── screens/
+        │   ├── shared/
+        │   └── styles/
+        └── tests/
+            ├── a11y/
+            └── visual/
 ```
 <!-- END:REPO_LAYOUT -->
 

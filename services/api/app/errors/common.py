@@ -41,6 +41,12 @@ COMMON_429 = StableError(
     "Too many requests. Retry later.",
 )
 
+COMMON_422 = StableError(
+    "COMMON_422",
+    "PERSISTENCE_INTEGRITY_VIOLATION",
+    "Request violates a database constraint (foreign key, uniqueness, or check).",
+)
+
 COMMON_500 = StableError(
     "COMMON_500",
     "SECURITY_AUTH_STRATEGY_INVALID",

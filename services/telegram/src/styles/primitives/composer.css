@@ -1,0 +1,502 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * composer.css — Encode-screen composer primitives.
+ *
+ * ETR conspectus authoring surface: three vertically-stacked phases
+ * (Encode → Trigger → Recall) that map 1:1 onto the backend
+ * `POST /api/v1/conspectuses` contract (dense_paragraph → cue_sheet →
+ * bullets). Interactive controls (add / remove) sit on the right edge of
+ * each row so the right thumb reaches them without stretching — the
+ * dominant hand in ~2/3 of one-handed mobile use per Hoober/UXmatters.
+ *
+ * All shipped components:
+ *   .tma-composer                       stack container (max-width capped)
+ *   .tma-composer__ribbon               ETR progress dots (3 states)
+ *   .tma-composer__dot                  one dot, tone via data-state
+ *   .tma-composer__phase                one phase card (encode|trigger|recall)
+ *   .tma-composer__eyebrow              small mono «01 · Encode»
+ *   .tma-composer__prompt               plain-language «what to write»
+ *   .tma-composer__hint                 tertiary caption under a row
+ *   .tma-textarea                       autosize-friendly multiline input
+ *   .tma-textarea__counter              micro char-count aligned right
+ *   .tma-chip                           small removable term pill
+ *   .tma-chip__x                        remove affordance
+ *   .tma-chip-input                     flex row: chips + inline entry
+ *   .tma-chip-input__entry              inline text input (grows to fill)
+ *   .tma-bullet-row                     one bullet with drag / remove
+ *   .tma-bullet-row__dot                the round dot
+ *   .tma-bullet-row__field              inline text field
+ *   .tma-bullet-row__actions            right-edge action cluster
+ *   .tma-composer__add                  «+ Add …» ghost button (right-aligned)
+ *
+ * No new tokens introduced — reuses tokens.css only. No dark/light forks
+ * here; those live at the token layer.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.tma-composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-4);
+  max-width: 560px;
+  margin: 0 auto;
+  padding-bottom: calc(var(--tma-safe-bottom, 0px) + var(--tma-sp-12));
+}
+
+/* ── Progress ribbon — three ETR dots + label ────────────────────────── */
+
+.tma-composer__ribbon {
+  display: flex;
+  align-items: center;
+  gap: var(--tma-sp-3);
+  padding: var(--tma-sp-2) var(--tma-sp-3);
+  border-radius: var(--tma-rad-full);
+  background: var(--tma-surface-plate);
+  box-shadow: var(--tma-elev-1);
+  align-self: center;
+}
+
+.tma-composer__ribbon-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tma-sp-2);
+}
+
+.tma-composer__ribbon-label {
+  font-family: var(--tma-font-mono);
+  font-size: var(--tma-fs-micro);
+  font-weight: var(--tma-fw-semi);
+  text-transform: uppercase;
+  letter-spacing: var(--tma-tr-wide);
+  color: var(--tma-text-tertiary);
+}
+
+.tma-composer__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--tma-rad-full);
+  background: var(--tma-border-regular);
+  transition:
+    background-color var(--tma-dur-med) var(--tma-ease-out),
+    transform var(--tma-dur-fast) var(--tma-ease-spring);
+}
+
+.tma-composer__dot[data-state='filled'] {
+  background: var(--tma-tone-accent);
+  transform: scale(1.12);
+}
+
+/* When all three fill, breathe once — signature moment. */
+.tma-composer__ribbon[data-state='complete'] .tma-composer__dot {
+  animation: tma-composer-breathe 640ms var(--tma-ease-spring);
+}
+
+@keyframes tma-composer-breathe {
+  0%   { transform: scale(1.12); }
+  40%  { transform: scale(1.32); }
+  100% { transform: scale(1.12); }
+}
+
+/* ── Phase card ──────────────────────────────────────────────────────── */
+
+.tma-composer__phase {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-3);
+  padding: var(--tma-sp-4);
+  background: var(--tma-surface-plate);
+  border: 1px solid var(--tma-border-soft);
+  border-radius: var(--tma-rad-3);
+  box-shadow: var(--tma-elev-1);
+}
+
+.tma-composer__phase-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--tma-sp-3);
+}
+
+.tma-composer__eyebrow {
+  font-family: var(--tma-font-mono);
+  font-size: var(--tma-fs-micro);
+  font-weight: var(--tma-fw-semi);
+  text-transform: uppercase;
+  letter-spacing: var(--tma-tr-wide);
+  color: var(--tma-text-tertiary);
+  margin: 0;
+}
+
+.tma-composer__eyebrow-num { color: var(--tma-text-accent); }
+
+.tma-composer__prompt {
+  margin: 0;
+  font-size: var(--tma-fs-lead);
+  font-weight: var(--tma-fw-semi);
+  color: var(--tma-text-primary);
+  letter-spacing: var(--tma-tr-snug);
+  line-height: var(--tma-lh-snug);
+}
+
+.tma-composer__hint {
+  margin: 0;
+  font-size: var(--tma-fs-small);
+  color: var(--tma-text-tertiary);
+  line-height: var(--tma-lh-snug);
+}
+
+.tma-composer__req {
+  display: inline-block;
+  margin-left: var(--tma-sp-1);
+  font-size: var(--tma-fs-micro);
+  font-weight: var(--tma-fw-semi);
+  text-transform: uppercase;
+  letter-spacing: var(--tma-tr-wide);
+  color: var(--tma-tone-accent);
+}
+
+.tma-composer__opt {
+  display: inline-block;
+  margin-left: var(--tma-sp-1);
+  font-size: var(--tma-fs-micro);
+  font-weight: var(--tma-fw-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tma-tr-wide);
+  color: var(--tma-text-tertiary);
+}
+
+/* ── Textarea ────────────────────────────────────────────────────────── */
+
+.tma-textarea {
+  width: 100%;
+  min-height: 108px;
+  padding: var(--tma-sp-3);
+  font-family: inherit;
+  font-size: var(--tma-fs-body);
+  line-height: var(--tma-lh-normal);
+  color: var(--tma-text-primary);
+  background: var(--tma-surface-canvas);
+  border: 1px solid var(--tma-border-regular);
+  border-radius: var(--tma-rad-2);
+  resize: vertical;
+  box-sizing: border-box;
+  transition: border-color var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-textarea::placeholder { color: var(--tma-text-tertiary); }
+
+.tma-textarea:focus-visible {
+  outline: none;
+  border-color: var(--tma-tone-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--tma-tone-accent) 20%, transparent);
+}
+
+.tma-textarea[data-invalid='true'] {
+  border-color: var(--tma-tone-danger);
+}
+
+.tma-textarea__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-1);
+}
+
+.tma-textarea__counter {
+  align-self: flex-end;
+  font-family: var(--tma-font-mono);
+  font-size: var(--tma-fs-micro);
+  color: var(--tma-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tma-textarea__counter[data-state='warn'] { color: var(--tma-tone-warn); }
+.tma-textarea__counter[data-state='over'] { color: var(--tma-tone-danger); }
+
+/* ── Title chip (inline optional title on Encode phase) ──────────────── */
+
+.tma-title-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tma-sp-2);
+  padding: 6px 10px;
+  font-size: var(--tma-fs-small);
+  font-weight: var(--tma-fw-medium);
+  color: var(--tma-text-secondary);
+  background: color-mix(in oklab, var(--tma-tone-accent) 8%, transparent);
+  border: 1px dashed color-mix(in oklab, var(--tma-tone-accent) 40%, transparent);
+  border-radius: var(--tma-rad-full);
+  cursor: text;
+  transition: background-color var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-title-chip:hover { background: color-mix(in oklab, var(--tma-tone-accent) 14%, transparent); }
+
+.tma-title-chip[data-state='filled'] {
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--tma-tone-accent) 60%, transparent);
+  color: var(--tma-text-primary);
+}
+
+.tma-title-chip__input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--tma-fs-small);
+  color: var(--tma-text-primary);
+  padding: 0;
+}
+
+.tma-title-chip__input:focus-visible { outline: none; }
+
+/* ── Chip + chip-input (terms) ───────────────────────────────────────── */
+
+.tma-chip-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tma-sp-2);
+  align-items: center;
+  padding: var(--tma-sp-2);
+  background: var(--tma-surface-canvas);
+  border: 1px solid var(--tma-border-regular);
+  border-radius: var(--tma-rad-2);
+  min-height: 52px;
+  transition: border-color var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-chip-input:focus-within {
+  border-color: var(--tma-tone-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--tma-tone-accent) 20%, transparent);
+}
+
+.tma-chip-input__entry {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--tma-fs-body);
+  color: var(--tma-text-primary);
+  padding: 6px 4px;
+}
+
+.tma-chip-input__entry:focus-visible { outline: none; }
+.tma-chip-input__entry::placeholder { color: var(--tma-text-tertiary); }
+
+.tma-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tma-sp-1);
+  padding: 4px 6px 4px 10px;
+  font-size: var(--tma-fs-small);
+  font-weight: var(--tma-fw-medium);
+  color: var(--tma-tone-accent);
+  background: color-mix(in oklab, var(--tma-tone-accent) 12%, transparent);
+  border-radius: var(--tma-rad-full);
+  line-height: 1.2;
+  max-width: 100%;
+}
+
+.tma-chip__text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.tma-chip__x {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: currentColor;
+  cursor: pointer;
+  border-radius: var(--tma-rad-full);
+  opacity: 0.75;
+  transition:
+    background-color var(--tma-dur-fast) var(--tma-ease-out),
+    opacity var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-chip__x:hover  { background: color-mix(in oklab, currentColor 18%, transparent); opacity: 1; }
+.tma-chip__x:focus-visible {
+  outline: 2px solid var(--tma-ember-400);
+  outline-offset: 1px;
+}
+
+/* ── Bullet / question rows ──────────────────────────────────────────── */
+
+.tma-composer__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-2);
+}
+
+.tma-bullet-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tma-sp-3);
+  padding: var(--tma-sp-2) var(--tma-sp-2) var(--tma-sp-2) var(--tma-sp-3);
+  background: var(--tma-surface-canvas);
+  border: 1px solid var(--tma-border-regular);
+  border-radius: var(--tma-rad-2);
+  transition:
+    border-color var(--tma-dur-fast) var(--tma-ease-out),
+    background-color var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-bullet-row:focus-within {
+  border-color: var(--tma-tone-accent);
+  background: var(--tma-surface-plate);
+}
+
+.tma-bullet-row__dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-top: 14px;
+  border-radius: var(--tma-rad-full);
+  background: var(--tma-tone-accent);
+}
+
+.tma-bullet-row[data-kind='question'] .tma-bullet-row__dot {
+  width: 16px;
+  height: 16px;
+  margin-top: 8px;
+  background: transparent;
+  border: 1.5px solid var(--tma-tone-accent);
+  border-radius: var(--tma-rad-full);
+  position: relative;
+}
+
+.tma-bullet-row[data-kind='question'] .tma-bullet-row__dot::after {
+  content: '?';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--tma-font-mono);
+  font-size: 11px;
+  font-weight: var(--tma-fw-bold);
+  color: var(--tma-tone-accent);
+  line-height: 1;
+}
+
+.tma-bullet-row__field {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--tma-fs-body);
+  line-height: var(--tma-lh-snug);
+  color: var(--tma-text-primary);
+  padding: 8px 0;
+  resize: none;
+  overflow: hidden;
+}
+
+.tma-bullet-row__field:focus-visible { outline: none; }
+.tma-bullet-row__field::placeholder { color: var(--tma-text-tertiary); }
+
+/* Right-edge action cluster — thumb-natural for the dominant hand. */
+.tma-bullet-row__actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tma-sp-1);
+  align-self: center;
+}
+
+.tma-bullet-row__x {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--tma-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--tma-rad-full);
+  transition:
+    background-color var(--tma-dur-fast) var(--tma-ease-out),
+    color var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-bullet-row__x:hover {
+  background: color-mix(in oklab, var(--tma-tone-danger) 14%, transparent);
+  color: var(--tma-tone-danger);
+}
+
+.tma-bullet-row__x:focus-visible {
+  outline: 2px solid var(--tma-ember-400);
+  outline-offset: 1px;
+}
+
+/* ── «+ Add …» button — right-aligned inside the phase card. ─────────── */
+
+.tma-composer__add {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tma-sp-2);
+  padding: 8px 12px;
+  min-height: 36px;
+  font-family: inherit;
+  font-size: var(--tma-fs-small);
+  font-weight: var(--tma-fw-semi);
+  color: var(--tma-tone-accent);
+  background: transparent;
+  border: 1px dashed color-mix(in oklab, var(--tma-tone-accent) 40%, transparent);
+  border-radius: var(--tma-rad-full);
+  cursor: pointer;
+  transition:
+    background-color var(--tma-dur-fast) var(--tma-ease-out),
+    border-color var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-composer__add:hover {
+  background: color-mix(in oklab, var(--tma-tone-accent) 10%, transparent);
+  border-color: color-mix(in oklab, var(--tma-tone-accent) 60%, transparent);
+}
+
+.tma-composer__add:focus-visible {
+  outline: 2px solid var(--tma-ember-400);
+  outline-offset: 2px;
+}
+
+.tma-composer__add[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Inline error under a phase ──────────────────────────────────────── */
+
+.tma-composer__error {
+  margin: 0;
+  padding: var(--tma-sp-2) var(--tma-sp-3);
+  font-size: var(--tma-fs-small);
+  color: var(--tma-tone-danger);
+  background: color-mix(in oklab, var(--tma-tone-danger) 10%, transparent);
+  border-left: 2px solid var(--tma-tone-danger);
+  border-radius: var(--tma-rad-1);
+  line-height: var(--tma-lh-snug);
+}
+
+/* ── Reduced-motion honour ───────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .tma-composer__dot,
+  .tma-composer__ribbon[data-state='complete'] .tma-composer__dot {
+    animation: none;
+    transition: none;
+  }
+}

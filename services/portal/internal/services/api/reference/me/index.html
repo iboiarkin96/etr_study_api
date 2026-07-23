@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Me resource · API · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" data-service="api" data-role="" data-lifecycle="published" data-updated="2026-07-19" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-spec-page="hub" data-spec-status="draft" data-spec-owner="ivan-boyarkin">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">📚</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">api</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Me</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--info">Reference</span>
+          <span class="docs-pill docs-pill--warn">API</span>
+          <span class="docs-pill docs-pill--neutral" data-spec-status-mount="">Draft</span>
+          <span class="docs-pill docs-pill--neutral">v1 · Internal</span>
+        </div>
+        <h1>Me resource</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Learner-scoped aggregates over <code>conspectus_review_logs</code>: read-only projections that power the Today-hero of the Telegram Mini App (streak orb, yesterday recap). Mount: <code>/api/v1/me</code>. Owner: <a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a>. Last reviewed <time datetime="2026-07-19">2026-07-19</time>.</p>
+      </header>
+
+      <h2 id="overview">Overview</h2>
+      <p>Me is a <strong>computed projection</strong>, not a writable resource. All endpoints read from <code>conspectus_review_logs</code> (with a small helper join into <code>conspectus_schedules</code> for the «still-due» count on <code>yesterday</code>, and owner-scoped COUNTs over <code>conspectuses</code> + <code>learning_errors</code> for <code>achievements</code>) and return an aggregated view scoped to the caller. The client never writes here — writes happen through <a href="../conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a>, which appends the log rows this resource projects over.</p>
+      <p>Two operations serve the two hero blocks on the Today screen:</p>
+      <ul>
+        <li><strong>Stats</strong> — current + longest streak of consecutive review days for the streak orb.</li>
+        <li><strong>Yesterday</strong> — recap of the previous UTC calendar day (reviewed / target / accuracy / missed) for the recap card.</li>
+      </ul>
+
+      <h2 id="business-context">Business context</h2>
+      <p>The Telegram Mini App opens on a Today hero that has to render in one screen with one API round-trip per block. Two questions drive the visible copy above the fold, and each one gets its own cheap endpoint instead of an over-fetched «everything» payload:</p>
+      <ul>
+        <li><em>«How long is my streak?»</em> — <code>getMeStats</code>. Feeds the streak orb; called on every Today open. 24-hour grace so opening the app before today's first review doesn't visually break the streak.</li>
+        <li><em>«How did I do yesterday?»</em> — <code>getMeYesterday</code>. Feeds the recap card. Client renders <code>reviewed / target</code>, an accuracy chip, and a «missed» pill when non-zero.</li>
+      </ul>
+      <p>Methodology anchor: <a href="../../../../explanation/methodology.html#retrieve-system">methodology · retrieve cadence</a>. Streak days are computed from the review log (append-only, one row per <a href="../conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a> call); yesterday's target is inferred from <code>conspectus_schedules</code>. The daily heat-map that sits alongside the Today hero is served by <a href="../schedule/operations/get-api-v1-schedule-history.html"><code>getScheduleHistory</code></a> — same aggregation, hosted on the Schedule mount because it echoes the schedule cadence.</p>
+
+      <h2 id="domain-model">Domain model</h2>
+      <p>Source tables: <code>conspectus_review_logs</code> (append-only fact — one row per completed review) and <code>conspectus_schedules</code> (one row per active conspectus, joined for the «still-due» proxy on <code>yesterday</code>). Both endpoints project over the review log; canonical column references live on the <a href="../conspectus/index.html">Conspectus resource</a> page.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Me fields">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Field</th><th>Type</th><th>DB column</th><th>Role in Me</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>owner_client_uuid</code></td>
+              <td>string · uuid</td>
+              <td><code>owner_client_uuid</code></td>
+              <td>Ownership scope. Both endpoints filter on it; cross-tenant leakage is impossible.</td>
+            </tr>
+            <tr>
+              <td><code>reviewed_at</code></td>
+              <td>string · date-time (UTC)</td>
+              <td><code>reviewed_at</code></td>
+              <td>Bucketed by UTC calendar date for streak walk and yesterday's window.</td>
+            </tr>
+            <tr>
+              <td><code>tag</code></td>
+              <td>string · enum (<code>easy</code>·<code>hard</code>·<code>forgot</code>)</td>
+              <td><code>tag</code></td>
+              <td>Only <code>easy</code> counts toward <code>accuracy_pct</code> on <code>yesterday</code>.</td>
+            </tr>
+            <tr>
+              <td><code>next_review_at</code></td>
+              <td>string · date-time (UTC)</td>
+              <td><code>next_review_at</code> (schedules table)</td>
+              <td>Drives the «still-due-from-yesterday» proxy inside <code>target</code>.</td>
+            </tr>
+            <tr>
+              <td><code>is_row_invalid</code></td>
+              <td>integer · <code>0</code>/<code>1</code></td>
+              <td><code>is_row_invalid</code> (schedules table)</td>
+              <td>Soft-deleted schedules are excluded from the «still-due» count on <code>yesterday</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="lifecycle">Lifecycle</h2>
+      <p>Me is <strong>read-only</strong>: the client never posts here. State transitions happen on the Conspectus resource; Me endpoints observe the resulting review-log fact.</p>
+      <ul>
+        <li><strong>Row creation.</strong> A fresh <code>conspectus_review_logs</code> row is appended by <a href="../conspectus/operations/post-api-v1-conspectuses-conspectus_uuid-actions-review.html"><code>reviewConspectus</code></a> in the same transaction as the schedule advance.</li>
+        <li><strong>Immutable log.</strong> Review logs are append-only — there is no update or delete path. Streak / yesterday counts always reflect the full history.</li>
+        <li><strong>Soft delete of a note.</strong> <a href="../conspectus/operations/delete-api-v1-conspectuses-conspectus_uuid.html"><code>deleteConspectus</code></a> flips <code>is_row_invalid = 1</code> on the schedule row — the «still-due» proxy on <code>yesterday</code> filters it out. Review-log rows are retained.</li>
+        <li><strong>Reads.</strong> <a href="operations/get-api-v1-me-stats.html"><code>getMeStats</code></a>, <a href="operations/get-api-v1-me-yesterday.html"><code>getMeYesterday</code></a>, and <a href="operations/get-api-v1-me-achievements.html"><code>getMeAchievements</code></a>. No <code>Idempotency-Key</code>.</li>
+      </ul>
+
+      <h2 id="operations">Operations</h2>
+      <p>Three read-only projections. All scoped implicitly to the calling tenant via composite key.</p>
+      <div class="docs-table-wrap" role="region" aria-label="Me operations">
+        <table class="docs-table docs-table--sticky-head docs-table--zebra">
+          <thead><tr><th>Method &amp; path</th><th>operationId</th><th>Status</th><th>Idempotency</th><th>Success</th><th>Spec page</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="docs-pill docs-pill--success">GET</span> <code>/api/v1/me/stats</code></td>
+              <td><code>getMeStats</code></td>
+              <td><span class="docs-pill docs-pill--neutral">Draft</span></td>
+              <td>Not used (read)</td>
+              <td><code>200 OK</code></td>
+              <td><a href="operations/get-api-v1-me-stats.html">Open spec →</a></td>
+            </tr>
+            <tr>
+              <td><span class="docs-pill docs-pill--success">GET</span> <code>/api/v1/me/yesterday</code></td>
+              <td><code>getMeYesterday</code></td>
+              <td><span class="docs-pill docs-pill--neutral">Draft</span></td>
+              <td>Not used (read)</td>
+              <td><code>200 OK</code></td>
+              <td><a href="operations/get-api-v1-me-yesterday.html">Open spec →</a></td>
+            </tr>
+            <tr>
+              <td><span class="docs-pill docs-pill--success">GET</span> <code>/api/v1/me/achievements</code></td>
+              <td><code>getMeAchievements</code></td>
+              <td><span class="docs-pill docs-pill--neutral">Draft</span></td>
+              <td>Not used (read)</td>
+              <td><code>200 OK</code></td>
+              <td><a href="operations/get-api-v1-me-achievements.html">Open spec →</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <aside class="docs-card docs-card--rail" data-tone="info" role="note" aria-labelledby="streak-grace-h">
+        <h3 id="streak-grace-h" class="docs-card__title">Decision · 24-hour grace on the streak walk</h3>
+        <div class="docs-card__body">
+          <p><strong>Why the streak counts backward from yesterday when today is empty.</strong> A learner who opens the app at 08:00 UTC before today's first review would otherwise see the streak reset to zero — a jarring, incorrect signal. The walk starts from today when today has ≥1 review; otherwise it starts from yesterday. If yesterday is also zero, the streak is zero.</p>
+          <p><strong>Longest is monotonically ≥ current.</strong> Because the walk can start yesterday, a fresh current run can momentarily match longest even if a longer historical run exists; the service coerces <code>longest_days = max(longest_days, current_days)</code> to keep the pair sane.</p>
+          <p><strong>Goal is fixed at 30.</strong> Client renders <code>current_days / goal_days</code> as an orb progress arc. Product may swap the constant in future via a repo-level setting; the field is present for that path.</p>
+        </div>
+      </aside>
+
+      <h2 id="cross-cutting">Cross-cutting concerns</h2>
+      <p>Each operation page links to these shared pages for the global rules; this hub collects them in one place for quick navigation.</p>
+      <ul>
+        <li><a href="../_shared/auth.html">Authentication &amp; authorization</a> — API key, ownership rule, cross-tenant collapses to 404.</li>
+        <li><a href="../_shared/error-envelope.html">Error envelope</a> — standard shape for <code>401</code>·<code>404</code>·<code>422</code>·<code>429</code>.</li>
+        <li><a href="../_shared/error-catalog.html">Error catalog</a> — no Me-domain codes; both endpoints only raise common + user errors.</li>
+        <li><a href="../_shared/field-conventions.html">Field conventions</a> — UTC everywhere, integer counts, calendar-day granularity on <code>date</code>.</li>
+        <li><a href="../_shared/observability-conventions.html">Observability conventions</a> — log events, metrics, alerts.</li>
+        <li><a href="../_shared/openapi-authoring-guide.html">OpenAPI authoring guide</a> — internal-spec → canon-fragment translation.</li>
+      </ul>
+
+      <h2 id="technical-overview">Technical overview</h2>
+      <p>Both endpoints share the same access pattern: resolve <code>owner_client_uuid</code> from the query composite key, run one indexed scan on <code>conspectus_review_logs</code> (plus one extra count on <code>conspectus_schedules</code> for <code>yesterday</code>), compute the projection in memory, return. No writes, no idempotency middleware. The composite index <code>(owner_client_uuid, reviewed_at)</code> covers streak's per-day grouping and yesterday's window filter.</p>
+      <p><strong>Implementation live.</strong> Handlers land at <code>services/api/app/api/v1/me.py</code>, business logic at <code>services/api/app/services/me_service.py</code>, SQL at <code>services/api/app/repositories/me_repository.py</code>, schemas at <code>services/api/app/schemas/me.py</code>.</p>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Initial hub — Me promoted to a standalone resource for the Telegram Mini App Today hero (T-15d). Two read-only aggregates land under <code>/api/v1/me</code>: <code>stats</code> (streak orb) and <code>yesterday</code> (recap card). Nav-tree gets a dedicated Me node alongside Schedule / Conspectus / User.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#overview">Overview</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#business-context">Business context</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#domain-model">Domain model</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lifecycle">Lifecycle</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#operations">Operations</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#cross-cutting">Cross-cutting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#technical-overview">Technical overview</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

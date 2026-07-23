@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RFC 0007 · TMA-first, web-ready · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Governance</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">RFC</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">0007</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">RFC · 0007</span>
+          <span class="docs-pill docs-pill--warn">Proposed</span>
+          <span class="docs-pill docs-pill--neutral">Program: Telegram Mini App</span>
+        </p>
+        <h1>TMA-first, web-ready — a platform port for the Mini App</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">
+          The Mini App ships inside Telegram's WebView today, but the product roadmap wants a standalone
+          web version installable on a phone as a PWA. Those are the <em>same</em> React application with
+          two entry doors — <strong>if</strong> every Telegram-specific capability sits behind one boundary.
+          This RFC defines that boundary — a <code>src/platform/</code> port with a Telegram adapter now and
+          a reserved slot for a Web adapter later — plus the auth and identity invariants on the API side
+          that keep the second door cheap. It changes no user-visible behaviour.
+        </p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>RFC</dt>
+          <dd><code>0007</code> — TMA-first, web-ready — a platform port for the Mini App</dd>
+          <dt>Category</dt>
+          <dd>architecture</dd>
+          <dt>Owner</dt>
+          <dd><a href="../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Proposed on</dt>
+          <dd><time datetime="2026-07-19">2026-07-19</time></dd>
+          <dt>Applies to</dt>
+          <dd><code>services/telegram/</code> (frontend) · <code>services/api/</code> (auth doors only)</dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="goals-h">
+        <h2 id="goals-h">Goals and non-goals</h2>
+        <h3>Goals</h3>
+        <ul>
+          <li>Quarantine every Telegram dependency into one module so the rest of the app is platform-neutral.</li>
+          <li>Fix the auth/identity invariants that make a second login door (web) an additive change, not a migration.</li>
+          <li>Make the boundary enforceable by lint/CI, not by code-review vigilance.</li>
+        </ul>
+        <h3>Non-goals</h3>
+        <ul>
+          <li>Building the web version or the PWA shell (manifest, service worker, web push) — that is a future epic; this RFC only keeps its cost low.</li>
+          <li>Choosing the web login method (email code vs Telegram Login Widget vs OAuth) — deferred to the door's own design slice.</li>
+          <li>Backend hosting — unchanged, tracked separately in the <a href="../backlog/telegram-mini-app-epic.html">TMA epic</a>.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="background-h">
+        <h2 id="background-h">Background</h2>
+        <p>
+          A Telegram Mini App <em>is</em> a web application: Telegram opens our static bundle in a WebView and
+          hands it a bridge — signed <code>initData</code> for login, <code>themeParams</code>, chrome buttons,
+          haptics. A PWA is the same bundle opened in a browser with an install wrapper. The delta between the
+          two is therefore not «two apps» but «one app, two implementations of a small capability set».
+          The current W1 codebase (see <a href="../../services/telegram/architecture.html">telegram · architecture</a>)
+          calls the Telegram SDK directly from providers and screens; left as-is, every new screen deepens the
+          coupling and the future web epic becomes a rewrite instead of an adapter.
+        </p>
+      </section>
+
+      <section aria-labelledby="design-h">
+        <h2 id="design-h">Design</h2>
+        <p>
+          One rule, one folder. All platform capabilities are consumed through a typed port; the Telegram
+          implementation is the only code allowed to import <code>@telegram-apps/*</code> or touch
+          <code>window.Telegram</code>. Full specification in the sections below.
+        </p>
+      </section>
+
+      <section aria-labelledby="implementation-h">
+        <h2 id="implementation-h">Implementation</h2>
+        <ol>
+          <li>Phase 1 (inside the current epic): introduce <code>src/platform/</code>, move existing call-sites behind the port, add the ESLint fence. No behaviour change.</li>
+          <li>Phase 2 (ongoing): all new screens and features consume ports only — enforced by the fence.</li>
+          <li>Phase 3 (future web epic): add <code>src/platform/web/</code>, <code>POST /api/v1/auth/web</code>, manifest + service worker.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="validation-h">
+        <h2 id="validation-h">Validation</h2>
+        <ul>
+          <li><strong>Local checks:</strong> <code>make -C services/telegram verify</code> stays green; the ESLint fence fails on any direct SDK import outside the adapter.</li>
+          <li><strong>CI / automated checks:</strong> existing lint / type / build gates; bundle budget unchanged (~46 KB gz — the port is types plus thin re-exports).</li>
+          <li><strong>Operational checks:</strong> app still boots both in Telegram and in the plain-browser dev loop (<code>VITE_DEV_INIT_DATA</code> signer).</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="rollout-h">
+        <h2 id="rollout-h">Rollout plan</h2>
+        <ul>
+          <li><strong>Rollout phases:</strong> Phase 1 is a single refactor PR; Phases 2–3 ride their own epics.</li>
+          <li><strong>Feature flags:</strong> none — the adapter is resolved once at boot by environment detection.</li>
+          <li><strong>Rollback strategy:</strong> revert the refactor PR; call-sites return to direct SDK usage.</li>
+          <li><strong>Backward compatibility:</strong> no wire-level or user-visible change; <code>POST /api/v1/auth/telegram</code> is untouched.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="change-management-h">
+        <h2 id="change-management-h">Change management</h2>
+        <ul>
+          <li><strong>Update this RFC when:</strong> a port is added/removed or an invariant (R1–R6) changes.</li>
+          <li><strong>Open a new RFC when:</strong> the web door's login method is chosen, or the one-bundle-two-doors model itself is abandoned.</li>
+        </ul>
+      </section>
+
+      <h2 id="why">Why this RFC exists — the coupling inventory</h2>
+      <p>
+        Audit of the shipped W1 code and its docs. Two layers are already platform-neutral by design
+        (API client, analytics); everything else touches the Telegram bridge directly. «Web behaviour»
+        is what the future adapter substitutes — none of it requires changing callers once the port exists.
+      </p>
+
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Capability</th><th>Telegram today (where)</th><th>Web / PWA later</th><th>Coupling</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Login credential</strong></td>
+              <td>Signed <code>initData</code> → <code>POST /auth/telegram</code> (<code>shared/auth/bootstrap.ts</code>)</td>
+              <td>Email code / TG Login Widget → <code>POST /auth/web</code> — same JWT out</td>
+              <td><span class="docs-pill docs-pill--danger">blocking</span></td>
+            </tr>
+            <tr>
+              <td><strong>Token cache</strong></td>
+              <td><code>WebApp.CloudStorage</code> (<code>shared/auth/cloud-storage.ts</code>)</td>
+              <td><code>localStorage</code></td>
+              <td><span class="docs-pill docs-pill--danger">blocking</span></td>
+            </tr>
+            <tr>
+              <td><strong>Theme source</strong></td>
+              <td><code>themeParams</code> + <code>themeChanged</code> → <code>--tg-*</code> vars (ThemeProvider)</td>
+              <td><code>prefers-color-scheme</code> → same <code>--tg-*</code> vars</td>
+              <td><span class="docs-pill docs-pill--warn">provider-local</span></td>
+            </tr>
+            <tr>
+              <td><strong>Chrome</strong></td>
+              <td>BackButton · MainButton · SettingsButton preset map (app shell)</td>
+              <td>History back + in-layout action buttons</td>
+              <td><span class="docs-pill docs-pill--warn">shell-local</span></td>
+            </tr>
+            <tr>
+              <td><strong>Haptics</strong></td>
+              <td><code>hapticFeedback</code>, seven patterns, called from screens</td>
+              <td><code>navigator.vibrate</code> or no-op</td>
+              <td><span class="docs-pill docs-pill--warn">scattered</span></td>
+            </tr>
+            <tr>
+              <td><strong>Viewport / safe-area</strong></td>
+              <td>SDK insets → <code>--tma-*</code> vars (ViewportProvider)</td>
+              <td>CSS <code>env(safe-area-inset-*)</code></td>
+              <td><span class="docs-pill docs-pill--info">provider-local</span></td>
+            </tr>
+            <tr>
+              <td><strong>Deep links</strong></td>
+              <td><code>startapp=&lt;payload&gt;</code> grammar decoded at router (<a href="../../services/telegram/reference/deep-link-grammar.html">grammar</a>)</td>
+              <td>Plain URL paths — same internal routes</td>
+              <td><span class="docs-pill docs-pill--warn">entry-local</span></td>
+            </tr>
+            <tr>
+              <td><strong>Share</strong></td>
+              <td><code>t.me/…?startapp=</code> links via <code>VITE_TG_APP_SHORT_NAME</code></td>
+              <td>Web Share API / plain URL</td>
+              <td><span class="docs-pill docs-pill--info">minor</span></td>
+            </tr>
+            <tr>
+              <td><strong>UI primitives</strong></td>
+              <td>Thin wrappers over <code>@telegram-apps/telegram-ui</code></td>
+              <td>Keep wrapper API, swap internals if ever needed</td>
+              <td><span class="docs-pill docs-pill--warn">wrapped</span></td>
+            </tr>
+            <tr>
+              <td><strong>API client</strong></td>
+              <td>openapi-typescript + Bearer JWT + Idempotency-Key</td>
+              <td>Identical</td>
+              <td><span class="docs-pill docs-pill--success">neutral ✓</span></td>
+            </tr>
+            <tr>
+              <td><strong>Analytics identity</strong></td>
+              <td>PostHog <code>distinct_id</code> = <code>users.client_uuid</code>, never Telegram IDs (<a href="../../services/telegram/reference/event-spec.html">event spec</a>)</td>
+              <td>Identical</td>
+              <td><span class="docs-pill docs-pill--success">neutral ✓</span></td>
+            </tr>
+            <tr>
+              <td><strong>Design language</strong></td>
+              <td>Own ember/sage tokens, motion springs, orb — not Telegram-themed</td>
+              <td>Identical</td>
+              <td><span class="docs-pill docs-pill--success">neutral ✓</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="port">The platform port</h2>
+      <p>
+        A single module owns the boundary. Everything above it imports <code>platform</code> and stays
+        ignorant of where it runs; everything below it is per-platform and disposable.
+      </p>
+
+      <pre><code>src/platform/
+├── types.ts          ← the port: TypeScript interfaces for the eight capabilities
+├── index.ts          ← boot-time detection → exports the active adapter
+├── telegram/         ← the ONLY code allowed to import @telegram-apps/* or window.Telegram
+│   ├── auth.ts       ← reads initData, exchanges at POST /api/v1/auth/telegram
+│   ├── storage.ts    ← WebApp.CloudStorage get/set
+│   ├── chrome.ts     ← BackButton · MainButton · SettingsButton bindings
+│   ├── haptics.ts    ← the seven named patterns → hapticFeedback
+│   ├── theme.ts      ← themeParams + themeChanged → --tg-* CSS vars
+│   ├── viewport.ts   ← safe-area insets → --tma-* CSS vars
+│   ├── links.ts      ← startapp payload ⇄ internal route · t.me share links
+│   └── ui/           ← wrappers over @telegram-apps/telegram-ui
+└── web/              ← reserved — future epic ships browser implementations here
+</code></pre>
+
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Port</th><th>Surface (sketch)</th><th>Telegram adapter</th><th>Web adapter (future)</th></tr></thead>
+          <tbody>
+            <tr><td><code>auth</code></td><td><code>getCredential(): Credential</code></td><td><code>{ kind: 'telegram_init_data', value }</code></td><td><code>{ kind: 'web_session', … }</code></td></tr>
+            <tr><td><code>storage</code></td><td><code>get/set/remove(key)</code></td><td>CloudStorage</td><td>localStorage</td></tr>
+            <tr><td><code>chrome</code></td><td><code>applyPreset(screen)</code> · <code>onBack(cb)</code></td><td>SDK buttons</td><td>history + layout buttons</td></tr>
+            <tr><td><code>haptics</code></td><td><code>play(pattern)</code> — closed set of 7</td><td><code>hapticFeedback</code></td><td><code>navigator.vibrate</code> / no-op</td></tr>
+            <tr><td><code>theme</code></td><td><code>subscribe(cb)</code> → sets <code>--tg-*</code></td><td>themeParams</td><td><code>prefers-color-scheme</code></td></tr>
+            <tr><td><code>viewport</code></td><td>mounts <code>--tma-*</code> inset vars</td><td>SDK insets</td><td><code>env(safe-area-inset-*)</code></td></tr>
+            <tr><td><code>links</code></td><td><code>parseEntry(): Route</code> · <code>shareUrl(route)</code></td><td>startapp grammar · t.me</td><td>URL path · Web Share API</td></tr>
+            <tr><td><code>ui</code></td><td>re-exported primitive components</td><td>telegram-ui wrappers</td><td>same API, swapped internals</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="auth">Two doors, one token</h2>
+      <p>
+        The API side already has the right shape — this RFC freezes it as an invariant rather than an accident.
+        <code>users</code> rows are keyed by an internal <code>client_uuid</code>; the Telegram identity is one
+        linked login system under a composite <code>(system_uuid, system_user_id)</code> key. A future
+        <code>POST /api/v1/auth/web</code> is therefore purely additive: it verifies its own credential kind,
+        links or upserts a login row, and mints <strong>the same 24 h JWT</strong> with
+        <code>sub = client_uuid</code>. Every other endpoint keeps seeing one token format and never learns
+        which door the caller used.
+      </p>
+
+      <pre><code>Telegram WebView ── initData ──► POST /auth/telegram ─┐
+                                                      ├─► same JWT (sub = client_uuid) ─► /api/v1/*
+Browser / PWA ── web credential ► POST /auth/web ─────┘            (door-agnostic)
+</code></pre>
+
+      <h2 id="rules">Normative rules</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>#</th><th>Rule</th><th>Rationale</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>R1</strong></td>
+              <td>No import of <code>@telegram-apps/*</code> and no reference to <code>window.Telegram</code> outside <code>src/platform/telegram/</code>.</td>
+              <td>The whole RFC in one line. Everything else is mechanism.</td>
+            </tr>
+            <tr>
+              <td><strong>R2</strong></td>
+              <td>Every login door exchanges its platform credential for the <em>same</em> JWT shape (<code>sub = client_uuid</code>, 24 h). Doors never mint door-specific tokens.</td>
+              <td>Keeps every non-auth endpoint door-agnostic forever.</td>
+            </tr>
+            <tr>
+              <td><strong>R3</strong></td>
+              <td>Product tables reference <code>users.client_uuid</code> only; <code>telegram_user_id</code> lives solely in the login-link table.</td>
+              <td>A user who later adds an email login keeps one account and all data.</td>
+            </tr>
+            <tr>
+              <td><strong>R4</strong></td>
+              <td>Components read the app's own tokens (<code>--tma-ember-*</code>, <code>--tma-sage-*</code>, motion springs). <code>--tg-*</code> vars are written only by <code>platform/*/theme.ts</code> and read only by base surfaces.</td>
+              <td>The visual identity survives outside Telegram unchanged.</td>
+            </tr>
+            <tr>
+              <td><strong>R5</strong></td>
+              <td>The router knows only internal routes. Entry payloads (<code>startapp</code> today, URL paths tomorrow) are normalised by <code>platform.links.parseEntry()</code> at boot.</td>
+              <td>One deep-link grammar per platform, zero grammar in screens.</td>
+            </tr>
+            <tr>
+              <td><strong>R6</strong></td>
+              <td>Analytics and API payloads never carry platform identifiers (<code>telegram_user_id</code>, usernames). <code>distinct_id</code> stays <code>client_uuid</code>.</td>
+              <td>Already the event-spec invariant; restated so the web door inherits it.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="enforcement">Enforcement — a fence, not a convention</h2>
+      <p>R1 is machine-checked in the existing lint gate; the rest ride code review plus contract tests already planned in the epic.</p>
+
+      <pre><code>// eslint.config.js — services/telegram
+{
+  files: ['src/**'],
+  ignores: ['src/platform/telegram/**'],
+  rules: {
+    'no-restricted-imports': ['error', { patterns: [
+      { group: ['@telegram-apps/*'], message: 'Import via src/platform — see RFC 0007 (R1).' },
+    ]}],
+    'no-restricted-globals': ['error',
+      { name: 'Telegram', message: 'Use src/platform — see RFC 0007 (R1).' },
+    ],
+  },
+}
+</code></pre>
+
+      <h2 id="pwa-later">What the web epic adds later — and nothing more</h2>
+      <p>
+        With the port in place, the standalone web/PWA version is a bounded list. Each row becomes a backlog
+        item in a future epic; none requires touching screens, state, styles, or the API surface beyond one
+        new door.
+      </p>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra">
+          <thead><tr><th>Deliverable</th><th>Layer</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td><code>src/platform/web/</code> adapter</td><td>frontend</td><td>Implements the eight ports with browser APIs.</td></tr>
+            <tr><td><code>POST /api/v1/auth/web</code></td><td>api</td><td>Login method TBD in its own slice; obeys R2/R3.</td></tr>
+            <tr><td><code>manifest.webmanifest</code> + icons</td><td>frontend</td><td>Enables «Add to Home Screen» on iOS/Android.</td></tr>
+            <tr><td>Service worker (offline shell)</td><td>frontend</td><td>Cache-first for the static bundle; API stays network-first.</td></tr>
+            <tr><td>Web push (opt-in)</td><td>api + frontend</td><td>iOS ≥ 16.4, installed PWA only; the bot remains the Telegram channel.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Proposed RFC 0007: coupling inventory of the shipped W1 Mini App, <code>src/platform/</code> port with Telegram adapter and reserved Web slot, two-doors-one-token auth invariant, rules R1–R6 with an ESLint fence, and the bounded list of what a future web/PWA epic adds.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#why">Coupling inventory</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#port">The platform port</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#auth">Two doors, one token</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#rules">Normative rules</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#enforcement">Enforcement</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#pwa-later">Web epic scope</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

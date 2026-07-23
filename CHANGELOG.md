@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **tools/docs — kill the `docs-fix` flicker cycle:** three ordering + serialization
+  bugs made every `make docs-check` rewrite a rolling set of files (catalog pages,
+  service hub, api dep-lanes) that CI then rewrote back on push. Fixes:
+  1. `services/portal/Makefile` — reorder so autogen (`build_catalog`,
+     `render_service_descriptors`) runs BEFORE `repair_docs_html` and
+     `format_docs_html`. The committed shape is now the normalized one; the
+     autogen output is the transient shape that gets normalized in the same
+     pass. Steps renumbered `[4/11]…[11/11]`.
+  2. `tools/docs/repair_docs_html.py` — mask every `<svg>…</svg>` block with a
+     comment placeholder before `html5lib.serialize`. html5lib expanded
+     self-closing SVG children (`<path .../>` → `<path ...></path>`) because
+     its void-tag set doesn't include foreign elements; the placeholder round-
+     trip preserves the original SVG bytes exactly.
+  3. Follow-up to the earlier pdoc pin: three converged flicker sources
+     documented, one-time re-normalization of 15 catalog pages + one service
+     hub committed here. After this commit, `make docs-fix` leaves 0 dirty
+     files across repeated runs.
+
+- **services/api — auth simplification (ADR 0038):** dropped the
+  `API_AUTH_STRATEGY` switch (only `mock_api_key` was ever wired) and renamed
+  `API_MOCK_API_KEY` → `API_AUTH_KEY`. The middleware collapses to a single
+  header-key compare; qa/prod invariant flips from «strategy ≠ disabled» to
+  «key ≠ default». `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` added to config
+  for the Telegram Mini App bot half; CORS extended with the Vite dev origin
+  (`http://localhost:5173`). Telegram `initData` → JWT and the
+  `users.telegram_*` identity migration are deferred to the multi-user epic.
+  Amends ADR 0005 (auth-strategy clause) and ADR 0010 (qa/prod guard row).
+- **services/api — POST /api/v1/user returns 422 instead of 500 on unknown
+  system:** new `USER_103 USER_CREATE_SYSTEM_NOT_FOUND` (business, 422); a
+  preflight `SELECT system_uuid FROM systems` in `UserService.create` catches
+  the FK mismatch before the driver does. Global `IntegrityError` handler
+  maps any remaining FK/unique/check violation to 422 with the new common
+  code `COMMON_422 PERSISTENCE_INTEGRITY_VIOLATION`; driver details are
+  logged, not surfaced.
+- **tools/docs — pdoc regeneration pinned to CI's Python 3.11:** the
+  interpreter used for the pdoc subprocess is now resolved via
+  `PDOC_PYTHON` env override or a `python3.11` on `PATH` that has `pdoc`
+  importable. When neither is available the regen step is a no-op instead
+  of a silent version-mismatch rewrite — CI keeps the canonical output, and
+  local `make docs-check` stops producing pdoc HTML files that «flicker»
+  in and out of the working tree on every verify pass.
+
 ### Security
 
 - **services/api:** bumped `starlette` 1.0.1 → 1.3.1 to close four CVEs

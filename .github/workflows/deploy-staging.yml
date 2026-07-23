@@ -61,6 +61,22 @@ jobs:
           python tools/docs/build_pagefind_index.py
           python tools/docs/check_pagefind_visibility.py
 
+      # Build the TMA Storybook — same reasoning as deploy-prod.yml:
+      # storybook-static/ is gitignored, portal pages iframe stories via
+      # relative paths that resolve to <pages-root>/telegram/storybook-static/….
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/telegram/package-lock.json
+      - name: Build TMA Storybook
+        working-directory: services/telegram
+        env:
+          STORYBOOK_DISABLE_TELEMETRY: "1"
+        run: |
+          npm ci
+          npm run build-storybook
+
       # Identical artifact layout to deploy-prod.yml — services/ mirrored as
       # the webroot so `../[../…]frontend/portal/…` chains in portal HTML
       # stay inside the project Pages scope. portal-href.js + search.js
@@ -71,9 +87,10 @@ jobs:
       - name: Stage Pages artifact
         run: |
           set -euo pipefail
-          mkdir -p _site
+          mkdir -p _site _site/telegram
           cp -a services/portal _site/portal
           cp -a services/frontend _site/frontend
+          cp -a services/telegram/storybook-static _site/telegram/storybook-static
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <html lang="en"><head>

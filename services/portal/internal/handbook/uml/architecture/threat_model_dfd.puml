@@ -1,0 +1,46 @@
+@startuml
+title Threat model — data-flow diagram with trust boundaries
+$Subtitle("STRIDE anchors: every crossing of a dashed boundary is an attack surface")
+
+left to right direction
+
+actor "Integrator\n(holds X-API-Key)" as Client
+actor "Operator\n(browser on host)" as Operator
+
+rectangle "Trust boundary: Docker network" as TB1 {
+  [api\nFastAPI\nauth · rate limit · validation] as Api
+  database "postgres\nsingle app role (DDL+DML)" as Pg
+  [prometheus] as Prom
+  [elasticsearch] as ES
+}
+
+rectangle "Trust boundary: host filesystem" as TB2 {
+  artifact "NDJSON logs\n(may contain request context)" as Logs
+  artifact "./var/postgres volume\n(unencrypted, no backup)" as Vol
+}
+
+cloud "GitHub" as GH
+
+Client --> Api : HTTPS · JSON\n[S] spoofed key · [D] retry storm
+Api --> Pg : SQL\n[T] bypass validation · [E] DDL from app role
+Pg --> Vol : data at rest\n[I] volume read = full disclosure
+Api --> Logs : append\n[I] log leakage · [R] gap in audit
+Prom ..> Api : scrape /metrics\n[I] metric names leak topology
+ES ..> Logs : ingest via filebeat
+Operator --> ES : Kibana (no auth on stand)
+Operator --> Prom : Grafana
+GH ..> Api : CI artefacts\n[T] supply chain (deps, images)
+
+note bottom of Vol
+  Highest-impact asset.
+  Controls: gitignored, network-isolated.
+  Open: encryption, backup policy (ADR 0037).
+end note
+
+note bottom of Api
+  Enforcement point for every client-side [S]/[D]:
+  X-API-Key, per-key rate limit, body-size cap,
+  404-not-403 on cross-tenant reads.
+end note
+
+@enduml

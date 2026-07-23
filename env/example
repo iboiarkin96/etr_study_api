@@ -1,25 +1,53 @@
 # =============================================================================
-# ETR Study App API — environment template
+# ETR Study App — environment template (per ADR 0010)
 # =============================================================================
 #
-# Usage
-# -----
-#   cp env/example .env          # or: make env-init
-#   Edit .env: set APP_ENV, secrets, and any overrides for your machine.
+# This file is the CANONICAL TEMPLATE. Every environment variable the app or
+# its Docker stack reads has a documented slot here — with the real value for
+# public defaults and an empty slot for secrets.
 #
-# Load order (later wins; see app/core/config.py)
-# -----------------------------------------------
-#   1. Root .env (if present) — base values.
-#   2. env/<APP_ENV> — optional profile file (e.g. env/dev) merged on top.
-#   3. ENV_FILE — optional extra file (secrets, deployment-specific); path is
-#      relative to project root or absolute.
+# Two-layer policy (see ADR 0010 · «Where each key lives»)
+# --------------------------------------------------------
+#   env/{dev,qa,prod}   — committed. Public profile behavior.
+#                          LOG_LEVEL, CORS_ALLOW_ORIGINS, rate limits,
+#                          dev-only JWT_SECRET / API_AUTH_KEY defaults.
+#                          REAL SECRETS NEVER GO HERE.
 #
-# If you export variables in the shell before starting Uvicorn, some keys are
-# preserved so Makefile-driven flows (e.g. load tests) are not overwritten by
-# profile reload — see _PARENT_WINS_KEYS in app/core/config.py.
+#   .env  (repo root)   — GIT-IGNORED. Private secrets + per-developer overrides.
+#                          TELEGRAM_BOT_TOKEN, OPENROUTER_API_KEY,
+#                          GRAFANA_ADMIN_PASSWORD, personal LOG_LEVEL, etc.
 #
-# APP_ENV must be one of: dev | qa | prod (aliases like "local" → dev, "test" → qa).
-# Stricter rules apply in qa/prod (auth, metrics, CORS, log level); see get_settings().
+# The two files are LAYERED, not duplicated. A key never appears in both:
+# public-slot values live in env/*, private-slot values live in .env.
+#
+# Getting started
+# ---------------
+#   cp env/example .env             # or: make env-init
+#   # Then edit .env: paste real secrets under the SECRETS section,
+#   # leave the public-behavior section alone.
+#
+# Load order — HOST (see app/core/config.py::_load_env_files)
+# ----------------------------------------------------------
+#   1. Root .env               (override=False; shell-exported values survive)
+#   2. env/<APP_ENV>           (override=True; wins over .env for public keys)
+#   3. optional ENV_FILE       (final override; deployment-specific paths)
+#   4. _PARENT_WINS_KEYS       (small allowlist: DATABASE_URL, JWT_SECRET,
+#                               TELEGRAM_BOT_TOKEN, rate-limit overrides —
+#                               re-applied from shell after profile load so
+#                               tests / load runs don't get clobbered)
+#
+# Load order — DOCKER (see docker-compose.yml `env_file:` blocks)
+# ----------------------------------------------------------
+#   1. env/<APP_ENV>           (public behavior — same file the host uses)
+#   2. .env                    (secrets — REAL values injected into container)
+#   3. compose `environment:`  (container-specific overrides, e.g.
+#                               DATABASE_URL=postgres:5432, APP_HOST=0.0.0.0)
+#
+# APP_ENV must be one of: dev | qa | prod (aliases: local → dev, test → qa).
+# NEVER set APP_ENV inside a profile file — it's the switch that PICKS the
+# profile. Set it in the shell, docker-compose environment:, or deployment
+# platform. Stricter rules apply in qa/prod (auth, metrics, CORS, log level,
+# JWT secret strength — see get_settings()).
 #
 # Sections in this file
 # ---------------------
@@ -98,7 +126,9 @@ LOG_SERVICE_NAME=study-app-api
 # Include http://127.0.0.1:8765 (and localhost) if you serve docs/ from that origin and call the API
 # from the browser (e.g. FastAPI /docs Try it out). Static docs/public/reference/api/index.html
 # (OpenAPI test) is browse-only and does not call the API.
-CORS_ALLOW_ORIGINS=http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:8765,http://localhost:8765
+# 5173 = Vite dev server (Telegram Mini App). Add your Cloudflare Tunnel origin
+# here for on-device dev sessions.
+CORS_ALLOW_ORIGINS=http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:8765,http://localhost:8765,http://127.0.0.1:5173,http://localhost:5173
 CORS_ALLOW_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
 # Idempotency-Key is required for browser preflight on write endpoints from Swagger UI.
 CORS_ALLOW_HEADERS=Authorization,Content-Type,X-API-Key,Idempotency-Key,X-Request-Id
@@ -119,13 +149,31 @@ API_RATE_LIMIT_WINDOW_SECONDS=60
 # Makefile exports very high limits unless you set API_RATE_LIMIT_REQUESTS_LOADTEST
 # in the environment. Otherwise raise API_RATE_LIMIT_* here for load tests.
 
-# mock_api_key: require X-API-Key on protected routes; disabled: no API-key check (dev only).
-API_AUTH_STRATEGY=mock_api_key
-API_MOCK_API_KEY=local-dev-key
+# Protected routes require this key in the API_AUTH_HEADER header.
+# qa/prod refuse to boot with the default value.
+API_AUTH_KEY=local-dev-key
 API_AUTH_HEADER=X-API-Key
 
 # URL prefix where auth + rate limiting apply (e.g. /api/v1).
 API_PROTECTED_PREFIX=/api/v1
+
+# --- Telegram bot (Mini App epic) ---
+# Token from BotFather and the maintainer's chat id. Both are secrets — set real
+# values in the root `.env`, never in committed env/* files. Empty = bot disabled.
+# TELEGRAM_BOT_TOKEN also serves as the HMAC key when verifying initData at
+# POST /api/v1/auth/telegram.
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+
+# Maximum accepted age of the initData `auth_date` field (seconds). Payloads
+# older than this are rejected as replay attempts. 86400 = 24 hours.
+TELEGRAM_INIT_DATA_MAX_AGE_SECONDS=86400
+
+# --- JWT auth (Mini App epic) ------------------------------------------------
+# Signing key for the 24 h JWT issued at POST /api/v1/auth/telegram.
+# qa/prod refuse to boot with the default value or with any value shorter than 32 bytes.
+JWT_SECRET=local-dev-jwt-secret-32-bytes-min
+JWT_TTL_SECONDS=86400
 
 # --- Load testing (optional endpoints & runner defaults) --------------------
 

@@ -1,0 +1,267 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * cmdk.css — Cmd+K spotlight overlay (Search screen, T-22).
+ *
+ * TMA-owned port of the kit's `.tma-cmdk` — same class contract, tuned for
+ * a client-side substring filter over the conspectus title index (loaded
+ * once, cached by TanStack Query). Overlay covers the whole viewport;
+ * backdrop click / Esc closes.
+ *
+ * Anatomy:
+ *   .tma-cmdk                  full-viewport overlay (fixed, backdrop)
+ *   .tma-cmdk__box             centred command box (max 560×460)
+ *   .tma-cmdk__inputrow        icon + input + Esc key hint
+ *   .tma-cmdk__input           the search field (autofocus)
+ *   .tma-cmdk__list            scrollable result list
+ *   .tma-cmdk__group-title     section header («Matches», «Recent»)
+ *   .tma-cmdk__item            one result row
+ *     [aria-selected='true']   keyboard-highlighted row (↑/↓)
+ *   .tma-cmdk__item-icon       slot-tinted glyph on the left
+ *   .tma-cmdk__item-title      main text + <mark> for highlighted range
+ *   .tma-cmdk__item-sub        muted trailing meta (slot · due-in)
+ *   .tma-cmdk__kbd             mono kbd chip (↵ · Esc)
+ *   .tma-cmdk__empty           «no matches» copy + hint
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.tma-cmdk {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: calc(var(--tma-safe-top, 0px) + 80px);
+  padding-left: var(--tma-sp-4);
+  padding-right: var(--tma-sp-4);
+  background: color-mix(in oklab, var(--tma-neutral-0) 55%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: tma-cmdk-fade 160ms var(--tma-ease-out) both;
+}
+
+.tma-cmdk__box {
+  width: min(560px, 100%);
+  background: var(--tma-surface-elevated);
+  border: 1px solid var(--tma-border-regular);
+  border-radius: var(--tma-rad-3);
+  overflow: hidden;
+  box-shadow: var(--tma-elev-3);
+  max-height: min(460px, calc(var(--tma-viewport-h, 100dvh) - 160px));
+  display: flex;
+  flex-direction: column;
+  animation: tma-cmdk-rise 220ms var(--tma-ease-out) both;
+}
+
+.tma-cmdk__inputrow {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--tma-sp-4);
+  gap: var(--tma-sp-3);
+  border-bottom: 1px solid var(--tma-border-regular);
+  flex: none;
+}
+
+.tma-cmdk__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 14px 0;
+  background: transparent;
+  border: 0;
+  color: var(--tma-text-primary);
+  font-size: var(--tma-fs-lead);
+  outline: none;
+  font-family: inherit;
+}
+
+.tma-cmdk__input::placeholder {
+  color: var(--tma-text-tertiary);
+}
+
+.tma-cmdk__list {
+  overflow-y: auto;
+  padding: 6px 0;
+  margin: 0;
+  list-style: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.tma-cmdk__group-title {
+  padding: 10px var(--tma-sp-4) 4px;
+  font-size: var(--tma-fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tma-text-tertiary);
+  font-weight: var(--tma-fw-semi);
+}
+
+.tma-cmdk__item {
+  display: flex;
+  align-items: center;
+  gap: var(--tma-sp-3);
+  padding: 9px var(--tma-sp-4);
+  cursor: pointer;
+  color: var(--tma-text-primary);
+  user-select: none;
+}
+
+.tma-cmdk__item[aria-selected='true'] {
+  background: var(--tma-surface-accent-soft);
+}
+
+.tma-cmdk__item-icon {
+  --i-ink: var(--tma-tone-accent);
+  width: 26px;
+  height: 26px;
+  border-radius: var(--tma-rad-2);
+  background: color-mix(in oklab, var(--i-ink) 12%, transparent);
+  color: var(--i-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  font-size: 12px;
+  font-weight: var(--tma-fw-bold);
+}
+
+.tma-cmdk__item-icon[data-tone='success'] { --i-ink: var(--tma-tone-success); }
+.tma-cmdk__item-icon[data-tone='warn']    { --i-ink: var(--tma-tone-warn); }
+.tma-cmdk__item-icon[data-tone='danger']  { --i-ink: var(--tma-tone-danger); }
+.tma-cmdk__item-icon[data-tone='info']    { --i-ink: var(--tma-tone-info); }
+.tma-cmdk__item-icon[data-tone='accent']  { --i-ink: var(--tma-tone-accent); }
+
+.tma-cmdk__item-title {
+  flex: 1;
+  font-size: var(--tma-fs-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Highlight the matched substring — bright ink, no background so the row
+   highlight (aria-selected) is the only surface change. */
+.tma-cmdk__item-title mark {
+  background: transparent;
+  color: var(--tma-text-accent);
+  font-weight: var(--tma-fw-bold);
+}
+
+.tma-cmdk__item-sub {
+  font-size: var(--tma-fs-small);
+  color: var(--tma-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.tma-cmdk__kbd {
+  flex: none;
+  font-family: var(--tma-font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--tma-surface-plate);
+  color: var(--tma-text-tertiary);
+  box-shadow: inset 0 -1px 0 var(--tma-border-regular);
+  white-space: nowrap;
+}
+
+/* Quiet lead-icon in the input row — no background tint, no border.
+ * Distinct class from `.tma-cmdk__item-icon` so the search glyph doesn't
+ * pick up the slot-tinted square used on result rows. Height matches
+ * `.tma-cmdk__item-icon` (26×26) so the input-row glyph and any first
+ * result-row glyph share a vertical column with no drift. */
+.tma-cmdk__lead-icon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tma-text-tertiary);
+  font-size: var(--tma-fs-lead);
+}
+
+.tma-cmdk__empty {
+  padding: var(--tma-sp-6) var(--tma-sp-4);
+  text-align: center;
+  color: var(--tma-text-tertiary);
+  font-size: var(--tma-fs-small);
+  line-height: var(--tma-lh-normal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tma-sp-3);
+}
+
+/* data-tone='danger' → --tma-tone-danger, not warn. Amber (warn) reads as
+ * «heads up», red (danger) as «this failed» — an error card is the
+ * latter. */
+.tma-cmdk__empty[data-tone='danger'] {
+  color: var(--tma-tone-danger);
+}
+
+.tma-cmdk__retry {
+  appearance: none;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--tma-fs-small);
+  font-weight: var(--tma-fw-semi);
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.tma-cmdk__retry:hover:not(:disabled) {
+  background: color-mix(in oklab, currentColor 10%, transparent);
+}
+
+.tma-cmdk__retry:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* «Showing first N» hint above the result list when the library is
+ * bigger than PAGE_LIMIT — surface truncation so users aren't surprised
+ * that title #101 is unsearchable. */
+.tma-cmdk__note {
+  padding: var(--tma-sp-2) var(--tma-sp-4);
+  font-size: var(--tma-fs-micro);
+  color: var(--tma-text-tertiary);
+  border-bottom: 1px dashed var(--tma-border-regular);
+  text-align: center;
+}
+
+@keyframes tma-cmdk-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes tma-cmdk-rise {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tma-cmdk,
+  .tma-cmdk__box {
+    animation: none;
+  }
+}
+
+/* SR-only helper — used for `role="status"` live regions inside the
+ * command box so match-count / loading / no-match transitions are
+ * announced without a visible layout element. WCAG-safe pattern. */
+.tma-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

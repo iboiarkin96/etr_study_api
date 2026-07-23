@@ -1,0 +1,98 @@
+# TMA quality gate: Storybook builds cleanly, the visual-regression suite
+# holds against the committed baselines, and every Storybook reference in
+# portal HTML resolves (story ids + relative paths).
+#
+# Baselines live in services/telegram/tests/visual/…-snapshots/ and are
+# updated locally via `make -C services/telegram test-visual-update` after
+# an intentional visual change — this job only verifies, never rewrites.
+name: TMA Visual
+
+on:
+  pull_request:
+    paths:
+      - "services/telegram/**"
+      - "services/frontend/portal/assets_v2/**"
+      - "services/portal/ui-kit/**"
+      - "services/portal/internal/services/telegram/**"
+      - ".github/workflows/tma-visual.yml"
+  push:
+    branches: [main, master, staging]
+    paths:
+      - "services/telegram/**"
+      - "services/frontend/portal/assets_v2/**"
+
+concurrency:
+  group: tma-visual-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  visual:
+    name: Storybook build + pixel diff + doc refs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/telegram
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/telegram/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck + lint + unit tests
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run test
+
+      - name: Build static Storybook
+        run: npm run build-storybook
+        env:
+          STORYBOOK_DISABLE_TELEMETRY: "1"
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+# Baselines are platform-suffixed (…-darwin.png from local runs,
+      # …-linux.png from CI). The gate enforces only against committed
+      # linux baselines; when none exist yet, it generates them and
+      # uploads the set as an artifact to review + commit.
+      - name: Visual regression (fails on pixel drift)
+        run: |
+          if ls tests/visual/*-snapshots/*-linux.png >/dev/null 2>&1; then
+            npm run test:visual
+          else
+            npm run test:visual:update
+            echo "::warning::No linux baselines committed — generated a fresh set (see artifact). Commit tests/visual/…-linux.png to arm the gate."
+          fi
+
+      - name: Accessibility gate (axe-core over all stories)
+        run: npm run test:a11y
+
+      - name: Upload generated linux baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-snapshots-linux
+          path: services/telegram/tests/visual/**/*-linux.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload diff report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            services/telegram/playwright-report
+            services/telegram/test-results
+          retention-days: 14
+
+      - name: Validate Storybook references in portal HTML
+        working-directory: .
+        run: python3 tools/docs/check_storybook_refs.py

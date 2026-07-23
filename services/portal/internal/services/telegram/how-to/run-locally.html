@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Run locally · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="how-to" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="swe">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">How-to</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Run locally</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Run the Mini App locally</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Cold-start recipe: from a fresh clone to the app open in Chrome at <code>http://localhost:5173</code>, connected to a local API. Plain browser tab — no tunnel, no phone, no real Telegram. The API still requires a Bearer JWT (per <a href="../architecture.html#request-path-h">architecture · request path</a>), so <code>tools/dev/sign_init_data.py</code> mints a synthetic <code>initData</code> against the local <code>TELEGRAM_BOT_TOKEN</code> and the client feeds it to <code>POST /auth/telegram</code> the same way real Telegram would. That's the primary dev loop.</p>
+
+      <section aria-labelledby="before-h">
+        <h2 id="before-h">Before you start</h2>
+        <ul>
+          <li><strong>Node.js 20+</strong> installed. Check: <code>node --version</code>. Get it via Homebrew (<code>brew install node</code>), <code>mise</code>, or <code>nvm</code>.</li>
+          <li><strong>Repo cloned</strong> and <code>.venv</code> set up (<code>make setup</code> from repo root).</li>
+          <li><strong>API running locally</strong> at <code>http://localhost:8000</code>. Bring it up with <code>make up</code> from the repo root (starts Postgres + API + monitoring via docker compose). Verify: <code>curl -s http://localhost:8000/ready</code> returns <code>200</code>.</li>
+          <li><strong><code>TELEGRAM_BOT_TOKEN</code> exported</strong> in the shell you'll run the signer from. Same value the API reads from <code>env/dev</code>. Pick anything shape-compatible for local work (e.g. <code>1234567890:AAAA-fake-bot-token-for-tests-only</code>); the token only exists to sign / verify the same <code>initData</code>, no real Telegram round-trip involved.</li>
+          <li><strong>A signed <code>initData</code> ready.</strong> Mint one on demand with <code>python tools/dev/sign_init_data.py --user-id 42 --first-name Dev</code>. Use <code>--format env</code> to get a <code>VITE_DEV_INIT_DATA=…</code> line you can drop straight into <code>services/telegram/.env.local</code>. The scaffold will consume that env var once T-12 wires the auth bootstrap (W3).</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="steps-h">
+        <h2 id="steps-h">Steps</h2>
+        <ol class="numbered-step-list">
+          <li>
+            <div>
+              <strong>Install dependencies.</strong>
+              <pre><code>make -C services/telegram install</code></pre>
+              Runs <code>npm ci</code> against <code>package-lock.json</code>. First run takes ~2 min (installs 250+ packages into <code>services/telegram/node_modules/</code>). Subsequent runs are near-instant if nothing changed.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Start the dev server.</strong>
+              <pre><code>make -C services/telegram dev</code></pre>
+              Vite starts on <code>http://localhost:5173</code> and prints a URL. Hot module replacement is on — edits to any <code>.tsx</code> reflect in the browser in ~100 ms without a full reload.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Open the URL.</strong> Any modern browser works — Chrome is the reference target because DevTools and React DevTools are best there. The scaffold page renders «study_app · Mini App scaffold» in dark mode.
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Verify the auth handshake.</strong> Once the client bootstrap wires up (W3 · T-12), DevTools → Network on a fresh load should show <code>POST /api/v1/auth/telegram</code> return <code>200</code> with a JWT body, followed by <code>/api/v1/*</code> calls carrying <code>Authorization: Bearer &lt;jwt&gt;</code>. If step (a) returns <code>401</code>, jump to <em>Troubleshooting</em>. If (a) is <code>200</code> but (b) is <code>401</code>, also <em>Troubleshooting</em>.
+              <br><br>
+              <em>Today (2026-07-19):</em> the scaffold at <code>services/telegram/src/</code> renders a static page and makes no API calls — the auth bootstrap + generated client land in T-12. Steps 1–3 will still work; step 4's Network-tab check becomes real once T-12 ships.
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="dev-loop-h">
+        <h2 id="dev-loop-h">The daily dev loop</h2>
+        <p>Once installed, this is what «open the Mini App to work on it» looks like:</p>
+        <pre><code>make up                        # (from repo root) start API + Postgres + monitoring
+make -C services/telegram dev  # (in another terminal) start Vite</code></pre>
+        <p>Open <code>http://localhost:5173</code> in the browser and edit files in <code>services/telegram/src/</code>. Changes reflect immediately. Kill both with <kbd>Ctrl-C</kbd>; kill the docker side with <code>make down</code> from repo root.</p>
+      </section>
+
+      <section aria-labelledby="verify-h">
+        <h2 id="verify-h">Verify</h2>
+        <p>Run the local gate. Same commands CI runs — pass locally = pass in CI.</p>
+        <pre><code>make -C services/telegram verify   # typecheck + lint + build</code></pre>
+        <p>Individual steps if you want to run them one at a time:</p>
+        <pre><code>make -C services/telegram typecheck   # tsc --noEmit
+make -C services/telegram lint        # eslint .
+make -C services/telegram build       # vite build → dist/</code></pre>
+      </section>
+
+      <section aria-labelledby="troubleshooting-h">
+        <h2 id="troubleshooting-h">Troubleshooting</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr><th scope="col">Symptom</th><th scope="col">Fix</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Port <code>5173</code> already in use.</td>
+                <td>Kill the process holding it (<code>lsof -i :5173</code> then <code>kill</code>) or launch on another port: <code>make -C services/telegram dev VITE_PORT=5174</code>.</td>
+              </tr>
+              <tr>
+                <td>Every API call returns <code>401 Unauthorized</code>.</td>
+                <td>The auth bootstrap failed. Open DevTools → Network → <code>/auth/telegram</code>. If it 401s, <code>TELEGRAM_BOT_TOKEN</code> differs between the API and the dev signer at <code>tools/dev/sign_init_data.py</code> — align them. If <code>/auth/telegram</code> is 200 but subsequent calls 401, the JWT in <code>CloudStorage</code> is stale after a <code>JWT_SECRET</code> rotation; clear <code>WebApp.CloudStorage</code> from DevTools and reload.</td>
+              </tr>
+              <tr>
+                <td>Browser console: «CORS policy: No 'Access-Control-Allow-Origin'».</td>
+                <td>The API's <code>CORS_ALLOW_ORIGINS</code> doesn't include <code>http://localhost:5173</code>. Check <code>env/dev</code>. Restart the API after any change.</td>
+              </tr>
+              <tr>
+                <td><code>make dev</code> exits with «Cannot find module 'react'» or similar.</td>
+                <td><code>node_modules/</code> is missing or corrupt. Run <code>make -C services/telegram install</code> again. If still failing: <code>rm -rf services/telegram/node_modules services/telegram/package-lock.json &amp;&amp; npm install</code>.</td>
+              </tr>
+              <tr>
+                <td>Page loads but is blank; DevTools console shows a JS error.</td>
+                <td>Copy the error, look at the stack trace, find the file. In dev, Vite maps errors back to the source. If the error is in a dependency, check the browser cache — try <kbd>Shift-Reload</kbd> or open a new incognito window.</td>
+              </tr>
+              <tr>
+                <td><code>make typecheck</code> or <code>make lint</code> fails after <code>git pull</code>.</td>
+                <td>Someone bumped a dep. Run <code>make -C services/telegram install</code> to sync <code>node_modules/</code> with the updated lockfile.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="related-h">
+        <h2 id="related-h">Related</h2>
+        <ul>
+          <li><a href="test-on-device.html">Test on a real phone via Telegram</a> — next step when the browser loop isn't enough.</li>
+          <li><a href="../reference/env-vars.html">Env vars reference</a> — every variable the app reads at build time.</li>
+          <li><a href="../architecture.html#build-h">Build pipeline</a> — what <code>make verify</code> actually does.</li>
+          <li><a href="../architecture.html#request-path-h">Auth bootstrap</a> — where the signed <code>initData</code> is consumed on cold open.</li>
+        </ul>
+      </section>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Recipe realigned with the shipped W1 auth contract. Lede's «no signed <code>initData</code>» claim was a pre-pivot carry-over and factually wrong — the API rejects any <code>/api/v1/*</code> call without a Bearer JWT, and the JWT is minted from a signed <code>initData</code>. Step 4 rewritten around <code>POST /auth/telegram</code> as the first request; an inline «today» note flags that the scaffold currently makes no API calls (the client bootstrap ships in T-12 · W3). Before-you-start now names <code>tools/dev/sign_init_data.py</code> — the CLI that mints signed payloads for the plain-browser dev loop; shipped alongside this doc (with a 5-case round-trip test suite). Troubleshooting «401» row already covered the divergence causes at the plan-pivot pass.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Run-locally recipe created. Before-you-start → 4 steps → dev-loop → pre-commit gate → troubleshooting table (6 common issues).</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#before-h">Before you start</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#steps-h">Steps</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#dev-loop-h">The daily dev loop</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#verify-h">Verify</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#troubleshooting-h">Troubleshooting</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#related-h">Related</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

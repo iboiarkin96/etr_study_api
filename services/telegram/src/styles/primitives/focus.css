@@ -1,0 +1,568 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * focus.css — Focus screen primitive (T-18).
+ *
+ * Full-screen SRS review surface — chrome-free, no topbar, no sidebar.
+ * The card is the whole screen. Grade buttons sit as a fixed strip along
+ * the safe-area bottom.
+ *
+ * Anatomy:
+ *   .tma-focus                        root, flex-column, min-h viewport
+ *   .tma-focus__header                progress dots + N/M + exit
+ *   .tma-focus__progress              row of dots
+ *   .tma-focus__dot[data-state]       done | active | pending
+ *   .tma-focus__meta                  N/M counter + exit ×
+ *   .tma-focus__body                  the middle stage
+ *   .tma-focus__card                  tap-to-reveal card
+ *   .tma-focus__prompt                title (display-tier)
+ *   .tma-focus__reveal-hint           pulsing "Tap to reveal" copy
+ *   .tma-focus__answer                dense_paragraph + bullets
+ *   .tma-focus__interval-preview      «next review in N days» ticker
+ *   .tma-focus__grades                bottom action strip
+ *   .tma-focus__grade[data-tone]      one of four SM-2 buttons
+ *   .tma-focus__grade-kbd             keyboard hotkey chip (desktop only)
+ *   .tma-focus__end                   empty + complete states
+ *   .tma-focus__skeleton              loading state
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.tma-focus {
+  gap: 0;
+}
+
+.tma-focus__header {
+  padding: var(--tma-sp-4) var(--tma-sp-5) var(--tma-sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-3);
+}
+
+.tma-focus__progress {
+  display: flex;
+  gap: var(--tma-sp-1);
+  align-items: center;
+  height: 4px;
+}
+
+.tma-focus__dot {
+  flex: 1;
+  min-width: 4px;
+  height: 4px;
+  border-radius: var(--tma-rad-full);
+  background: var(--tma-border-regular);
+  transition: background var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-focus__dot[data-state='done']   { background: var(--tma-tone-accent); }
+.tma-focus__dot[data-state='active'] {
+  background: var(--tma-tone-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--tma-tone-accent) 22%, transparent);
+}
+
+.tma-focus__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--tma-font-mono);
+  font-size: var(--tma-fs-small);
+  color: var(--tma-text-tertiary);
+}
+
+.tma-focus__meta-count {
+  font-weight: var(--tma-fw-bold);
+  color: var(--tma-text-accent);
+  letter-spacing: var(--tma-tr-wide);
+}
+
+.tma-focus__exit {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--tma-text-tertiary);
+  font-size: var(--tma-fs-lead);
+  padding: var(--tma-sp-2);
+  border-radius: var(--tma-rad-2);
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tma-focus__exit:hover {
+  color: var(--tma-text-primary);
+  background: var(--tma-surface-plate);
+}
+
+.tma-focus__body {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: var(--tma-sp-4) var(--tma-sp-4) var(--tma-sp-6);
+  min-height: 0;
+}
+
+.tma-focus__stage {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-4);
+}
+
+/* 3D flip stage — perspective lives on the parent so the child's rotateY
+   actually reads as depth, not as a squish. Give it a generous 1200px so
+   the card doesn't fisheye at extreme angles. Owns the ember-bloom
+   pseudo so the glow lives OUTSIDE 3D space (doesn't rotate with the
+   card). */
+.tma-focus__flip-stage {
+  perspective: 1200px;
+  perspective-origin: 50% 40%;
+  width: 100%;
+  position: relative;
+  isolation: isolate;
+}
+
+.tma-focus__flip-stage::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  border-radius: var(--tma-rad-4);
+  background: radial-gradient(
+    45% 45% at 50% 45%,
+    color-mix(in oklab, var(--tma-ember-500) 55%, transparent) 0%,
+    color-mix(in oklab, var(--tma-ember-500) 20%, transparent) 40%,
+    transparent 70%
+  );
+  opacity: 0;
+  transform: scale(0.4);
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(24px);
+}
+
+.tma-focus__flip-stage[data-revealed='true']::after {
+  animation: tma-focus-bloom 700ms cubic-bezier(0.16, 1, 0.3, 1) 1 both;
+}
+
+.tma-focus__card {
+  position: relative;
+  /* No `isolation: isolate` here — it's a CSS-Transforms grouping property
+     that forces `transform-style` to `flat`, flattening the two faces into
+     one plane; at 180° that renders the FRONT face mirrored instead of
+     showing the back. */
+  appearance: none;
+  border: 1px solid color-mix(in oklab, var(--tma-ember-500) 18%, transparent);
+  background: color-mix(in oklab, var(--tma-surface-plate) 92%, transparent);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--tma-rad-4);
+  min-height: 260px;
+  width: 100%;
+  display: grid;
+  grid-template: 1fr / 1fr;
+  box-shadow: var(--tma-elev-2);
+  transition:
+    box-shadow var(--tma-dur-med) var(--tma-ease-out),
+    border-color var(--tma-dur-med) var(--tma-ease-out);
+  /* transform-style: preserve-3d ships from the JSX to survive framer's
+     transform overwrites; keeping it here too for browsers that need it
+     on the transformed element itself. */
+  transform-style: preserve-3d;
+  /* No `overflow: hidden` — a 3D-rotated child clipped at 90° looks broken
+     because the browser flattens child layers into the parent stacking. */
+}
+
+/* Two faces share the same grid cell so the container sizes to the tallest
+   (the answer face); back is pre-rotated so it reads correctly when the
+   whole card is at 180°.
+
+   `translateZ(0.001px)` forces each face onto its own compositing layer so
+   `backface-visibility: hidden` actually applies — without it, some
+   browsers flatten the face into the parent's plane and the front stays
+   visible (mirrored) at 180°. */
+.tma-focus__face {
+  grid-area: 1 / 1;
+  padding: var(--tma-sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-4);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: inherit;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.tma-focus__face--front {
+  transform: translateZ(0.001px);
+}
+
+.tma-focus__face--back {
+  transform: rotateY(180deg) translateZ(0.001px);
+}
+
+.tma-focus__card[data-revealed='false']:hover {
+  border-color: color-mix(in oklab, var(--tma-ember-500) 32%, transparent);
+  box-shadow: 0 20px 60px -20px color-mix(in oklab, var(--tma-ember-500) 30%, transparent);
+}
+
+.tma-focus__card[data-revealed='true'] {
+  cursor: default;
+  border-color: color-mix(in oklab, var(--tma-ember-500) 30%, transparent);
+  box-shadow:
+    0 24px 80px -24px color-mix(in oklab, var(--tma-ember-500) 45%, transparent),
+    var(--tma-elev-2);
+}
+
+@keyframes tma-focus-bloom {
+  0%   { opacity: 0;    transform: scale(0.4); }
+  30%  { opacity: 0.65; transform: scale(1);   }
+  100% { opacity: 0;    transform: scale(1.15); }
+}
+
+.tma-focus__prompt {
+  margin: 0;
+  font-size: var(--tma-fs-h3);
+  font-weight: var(--tma-fw-heavy);
+  letter-spacing: var(--tma-tr-tight);
+  line-height: var(--tma-lh-snug);
+  color: var(--tma-text-primary);
+}
+
+.tma-focus__reveal-hint {
+  margin: auto 0 0;
+  color: var(--tma-text-accent);
+  font-size: var(--tma-fs-small);
+  font-weight: var(--tma-fw-semi);
+  letter-spacing: var(--tma-tr-wide);
+  text-transform: uppercase;
+  animation: tma-focus-pulse 1.8s var(--tma-ease-in-out) infinite;
+}
+
+@keyframes tma-focus-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+.tma-focus__answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-3);
+}
+
+.tma-focus__paragraph {
+  margin: 0;
+  color: var(--tma-text-secondary);
+  font-size: var(--tma-fs-body);
+  line-height: var(--tma-lh-normal);
+}
+
+.tma-focus__bullets {
+  margin: 0;
+  padding-left: var(--tma-sp-5);
+  color: var(--tma-text-secondary);
+  font-size: var(--tma-fs-body);
+  line-height: var(--tma-lh-normal);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-1);
+}
+
+.tma-focus__interval-preview {
+  margin: 0;
+  padding: var(--tma-sp-3) var(--tma-sp-4);
+  border-radius: var(--tma-rad-3);
+  background: color-mix(in oklab, var(--tma-tone-success) 12%, transparent);
+  color: var(--tma-tone-success);
+  font-size: var(--tma-fs-small);
+  font-weight: var(--tma-fw-semi);
+  text-align: center;
+  letter-spacing: var(--tma-tr-wide);
+  text-transform: uppercase;
+}
+
+.tma-focus__grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--tma-sp-2);
+  padding: var(--tma-sp-3) var(--tma-sp-4) var(--tma-sp-5);
+  background: var(--tma-surface-canvas);
+  border-top: 1px solid var(--tma-border-regular);
+}
+
+.tma-focus__grade {
+  --grade-ink: var(--tma-tone-accent);
+  appearance: none;
+  border: 1px solid color-mix(in oklab, var(--grade-ink) 35%, transparent);
+  background: color-mix(in oklab, var(--grade-ink) 15%, transparent);
+  color: var(--grade-ink);
+  font-family: var(--tma-font-sans);
+  font-weight: var(--tma-fw-bold);
+  font-size: var(--tma-fs-body);
+  padding: var(--tma-sp-3) var(--tma-sp-2);
+  border-radius: var(--tma-rad-3);
+  min-height: 56px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tma-sp-2);
+  transition:
+    transform var(--tma-dur-fast) var(--tma-ease-out),
+    background var(--tma-dur-fast) var(--tma-ease-out),
+    border-color var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-focus__grade[data-tone='danger']  { --grade-ink: var(--tma-tone-danger); }
+.tma-focus__grade[data-tone='warn']    { --grade-ink: var(--tma-tone-warn); }
+.tma-focus__grade[data-tone='accent']  { --grade-ink: var(--tma-tone-accent); }
+.tma-focus__grade[data-tone='success'] { --grade-ink: var(--tma-tone-success); }
+
+.tma-focus__grade:not(:disabled):hover {
+  background: color-mix(in oklab, var(--grade-ink) 28%, transparent);
+  border-color: color-mix(in oklab, var(--grade-ink) 55%, transparent);
+}
+
+.tma-focus__grade:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.tma-focus__grade:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tma-focus__grade-label {
+  letter-spacing: var(--tma-tr-snug);
+}
+
+.tma-focus__grade-kbd {
+  display: none;
+  font-family: var(--tma-font-mono);
+  font-size: var(--tma-fs-micro);
+  padding: 2px 6px;
+  border-radius: var(--tma-rad-1);
+  background: color-mix(in oklab, var(--grade-ink) 20%, transparent);
+  color: var(--grade-ink);
+}
+
+@media (hover: hover) {
+  .tma-focus__grade-kbd { display: inline-flex; }
+}
+
+.tma-focus__end {
+  margin: auto;
+  max-width: 480px;
+  padding: var(--tma-sp-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tma-sp-4);
+  text-align: center;
+}
+
+/* Ring-around-orb visual shown above the end-state copy. Adds breathing
+   room below the orb so the ring's outer edge doesn't touch the title. */
+.tma-focus__complete-visual {
+  display: grid;
+  place-items: center;
+  margin: var(--tma-sp-2) 0 var(--tma-sp-4);
+}
+
+.tma-focus__end-title {
+  margin: 0;
+  font-size: var(--tma-fs-h2);
+  font-weight: var(--tma-fw-heavy);
+  letter-spacing: var(--tma-tr-tight);
+  color: var(--tma-text-primary);
+}
+
+.tma-focus__end-body {
+  margin: 0;
+  color: var(--tma-text-tertiary);
+  font-size: var(--tma-fs-lead);
+  line-height: var(--tma-lh-normal);
+}
+
+.tma-focus__end-actions {
+  display: flex;
+  gap: var(--tma-sp-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ── Session debrief ────────────────────────────────────────────────────
+ * Ledger of the cards that slipped this round, rendered between the
+ * end-state copy and the exit buttons. Each row quotes the ink of the
+ * grade button that produced it (danger = Again, warn = Hard) and cools
+ * to success once the user saves a note via the MissSheet. Not a CTA —
+ * «Back to Today» stays the one hero action.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+.tma-focus__recap {
+  width: 100%;
+  margin-top: var(--tma-sp-2);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-2);
+}
+
+.tma-focus__recap-eyebrow {
+  margin: 0;
+  font-family: var(--tma-font-mono);
+  font-size: var(--tma-fs-micro);
+  font-weight: var(--tma-fw-semi);
+  letter-spacing: var(--tma-tr-wide);
+  text-transform: uppercase;
+  color: var(--tma-text-tertiary);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--tma-sp-2);
+}
+
+.tma-focus__recap-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-2);
+}
+
+.tma-focus__recap-row {
+  --recap-ink: var(--tma-tone-warn);
+  appearance: none;
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: var(--tma-sp-3);
+  padding: var(--tma-sp-3) var(--tma-sp-4);
+  border: 1px solid color-mix(in oklab, var(--recap-ink) 22%, transparent);
+  background: color-mix(in oklab, var(--recap-ink) 8%, var(--tma-surface-plate));
+  border-radius: var(--tma-rad-3);
+  color: var(--tma-text-primary);
+  font-family: inherit;
+  font-size: var(--tma-fs-body);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--tma-dur-fast) var(--tma-ease-out),
+    border-color var(--tma-dur-fast) var(--tma-ease-out),
+    transform var(--tma-dur-fast) var(--tma-ease-out);
+}
+
+.tma-focus__recap-row[data-grade='again'] { --recap-ink: var(--tma-tone-danger); }
+.tma-focus__recap-row[data-grade='hard']  { --recap-ink: var(--tma-tone-warn); }
+
+.tma-focus__recap-row:not(:disabled):hover,
+.tma-focus__recap-row:not(:disabled):focus-visible {
+  background: color-mix(in oklab, var(--recap-ink) 14%, var(--tma-surface-plate));
+  border-color: color-mix(in oklab, var(--recap-ink) 40%, transparent);
+  outline: none;
+}
+
+.tma-focus__recap-row:not(:disabled):active {
+  transform: scale(0.99);
+}
+
+/* Logged — the row cools: success ink, no longer interactive. */
+.tma-focus__recap-row[data-logged='true'] {
+  --recap-ink: var(--tma-tone-success);
+  cursor: default;
+}
+
+.tma-focus__recap-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--tma-rad-full);
+  background: var(--recap-ink);
+}
+
+.tma-focus__recap-grade {
+  flex: none;
+  font-family: var(--tma-font-mono);
+  font-size: var(--tma-fs-micro);
+  font-weight: var(--tma-fw-semi);
+  letter-spacing: var(--tma-tr-wide);
+  text-transform: uppercase;
+  color: var(--recap-ink);
+}
+
+.tma-focus__recap-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--tma-fw-semi);
+}
+
+.tma-focus__recap-tail {
+  flex: none;
+  font-size: var(--tma-fs-small);
+  color: var(--tma-text-tertiary);
+}
+
+.tma-focus__recap-row[data-logged='true'] .tma-focus__recap-tail {
+  color: var(--recap-ink);
+  font-weight: var(--tma-fw-semi);
+}
+
+.tma-focus__skeleton {
+  margin: auto;
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-4);
+  padding: var(--tma-sp-6);
+}
+
+.tma-focus__skeleton-card {
+  height: 260px;
+  border-radius: var(--tma-rad-4);
+  background: var(--tma-surface-plate);
+  opacity: 0.6;
+}
+
+.tma-focus__skeleton-grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--tma-sp-2);
+}
+
+.tma-focus__skeleton-grade {
+  height: 56px;
+  border-radius: var(--tma-rad-3);
+  background: var(--tma-surface-plate);
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tma-focus__reveal-hint {
+    animation: none;
+  }
+  .tma-focus__card,
+  .tma-focus__grade,
+  .tma-focus__recap-row {
+    transition: none;
+  }
+  .tma-focus__flip-stage[data-revealed='true']::after {
+    animation: none;
+    opacity: 0;
+  }
+  /* No 3D flip under reduced motion — FocusCard.tsx conditionally renders
+     only one face at a time. The back face's `rotateY(180deg)` from the
+     default rule would leave it invisible when we DO want to show it, so
+     override to a plain identity transform. */
+  .tma-focus__face--back {
+    transform: translateZ(0.001px);
+  }
+}

@@ -1,0 +1,184 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * heat.css — 90-day review heat-map.
+ *
+ * `.tma-heat-frame` wraps the grid with a month-labels row above and
+ * a `.tma-heat__legend` + `.tma-heat__stats` footer. Each `.tma-heat__cell`
+ * declares its intensity through `data-level="0..4"`; hover reveals
+ * `data-date · data-count` as a pure-CSS tooltip.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.tma-heat-frame {
+  padding: var(--tma-sp-3) var(--tma-sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tma-sp-2);
+}
+
+.tma-heat-frame > .tma-heat { padding: 0; }
+
+/* GitHub-style layout: columns = weeks, rows = days-of-week (Mon top → Sun bottom).
+ * `--week-count` is set inline by the React component per data window. Cells
+ * are placed in chronological order, and `grid-auto-flow: column` fills each
+ * week top-to-bottom before advancing to the next week on the right. */
+.tma-heat {
+  padding: var(--tma-sp-3) var(--tma-sp-4);
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+}
+
+.tma-heat__cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--tma-border-soft);
+  cursor: pointer;
+  position: relative;
+  transition: transform var(--tma-dur-fast) var(--tma-ease-spring);
+}
+
+.tma-heat__cell:hover {
+  transform: scale(1.35);
+  outline: 1px solid var(--tma-ember-500);
+  z-index: 2;
+}
+
+.tma-heat__cell[data-level='1'] {
+  background: color-mix(in oklab, var(--tma-ember-500) 22%, var(--tma-border-soft));
+}
+.tma-heat__cell[data-level='2'] {
+  background: color-mix(in oklab, var(--tma-ember-500) 45%, var(--tma-border-soft));
+}
+.tma-heat__cell[data-level='3'] {
+  background: color-mix(in oklab, var(--tma-ember-500) 70%, var(--tma-border-soft));
+}
+.tma-heat__cell[data-level='4'] { background: var(--tma-ember-500); }
+
+.tma-heat__cell[data-today='true'] {
+  outline: 2px solid var(--tma-ember-500);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--tma-ember-500) 20%, transparent);
+}
+
+/* Hover tooltip — pure CSS, reads from `data-count` (fully localised
+ * text incl. plural form) + `data-date` (short-format month + day).
+ * Visual style mirrors `.tma-tip` from primitives/tip.css so every
+ * tooltip on Today reads the same. `.tma-section__plate--overflow` on
+ * the enclosing plate keeps the tooltip visible on edge cells. */
+.tma-heat__cell[data-date]:hover::after {
+  content: attr(data-count) ' · ' attr(data-date);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: var(--tma-neutral-100);
+  color: var(--tma-neutral-900);
+  font-size: 10px;
+  font-weight: var(--tma-fw-regular);
+  font-family: var(--tma-font-sans);
+  line-height: var(--tma-lh-snug);
+  letter-spacing: 0;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: var(--tma-elev-3);
+  pointer-events: none;
+  z-index: 200;
+}
+.tma-heat__cell[data-date]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--tma-neutral-100);
+  pointer-events: none;
+  z-index: 200;
+}
+
+/* Cells without any `data-count` (should not occur for real data, but
+ * defensive) fall back to just the date. Zero-count cells now come with
+ * a localised phrase via `i18n.cellCount_zero`, so no CSS override. */
+.tma-heat__cell:not([data-count])[data-date]:hover::after {
+  content: attr(data-date);
+  color: var(--tma-neutral-700);
+}
+
+.tma-heat__months {
+  display: grid;
+  grid-template-columns: repeat(var(--tma-heat-week-count, 13), minmax(0, 1fr));
+  gap: 3px;
+  font-family: var(--tma-font-mono);
+  font-size: var(--tma-fs-micro);
+  color: var(--tma-text-tertiary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: var(--tma-fw-semi);
+  line-height: 1;
+}
+.tma-heat__month {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tma-heat__legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--tma-fs-micro);
+  color: var(--tma-text-tertiary);
+  padding: var(--tma-sp-2) var(--tma-sp-4) 0;
+  justify-content: flex-end;
+}
+
+.tma-heat__legend-cell {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.tma-heat__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: var(--tma-sp-2);
+  padding: var(--tma-sp-3) var(--tma-sp-4);
+  border-top: 1px solid var(--tma-border-soft);
+  margin-top: var(--tma-sp-2);
+}
+
+.tma-heat__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tma-heat__stat-k {
+  font-size: 9px;
+  font-weight: var(--tma-fw-semi);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tma-text-tertiary);
+}
+
+.tma-heat__stat-v {
+  font-family: var(--tma-font-sans);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tma-text-primary);
+}
+
+.tma-heat__stat-v--accent { color: var(--tma-ember-500); }
+
+.tma-heat__stat-s {
+  font-size: 10px;
+  color: var(--tma-text-tertiary);
+  font-family: var(--tma-font-mono);
+}

@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="../../../frontend/portal/assets_v2/favicon.svg">
   <link rel="stylesheet" href="../../../frontend/portal/assets_v2/runtime/internal/entry.css">
 </head>
-<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-06-06" data-role="">
+<body data-page-type="explanation" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="none" data-lifecycle="published" data-updated="2026-07-14" data-role="">
 
   <header class="topbar" role="banner">
     <a class="topbar__brand" href="../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
@@ -140,7 +140,7 @@
       </p>
       <ul class="rail-list" data-tone="rose">
         <li><strong>Spec-heavier-than-code.</strong> We gain a portal that defends itself in a panel review and a contract that CI can diff. We lose feature velocity — every new endpoint pays a fixed spec-authoring tax of ~3× the code time. We accept it because the deliverable is the portal, not the runtime; the day code velocity matters more than spec velocity, the constraint set has shifted enough to revisit.</li>
-        <li><strong>Containerized Postgres, one shared instance.</strong> We gain multi-writer semantics (single-writer bottleneck is gone), production parity in dev, and a native <code>JSONB</code> path. We lose the zero-external-dependency <code>make run</code> we had under SQLite — <code>docker compose</code> is now the front door — and we pay an ongoing operational surface (backups, role separation, connection-pool tuning) that we haven't fully instrumented yet. We accept it because the SQLite ceiling was measured in the <a href="../services/datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html">2026-04-02 write-lock burst</a> and «zero-friction dev» stopped covering the risk (<a href="../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>).</li>
+        <li><strong>Containerized Postgres, one shared instance.</strong> We gain multi-writer semantics (single-writer bottleneck is gone), production parity in dev, and a native <code>JSONB</code> path. We lose the zero-external-dependency <code>make run</code> we had under SQLite — <code>docker compose</code> is now the front door — and we pay an ongoing operational surface (backups, role separation, connection-pool tuning) that we haven't fully instrumented yet. We accept it because SQLite's single-writer ceiling is architectural, not hypothetical — any second concurrent writer serialises — and «zero-friction dev» stopped covering that risk (<a href="../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>).</li>
         <li><strong>Synchronous-only writes.</strong> We gain end-to-end traceability of every state change inside a single transaction (<code>request_id</code> propagates cleanly; no eventual-consistency surprises). We lose any feature that would otherwise be naturally async (background scoring, batch re-scheduling). We accept it because the loop is short-lived per request and the integrator does not yet ask for async semantics; the day they do, a job table + a poller is the smallest thing that closes the gap — not a broker.</li>
         <li><strong>404-not-403 on cross-tenant access.</strong> We gain a uniform unauthorised-access response that does not leak resource existence to attackers. We lose the ability to distinguish «owned but forbidden» from «does not exist» on the client side (<a href="../services/api/reference/_shared/auth.html">why we return 404, not 403</a>). We accept it because the integrator already knows what it owns; for them the distinction is noise, and for the attacker the noise is the point.</li>
       </ul>
@@ -153,63 +153,12 @@
         <h2 id="lessons-h">Lessons from production</h2>
       </div>
       <p class="numbered-section__lede">
-        Three real postmortems on file; each one changed at least one ADR, runbook, or piece of
-        code. Reading these in full is faster than re-deriving the lessons. Shape borrowed from
+        This section holds what real incidents taught us. Shape borrowed from
         <a href="../handbook/sa/substance-contract.html#p5-production-wisdom">Substance Principle 05</a>.
       </p>
-      <div class="feature-cards">
-        <a class="feature-card" href="../services/api/postmortems/2026-03-14-openapi-baseline-drift.html" data-tone="rose">
-          <div class="feature-card__head">
-            <span class="feature-card__icon" aria-hidden="true">📝</span>
-            <span class="feature-card__hint">2026-03-14 · CONTRACT</span>
-          </div>
-          <h3 class="feature-card__title">OpenAPI baseline drift</h3>
-          <p class="feature-card__body">
-            What we saw: the baseline file fell out of sync with the live app over a long branch
-            and merged silently. What we learned: a CI gate that runs on every PR is not enough
-            if the baseline is also the source of truth — both sides need explicit
-            ownership. What we changed: ADR 0007 «OpenAPI governance» upgraded; baseline diff
-            blocks merge, not just warns.
-          </p>
-          <span class="feature-card__cta">Read postmortem
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>
-          </span>
-        </a>
-        <a class="feature-card" href="../services/datastore/postmortems/2026-04-02-sqlite-write-lock-burst.html" data-tone="accent">
-          <div class="feature-card__head">
-            <span class="feature-card__icon" aria-hidden="true">🗄️</span>
-            <span class="feature-card__hint">2026-04-02 · DB</span>
-          </div>
-          <h3 class="feature-card__title">SQLite write-lock burst</h3>
-          <p class="feature-card__body">
-            What we saw: a burst of concurrent writes during a synthetic load test serialised
-            behind SQLite's single writer, p95 spiked to 4 s. What we learned: the «SQLite is
-            fine for now» trade-off has a measurable ceiling; the trigger to swap is contention,
-            not user count. What we changed: dep-lanes annotation on the service catalog
-            entry; capacity drill runbook drafted.
-          </p>
-          <span class="feature-card__cta">Read postmortem
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>
-          </span>
-        </a>
-        <a class="feature-card" href="../services/portal/postmortems/2026-05-07-docs-fix-search-index-drift.html" data-tone="teal">
-          <div class="feature-card__head">
-            <span class="feature-card__icon" aria-hidden="true">🔎</span>
-            <span class="feature-card__hint">2026-05-07 · PORTAL</span>
-          </div>
-          <h3 class="feature-card__title">docs-fix search-index drift</h3>
-          <p class="feature-card__body">
-            What we saw: portal search was returning stale results after a large doc rewrite;
-            the index was rebuilt only on full builds, not on incremental ones. What we learned:
-            «pre-commit hooks are enough» is wrong for autogenerated artefacts. What we changed:
-            <code>make docs-check</code> mandatory before every commit (a feedback memory rule
-            in the contributor handbook).
-          </p>
-          <span class="feature-card__cta">Read postmortem
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>
-          </span>
-        </a>
-      </div>
+      <aside class="docs-callout docs-callout--info" role="note">
+        <p><strong>No production incidents yet.</strong> An earlier version of this section showcased three synthetic example postmortems; they were retired on 2026-07-14 — invented incidents make weak evidence. The section fills in with the first real postmortem (indexes: <a href="../services/api/postmortems/index.html">api</a> · <a href="../services/datastore/postmortems/index.html">datastore</a> · <a href="../services/portal/postmortems/index.html">portal</a>), and the cross-incident rules land in <a href="../handbook/sre/lessons-from-production.html">Lessons from production</a>.</p>
+      </aside>
     </section>
 
     <section class="numbered-section" id="next" aria-labelledby="next-h">

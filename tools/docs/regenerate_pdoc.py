@@ -105,6 +105,56 @@ def _save_fingerprint(input_hash: str) -> None:
     )
 
 
+# pdoc output is Python-version-sensitive: annotation printing (`Literal[...]`,
+# `X | Y` vs `Union[X, Y]`), `frozenset` iteration, and stdlib repr slugs all
+# drift between minor versions. CI runs on 3.11, so contributors regenerating on
+# any other version cause silent flicker — files "change" locally then revert
+# when CI overwrites them. Pin the pdoc subprocess to 3.11 whenever it's on PATH.
+PDOC_PYTHON_PIN = "python3.11"
+
+
+def _resolve_pdoc_python() -> str | None:
+    """Return the interpreter path to use for the ``pdoc`` subprocess, or ``None``.
+
+    Prefers ``PDOC_PYTHON_PIN`` (default ``python3.11``) so that regenerated
+    output matches CI. Callers can override with the ``PDOC_PYTHON`` env var to
+    point at a specific interpreter. Returns ``None`` when neither the pinned
+    Python nor an override is available (or the resolved interpreter doesn't
+    have ``pdoc`` installed) — the caller then skips regeneration instead of
+    producing bytes that will conflict with CI's next run.
+    """
+    import shutil as _shutil
+
+    def _has_pdoc(python: str) -> bool:
+        try:
+            probe = subprocess.run(
+                [python, "-c", "import pdoc"],
+                check=False,
+                capture_output=True,
+            )
+            return probe.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+    override = os.environ.get("PDOC_PYTHON", "").strip()
+    if override:
+        if _has_pdoc(override):
+            return override
+        _log("⚠", f"PDOC_PYTHON={override!r} has no `pdoc` importable — skipping regen.")
+        return None
+    pinned = _shutil.which(PDOC_PYTHON_PIN)
+    if pinned and _has_pdoc(pinned):
+        return pinned
+    _log(
+        "⚠",
+        f"{PDOC_PYTHON_PIN} not usable (missing on PATH or lacks `pdoc`) — "
+        "skipping pdoc regen locally. CI regenerates on the pinned Python; "
+        "install python 3.11 with project deps or set PDOC_PYTHON to enable "
+        "local regeneration.",
+    )
+    return None
+
+
 def _require_node_for_pdoc_search() -> None:
     """Fail loudly when ``node`` isn't on ``PATH`` — pdoc silently degrades otherwise.
 
@@ -136,7 +186,7 @@ def _require_node_for_pdoc_search() -> None:
         )
 
 
-def _run_pdoc() -> None:
+def _run_pdoc() -> bool:
     """Execute pdoc + normalize into a temp tree, then sync only files that actually changed.
 
     Writing directly into ``OUTPUT_ROOT`` would emit hundreds of filesystem-modified
@@ -161,10 +211,15 @@ def _run_pdoc() -> None:
         "postgresql+psycopg://pdoc:pdoc@127.0.0.1:5432/pdoc",
     )
 
+    pdoc_python = _resolve_pdoc_python()
+    if pdoc_python is None:
+        _log("⟳", "pdoc skipped — no CI-compatible interpreter available (see warning above).")
+        return False
+
     with tempfile.TemporaryDirectory(prefix="pdoc-regen-") as tmp:
         stage_dir = Path(tmp) / "code-reference"
         subprocess.run(
-            [sys.executable, "-m", "pdoc", "app", "-o", str(stage_dir)],
+            [pdoc_python, "-m", "pdoc", "app", "-o", str(stage_dir)],
             check=True,
             cwd=PROJECT_ROOT,
             env=env,
@@ -180,6 +235,7 @@ def _run_pdoc() -> None:
             env=env_norm,
         )
         _sync_tree(source=stage_dir, target=OUTPUT_ROOT)
+    return True
 
 
 def _sync_tree(*, source: Path, target: Path) -> None:
@@ -252,7 +308,9 @@ def main() -> int:
 
     reason = "forced" if args.force else "source tree changed"
     _log(_ICON_STEP, f"Regenerating pdoc ({reason}, {len(files)} source files)")
-    _run_pdoc()
+    ran = _run_pdoc()
+    if not ran:
+        return 0
     _save_fingerprint(current_hash)
     _log(_ICON_OK, "pdoc regenerated and fingerprint updated")
     return 0

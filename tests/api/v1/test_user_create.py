@@ -337,6 +337,60 @@ def test_patch_user_by_system_user_id_success(client) -> None:
     assert response.json()["system_user_id"] == sid
 
 
+def test_create_user_defaults_reminder_on_at_nine(client) -> None:
+    sid = "reminder-defaults-1"
+    response = client.post(
+        USER_HTTP_BASE_PATH,
+        json=user_create_body(sid),
+        headers={"Idempotency-Key": "reminder-defaults-seed"},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["reminder_enabled"] == 1
+    assert body["reminder_at"] == "09:00"
+
+
+def test_patch_user_reminder_toggle_and_time(client) -> None:
+    sid = "reminder-patch-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "reminder-patch-seed"},
+        ).status_code
+        == 201
+    )
+    response = client.patch(
+        user_resource_path(sid),
+        json={"reminder_enabled": 0, "reminder_at": "21:30"},
+        headers={"Idempotency-Key": "reminder-patch-1"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reminder_enabled"] == 0
+    assert body["reminder_at"] == "21:30"
+    # Untouched fields survive the partial update.
+    assert body["system_user_id"] == sid
+
+
+def test_patch_user_reminder_at_rejects_bad_clock(client) -> None:
+    sid = "reminder-badclock-1"
+    assert (
+        client.post(
+            USER_HTTP_BASE_PATH,
+            json=user_create_body(sid),
+            headers={"Idempotency-Key": "reminder-badclock-seed"},
+        ).status_code
+        == 201
+    )
+    response = client.patch(
+        user_resource_path(sid),
+        json={"reminder_at": "25:99"},
+        headers={"Idempotency-Key": "reminder-badclock-1"},
+    )
+    assert response.status_code == 422
+
+
 def test_patch_user_empty_body_returns_400(client) -> None:
     sid = "patch-user-empty-1"
     assert (

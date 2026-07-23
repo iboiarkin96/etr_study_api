@@ -24,6 +24,12 @@ USER_404 = StableError(
     "User with this `system_user_id` and `system_uuid` was not found.",
 )
 
+USER_103 = StableError(
+    "USER_103",
+    "USER_CREATE_SYSTEM_NOT_FOUND",
+    "Referenced `system_uuid` is not registered in `systems`.",
+)
+
 # --- Validation (422) — create ---
 
 USER_001 = StableError(

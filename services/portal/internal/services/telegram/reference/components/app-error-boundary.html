@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Reference · AppErrorBoundary · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-23" data-role="architect">
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">AppErrorBoundary</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions"><button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button></div>
+  </header>
+  <aside data-component="sidebar" data-nav-src="../../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Reference · Component</span>
+          <span class="docs-pill docs-pill--accent">telegram · shell · error</span>
+        </p>
+        <h1>AppErrorBoundary</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">The app's crash surface — two error tiers rendering one shared <code>BoundaryFallback</code>: TanStack Router's <code>defaultErrorComponent</code> for route-component throws, and the <code>AppErrorBoundary</code> class for throws in the provider shell above the router. Both show the same warm <a href="error-screen.html"><code>ErrorScreen</code></a> the auth handshake failure uses — instead of the raw fallbacks (router's built-in «Something went wrong!» plate, Vite's dev overlay) that used to reach the user on a runtime crash.</p>
+      </header>
+
+      <section aria-labelledby="metadata-h">
+        <h2 id="metadata-h">Metadata</h2>
+        <dl class="svc-meta svc-meta--neutral">
+          <dt>Components</dt><dd><a href="../../../../../../telegram/src/app/BoundaryFallback.tsx"><code>src/app/BoundaryFallback.tsx</code></a> (shared surface) · <a href="../../../../../../telegram/src/app/AppErrorBoundary.tsx"><code>src/app/AppErrorBoundary.tsx</code></a> (provider-shell tier) · <code>RouterErrorFallback</code> in <a href="../../../../../../telegram/src/app/router.tsx"><code>src/app/router.tsx</code></a> (route tier)</dd>
+          <dt>Mount points</dt><dd><a href="../../../../../../telegram/src/app/providers.tsx"><code>src/app/providers.tsx</code></a> — inside <code>ThemeProvider</code> + <code>ViewportProvider</code>, outside <code>AuthProvider</code>; plus <code>defaultErrorComponent</code> on the router instance</dd>
+          <dt>Fallback</dt><dd><a href="error-screen.html">Component · ErrorScreen</a> (broken orb + title + body + primary CTA), plus a secondary underlined «Reload» link</dd>
+          <dt>Owner</dt><dd><a href="../../../../team/people/ivan-boyarkin/index.html">Ivan Boyarkin</a></dd>
+          <dt>Landed</dt><dd><time datetime="2026-07-23">2026-07-23</time></dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="behaviour-h">
+        <h2 id="behaviour-h">Behaviour</h2>
+        <ul>
+          <li><strong>Two tiers, one surface.</strong> TanStack Router wraps every route in its own catch boundary, so a throw from a route component (Today, Focus, …) never reaches the app-level boundary. The router tier is covered by <code>defaultErrorComponent: RouterErrorFallback</code> — without that override the router renders its built-in ErrorComponent («Something went wrong!» + a red <code>&lt;pre&gt;</code> quoting the raw message), in production too, since it's runtime router code rather than a dev overlay. The <code>AppErrorBoundary</code> class covers the second tier: throws from the provider shell above the router (auth bootstrap, theme, toasts). Both render the shared <code>BoundaryFallback</code>.</li>
+          <li><strong>What the tiers catch.</strong> Errors thrown from a component's <code>render()</code> or from an <code>useEffect</code>/<code>useLayoutEffect</code> callback. Same coverage as React's built-in error boundary contract.</li>
+          <li><strong>What it does NOT catch.</strong> Errors inside event handlers (<code>onClick</code>, <code>onChange</code> …) — those propagate normally and either bubble to <code>window.onerror</code> or need per-callsite <code>try/catch</code>. Also does not catch anything thrown by code that lives outside React's render cycle (a raw <code>setTimeout</code> callback, a <code>fetch().then()</code> chain that isn't awaited in an effect).</li>
+          <li><strong>Recovery paths.</strong> Two:
+            <ul>
+              <li><em>Try again</em> — resets the owning boundary so the tree re-renders (on the router tier also <code>router.invalidate()</code> to re-run the route). Fine for transient errors (race condition, one-off network blip).</li>
+              <li><em>Reload the app</em> — the underlined link below the primary CTA fires <code>window.location.reload()</code>. Nuclear option for anything that survives an in-place retry.</li>
+            </ul>
+          </li>
+          <li><strong>Observability.</strong> Both tiers call <a href="../observability.html"><code>captureError(error, {componentStack})</code></a>. When <code>VITE_SENTRY_DSN</code> is set the call routes to <code>Sentry.captureException</code> with the React <code>componentStack</code> attached as <code>contexts.react.componentStack</code> (visible in Sentry's React panel); when the DSN is absent it falls through to a tagged <code>console.error</code>. Same call shape either way — no drift between dev laptops and prod.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="mount-h">
+        <h2 id="mount-h">Mount order — why not further out</h2>
+        <p>Boundary sits <em>inside</em> ThemeProvider + ViewportProvider so the fallback resolves the app's Ember tokens and safe-area vars — otherwise a broken app would render an unstyled broken orb over the wrong background. Sits <em>outside</em> AuthProvider so an error thrown from the auth bootstrap itself surfaces here instead of vanishing under a broken AuthGate.</p>
+        <pre><code>&lt;QueryClientProvider&gt;
+  &lt;ThemeProvider&gt;
+    &lt;ViewportProvider&gt;
+      &lt;AppErrorBoundary&gt;         ← tier 2: provider-shell errors
+        &lt;AuthProvider&gt;
+          &lt;ToastProvider&gt;
+            &lt;AuthGate&gt;
+              &lt;Router /&gt;         ← tier 1 inside: router's own catch
+            &lt;/AuthGate&gt;            boundary per route, rendered by
+            &lt;Toaster /&gt;            defaultErrorComponent
+          &lt;/ToastProvider&gt;
+        &lt;/AuthProvider&gt;
+      &lt;/AppErrorBoundary&gt;
+    &lt;/ViewportProvider&gt;
+  &lt;/ThemeProvider&gt;
+&lt;/QueryClientProvider&gt;</code></pre>
+      </section>
+
+      <section aria-labelledby="class-h">
+        <h2 id="class-h">Why a class component</h2>
+        <p>React's error boundary API is class-only — there is no hook equivalent (<code>useError</code> proposals live in RFC-land, not in the runtime). The class body is kept minimal so the class-vs-hook mismatch never leaks past this file: all rendering (and hooks-based i18n) lives in the shared <code>BoundaryFallback</code> function component; the class only holds the caught-error state and the console tag.</p>
+      </section>
+
+      <section aria-labelledby="copy-h">
+        <h2 id="copy-h">Copy</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead><tr><th>Key</th><th>EN</th><th>RU</th><th>Rendered where</th></tr></thead>
+            <tbody>
+              <tr><td><code>boundary.title</code></td><td>«Something broke on our side»</td><td>«Что-то сломалось у нас»</td><td>ErrorScreen title</td></tr>
+              <tr><td><code>boundary.body</code></td><td>«The app hit an unexpected error. Try again; if it keeps happening, reload the whole thing.»</td><td>«Приложение столкнулось с неожиданной ошибкой. Попробуй ещё раз; если не помогает — перезагрузи целиком.»</td><td>ErrorScreen body</td></tr>
+              <tr><td><code>boundary.retry</code></td><td>«Try again»</td><td>«Попробовать снова»</td><td>Primary CTA</td></tr>
+              <tr><td><code>boundary.reload</code></td><td>«Reload the app»</td><td>«Перезагрузить приложение»</td><td>Underlined secondary link below the CTA</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="files-h">
+        <h2 id="files-h">Files</h2>
+        <ul>
+          <li><a href="../../../../../../telegram/src/app/BoundaryFallback.tsx"><code>src/app/BoundaryFallback.tsx</code></a> — the shared fallback surface (function component, hooks-based i18n)</li>
+          <li><a href="../../../../../../telegram/src/app/AppErrorBoundary.tsx"><code>src/app/AppErrorBoundary.tsx</code></a> — the class boundary (provider-shell tier)</li>
+          <li><a href="../../../../../../telegram/src/app/router.tsx"><code>src/app/router.tsx</code></a> — <code>RouterErrorFallback</code> + <code>defaultErrorComponent</code> wiring (route tier)</li>
+          <li><a href="../../../../../../telegram/src/app/providers.tsx"><code>src/app/providers.tsx</code></a> — class-boundary mount site</li>
+          <li><a href="../../../../../../telegram/src/screens/Today/components/ErrorScreen.tsx"><code>ErrorScreen</code></a> — the fallback surface</li>
+          <li><a href="../../../../../../telegram/src/shared/i18n/en.json"><code>i18n/en.json</code></a> + <code>ru.json</code> — copy under the <code>boundary</code> namespace</li>
+        </ul>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-23</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note"><strong>Global React error boundary shipped.</strong> Prompted by a real on-device crash — «Rendered more hooks than during the previous render» reached the user as Vite's raw dev overlay instead of a warm error state. Boundary uses the shared <code>ErrorScreen</code> for the fallback so the visual matches the auth-error surface, offers <em>Try again</em> (resets state) + <em>Reload the app</em> (<code>location.reload</code>), and logs to <code>console.error</code> until Sentry (T-26d) lands.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#metadata-h">Metadata</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#behaviour-h">Behaviour</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#mount-h">Mount order</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#class-h">Why a class component</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#copy-h">Copy</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#files-h">Files</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

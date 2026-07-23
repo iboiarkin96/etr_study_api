@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Deep-link grammar · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Deep-link grammar</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Deep-link grammar</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Formal grammar for the <code>startapp</code> payload the bot sends. The router at <code>src/app/router.tsx</code> enforces this table verbatim — the design page at <a href="../design/information-architecture.html#deeplink-h">Information architecture · Deep-link grammar</a> is the design-narrative version; this is the machine-parseable one.</p>
+
+      <section aria-labelledby="url-h">
+        <h2 id="url-h">URL shape</h2>
+        <p>Telegram bots produce deep-links using the modern HTTPS format only. Legacy <code>tg://</code> schemes are not supported.</p>
+        <pre><code>https://t.me/&lt;bot_username&gt;/&lt;app_short_name&gt;?startapp=&lt;payload&gt;</code></pre>
+        <p>Telegram passes <code>&lt;payload&gt;</code> to the WebApp via <code>WebApp.initDataUnsafe.start_param</code>. The router reads it once on mount, dispatches, and never re-reads (guards against navigation loops).</p>
+      </section>
+
+      <section aria-labelledby="grammar-h">
+        <h2 id="grammar-h">Grammar (EBNF)</h2>
+        <pre><code>payload   = empty | intent
+empty     = ""
+intent    = navigate | action | error
+navigate  = "conspectus_" uuid
+          | "schedule_" date
+          | "focus"
+action    = "errors_new"
+uuid      = 32 hex chars, no dashes (compact form)
+date      = YYYY_MM_DD (four-two-two digits, underscores; router parses back into an ISO date)
+error     = any other string  →  dispatched to "/" with payload logged</code></pre>
+        <p><strong>Compact UUIDs.</strong> Payloads are size-constrained by Telegram (~64 chars). We strip the four dashes from a UUID (36 → 32) and normalise back inside the router.</p>
+      </section>
+
+      <section aria-labelledby="table-h">
+        <h2 id="table-h">Payload table</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Payload</th>
+                <th scope="col">Regex</th>
+                <th scope="col">Route dispatched to</th>
+                <th scope="col">Emitted by</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>(empty)</td><td><code>^$</code></td><td><code>/</code> (Today)</td><td>Bot launch button, default.</td></tr>
+              <tr><td><code>conspectus_&lt;uuid&gt;</code></td><td><code>^conspectus_[0-9a-f]{32}$</code></td><td><code>/conspectus/:uuid</code> (dashes re-inserted)</td><td>Bot per-conspectus notifications.</td></tr>
+              <tr><td><code>schedule_&lt;YYYY_MM_DD&gt;</code></td><td><code>^schedule_\d{4}_\d{2}_\d{2}$</code></td><td><code>/schedule?day=&lt;YYYY-MM-DD&gt;</code> (router re-inserts dashes for the ISO route param)</td><td>Bot pushes a heat-map digest for a day.</td></tr>
+              <tr><td><code>focus</code></td><td><code>^focus$</code></td><td><code>/</code> (Today), then auto-<code>navigate('/focus')</code> if <code>GET /api/v1/conspectuses/due</code> returns ≥ 1 card; otherwise stay on Today with a mini-toast «Nothing due right now». Preserves the design constraint «URL never reveals which cards are due» (Focus session state is Zustand-only, not URL params).</td><td>Bot quick-action «start review now».</td></tr>
+              <tr><td><code>errors_new</code></td><td><code>^errors_new$</code></td><td><code>/errors?compose=1</code></td><td>Bot quick-action «log error».</td></tr>
+              <tr><td>anything else</td><td>(fallthrough)</td><td><code>/</code>; payload logged via <code>console.warn</code>; PostHog <code>deep_link_unknown</code></td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="properties-h">
+        <h2 id="properties-h">Design properties</h2>
+        <ul>
+          <li><strong>Opaque to users.</strong> Payloads never appear in copy, never in error messages, never in URLs the user sees or types.</li>
+          <li><strong>One-way.</strong> The client parses payloads but never generates them for other links. Sharing between Telegram accounts is a P2 feature.</li>
+          <li><strong>Idempotent dispatch.</strong> Same payload → same route, always. No time-based or user-based dispatch.</li>
+          <li><strong>Safe fallback.</strong> A malformed payload never blocks the launch. Worst case: user lands on Today.</li>
+          <li><strong>All-lowercase + underscore.</strong> No hyphens (breaks Telegram's parser in edge cases), no dots, no percent-encoding.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="examples-h">
+        <h2 id="examples-h">Examples</h2>
+        <pre><code># Push a specific card
+https://t.me/study_app_bot/study_app?startapp=conspectus_ab12cd34ef567890abcdef0123456789
+
+# Push today's schedule
+https://t.me/study_app_bot/study_app?startapp=schedule_2026_07_15
+
+# Quick-action: start review
+https://t.me/study_app_bot/study_app?startapp=focus
+
+# Default launch (no payload)
+https://t.me/study_app_bot/study_app</code></pre>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Two contract fixes. <em>(1)</em> Payload-table row for <code>focus</code> synced with the disambiguated contract on the IA page (T-08 pass): dispatch to Today first, auto-launch Focus only when the due list is non-empty. <em>(2)</em> Schedule payload retargeted to underscores — <code>schedule_&lt;YYYY_MM_DD&gt;</code> — because the previous ISO form (<code>schedule_2026-07-15</code>) broke the page's own «no hyphens» design property. Router re-inserts the dashes when writing to <code>/schedule?day=</code>. Grammar EBNF, payload table, and worked example all updated in one pass. IA page's grammar table on the design side gets the same edit next.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Deep-link grammar reference created. EBNF + payload table with regexes + design properties + worked examples. Router at src/app/router.tsx enforces the table verbatim.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#url-h">URL shape</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#grammar-h">Grammar (EBNF)</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#table-h">Payload table</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#properties-h">Design properties</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#examples-h">Examples</a></li>    </ol>
+    </aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

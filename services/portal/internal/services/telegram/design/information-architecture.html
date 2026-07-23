@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Information architecture · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Design</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Information architecture</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Information architecture</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">How the nine screens connect. Sitemap, route table, navigation model, deep-link grammar. Each answer here is a design constraint, not a technical implementation — the router just enforces what this page decides.</p>
+
+      <section aria-labelledby="sitemap-h">
+        <h2 id="sitemap-h">Sitemap</h2>
+        <p>A shallow tree. No screen is more than two taps from Today, and Today is always one Back-button away.</p>
+        <pre><code>Today (/)
+├── Focus (/focus)                          launched from a due card
+│   └── Errors (/errors) [inline compose]   launched from grade "Again"
+│
+├── Conspectus list (/conspectus)
+│   └── Conspectus detail (/conspectus/:id)
+│       └── Focus (/focus) [for this card]
+│
+├── Schedule (/schedule)
+│   └── Today, filtered to a day             (same route, param)
+│
+├── Errors (/errors)
+│
+├── Search (/search)                         overlay (Cmd+K / pull-down)
+│   └── Conspectus detail (/conspectus/:id)
+│
+├── Profile (/me)
+│
+└── Onboarding (/onboarding)                 first-run only, dismissed</code></pre>
+      </section>
+
+      <section aria-labelledby="routes-h">
+        <h2 id="routes-h">Route table</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Route</th>
+                <th scope="col">Screen</th>
+                <th scope="col">Params</th>
+                <th scope="col">Deep-linkable</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>/</code></td><td>Today</td><td>—</td><td>Yes — default landing.</td></tr>
+              <tr><td><code>/focus</code></td><td>Focus</td><td>Session state via Zustand — not URL params (privacy: URL never reveals which cards are due).</td><td>No direct — a bot's «start review» payload lands on Today first and auto-launches Focus from there if the due list is non-empty (see deep-link grammar below).</td></tr>
+              <tr><td><code>/conspectus</code></td><td>Conspectus list</td><td><code>?cursor=</code> (pagination)</td><td>Yes.</td></tr>
+              <tr><td><code>/conspectus/:id</code></td><td>Conspectus detail</td><td><code>:id</code> = conspectus UUID</td><td>Yes — bot notifications use this.</td></tr>
+              <tr><td><code>/schedule</code></td><td>Schedule</td><td><code>?day=YYYY-MM-DD</code> (optional filter)</td><td>Yes.</td></tr>
+              <tr><td><code>/errors</code></td><td>Errors</td><td><code>?compose=1</code> (opens compose sheet)</td><td>Yes.</td></tr>
+              <tr><td><code>/search</code></td><td>Search (overlay pattern)</td><td><code>?q=</code></td><td>Yes.</td></tr>
+              <tr><td><code>/me</code></td><td>Profile</td><td>—</td><td>Yes.</td></tr>
+              <tr><td><code>/onboarding</code></td><td>Onboarding</td><td>—</td><td>No — first-run only; deep-linking would break the dismissal contract.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="deeplink-h">
+        <h2 id="deeplink-h">Deep-link grammar</h2>
+        <p>Telegram bots deliver deep-links via the <code>startapp</code> parameter of the HTTPS launch URL:</p>
+        <pre><code>https://t.me/&lt;bot_username&gt;/&lt;app_short_name&gt;?startapp=&lt;payload&gt;</code></pre>
+        <p>Telegram passes <code>&lt;payload&gt;</code> to the WebApp via <code>WebApp.initDataUnsafe.start_param</code>. The client parses it and dispatches to a route. The grammar below is enforced client-side; a malformed payload lands Today with the payload logged for debugging (not shown to the user).</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Payload shape</th>
+                <th scope="col">Route dispatched to</th>
+                <th scope="col">Emitted by</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>empty / absent</td><td><code>/</code> (Today)</td><td>Bot launch button, default.</td></tr>
+              <tr><td><code>conspectus_&lt;uuid&gt;</code></td><td><code>/conspectus/:uuid</code></td><td>Bot notification for a specific card.</td></tr>
+              <tr><td><code>focus</code></td><td><code>/</code> (Today), then auto-launch <code>/focus</code> if <code>GET /api/v1/conspectuses/due</code> returns ≥ 1 card; otherwise stay on Today with a mini-toast «Nothing due right now».</td><td>Bot «start review» quick-action.</td></tr>
+              <tr><td><code>errors_new</code></td><td><code>/errors?compose=1</code></td><td>Bot «log error» quick-action.</td></tr>
+              <tr><td><code>schedule_&lt;YYYY_MM_DD&gt;</code></td><td><code>/schedule?day=&lt;YYYY-MM-DD&gt;</code> (router re-inserts dashes)</td><td>Bot pushed a heat-map digest.</td></tr>
+              <tr><td>anything else</td><td><code>/</code>; log payload; do not surface an error</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Design constraint:</strong> payloads are opaque to the user. They never appear in copy, never appear in URLs the user sees, never in error messages. Bot authors treat them like access tokens — short, one-purpose, hard to mistype (all-lowercase with underscores, no hyphens or dots).</p>
+      </section>
+
+      <section aria-labelledby="back-h">
+        <h2 id="back-h">Back-navigation model</h2>
+        <p>Two rules resolve every back-button question:</p>
+        <ol class="numbered-step-list">
+          <li><div><strong>Deep-linked entry always returns to Today.</strong> If the user opened <code>/conspectus/&lt;uuid&gt;</code> via a bot push, Back goes to Today — not «previous conspectus» (there wasn't one). This preserves the mental model «Today is home».</div></li>
+          <li><div><strong>Sequential entry returns one step.</strong> If the user tapped through Today → Conspectus list → Conspectus detail, Back retraces one hop at a time. Router history is the source of truth.</div></li>
+        </ol>
+        <p>Exceptions:</p>
+        <ul>
+          <li><strong>Focus.</strong> Back on Focus prompts a confirm-exit dialog («Exit session? Progress won't be lost.»). Rationale: accidentally closing an in-progress review is expensive.</li>
+          <li><strong>Search overlay.</strong> Back closes the overlay, doesn't route away.</li>
+          <li><strong>Onboarding.</strong> Back is hidden — the only exit is «Skip» or «Get started», both of which persist dismissal.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="url-h">
+        <h2 id="url-h">URL-shape rules</h2>
+        <ul>
+          <li><strong>No user data in the path.</strong> UUIDs only; no titles, no email fragments, no personal identifiers.</li>
+          <li><strong>No client-generated state in the URL.</strong> Focus session state is Zustand-only; you can't share a Focus-mid-session URL.</li>
+          <li><strong>Query params are always optional.</strong> Stripping <code>?cursor=…</code> from a URL must load a valid screen (first page).</li>
+          <li><strong>Trailing slashes are absent.</strong> <code>/conspectus</code>, not <code>/conspectus/</code>. Router normalises.</li>
+          <li><strong>Kebab-case only for path segments.</strong> No <code>/errorHistory</code> — but this app has no multi-word segments today.</li>
+        </ul>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Two contract fixes. <em>(1)</em> Focus deep-link disambiguated. Route table said «not deep-linkable» while the grammar table sent <code>focus</code> straight to <code>/focus</code>; T-28 would have shipped one or the other. Resolved in favour of the route table's Today-is-home rule: <code>focus</code> lands on Today, fetches the due list, and auto-launches Focus only when there is work to do — otherwise stays on Today with a mini-toast. Preserves the privacy contract («URL never reveals which cards are due») and avoids landing on an empty Focus screen. <em>(2)</em> Schedule payload retargeted to underscores — <code>schedule_&lt;YYYY_MM_DD&gt;</code> — mirroring the same edit on the reference grammar page. Router re-inserts the dashes when writing to <code>/schedule?day=</code>.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Information architecture page created. Sitemap (shallow tree), route table (params + deep-linkability), deep-link grammar (5 payload shapes), back-navigation model (two rules + three exceptions), URL-shape rules. Everything a router must enforce.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#sitemap-h">Sitemap</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#routes-h">Route table</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#deeplink-h">Deep-link grammar</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#back-h">Back-navigation model</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#url-h">URL-shape rules</a></li>    </ol>
+    </aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

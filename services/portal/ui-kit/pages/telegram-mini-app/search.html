@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search / Spotlight · Telegram Mini App design · Portal UI Kit</title>
+  <script>/* no-flash theme bootstrap */(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/ui-kit/components/tma-kit.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-21" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🚀</span><span>ETR Study API</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">UI Kit</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Telegram Mini App</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Search / Spotlight</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions"><button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button></div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-uikit.json" aria-label="UI Kit navigation"></aside>
+
+  <main class="container">
+    <header class="page-head">
+      <p style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--color-text-muted);letter-spacing:0.08em;margin:0 0 6px">06 · <span style="color:var(--color-accent)">overlay</span></p>
+      <h1>Search / Spotlight</h1>
+      <div id="docs-top-nav"></div>
+      <p>Cmd+K spotlight — the one-shot input that finds any conspectus by title in one keystroke. Not a route: a portal-mounted modal overlay owned by the app root, opened by keyboard (Cmd+K / Ctrl+K) or by the search icon on Today. Client-side substring filter over the cached library — up to 100 rows fetched once (server hard-caps <code>limit</code> at 100), ranked earlier-match-first, highlighted with <code>&lt;mark&gt;</code>.</p>
+      <p>Reads on the app-wide <strong>Amie · signature</strong> DNA. Decision + rejected alternatives (Notion full-screen, Google bottom-sheet): <a href="../../../internal/governance/adr/0038-tma-screen-dna-amie-signature.html#screen-06-search">ADR 0038 · Screen 06</a>.</p>
+    </header>
+
+    <section aria-labelledby="search-live" class="tma-scope">
+      <div class="tma-variants-header">
+        <h2 id="search-live">The overlay, live</h2>
+        <p>Rendered from the production React component via Storybook — this preview can never drift from the app.</p>
+      </div>
+      <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start">
+        <div class="storybook-embed storybook-embed--phone" style="flex:0 0 auto;--sb-h:520px">
+          <div class="storybook-embed__frame">
+            <iframe class="storybook-embed__iframe" src="../../../../telegram/storybook-static/iframe.html?id=screens-search-searchoverlay--match&amp;viewMode=story&amp;globals=theme:dark" title="Search overlay — live Storybook render" loading="lazy"></iframe>
+            <div class="storybook-embed__loading" aria-hidden="true"><span>loading preview</span></div>
+          </div>
+          <div class="storybook-embed__caption"><strong>Search/SearchOverlay</strong><a class="storybook-embed__link" href="../../../../telegram/storybook-static/index.html?path=/story/screens-search-searchoverlay--match" target="_blank" rel="noopener">open story ↗</a></div>
+        </div>
+        <div class="docs-card docs-card--rail" data-tone="accent" style="flex:1;min-width:280px">
+          <div class="docs-card__head">
+            <h3 class="docs-card__title">Screen DNA · one shot, one purpose</h3>
+            <span class="docs-pill docs-pill--success">Amie · signature</span>
+          </div>
+          <div class="docs-card__body">
+            <ul>
+              <li><strong>Overlay, not a route.</strong> The user's cursor never leaves the surface they came from. Esc / backdrop returns them exactly where they were — focus is snapshotted and restored (WAI-ARIA modal contract).</li>
+              <li><strong>Cache-once, filter-live.</strong> The full conspectus title index (up to 100 rows — the server's hard <code>limit</code> cap) loads once on first open and stays in TanStack Query indefinitely (<code>staleTime: Infinity</code>). Every keystroke re-filters client-side — no network fan-out, no debounce needed.</li>
+              <li><strong>One input, one target.</strong> No filters, no scopes, no groups (yet). The single job is «find the conspectus I'm thinking of» in one keystroke sequence — every deferred feature (recent-history, tags, actions) is a future addition, not a current knob.</li>
+              <li><strong>Keyboard-first, mouse-permitted.</strong> ↑ / ↓ / Ctrl-J / Ctrl-N move; Enter opens; Esc closes. Mouse hover sets the cursor only if the pointer actually moved (avoids scrollIntoView-induced spurious mouseenter — classic cmdk pitfall).</li>
+              <li><strong>Rank by relevance, not by recency.</strong> Earlier substring match wins, ties broken by shorter title. Predictable ordering the user can build a mental model of on first use.</li>
+              <li><strong>D3 peek, not D2 hero.</strong> Search is a means, not a destination — no display type, no bespoke geometry, single accent chip. All heavy visual weight belongs on the surface the user came from.</li>
+            </ul>
+            <p style="margin-top:12px">Full rationale + rejected alternatives: <a href="../../../internal/governance/adr/0038-tma-screen-dna-amie-signature.html#screen-06-search">ADR 0038 · Screen 06 · Search ↗</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="ed-h" class="tma-scope">
+      <span class="ed-marker">06 · Search · Philosophy</span>
+      <h2 id="ed-h" style="font-size:32px;font-weight:800;letter-spacing:-0.02em;margin:0 0 8px">Why an overlay</h2>
+      <p style="font-size:16px;color:var(--muted);max-width:640px;margin:0 0 16px;line-height:1.6">Search is a shortcut, not a destination — the user opens it to get somewhere else. A route would blow away the surface they came from; an overlay preserves it. Focus returns to the trigger on close, so keyboard users pick up exactly where they left off. The same overlay serves every entry point (Cmd+K anywhere, ⌕ icon on Today, future icon on Focus) with zero per-surface glue.</p>
+      <blockquote class="ed-callout" style="margin:0 0 28px">If the user has to think about how to close it, we've built a screen — not a shortcut.</blockquote>
+
+      <h3 style="font-size:14px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin:24px 0 12px">Read next</h3>
+      <div class="docs-card-grid">
+        <a class="docs-card" href="../../../internal/services/telegram/reference/screens/search.html">
+          <div class="docs-card__head"><h4 class="docs-card__title">Anatomy · reference</h4><span class="docs-pill docs-pill--info">how</span></div>
+          <div class="docs-card__body">Annotated pin map with every region wired to its React component, hook, CSS primitive. Interactions + keyboard contract + alternate states (hint · match · empty · loading).</div>
+        </a>
+        <a class="docs-card" href="../../../../telegram/storybook-static/index.html?path=/story/screens-search-searchoverlay--match" target="_blank" rel="noopener">
+          <div class="docs-card__head"><h4 class="docs-card__title">State matrix · Storybook</h4><span class="docs-pill docs-pill--info">show</span></div>
+          <div class="docs-card__body">Live-rendered story for every documented state. This is the source of truth for what the overlay looks like today.</div>
+        </a>
+        <a class="docs-card" href="../../../internal/governance/adr/0038-tma-screen-dna-amie-signature.html#screen-06-search">
+          <div class="docs-card__head"><h4 class="docs-card__title">Design decision · ADR 0038</h4><span class="docs-pill docs-pill--info">why</span></div>
+          <div class="docs-card__body">Why an overlay beat a route and a bottom-sheet. Two rejected alternatives mocked and archived as evidence.</div>
+        </a>
+      </div>
+    </section>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-22</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Trimmed to the today.html shape — «Four states, four stories» quad-embed grid removed (the single live iframe carries the shipped state; the other three states live in the Anatomy · reference page and Storybook). Read-next reduced to the canonical 3 cards (Anatomy · State matrix · ADR 0038); Component · SearchOverlay and Primitive · .tma-cmdk links move into the reference-map they already live under. Stale «500 rows» copy corrected to the shipped 100-row server cap.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-21</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">T-22 shipped — reformatted under the today.html live-preview pattern, four Storybook states embedded (hint · match · empty · loading), spec-only aside removed. Live iframe replaces the frozen mocks.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-13</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">v1 spec — three design takes mocked (Cmd+K modal, Notion-style full-screen, Google-style bottom-sheet); Cmd+K modal chosen.</span>
+        </li>
+      </ul>
+    </footer>
+
+  </main>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

@@ -18,10 +18,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from starlette.responses import Response
 
+from app.api.v1.auth import router as auth_router
 from app.api.v1.conspectus import router as conspectus_router
 from app.api.v1.error_log import router as error_log_router
+from app.api.v1.me import router as me_router
 from app.api.v1.schedule import router as schedule_router
 from app.api.v1.user import router as user_router
 from app.core.config import get_settings
@@ -42,7 +45,7 @@ from app.core.security import (
     extract_client_id,
     is_protected_api_request,
 )
-from app.errors.common import COMMON_413, COMMON_429
+from app.errors.common import COMMON_413, COMMON_422, COMMON_429
 from app.schemas.system import LiveResponse, ReadyResponse
 from app.validation.dispatch import build_validation_error_payload
 
@@ -54,6 +57,13 @@ OPENAPI_TAGS = [
     {
         "name": "System",
         "description": "Operational endpoints (live/ready/metrics and platform metadata).",
+    },
+    {
+        "name": "Auth",
+        "description": (
+            "Telegram Mini App sign-in: exchange the WebApp's signed `initData`"
+            " for a 24 h Bearer JWT."
+        ),
     },
     {
         "name": "User",
@@ -95,61 +105,6 @@ metrics = MetricsCollector(
     db_buckets=settings.metrics_buckets_db,
 )
 install_sqlalchemy_metrics(engine=engine, metrics=metrics)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=list[str](settings.cors_allow_origins),
-    allow_credentials=settings.cors_allow_credentials,
-    allow_methods=list[str](settings.cors_allow_methods),
-    allow_headers=list[str](settings.cors_allow_headers),
-    expose_headers=list[str](settings.cors_expose_headers),
-)
-
-
-@app.middleware("http")
-async def request_logging_middleware(request: Request, call_next) -> Response:
-    """Log request duration, status, and update Prometheus HTTP metrics.
-
-    Args:
-        request: Incoming ASGI request.
-        call_next: Next middleware or route handler in the stack.
-
-    Returns:
-        Downstream response, or re-raises exceptions after logging a failure line.
-    """
-    metrics_started_at = metrics.on_request_start(request)
-    started_at = perf_counter()
-    try:
-        response = await call_next(request)
-    except Exception:
-        elapsed_ms = (perf_counter() - started_at) * 1000
-        metrics.on_request_complete(
-            request=request,
-            status_code=500,
-            started_at=metrics_started_at,
-        )
-        logger.exception(
-            "request_failed method=%s path=%s elapsed_ms=%.2f",
-            request.method,
-            request.url.path,
-            elapsed_ms,
-        )
-        raise
-
-    elapsed_ms = (perf_counter() - started_at) * 1000
-    logger.info(
-        "request_done method=%s path=%s status=%s elapsed_ms=%.2f",
-        request.method,
-        request.url.path,
-        response.status_code,
-        elapsed_ms,
-    )
-    metrics.on_request_complete(
-        request=request,
-        status_code=response.status_code,
-        started_at=metrics_started_at,
-    )
-    return response
 
 
 @app.middleware("http")
@@ -263,6 +218,110 @@ async def request_context_middleware(request: Request, call_next) -> Response:
         reset_request_context(token)
     response.headers["X-Request-Id"] = rid
     return response
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next) -> Response:
+    """Log request duration, status, and update Prometheus HTTP metrics.
+
+    Registered near the top of the file so it is added AFTER the auth /
+    body-limit / security middlewares — in Starlette's LIFO order that puts it
+    on the outside of them. Early returns from auth (401), rate limit (429) or
+    body-limit (413) therefore flow back through this logger before leaving
+    the app, and `level: WARNING` / `level: ERROR` in Kibana finally reflect
+    HTTP status class instead of only the 2xx happy path.
+
+    Args:
+        request: Incoming ASGI request.
+        call_next: Next middleware or route handler in the stack.
+
+    Returns:
+        Downstream response, or re-raises exceptions after logging a failure line.
+    """
+    metrics_started_at = metrics.on_request_start(request)
+    started_at = perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        elapsed_ms = (perf_counter() - started_at) * 1000
+        metrics.on_request_complete(
+            request=request,
+            status_code=500,
+            started_at=metrics_started_at,
+        )
+        logger.exception(
+            "request_failed method=%s path=%s elapsed_ms=%.2f",
+            request.method,
+            request.url.path,
+            elapsed_ms,
+        )
+        raise
+
+    elapsed_ms = (perf_counter() - started_at) * 1000
+    # Level tracks the HTTP status class so `level: ERROR` in Kibana surfaces
+    # server-side failures and `level: WARNING` surfaces client-side rejections
+    # (bad auth, missing keys, validation errors) without hand-crafted filters.
+    if response.status_code >= 500:
+        log_level = logging.ERROR
+    elif response.status_code >= 400:
+        log_level = logging.WARNING
+    else:
+        log_level = logging.INFO
+    logger.log(
+        log_level,
+        "request_done method=%s path=%s status=%s elapsed_ms=%.2f",
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    metrics.on_request_complete(
+        request=request,
+        status_code=response.status_code,
+        started_at=metrics_started_at,
+    )
+    return response
+
+
+# CORS is registered LAST so it wraps every other middleware. In Starlette,
+# `add_middleware` builds the stack in reverse — the last-added middleware runs
+# first on the request path and last on the response path. Registering CORS
+# outermost guarantees that early returns from inner middleware (e.g. the 401
+# from `auth_and_rate_limit_middleware` or the 413 from
+# `request_body_limit_middleware`) still carry `Access-Control-Allow-Origin`,
+# so the browser surfaces the real status instead of a CORS block.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list[str](settings.cors_allow_origins),
+    allow_origin_regex=settings.cors_allow_origin_regex or None,
+    allow_credentials=settings.cors_allow_credentials,
+    allow_methods=list[str](settings.cors_allow_methods),
+    allow_headers=list[str](settings.cors_allow_headers),
+    expose_headers=list[str](settings.cors_expose_headers),
+)
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:
+    """Map SQLAlchemy integrity errors (FK / unique / check) to a 422 envelope.
+
+    Args:
+        request: Incoming request whose write violated a DB constraint.
+        exc: SQLAlchemy exception; the driver detail is logged, not surfaced to clients.
+
+    Returns:
+        JSON response with status 422 and the ``COMMON_422`` envelope.
+    """
+    logger.warning(
+        "persistence_integrity_violation method=%s path=%s detail=%s",
+        request.method,
+        request.url.path,
+        getattr(exc.orig, "diag", None) or str(exc.orig),
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": COMMON_422.as_detail("business")},
+    )
 
 
 @app.exception_handler(RequestValidationError)
@@ -394,10 +453,12 @@ def custom_swagger_ui() -> Response:
     )
 
 
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(error_log_router, prefix="/api/v1")
 app.include_router(schedule_router, prefix="/api/v1")
 app.include_router(conspectus_router, prefix="/api/v1")
+app.include_router(me_router, prefix="/api/v1")
 
 
 def custom_openapi() -> dict[str, Any]:
@@ -406,6 +467,7 @@ def custom_openapi() -> dict[str, Any]:
         return app.openapi_schema
     from fastapi.openapi.utils import get_openapi
 
+    from app.openapi.bearer_auth_openapi import enrich_openapi_with_bearer_auth
     from app.openapi.request_id_openapi import enrich_openapi_with_request_id
     from app.openapi.validation_error_openapi import (
         enrich_openapi_with_validation_error_descriptions,
@@ -422,6 +484,7 @@ def custom_openapi() -> dict[str, Any]:
     )
     enrich_openapi_with_request_id(openapi_schema)
     enrich_openapi_with_validation_error_descriptions(openapi_schema)
+    enrich_openapi_with_bearer_auth(openapi_schema)
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 

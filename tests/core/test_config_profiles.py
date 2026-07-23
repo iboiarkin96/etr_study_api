@@ -12,8 +12,8 @@ def _set_base_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "postgresql+psycopg://study_app:study_app@127.0.0.1:5432/study_app",
     )
     monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://example.com")
-    monkeypatch.setenv("API_AUTH_STRATEGY", "mock_api_key")
-    monkeypatch.setenv("API_MOCK_API_KEY", "secure-key-value")
+    monkeypatch.setenv("API_AUTH_KEY", "secure-key-value")
+    monkeypatch.setenv("JWT_SECRET", "secure-jwt-secret-at-least-32-bytes-long")
     monkeypatch.setenv("METRICS_ENABLED", "true")
     monkeypatch.setenv("LOG_LEVEL", "INFO")
 
@@ -31,12 +31,12 @@ def test_normalize_app_env_rejects_unknown() -> None:
         _normalize_app_env("sandbox")
 
 
-def test_qa_profile_rejects_disabled_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_qa_profile_rejects_default_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_base_env(monkeypatch)
     monkeypatch.setenv("APP_ENV", "qa")
-    monkeypatch.setenv("API_AUTH_STRATEGY", "disabled")
+    monkeypatch.setenv("API_AUTH_KEY", "local-dev-key")
 
-    with pytest.raises(ValueError, match="not allowed in qa/prod"):
+    with pytest.raises(ValueError, match="non-default API_AUTH_KEY"):
         get_settings()
 
 
@@ -46,4 +46,22 @@ def test_prod_profile_rejects_localhost_cors(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("CORS_ALLOW_ORIGINS", "http://127.0.0.1:3000")
 
     with pytest.raises(ValueError, match="must not contain localhost in prod"):
+        get_settings()
+
+
+def test_qa_profile_rejects_default_jwt_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_base_env(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "qa")
+    monkeypatch.setenv("JWT_SECRET", "local-dev-jwt-secret-32-bytes-min")
+
+    with pytest.raises(ValueError, match="non-default JWT_SECRET"):
+        get_settings()
+
+
+def test_qa_profile_rejects_too_short_jwt_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_base_env(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "qa")
+    monkeypatch.setenv("JWT_SECRET", "short")
+
+    with pytest.raises(ValueError, match="at least 32 bytes"):
         get_settings()

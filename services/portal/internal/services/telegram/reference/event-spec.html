@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Event spec · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-19" data-role="architect">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Event spec</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <h1>Event spec</h1>
+      <div id="docs-top-nav"></div>
+      <p class="lede">Every PostHog event the client emits, with its trigger, its property shape, and whether it participates in a funnel. Adding a new event without a row here is a review block — orphan events poison analytics.</p>
+
+      <section aria-labelledby="conventions-h">
+        <h2 id="conventions-h">Conventions</h2>
+        <ul>
+          <li><strong>Naming:</strong> <code>&lt;object&gt;_&lt;action_past_tense&gt;</code> — <code>review_completed</code>, <code>error_logged</code>, <code>focus_session_ended</code>. Never verb-first, never present-tense.</li>
+          <li><strong>Properties:</strong> snake_case keys, primitive values only (string / number / boolean). No nested objects, no arrays.</li>
+          <li><strong>PII:</strong> zero. Never send conspectus content, never send free-text errors, never send usernames. Server-generated UUIDs are OK.</li>
+          <li><strong>Timing:</strong> emitted synchronously with the user action, not after the resulting API response. Optimistic UX means the analytics is optimistic too.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="identity-h">
+        <h2 id="identity-h">Identity model</h2>
+        <p>PostHog attributes every event to a <code>distinct_id</code>. Under the multi-user JWT flow (W1) the answer is <code>users.client_uuid</code> — the same value the JWT carries as its <code>sub</code> claim, non-PII, stable across devices.</p>
+        <p>The wrinkle: <code>app_opened</code> fires on cold mount, <em>before</em> <code>POST /auth/telegram</code> returns. Two-step handling:</p>
+        <ol class="numbered-step-list">
+          <li><div><strong>Cold mount → anonymous session.</strong> PostHog auto-generates a <code>distinct_id</code> for the visitor. <code>app_opened</code> + any pre-bootstrap event is attached to it. Do not call <code>identify()</code> yet — the client has no verified user id.</div></li>
+          <li><div><strong>Post-bootstrap → link the anonymous session.</strong> Once <code>/auth/telegram</code> returns <code>{ jwt, user }</code>, call <code>posthog.identify(user.client_uuid, { locale: user.locale })</code>. PostHog's built-in aliasing merges the anonymous session into the identified one — the pre-bootstrap <code>app_opened</code> row now attributes to the real user in dashboards.</div></li>
+        </ol>
+        <p><strong>Never send</strong> <code>telegram_user_id</code>, <code>telegram_username</code>, or <code>first_name</code> as event properties or as the <code>distinct_id</code>. The Telegram-side identifiers stay server-side in <code>telegram_users</code>; PostHog only ever sees the internal UUID.</p>
+      </section>
+
+      <section aria-labelledby="events-h">
+        <h2 id="events-h">Events</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Event</th>
+                <th scope="col">Fires when</th>
+                <th scope="col">Properties</th>
+                <th scope="col">Funnel</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>app_opened</code></td>
+                <td>WebApp is mounted (once per session). Fires <em>before</em> first API call.</td>
+                <td><code>launch_source</code>: <code>bot_button</code> · <code>deep_link</code> · <code>direct</code><br><code>tg_platform</code>: <code>ios</code> · <code>android</code> · <code>tdesktop</code> · <code>weba</code><br><code>language</code>: <code>ru</code> · <code>en</code></td>
+                <td>Retention · daily-active</td>
+              </tr>
+              <tr>
+                <td><code>screen_viewed</code></td>
+                <td>Route change lands, screen paints. Debounced 500 ms to avoid double-counting fast back/forward.</td>
+                <td><code>screen</code>: one of the 9 screen names<br><code>via</code>: <code>tap</code> · <code>back</code> · <code>deep_link</code> · <code>swipe</code></td>
+                <td>Screen-funnel</td>
+              </tr>
+              <tr>
+                <td><code>review_completed</code></td>
+                <td>User grades a card in Focus (any grade — Again / Hard / Good / Easy).</td>
+                <td><code>tag</code>: <code>easy</code> · <code>hard</code> · <code>forgot</code><br><code>via</code>: <code>focus_grade</code> · <code>swipe</code><br><code>reveal_ms</code>: time between card show and grade tap (int)</td>
+                <td>Daily-loop primary</td>
+              </tr>
+              <tr>
+                <td><code>review_snoozed</code></td>
+                <td>User taps «Not today» on a due card (swipe-left).</td>
+                <td><code>screen</code>: <code>today</code> · <code>focus</code></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>focus_session_started</code></td>
+                <td>User enters Focus with ≥ 1 card queued.</td>
+                <td><code>queue_length</code>: int</td>
+                <td>Focus-funnel start</td>
+              </tr>
+              <tr>
+                <td><code>focus_session_ended</code></td>
+                <td>User exits Focus (via back, via empty queue, via close).</td>
+                <td><code>reason</code>: <code>completed</code> · <code>exited</code> · <code>backgrounded</code><br><code>reviews_count</code>: int<br><code>duration_ms</code>: int</td>
+                <td>Focus-funnel end</td>
+              </tr>
+              <tr>
+                <td><code>error_logged</code></td>
+                <td>User submits an error-log entry (from Errors screen or from Focus grade-Again).</td>
+                <td><code>from_screen</code>: <code>errors</code> · <code>focus</code><br><code>has_source_conspectus</code>: bool</td>
+                <td>Reflection-funnel</td>
+              </tr>
+              <tr>
+                <td><code>streak_broken</code></td>
+                <td>Fires the first time the user opens the app after their streak breaks. Deduplicated per streak.</td>
+                <td><code>previous_streak</code>: int<br><code>days_missed</code>: int</td>
+                <td>Retention-alert</td>
+              </tr>
+              <tr>
+                <td><code>streak_milestone</code></td>
+                <td>Streak crosses 7, 30, 100, 365. Fires once per milestone per streak.</td>
+                <td><code>days</code>: <code>7</code> · <code>30</code> · <code>100</code> · <code>365</code></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>search_opened</code></td>
+                <td>User opens the search overlay (Cmd+K or pull-down).</td>
+                <td><code>via</code>: <code>cmd_k</code> · <code>pull_down</code> · <code>route</code></td>
+                <td>Search-funnel start</td>
+              </tr>
+              <tr>
+                <td><code>search_result_picked</code></td>
+                <td>User picks a result from the search overlay.</td>
+                <td><code>rank</code>: int (0-indexed)<br><code>query_length</code>: int</td>
+                <td>Search-funnel end</td>
+              </tr>
+              <tr>
+                <td><code>command_ran</code></td>
+                <td>User picks a Telegram-chrome button (Main / Back / Settings).</td>
+                <td><code>button</code>: <code>main</code> · <code>back</code> · <code>settings</code><br><code>screen</code>: current screen</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="funnels-h">
+        <h2 id="funnels-h">Funnels defined by this spec</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead>
+              <tr>
+                <th scope="col">Funnel</th>
+                <th scope="col">Steps</th>
+                <th scope="col">Watched for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Daily-loop primary</td><td><code>app_opened</code> → <code>screen_viewed(today)</code> → <code>focus_session_started</code> → ≥ 1 × <code>review_completed</code></td><td>«Do users actually review?»</td></tr>
+              <tr><td>Focus-funnel</td><td><code>focus_session_started</code> → <code>focus_session_ended(reason=completed)</code></td><td>Completion rate</td></tr>
+              <tr><td>Reflection-funnel</td><td><code>review_completed(tag=forgot|hard)</code> → <code>error_logged</code></td><td>«Do struggles get logged?»</td></tr>
+              <tr><td>Search-funnel</td><td><code>search_opened</code> → <code>search_result_picked</code></td><td>Search abandonment rate</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="lifecycle-h">
+        <h2 id="lifecycle-h">Event lifecycle</h2>
+        <p>Adding, deprecating, and removing an event follows the same three-step rule as an API change:</p>
+        <ol class="numbered-step-list">
+          <li><div><strong>Add:</strong> row in this table → PostHog project has the event registered (property types validated) → code emits it → PR merges.</div></li>
+          <li><div><strong>Deprecate:</strong> mark row with <em>deprecated 2026-MM-DD</em> in the «Fires when» column; keep emitting for 30 days so dashboards migrate.</div></li>
+          <li><div><strong>Remove:</strong> after the deprecation window, delete the row and the emit site. Grep for orphans first.</div></li>
+        </ol>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-23</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">T-26d · vocabulary is now wired. Typed emitters landed at <a href="../../../../../telegram/src/shared/observability/events.ts"><code>src/shared/observability/events.ts</code></a> — one per row in the table above; <a href="observability.html">Observability</a> names every callsite. Real events firing today: <code>app_opened</code>, <code>review_completed</code>, <code>focus_session_started</code> / <code>_ended</code> (happy path), <code>error_logged</code>, <code>search_opened</code>. Identify hook active: post-<code>/auth/telegram</code>, the anonymous session is aliased into <code>identify(client_uuid, {locale})</code> per the identity subsection below.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-19</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Added an «Identity model» subsection. Under W1's multi-user JWT flow every session has a verified <code>users.client_uuid</code> that PostHog can attribute to — but <code>app_opened</code> fires <em>before</em> the auth bootstrap returns, so events start on an anonymous <code>distinct_id</code> and get merged when <code>identify(client_uuid)</code> is called post-bootstrap. Also pinned the «never send Telegram-side identifiers» invariant (<code>telegram_user_id</code> / <code>telegram_username</code> / <code>first_name</code> stay server-side in <code>telegram_users</code>). T-26 (PostHog + Sentry ship) will implement this exactly as spelled out here.</span>
+        </li>
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-15</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Event spec created. 12 events, 4 funnels, naming + PII conventions, three-step add/deprecate/remove lifecycle.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#conventions-h">Conventions</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#identity-h">Identity model</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#events-h">Events</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#funnels-h">Funnels</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#lifecycle-h">Event lifecycle</a></li>    </ol>
+    </aside>
+    <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+    <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+  </body></html>

@@ -1,6 +1,41 @@
 {
   "components": {
     "schemas": {
+      "Achievement": {
+        "description": "One achievement with its unlock state and progress toward the target.\n\nKeys are a closed enum-like set the client maps to icon + copy:\n``first_review`` \u00b7 ``streak_7`` \u00b7 ``streak_30`` \u00b7 ``reviews_100`` \u00b7\n``notes_10`` \u00b7 ``noticer_10`` \u00b7 ``perfect_day`` \u00b7 ``comeback`` \u00b7\n``early_bird`` \u00b7 ``night_owl`` \u00b7 ``mastery_50`` \u00b7 ``reviews_500``.\nThe set is additive-only; clients must ignore unknown keys.",
+        "properties": {
+          "key": {
+            "description": "Stable achievement identifier the client maps to icon + copy.",
+            "title": "Key",
+            "type": "string"
+          },
+          "progress": {
+            "description": "Current progress, clamped to `target`.",
+            "minimum": 0.0,
+            "title": "Progress",
+            "type": "integer"
+          },
+          "target": {
+            "description": "Threshold that unlocks the achievement.",
+            "minimum": 1.0,
+            "title": "Target",
+            "type": "integer"
+          },
+          "unlocked": {
+            "description": "True once progress reached the target.",
+            "title": "Unlocked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "unlocked",
+          "progress",
+          "target"
+        ],
+        "title": "Achievement",
+        "type": "object"
+      },
       "ApiErrorResponse": {
         "description": "Standard error ``detail`` object for 4xx/5xx business and security failures.\n\nAttributes:\n    code: Project-wide stable error code.\n    key: Machine-readable key for clients.\n    message: Human-readable English message.\n    source: Origin layer (e.g. ``business``, ``security``).",
         "properties": {
@@ -761,6 +796,36 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HistoryDay": {
+        "description": "One day's review count on the 90-day heat-map.",
+        "properties": {
+          "count": {
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "date": {
+            "description": "UTC calendar day this bucket covers.",
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "intensity": {
+            "description": "Bucketed density 0..4 for heat-map cells.",
+            "maximum": 4.0,
+            "minimum": 0.0,
+            "title": "Intensity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "count",
+          "intensity"
+        ],
+        "title": "HistoryDay",
+        "type": "object"
+      },
       "LiveResponse": {
         "description": "``GET /live`` \u2014 process up signal without dependency checks.\n\nAttributes:\n    status: Fixed literal ``alive`` for a healthy process.\n    app_env: Active ``APP_ENV`` profile (``dev``, ``qa``, ``prod``).",
         "properties": {
@@ -787,6 +852,76 @@
           "app_env"
         ],
         "title": "LiveResponse",
+        "type": "object"
+      },
+      "MeAchievementsResponse": {
+        "description": "Payload for ``GET /api/v1/me/achievements`` \u2014 Profile screen chips.\n\nComputed on read from review logs / conspectuses / miss log \u2014 no\nunlock timestamps are persisted, so the set is always consistent with\nthe underlying data (a wiped dev account loses its badges too).",
+        "properties": {
+          "computed_at": {
+            "description": "Server clock at read time (UTC).",
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Achievement"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "computed_at"
+        ],
+        "title": "MeAchievementsResponse",
+        "type": "object"
+      },
+      "MeStatsResponse": {
+        "description": "Payload for ``GET /api/v1/me/stats`` \u2014 Today screen streak orb.",
+        "properties": {
+          "computed_at": {
+            "description": "Server clock at read time (UTC).",
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "streak": {
+            "$ref": "#/components/schemas/StreakStats"
+          }
+        },
+        "required": [
+          "streak",
+          "computed_at"
+        ],
+        "title": "MeStatsResponse",
+        "type": "object"
+      },
+      "MeYesterdayResponse": {
+        "description": "Payload for ``GET /api/v1/me/yesterday``.",
+        "properties": {
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "date": {
+            "description": "The UTC calendar day the digest covers.",
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "yesterday": {
+            "$ref": "#/components/schemas/YesterdayDigest"
+          }
+        },
+        "required": [
+          "yesterday",
+          "date",
+          "computed_at"
+        ],
+        "title": "MeYesterdayResponse",
         "type": "object"
       },
       "ReadyResponse": {
@@ -825,6 +960,29 @@
           }
         },
         "title": "ReadyResponse",
+        "type": "object"
+      },
+      "ScheduleHistoryResponse": {
+        "description": "Payload for ``GET /api/v1/schedule/history``.",
+        "properties": {
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryDay"
+            },
+            "title": "Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "days",
+          "computed_at"
+        ],
+        "title": "ScheduleHistoryResponse",
         "type": "object"
       },
       "SchedulePreviewItem": {
@@ -988,6 +1146,147 @@
         "title": "ScheduleSummarySlotCounts",
         "type": "object"
       },
+      "StreakStats": {
+        "description": "Current + longest streak of consecutive days with at least one review.",
+        "properties": {
+          "current_days": {
+            "description": "Consecutive days ending today or yesterday.",
+            "minimum": 0.0,
+            "title": "Current Days",
+            "type": "integer"
+          },
+          "goal_days": {
+            "default": 30,
+            "description": "Next milestone (30-day default).",
+            "minimum": 1.0,
+            "title": "Goal Days",
+            "type": "integer"
+          },
+          "longest_days": {
+            "description": "Longest streak on record for this learner.",
+            "minimum": 0.0,
+            "title": "Longest Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "current_days",
+          "longest_days"
+        ],
+        "title": "StreakStats",
+        "type": "object"
+      },
+      "TelegramAuthRequest": {
+        "description": "Request body for ``POST /api/v1/auth/telegram``.",
+        "properties": {
+          "init_data": {
+            "description": "Raw `window.Telegram.WebApp.initData` string. Server verifies its HMAC signature against `TELEGRAM_BOT_TOKEN`.",
+            "maxLength": 8192,
+            "minLength": 1,
+            "title": "Init Data",
+            "type": "string"
+          }
+        },
+        "required": [
+          "init_data"
+        ],
+        "title": "TelegramAuthRequest",
+        "type": "object"
+      },
+      "TelegramAuthResponse": {
+        "description": "Response body for ``POST /api/v1/auth/telegram``.",
+        "properties": {
+          "expires_at_epoch": {
+            "description": "Unix seconds when the JWT stops verifying.",
+            "title": "Expires At Epoch",
+            "type": "integer"
+          },
+          "jwt": {
+            "description": "24 h HS256 JWT signed with `JWT_SECRET`.",
+            "title": "Jwt",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "Bearer",
+            "description": "Always `Bearer` (RFC 6750).",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/TelegramAuthUser"
+          }
+        },
+        "required": [
+          "jwt",
+          "expires_at_epoch",
+          "user"
+        ],
+        "title": "TelegramAuthResponse",
+        "type": "object"
+      },
+      "TelegramAuthUser": {
+        "description": "Trusted user block returned alongside the JWT.\n\nValues come from Telegram's ``initData.user`` payload, joined with the\nidentity row persisted in ``telegram_users``.",
+        "properties": {
+          "client_uuid": {
+            "description": "Internal `users.client_uuid`, used as JWT `sub`.",
+            "title": "Client Uuid",
+            "type": "string"
+          },
+          "full_name": {
+            "description": "Concatenated first+last name mirrored on `users`.",
+            "title": "Full Name",
+            "type": "string"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "BCP-47 language code from `initData.user.language_code`.",
+            "title": "Locale"
+          },
+          "telegram_photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Avatar URL from `initData`, if present.",
+            "title": "Telegram Photo Url"
+          },
+          "telegram_user_id": {
+            "description": "Telegram's numeric user id (int64).",
+            "title": "Telegram User Id",
+            "type": "integer"
+          },
+          "telegram_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Public `@handle`, if the account has one.",
+            "title": "Telegram Username"
+          }
+        },
+        "required": [
+          "client_uuid",
+          "telegram_user_id",
+          "full_name"
+        ],
+        "title": "TelegramAuthUser",
+        "type": "object"
+      },
       "UserCreateRequest": {
         "description": "JSON body for ``POST /api/v1/user`` (validated before idempotency and service layer).\n\n``system_user_id`` and ``system_uuid`` form the composite natural key (DB unique constraint).\nField-level rules, OpenAPI examples, and timezone validation live on the ``Field``\ndefinitions and :data:`app.schemas.enums.TimezoneField`.",
         "properties": {
@@ -1087,7 +1386,7 @@
         "type": "object"
       },
       "UserCreateResponse": {
-        "description": "User resource returned by create (201), get (200), update (200), and patch (200); maps ORM :class:`~app.models.core.user.User`.\n\nAttributes:\n    client_uuid: Internal client identifier (UUID string).\n    created_at: Row creation timestamp (timezone-aware).\n    updated_at: Last update timestamp (timezone-aware).\n    is_row_invalid: Soft-invalidation flag (0 or 1).\n    invalidation_reason_uuid: FK to invalidation reason, if set.\n    system_user_id: External system user id when present.\n    system_uuid: Related system UUID when present.\n    username: Optional display username.\n    full_name: Required full name.\n    timezone: IANA timezone string stored for the user.",
+        "description": "User resource returned by create (201), get (200), update (200), and patch (200); maps ORM :class:`~app.models.core.user.User`.\n\nAttributes:\n    client_uuid: Internal client identifier (UUID string).\n    created_at: Row creation timestamp (timezone-aware).\n    updated_at: Last update timestamp (timezone-aware).\n    is_row_invalid: Soft-invalidation flag (0 or 1).\n    invalidation_reason_uuid: FK to invalidation reason, if set.\n    system_user_id: External system user id when present.\n    system_uuid: Related system UUID when present.\n    username: Optional display username.\n    full_name: Required full name.\n    timezone: IANA timezone string stored for the user.\n    reminder_enabled: Daily reminder toggle (0/1).\n    reminder_at: Daily reminder wall-clock time 'HH:MM' in the user's timezone.",
         "properties": {
           "client_uuid": {
             "title": "Client Uuid",
@@ -1115,6 +1414,14 @@
           },
           "is_row_invalid": {
             "title": "Is Row Invalid",
+            "type": "integer"
+          },
+          "reminder_at": {
+            "title": "Reminder At",
+            "type": "string"
+          },
+          "reminder_enabled": {
+            "title": "Reminder Enabled",
             "type": "integer"
           },
           "system_user_id": {
@@ -1170,7 +1477,9 @@
           "system_uuid",
           "username",
           "full_name",
-          "timezone"
+          "timezone",
+          "reminder_enabled",
+          "reminder_at"
         ],
         "title": "UserCreateResponse",
         "type": "object"
@@ -1229,6 +1538,39 @@
               1
             ],
             "title": "Is Row Invalid"
+          },
+          "reminder_at": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Daily reminder wall-clock time 'HH:MM' in the user's timezone; omit to leave unchanged.",
+            "examples": [
+              "09:00"
+            ],
+            "title": "Reminder At"
+          },
+          "reminder_enabled": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Daily reminder toggle (0/1); omit to leave unchanged.",
+            "examples": [
+              1
+            ],
+            "title": "Reminder Enabled"
           },
           "system_uuid": {
             "anyOf": [
@@ -1495,6 +1837,44 @@
         ],
         "title": "ValidationErrorResponse",
         "type": "object"
+      },
+      "YesterdayDigest": {
+        "description": "Recap of the previous day's review activity.",
+        "properties": {
+          "accuracy_pct": {
+            "description": "Share of ``easy`` reviews vs. total, rounded to a %.",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Accuracy Pct",
+            "type": "integer"
+          },
+          "missed": {
+            "description": "Target minus reviewed, floored at 0.",
+            "minimum": 0.0,
+            "title": "Missed",
+            "type": "integer"
+          },
+          "reviewed": {
+            "description": "Reviews that landed yesterday.",
+            "minimum": 0.0,
+            "title": "Reviewed",
+            "type": "integer"
+          },
+          "target": {
+            "description": "Reviews scheduled for yesterday (reviewed + still-due).",
+            "minimum": 0.0,
+            "title": "Target",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reviewed",
+          "target",
+          "accuracy_pct",
+          "missed"
+        ],
+        "title": "YesterdayDigest",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1502,6 +1882,18 @@
         "in": "header",
         "name": "X-API-Key",
         "type": "apiKey"
+      },
+      "X-API-Key": {
+        "description": "Legacy internal-tools credential; the Mini App uses the `bearerAuth` scheme above.",
+        "in": "header",
+        "name": "X-API-Key",
+        "type": "apiKey"
+      },
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "24 h HS256 JWT minted at `POST /api/v1/auth/telegram` after verifying Telegram Mini App `initData`. Use as `Authorization: Bearer <jwt>` on every subsequent call.",
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
@@ -1512,6 +1904,113 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/auth/telegram": {
+      "post": {
+        "description": "Verifies the HMAC signature of `initData` against `TELEGRAM_BOT_TOKEN`, upserts the caller's identity in `users` + `telegram_users`, and returns a signed JWT for use as `Authorization: Bearer <jwt>` on every subsequent `/api/v1/*` call. Anonymous endpoint \u2014 the Bearer middleware exempts it.",
+        "operationId": "signInWithTelegramInitData",
+        "parameters": [
+          {
+            "description": "Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramAuthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramAuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "initData is missing, tampered, or older than the freshness window.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "missing_init_data": {
+                    "summary": "Missing `init_data` field",
+                    "value": {
+                      "endpoint": "POST /api/v1/auth/telegram",
+                      "error_type": "validation_error",
+                      "errors": [
+                        {
+                          "code": "COMMON_422",
+                          "details": {
+                            "input": {},
+                            "loc": [
+                              "body",
+                              "init_data"
+                            ],
+                            "type": "missing"
+                          },
+                          "field": "init_data",
+                          "key": "PERSISTENCE_INTEGRITY_VIOLATION",
+                          "message": "Request violates a database constraint (foreign key, uniqueness, or check).",
+                          "source": "validation"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "Request body did not match the expected shape.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Exchange Telegram initData for a 24 h Bearer JWT",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/conspectuses": {
       "get": {
         "description": "GET /conspectuses with keyset cursor pagination.",
@@ -1776,7 +2275,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "List conspectuses (newest first, cursor-paginated)",
@@ -2192,7 +2694,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Create a conspectus",
@@ -2414,7 +2919,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "List conspectuses due for review (bounded top-100)",
@@ -2741,7 +3249,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Soft-delete a conspectus (returns the updated row)",
@@ -2928,7 +3439,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Get one conspectus by uuid",
@@ -3279,7 +3793,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Update conspectus content (at least one ETR field)",
@@ -3677,7 +4194,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Apply a review outcome and advance the schedule",
@@ -3926,7 +4446,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Get an ordered audit trail for a conspectus",
@@ -4132,7 +4655,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "List learner error records",
@@ -4539,12 +5065,755 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Append a learner error record",
         "tags": [
           "Error log"
+        ]
+      }
+    },
+    "/api/v1/me/achievements": {
+      "get": {
+        "description": "Derives every achievement on read \u2014 no persisted unlock rows, so the badges can never disagree with the data behind them. Inputs: per-day review counts (streaks), all-time review count, active conspectus count, miss-log count.\n\nKeys (closed set the client maps to icon + copy):\n\n| key | target | progress source |\n|---|---|---|\n| `first_review` | 1 | total reviews |\n| `streak_7` | 7 | longest streak (days) |\n| `streak_30` | 30 | longest streak (days) |\n| `reviews_100` | 100 | total reviews |\n| `notes_10` | 10 | active conspectuses |\n| `noticer_10` | 10 | logged misses |\n| `perfect_day` | 1 | any day with \u22655 reviews and zero \u00abforgot\u00bb |\n| `comeback` | 1 | an active day \u22657 days after the previous one |\n| `early_bird` | 1 | any review before 08:00 local (user timezone) |\n| `night_owl` | 1 | any review at/after 23:00 local (user timezone) |\n| `mastery_50` | 50 | reviews tagged `easy` |\n| `reviews_500` | 500 | total reviews |\n\nStreak achievements use the LONGEST streak \u2014 once earned, a badge does not un-earn itself when the current streak breaks. Binary badges report target 1 with progress 0/1. `progress` is clamped to `target`. Clients must ignore unknown keys (the set is additive-only).",
+        "operationId": "getMeAchievements",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "system_user_id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "minLength": 1,
+              "title": "System User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "system_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "System Uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeAchievementsResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_required": {
+                    "summary": "Auth header required",
+                    "value": {
+                      "code": "COMMON_401",
+                      "key": "SECURITY_AUTH_REQUIRED",
+                      "message": "Missing or invalid API key in header `X-API-Key`.",
+                      "source": "security"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key header.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "User not found for the composite key.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rate_limit_exceeded": {
+                    "summary": "Too many requests",
+                    "value": {
+                      "code": "COMMON_429",
+                      "key": "SECURITY_RATE_LIMIT_EXCEEDED",
+                      "message": "Too many requests. Retry later.",
+                      "source": "security"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Per-client request rate limit exceeded.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until request can be retried.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Rate-limit ceiling for current window.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in current window.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
+          }
+        ],
+        "summary": "Achievement set computed from the learner's own data.",
+        "tags": [
+          "Me"
+        ]
+      }
+    },
+    "/api/v1/me/stats": {
+      "get": {
+        "description": "Reads `conspectus_review_logs` grouped by UTC calendar date. The current streak is alive today (or yesterday \u2014 24 h grace) and counts back while every prior day carries \u22651 review. Longest streak is the largest such run on record. `goal_days` is a fixed 30-day milestone.\n\nEquivalent raw SQL for one learner:\n\n```sql\n-- Per-day review counts (base fact used by both current + longest):\nSELECT DATE(reviewed_at) AS day, COUNT(*) AS n\nFROM conspectus_review_logs\nWHERE owner_client_uuid = :owner\nGROUP BY 1\nORDER BY 1;\n\n-- Current streak: walk backwards from today (or yesterday if today is 0).\n-- Longest streak: largest gap-free consecutive-days run in the above set.\n```",
+        "operationId": "getMeStats",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "system_user_id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "minLength": 1,
+              "title": "System User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "system_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "System Uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeStatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_required": {
+                    "summary": "Auth header required",
+                    "value": {
+                      "code": "COMMON_401",
+                      "key": "SECURITY_AUTH_REQUIRED",
+                      "message": "Missing or invalid API key in header `X-API-Key`.",
+                      "source": "security"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key header.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "User not found for the composite key.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rate_limit_exceeded": {
+                    "summary": "Too many requests",
+                    "value": {
+                      "code": "COMMON_429",
+                      "key": "SECURITY_RATE_LIMIT_EXCEEDED",
+                      "message": "Too many requests. Retry later.",
+                      "source": "security"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Per-client request rate limit exceeded.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until request can be retried.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Rate-limit ceiling for current window.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in current window.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
+          }
+        ],
+        "summary": "Current + longest streak (consecutive review days).",
+        "tags": [
+          "Me"
+        ]
+      }
+    },
+    "/api/v1/me/yesterday": {
+      "get": {
+        "description": "Aggregates review activity for the previous UTC calendar day. `reviewed` = COUNT of review logs whose `reviewed_at` falls in yesterday's window. `target` = reviewed + still-due-from-yesterday (schedules whose `next_review_at` also fell into that window). `accuracy_pct` = share of `tag='easy'` reviews rounded to a percent.\n\nEquivalent raw SQL for one learner:\n\n```sql\nWITH y AS (\n  SELECT (CURRENT_DATE - INTERVAL '1 day')::date AS d\n),\nlog_bounds AS (\n  SELECT d::timestamptz AS start_ts,\n         (d + INTERVAL '1 day')::timestamptz AS end_ts FROM y\n)\nSELECT\n  (SELECT COUNT(*) FROM conspectus_review_logs, log_bounds\n     WHERE owner_client_uuid = :owner\n       AND reviewed_at >= start_ts AND reviewed_at < end_ts) AS reviewed,\n  (SELECT COUNT(*) FILTER (WHERE tag = 'easy')\n     FROM conspectus_review_logs, log_bounds\n     WHERE owner_client_uuid = :owner\n       AND reviewed_at >= start_ts AND reviewed_at < end_ts) AS easy_cnt,\n  (SELECT COUNT(*) FROM conspectus_schedules, log_bounds\n     WHERE owner_client_uuid = :owner AND is_row_invalid = 0\n       AND next_review_at >= start_ts\n       AND next_review_at <  end_ts) AS still_due_yesterday;\n-- target = reviewed + still_due_yesterday\n-- accuracy_pct = ROUND(easy_cnt * 100 / NULLIF(reviewed, 0))\n-- missed = GREATEST(0, target - reviewed)\n```",
+        "operationId": "getMeYesterday",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "system_user_id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "minLength": 1,
+              "title": "System User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "system_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "System Uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeYesterdayResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_required": {
+                    "summary": "Auth header required",
+                    "value": {
+                      "code": "COMMON_401",
+                      "key": "SECURITY_AUTH_REQUIRED",
+                      "message": "Missing or invalid API key in header `X-API-Key`.",
+                      "source": "security"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key header.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "User not found for the composite key.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rate_limit_exceeded": {
+                    "summary": "Too many requests",
+                    "value": {
+                      "code": "COMMON_429",
+                      "key": "SECURITY_RATE_LIMIT_EXCEEDED",
+                      "message": "Too many requests. Retry later.",
+                      "source": "security"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Per-client request rate limit exceeded.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until request can be retried.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Rate-limit ceiling for current window.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in current window.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
+          }
+        ],
+        "summary": "Recap of the previous UTC day (reviewed / target / accuracy).",
+        "tags": [
+          "Me"
+        ]
+      }
+    },
+    "/api/v1/schedule/history": {
+      "get": {
+        "description": "Returns one row per UTC calendar day for the last ``days`` days, filled with zeros for inactive days. Intensity 0..4 buckets the count for the Ember-tinted heat-map cells (0=none \u00b7 1 <3 \u00b7 2 <7 \u00b7 3 <12 \u00b7 4 \u226512).\n\nEquivalent raw SQL for one learner:\n\n```sql\nSELECT day::date AS day,\n       COALESCE(n, 0) AS count,\n       CASE\n         WHEN COALESCE(n, 0) = 0 THEN 0\n         WHEN n < 3  THEN 1\n         WHEN n < 7  THEN 2\n         WHEN n < 12 THEN 3\n         ELSE 4\n       END AS intensity\nFROM generate_series(CURRENT_DATE - (:days - 1), CURRENT_DATE, '1 day') AS day\nLEFT JOIN (\n  SELECT DATE(reviewed_at) AS day, COUNT(*) AS n\n  FROM conspectus_review_logs\n  WHERE owner_client_uuid = :owner\n  GROUP BY 1\n) logs USING (day)\nORDER BY day;\n```",
+        "operationId": "getScheduleHistory",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "system_user_id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "minLength": 1,
+              "title": "System User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "system_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "System Uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 90,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Optional correlation id. If you send **X-Request-Id**, the same value is returned in the response header and written to server logs as **request_id** (JSON logs / Elasticsearch). If omitted, the server generates a UUID.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "auth_required": {
+                    "summary": "Auth header required",
+                    "value": {
+                      "code": "COMMON_401",
+                      "key": "SECURITY_AUTH_REQUIRED",
+                      "message": "Missing or invalid API key in header `X-API-Key`.",
+                      "source": "security"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key header.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "User not found for the composite key.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rate_limit_exceeded": {
+                    "summary": "Too many requests",
+                    "value": {
+                      "code": "COMMON_429",
+                      "key": "SECURITY_RATE_LIMIT_EXCEEDED",
+                      "message": "Too many requests. Retry later.",
+                      "source": "security"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Per-client request rate limit exceeded.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until request can be retried.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Rate-limit ceiling for current window.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining requests in current window.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id for this HTTP request\u2014echo of **X-Request-Id** from the request or a server-generated UUID. Use it to match browser or Swagger calls to log lines and Kibana.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
+          }
+        ],
+        "summary": "Per-day review counts (Today heat-map data)",
+        "tags": [
+          "Schedule"
         ]
       }
     },
@@ -4850,7 +6119,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Evening-review lookahead batch",
@@ -5077,7 +6349,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Study-load summary counts",
@@ -5737,7 +7012,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Create user",
@@ -5929,7 +7207,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Get user by system_uuid and system_user_id",
@@ -6282,7 +7563,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Partially update user by system_uuid and system_user_id",
@@ -6630,7 +7914,10 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "bearerAuth": []
+          },
+          {
+            "X-API-Key": []
           }
         ],
         "summary": "Update user by system_uuid and system_user_id",
@@ -6674,6 +7961,7 @@
             }
           }
         },
+        "security": [],
         "summary": "Liveness probe",
         "tags": [
           "System"
@@ -6715,6 +8003,7 @@
             }
           }
         },
+        "security": [],
         "summary": "Readiness probe",
         "tags": [
           "System"
@@ -6726,6 +8015,10 @@
     {
       "description": "Operational endpoints (live/ready/metrics and platform metadata).",
       "name": "System"
+    },
+    {
+      "description": "Telegram Mini App sign-in: exchange the WebApp's signed `initData` for a 24 h Bearer JWT.",
+      "name": "Auth"
     },
     {
       "description": "User identity lifecycle endpoints with idempotency and contract-driven errors.",

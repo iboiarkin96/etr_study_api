@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>datastore · Data lifecycle — classification, retention, PII · Study App Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="datastore" data-lifecycle="published" data-updated="2026-07-14" data-role="sa">
+
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">datastore</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Data lifecycle</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions">
+      <button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <aside data-component="sidebar" data-nav-src="../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <div class="docs-chip-row">
+          <span class="docs-pill docs-pill--accent">Reference</span>
+          <span class="docs-pill docs-pill--warn">PII</span>
+          <span class="docs-pill docs-pill--neutral">Retention</span>
+        </div>
+        <h1>datastore · Data lifecycle — classification, retention, PII</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">What class of data each table holds, how long it lives, and where the honest gaps are. Companion to the <a href="schema.html">schema reference</a>: that page says what the columns are, this page says what we owe the people whose data sits in them.</p>
+      </header>
+
+      <h2 id="classes">Data classification</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Class</th><th>Definition</th><th>Where it lives</th></tr></thead>
+          <tbody>
+            <tr><td><strong>PII</strong></td><td>Identifies a natural person directly or in combination</td><td><code>users.full_name</code>, <code>users.username</code>, <code>users.system_user_id</code> (pseudonymous external id, e.g. a Telegram user id), <code>users.timezone</code> (coarse location signal); actor columns on <code>conspectus_events</code> / <code>conspectus_review_logs</code></td></tr>
+            <tr><td><strong>User content</strong></td><td>Learner-authored material — private by default, readable only by its owner</td><td><code>conspectuses</code> (title, cue_sheet, dense_paragraph, bullets), <code>learning_errors.message</code> (free text — learners may put anything here, treat as sensitive)</td></tr>
+            <tr><td><strong>Behavioural / audit</strong></td><td>Records of what the user did and when</td><td><code>conspectus_events</code>, <code>conspectus_review_logs</code>, review timing fields on <code>conspectus_schedules</code></td></tr>
+            <tr><td><strong>Infrastructure</strong></td><td>Operational plumbing that may embed copies of the classes above</td><td><code>idempotency_keys.response_body</code> stores the full serialized response — including user content and PII of the original write</td></tr>
+            <tr><td><strong>Reference</strong></td><td>Non-personal dictionaries</td><td><code>systems</code>, <code>invalidation_reasons</code>, <code>timezones</code>, <code>schedule_policies</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <aside class="docs-callout docs-callout--warn" role="note">
+        <p><strong>The least obvious PII surface is <code>idempotency_keys.response_body</code>.</strong> It replays whole responses, so it inherits the classification of whatever the endpoint returned. Its 24-hour TTL is therefore a privacy control, not only a storage control — cleanup must stay reliable.</p>
+      </aside>
+
+      <h2 id="retention">Retention rules</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table docs-table--zebra docs-table--sticky-head">
+          <thead><tr><th>Data</th><th>Retention today</th><th>Mechanism</th></tr></thead>
+          <tbody>
+            <tr><td><code>idempotency_keys</code></td><td>24 h from <code>created_at</code></td><td>Rows past TTL are eligible for the cleanup job; replay window contract in <a href="../api/reference/_shared/idempotency.html">idempotency conventions</a></td></tr>
+            <tr><td>User content + schedules</td><td>Until the owner deletes; soft delete keeps the row with <code>is_row_invalid=1</code></td><td>Soft-delete convention (<a href="schema.html#conventions">schema reference</a>); no automated purge of soft-deleted rows yet</td></tr>
+            <tr><td>Audit logs</td><td>Indefinite</td><td>Append-only by design; no retention ceiling defined yet</td></tr>
+            <tr><td>Reference tables</td><td>Indefinite</td><td>Non-personal; no constraint</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="gaps">Honest gaps — known, owned, not yet closed</h2>
+      <ol>
+        <li><strong>No hard-erasure path.</strong> Soft delete hides rows from the API but the bytes stay. A "delete my data" request today would be a manual SQL operation touching <code>users</code>, content tables, audit logs and any live <code>idempotency_keys</code> rows. Before real third-party users arrive, this needs a designed erasure procedure (and a decision on whether audit rows are anonymised or removed).</li>
+        <li><strong>No purge job for soft-deleted rows.</strong> <code>is_row_invalid=1</code> rows accumulate indefinitely; a retention ceiling (e.g. purge N days after <code>invalidated_at</code>) is undefined.</li>
+        <li><strong>No backup automation.</strong> The <code>./var/postgres/</code> volume is the only copy; encrypted <code>pg_basebackup</code> + restore drills are the open follow-ups named in <a href="../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a>. Until a restore has actually been rehearsed, "we have the data" is a claim, not a fact.</li>
+        <li><strong>No audit-log retention ceiling.</strong> Indefinite behavioural history is a liability as much as an asset; a ceiling (or aggregation-after-N-months rule) should be decided deliberately, not by default.</li>
+      </ol>
+      <p>Each gap above is a candidate backlog item; the point of this page is that the gaps are written down where a reviewer will find them, instead of being discovered during the first deletion request.</p>
+
+      <aside class="docs-card docs-card--gradient docs-card--mt-6">
+        <h3 class="docs-card__title">What to read next</h3>
+        <ul>
+          <li><a href="schema.html">Schema reference</a> — the tables these rules govern.</li>
+          <li><a href="../../handbook/security/threat-model.html">Threat model</a> — STRIDE view of the same storage, including the backup-disclosure row.</li>
+          <li><a href="../../governance/adr/0037-postgres-runtime-database.html">ADR 0037</a> — the storage decision and its operational follow-ups.</li>
+        </ul>
+      </aside>
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-14</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note">Created. First explicit data classification (PII / user content / audit / infrastructure / reference), retention table, and the four honest lifecycle gaps — including the non-obvious PII surface in idempotency_keys.response_body.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#classes">Classification</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#retention">Retention</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#gaps">Honest gaps</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>
