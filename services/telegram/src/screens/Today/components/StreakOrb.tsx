@@ -6,7 +6,11 @@
  * OpenAPI schema so no adapter layer is needed).
  *
  * State machine (per screens.html § ed-states):
- *   * `celebrate` — every 30-day milestone → single pulse + ring halo.
+ *   * `celebrate` — a named milestone day (7 / 30 / 100 / 365 → single
+ *                    pulse + ring halo. The auditory / haptic / toast
+ *                    part of the celebration is fired once per new
+ *                    milestone by `useStreakMilestone` in Today; this
+ *                    state is only the visual on the orb itself.
  *   * `rested`    — zero due today → cool sage twin of the orb.
  *   * `warm`      — default habit state.
  */
@@ -24,8 +28,13 @@ type Props = {
   size?: 'sm' | 'md' | 'lg';
 };
 
+/** Named milestones — mirrored in `useStreakMilestone.MILESTONES`.
+ * When you add / remove one here, update the hook too so the visual
+ * and the toast + haptic + event fire on the same days. */
+const MILESTONE_DAYS = new Set([7, 30, 100, 365]);
+
 function resolveState(data: StreakStats, dueToday: number): 'warm' | 'rested' | 'celebrate' {
-  if (data.current_days > 0 && data.current_days % 30 === 0) return 'celebrate';
+  if (MILESTONE_DAYS.has(data.current_days)) return 'celebrate';
   if (dueToday === 0) return 'rested';
   return 'warm';
 }

@@ -39,6 +39,7 @@ import { useMeYesterday } from './hooks/useMeYesterday';
 import { useReviewConspectus } from './hooks/useReviewConspectus';
 import { useScheduleHistory } from './hooks/useScheduleHistory';
 import { useScheduleSummary } from './hooks/useScheduleSummary';
+import { useStreakMilestone } from './hooks/useStreakMilestone';
 
 export function Today() {
   const { t } = useTranslation();
@@ -50,6 +51,12 @@ export function Today() {
   const yesterday = useMeYesterday();
   const history = useScheduleHistory(90);
   const review = useReviewConspectus();
+
+  // Fire the streak-milestone celebration (toast + haptic + event) once
+  // per new named day. Idempotent per-device via CloudStorage. The orb's
+  // visual `data-state='celebrate'` is unrelated — that stays declarative
+  // in StreakOrb.resolveState. See T-26c.
+  useStreakMilestone(stats.data?.streak.current_days);
 
   // Native SDK chrome (T-25d): Telegram-drawn Settings gear in the header
   // deep-links to Profile; MainButton at the bottom carries the primary
