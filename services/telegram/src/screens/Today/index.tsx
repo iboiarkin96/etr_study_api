@@ -188,6 +188,42 @@ export function Today() {
           </button>
           <button
             type="button"
+            onClick={() => void navigate({ to: '/encode' })}
+            aria-label={t('today.newNote')}
+            title={t('today.newNote')}
+            style={{
+              appearance: 'none',
+              border: 'none',
+              background: 'color-mix(in oklab, var(--tma-tone-accent) 14%, transparent)',
+              color: 'var(--tma-tone-accent)',
+              padding: 'var(--tma-sp-2)',
+              borderRadius: 'var(--tma-rad-full)',
+              cursor: 'pointer',
+              minWidth: 40,
+              minHeight: 40,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'var(--tma-fw-semi)',
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 2v12M2 8h12"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
             onClick={() => void navigate({ to: '/me' })}
             aria-label={t('today.openProfile')}
             style={{
@@ -259,19 +295,18 @@ export function Today() {
                 <ErrorInline label={t('today.error.streak')} onRetry={() => stats.refetch()} />
               </div>
             )}
-            {yesterday.data && (
-              <Assemble order={1}>
-                <YesterdayDigest data={yesterday.data.yesterday} />
-              </Assemble>
-            )}
-            {yesterday.isError && (
-              <div style={{ padding: '0 var(--tma-sp-4)' }}>
-                <ErrorInline
-                  label={t('today.error.yesterday')}
-                  onRetry={() => yesterday.refetch()}
-                />
-              </div>
-            )}
+            <Assemble order={1}>
+              {yesterday.isPending && <YesterdayDigestSkeleton />}
+              {yesterday.isError && (
+                <div style={{ padding: '0 var(--tma-sp-4)' }}>
+                  <ErrorInline
+                    label={t('today.error.yesterday')}
+                    onRetry={() => yesterday.refetch()}
+                  />
+                </div>
+              )}
+              {yesterday.data && <YesterdayDigest data={yesterday.data.yesterday} />}
+            </Assemble>
 
             {/* Weekly miss peek — quiet 1-line pill under YesterdayDigest.
              * Renders only when at least one miss has been logged in the
@@ -358,12 +393,21 @@ export function Today() {
             </section>
             </Assemble>
 
-            {history.data && (
-              <Assemble order={6}>
-                {/* Tapping the heat-map opens the dedicated /schedule surface —
+            <Assemble order={6}>
+              {history.isPending && <HeatmapSkeleton />}
+              {history.isError && (
+                <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
+                  <ErrorInline
+                    label={t('today.error.history')}
+                    onRetry={() => history.refetch()}
+                  />
+                </div>
+              )}
+              {history.data && (
+                /* Tapping the heat-map opens the dedicated /schedule surface —
                  * the same 90-day window at full width, with the summary strip
                  * up top and screen-level empty state. The link wraps the whole
-                 * block so it reads as a single tap-target for screen readers. */}
+                 * block so it reads as a single tap-target for screen readers. */
                 <Link
                   to="/schedule"
                   style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
@@ -371,20 +415,12 @@ export function Today() {
                 >
                   <HeatmapCalendar data={history.data.days} />
                 </Link>
-              </Assemble>
-            )}
+              )}
+            </Assemble>
             {recentlyReviewed.length > 0 && (
               <Assemble order={7}>
                 <RecentlyReviewedPeek items={recentlyReviewed} />
               </Assemble>
-            )}
-            {history.isError && (
-              <div style={{ padding: '0 var(--tma-sp-4)', marginTop: 'var(--tma-sp-4)' }}>
-                <ErrorInline
-                  label={t('today.error.history')}
-                  onRetry={() => history.refetch()}
-                />
-              </div>
             )}
         </>
       </div>
@@ -414,6 +450,45 @@ function OrbSlotPlaceholder() {
         }}
       />
     </div>
+  );
+}
+
+/** Reserves the yesterday-digest strip's footprint (single 44 px pill on a
+ * plate) so the block below doesn't jump 44+16 px when /me/yesterday
+ * settles. Same visual weight as the real digest — plate background at
+ * 60 % opacity, matching corner radius, matching horizontal margins. */
+function YesterdayDigestSkeleton() {
+  return (
+    <div
+      aria-label="Yesterday loading"
+      style={{
+        margin: '0 var(--tma-sp-4) var(--tma-sp-4)',
+        height: 52,
+        borderRadius: 'var(--tma-rad-3)',
+        background: 'var(--tma-surface-plate)',
+        opacity: 0.6,
+      }}
+    />
+  );
+}
+
+/** Reserves the heat-map's footprint (calendar grid + legend + stats,
+ * roughly 220 px on Today) so the tap-target for /schedule doesn't
+ * pop into existence 350 ms after the rest of Today has settled. Same
+ * shape used by Schedule's own HeatmapSkeleton. */
+function HeatmapSkeleton() {
+  return (
+    <div
+      aria-label="Heat-map loading"
+      style={{
+        margin: 'var(--tma-sp-4)',
+        padding: 'var(--tma-sp-5)',
+        borderRadius: 'var(--tma-rad-3)',
+        background: 'var(--tma-surface-plate)',
+        opacity: 0.6,
+        height: 220,
+      }}
+    />
   );
 }
 
