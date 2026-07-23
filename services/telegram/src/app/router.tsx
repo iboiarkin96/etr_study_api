@@ -6,6 +6,7 @@
  *   * `/conspectus/$conspectus_uuid` — Conspectus detail (T-17)
  *   * `/focus` — Focus (T-18)
  *   * `/schedule` — Schedule (T-19)
+ *   * `/encode` — Encode composer (new conspectus authoring surface)
  *   * `/errors` — Errors miss log (T-20)
  *   * `/me` — Profile (T-23)
  *   * `/onboarding` — First-run flow (T-24)
@@ -19,10 +20,16 @@ import {
   createRouter,
   Outlet,
   RouterProvider,
+  useRouter,
+  type ErrorComponentProps,
 } from '@tanstack/react-router';
+import { useEffect } from 'react';
 
+import { captureError } from '../shared/observability';
+import { BoundaryFallback } from './BoundaryFallback';
 import { ConspectusDetail } from '../screens/ConspectusDetail';
 import { DebugHaptics } from '../screens/DebugHaptics';
+import { Encode } from '../screens/Encode';
 import { Errors } from '../screens/Errors';
 import { Focus } from '../screens/Focus';
 import { Onboarding } from '../screens/Onboarding';
@@ -97,6 +104,12 @@ const scheduleRoute = createRoute({
   component: Schedule,
 });
 
+const encodeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/encode',
+  component: Encode,
+});
+
 /** Query params for /errors. When Focus completes a session with at least one
  * Again/Hard grade, the completion screen navigates here with
  * `?prefill_from=session&conspectus_uuid=<uuid>[&conspectus_title=<title>]`
@@ -147,15 +160,47 @@ const routeTree = rootRoute.addChildren([
   conspectusDetailRoute,
   focusRoute,
   scheduleRoute,
+  encodeRoute,
   errorsRoute,
   meRoute,
   debugHapticsRoute,
 ]);
 
+/**
+ * TanStack Router wraps every route in its own catch boundary, so a throw
+ * from a route component never reaches the app-level <AppErrorBoundary>
+ * in providers.tsx. Without this override the router renders its built-in
+ * ErrorComponent — «Something went wrong!» + a red <pre> with the raw
+ * message — in production too (it's runtime router code, not a dev
+ * overlay). Render the shared BoundaryFallback instead so both error
+ * tiers show the same warm ErrorScreen.
+ */
+function RouterErrorFallback({ error, reset }: ErrorComponentProps) {
+  const routerInstance = useRouter();
+
+  useEffect(() => {
+    // Sentry when VITE_SENTRY_DSN is set (see shared/observability/sentry.ts);
+    // console.error otherwise. The router doesn't hand us a component
+    // stack — Sentry will fall back to the plain error stack, which is
+    // usually enough for route-level crashes.
+    captureError(error, { source: 'router.defaultErrorComponent' });
+  }, [error]);
+
+  return (
+    <BoundaryFallback
+      onRetry={() => {
+        reset();
+        void routerInstance.invalidate();
+      }}
+    />
+  );
+}
+
 const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
   defaultViewTransition: true,
+  defaultErrorComponent: RouterErrorFallback,
 });
 
 declare module '@tanstack/react-router' {

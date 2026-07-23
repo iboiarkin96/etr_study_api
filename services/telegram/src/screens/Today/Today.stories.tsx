@@ -20,6 +20,7 @@ import { useMemo } from 'react';
 
 import { AuthContext, type AuthContextValue } from '../../app/auth-context';
 import type { ApiClient } from '../../shared/api/client';
+import { ToastProvider, Toaster } from '../../shared/toast/toast';
 import { SearchProvider } from '../Search/SearchProvider';
 
 import { Today } from './index';
@@ -82,9 +83,12 @@ function TodayHost() {
   return (
     <QueryClientProvider client={client}>
       <AuthContext.Provider value={auth}>
-        <SearchProvider>
-          <Today />
-        </SearchProvider>
+        <ToastProvider>
+          <SearchProvider>
+            <Today />
+          </SearchProvider>
+          <Toaster />
+        </ToastProvider>
       </AuthContext.Provider>
     </QueryClientProvider>
   );
