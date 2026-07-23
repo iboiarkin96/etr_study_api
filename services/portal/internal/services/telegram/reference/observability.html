@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en" data-portal="internal" data-theme="light"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>telegram · Reference · Observability · Study App · Internal</title>
+  <script>(function(){try{var v=localStorage.getItem("docs-theme-preference");if(v==="dark"||v==="light")document.documentElement.setAttribute("data-theme",v);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="../../../../../frontend/portal/assets_v2/favicon.svg">
+  <link rel="stylesheet" href="../../../../../frontend/portal/assets_v2/runtime/internal/entry.css">
+</head>
+<body data-page-type="reference" class="docs-shell" data-maintainer-ids="16fc8b78537109162984a2fdbef6e142" data-service="telegram" data-lifecycle="published" data-updated="2026-07-23" data-role="architect">
+  <header class="topbar" role="banner">
+    <a class="topbar__brand" href="../../../index.html"><span aria-hidden="true">🛠</span><span>Study App · Internal</span></a>
+    <nav class="topbar__breadcrumbs" aria-label="Breadcrumb">
+      <ol class="docs-breadcrumbs__list">
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../../index.html">Internal</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../../index.html">Services</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="../index.html">telegram</a></li>
+        <li class="docs-breadcrumbs__item"><a class="docs-breadcrumbs__link" href="index.html">Reference</a></li>
+        <li class="docs-breadcrumbs__item" aria-current="page">Observability</li>
+      </ol>
+    </nav>
+    <div class="topbar__spacer"></div>
+    <div class="topbar__actions"><button class="docs-theme-toggle" type="button" aria-label="Toggle theme"></button></div>
+  </header>
+  <aside data-component="sidebar" data-nav-src="../../../../../frontend/portal/assets_v2/ui-kit/mocks/nav-tree-internal.json" aria-label="Section navigation"></aside>
+
+  <main class="container">
+    <article class="docs-prose">
+      <header class="page-head">
+        <p class="home-hero__eyebrow">
+          <span class="docs-pill docs-pill--info">Reference · Infrastructure</span>
+          <span class="docs-pill docs-pill--accent">telegram · observability · T-26d</span>
+        </p>
+        <h1>Observability</h1>
+        <div id="docs-top-nav"></div>
+        <p class="lede">Two transports, one thin façade. <strong>Sentry</strong> collects uncaught render / effect errors from <a href="components/app-error-boundary.html"><code>AppErrorBoundary</code></a> and the router's <code>defaultErrorComponent</code>; <strong>PostHog</strong> collects the fixed event vocabulary from <a href="event-spec.html">Event spec</a>. Both are env-guarded — dev laptops without <code>VITE_SENTRY_DSN</code> / <code>VITE_POSTHOG_KEY</code> ship zero network cost and log to the console instead.</p>
+      </header>
+
+      <section aria-labelledby="layout-h">
+        <h2 id="layout-h">Layout</h2>
+        <p>Everything lives under <code>src/shared/observability/</code>. Four small files, one barrel:</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><a href="../../../../../telegram/src/shared/observability/sentry.ts"><code>sentry.ts</code></a></td><td><code>initSentry()</code> + <code>captureError(err, {componentStack})</code>. If <code>VITE_SENTRY_DSN</code> is unset, <code>captureError</code> falls through to <code>console.error</code>.</td></tr>
+              <tr><td><a href="../../../../../telegram/src/shared/observability/posthog.ts"><code>posthog.ts</code></a></td><td><code>initPostHog()</code>, <code>identify(distinctId, props)</code>, <code>reset()</code>, low-level <code>track(name, props)</code>. All no-op when <code>VITE_POSTHOG_KEY</code> is unset.</td></tr>
+              <tr><td><a href="../../../../../telegram/src/shared/observability/events.ts"><code>events.ts</code></a></td><td>Typed emitters — <code>trackAppOpened</code>, <code>trackReviewCompleted</code>, etc. TypeScript refuses to compile a call that spells a property wrong; a grep for the emitter name finds every callsite. <strong>This is the only entry-point call-sites should use.</strong></td></tr>
+              <tr><td><a href="../../../../../telegram/src/shared/observability/index.ts"><code>index.ts</code></a></td><td>Barrel — re-exports everything above plus <code>initObservability()</code> which brings both transports up in one call from <code>main.tsx</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="envs-h">
+        <h2 id="envs-h">Environment variables</h2>
+        <p>All optional — see <a href="env-vars.html">Env vars</a> for the full table. In short:</p>
+        <ul>
+          <li><code>VITE_SENTRY_DSN</code> — DSN for the Sentry project. Absent → Sentry disabled.</li>
+          <li><code>VITE_POSTHOG_KEY</code> — PostHog project API key. Absent → PostHog disabled.</li>
+          <li><code>VITE_POSTHOG_HOST</code> — ingest host, defaults to <code>https://eu.i.posthog.com</code>. Pick <code>us.i.posthog.com</code> for the US region.</li>
+          <li><code>VITE_APP_VERSION</code> — Sentry release tag; CI sets it to the git short-SHA of the build commit.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="wire-h">
+        <h2 id="wire-h">Wiring — where transports hook into the app</h2>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead><tr><th>Site</th><th>File</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr><td>Boot</td><td><a href="../../../../../telegram/src/main.tsx"><code>main.tsx</code></a></td><td><code>initObservability()</code> runs before React mounts, so a crash inside the first render is captured too.</td></tr>
+              <tr><td>Auth handshake</td><td><a href="../../../../../telegram/src/app/auth-provider.tsx"><code>auth-provider.tsx</code></a></td><td>On success, <code>identifyUser(user.client_uuid, {locale})</code> aliases the anonymous PostHog session into the identified one. See <a href="event-spec.html">Event spec § Identity</a> — <code>telegram_user_id</code> / <code>_username</code> / <code>first_name</code> are NEVER sent.</td></tr>
+              <tr><td>Global error catch</td><td><a href="components/app-error-boundary.html"><code>AppErrorBoundary</code></a></td><td><code>componentDidCatch</code> calls <code>captureError(error, {componentStack})</code>. Sentry stores <code>componentStack</code> as <code>contexts.react.componentStack</code>, visible in the issue's React panel.</td></tr>
+              <tr><td>Route-level catch</td><td><a href="../../../../../telegram/src/app/router.tsx"><code>router.tsx</code></a></td><td>TanStack Router's <code>defaultErrorComponent</code> wraps each route in its own catch boundary. It renders the shared <code>BoundaryFallback</code> and also reports to <code>captureError</code>.</td></tr>
+              <tr><td>Session start</td><td><a href="../../../../../telegram/src/App.tsx"><code>App.tsx</code></a></td><td><code>trackAppOpened</code> fires once per mount inside <code>useEffect</code> — after WebApp.ready(), before bootstrap resolves. Attaches to the anonymous session; <code>identify()</code> later aliases it.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="events-wired-h">
+        <h2 id="events-wired-h">Events wired </h2>
+        <p>The <a href="event-spec.html">Event spec</a> is the authoritative vocabulary. This section names which of those events fire from real callsites today; new callsites go in without ceremony as long as they use the typed emitters in <code>events.ts</code>.</p>
+        <div class="docs-table-wrap">
+          <table class="docs-table docs-table--zebra">
+            <thead><tr><th>Event</th><th>Callsite</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>app_opened</code></td><td><code>App.tsx</code></td><td>Every cold mount. <code>launch_source</code> guessed from <code>WebApp.initDataUnsafe.start_param</code> + <code>initData</code> presence.</td></tr>
+              <tr><td><code>review_completed</code></td><td><code>useFocusSession.submitGrade</code> onSuccess</td><td><code>reveal_ms</code> = Date.now() − revealed-at (null when the user never revealed, e.g. instant-grade via swipe).</td></tr>
+              <tr><td><code>focus_session_started</code></td><td><code>useFocusSession</code> seed effect</td><td>Fires once per epoch when a non-empty queue lands. Empty queues (no due cards) never fire — the user didn't do a session.</td></tr>
+              <tr><td><code>focus_session_ended</code></td><td><code>useFocusSession</code> complete effect</td><td>Fires on the happy path (<code>reason: 'completed'</code>). <code>'exited'</code> / <code>'backgrounded'</code> reasons need screen-level cleanup + visibilitychange — deferred to a follow-up.</td></tr>
+              <tr><td><code>error_logged</code></td><td><code>Errors submit</code> onSuccess</td><td><code>from_screen: 'errors'</code>. The Focus-side «Log a miss» path (session recap) will pass <code>from_screen: 'focus'</code> once wired.</td></tr>
+              <tr><td><code>search_opened</code></td><td><code>SearchProvider</code> open + Cmd+K</td><td>Two <code>via</code> values: <code>cmd_k</code> (keyboard shortcut), <code>route</code> (any <code>api.open()</code> caller — Today search button, deep-link).</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="docs-prose__meta">Follow-ups (deferred): <code>screen_viewed</code> (needs TanStack Router beforeLoad hook), <code>search_result_picked</code>, <code>streak_broken</code> / <code>streak_milestone</code> (T-26c ships milestones), <code>review_snoozed</code>, <code>command_ran</code>.</p>
+      </section>
+
+      <section aria-labelledby="privacy-h">
+        <h2 id="privacy-h">Privacy — what we never send</h2>
+        <ul>
+          <li><strong>No Telegram identifiers.</strong> <code>telegram_user_id</code>, <code>telegram_username</code>, <code>first_name</code> stay server-side. PostHog only ever sees the internal <code>client_uuid</code> as <code>distinct_id</code>.</li>
+          <li><strong>No autocapture.</strong> PostHog's autocapture (arbitrary click/scroll events) is disabled — event-spec is a fixed vocabulary, ad-hoc events dilute the funnel.</li>
+          <li><strong>No session recording.</strong> Disabled by default; needs a documented product need + user opt-in to enable.</li>
+          <li><strong>Sentry PII off.</strong> Default SDK sends <code>error.message</code> + stack + <code>componentStack</code>; no user attributes are attached from the client. Server request-id headers do reach Sentry via API errors — that's the traceability we want, not a privacy leak.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="dev-h">
+        <h2 id="dev-h">Local development</h2>
+        <p>Both transports are off unless you set the env keys in <code>services/telegram/.env.local</code>. The recommended local flow:</p>
+        <ol>
+          <li>Leave both keys unset — <code>captureError</code> logs to <code>console.error</code>, <code>track()</code> logs via <code>console.debug</code> in non-prod modes so you can eyeball the vocabulary without shipping anything to a cloud endpoint.</li>
+          <li>To test the Sentry integration end-to-end, add <code>VITE_SENTRY_DSN</code> to <code>.env.local</code>, restart Vite, and force a boundary catch (see <a href="components/app-error-boundary.html">AppErrorBoundary § Testing</a>).</li>
+          <li>To test PostHog: add <code>VITE_POSTHOG_KEY</code> + optionally <code>VITE_POSTHOG_HOST</code>, restart Vite, and check the PostHog live-events view.</li>
+        </ol>
+      </section>
+
+    </article>
+
+    <footer class="docs-history" aria-label="History">
+      <h2 class="docs-history__title">History</h2>
+      <ul class="docs-history__list">
+        <li class="docs-history__row">
+          <span class="docs-history__date">2026-07-23</span>
+          <a class="docs-history__author" data-component="author-chip" data-person-id="16fc8b78537109162984a2fdbef6e142" data-variant="sm">@ivan</a>
+          <span class="docs-history__note"><strong>T-26d observability layer landed.</strong> Thin façade over <code>@sentry/react</code> + <code>posthog-js</code> under <code>src/shared/observability/</code> — <code>sentry.ts</code> (init + <code>captureError</code>), <code>posthog.ts</code> (init + identify + track), <code>events.ts</code> (typed emitters for the whole <a href="event-spec.html">Event spec</a> vocabulary), <code>index.ts</code> barrel. Wired at five sites: <code>main.tsx</code> boot, <code>AuthProvider</code> identify, <code>AppErrorBoundary.componentDidCatch</code>, <code>App.tsx</code> <code>app_opened</code>, and Focus / Errors / Search event callsites. Env-guarded — dev laptops without <code>VITE_SENTRY_DSN</code> / <code>VITE_POSTHOG_KEY</code> ship zero network cost.</span>
+        </li>
+      </ul>
+    </footer>
+  </main>
+
+  <aside class="docs-toc" aria-label="On this page">
+    <p class="docs-toc__title">On this page</p>
+    <ol class="docs-toc__list">
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#layout-h">Layout</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#envs-h">Envs</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#wire-h">Wiring</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#events-wired-h">Events wired</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#privacy-h">Privacy</a></li>
+      <li class="docs-toc__item"><a class="docs-toc__link" href="#dev-h">Local dev</a></li>
+    </ol>
+  </aside>
+  <button data-component="toc-fab" type="button" aria-label="On this page" aria-expanded="false"></button>
+
+  <script type="module" src="../../../../../frontend/portal/assets_v2/runtime/internal/entry.js"></script>
+
+</body></html>

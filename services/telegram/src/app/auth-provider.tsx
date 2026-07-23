@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { bootstrapAuth } from '../shared/auth/bootstrap';
 import { createApiClient } from '../shared/api/client';
 import { switchLanguageFromLocale } from '../shared/i18n';
+import { identifyUser } from '../shared/observability';
 
 import { AuthContext, type AuthState } from './auth-context';
 
@@ -50,6 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (result) => {
         if (cancelled) return;
         switchLanguageFromLocale(result.user.locale);
+        // Link the anonymous PostHog session (pre-bootstrap `app_opened`
+        // etc.) to the real user id. `client_uuid` matches the JWT `sub`
+        // claim; `locale` is the only non-PII property we set. See
+        // `reference/event-spec.html` § Identity.
+        identifyUser(result.user.client_uuid, { locale: result.user.locale });
         setState({
           status: 'authenticated',
           jwt: result.jwt,

@@ -17,6 +17,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import {
+  trackFocusSessionEnded,
+  trackFocusSessionStarted,
+  trackReviewCompleted,
+} from '../../../shared/observability';
 import { useConspectus } from '../../ConspectusDetail/hooks/useConspectus';
 import type { DueConspectus } from '../../Today/hooks/useConspectusesDue';
 import { useConspectusesDue } from '../../Today/hooks/useConspectusesDue';
@@ -122,6 +127,10 @@ export function useFocusSession(options?: FocusSessionOptions): FocusSession {
   /** Session start-time in a ref so `restart()` can reset it without going
    * through render (state would need `setState` + effect). Reset on restart. */
   const startedAtRef = useRef<number>(Date.now());
+  /** Timestamp of the last `reveal()` — Date.now() when the answer face
+   * came into view, null before reveal or after a grade lands. Powers the
+   * `reveal_ms` property on `review_completed` events. */
+  const revealedAtRef = useRef<number | null>(null);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [summary, setSummary] = useState<SessionSummary>(emptySummary);
@@ -158,10 +167,33 @@ export function useFocusSession(options?: FocusSessionOptions): FocusSession {
       : (due.data ?? []).slice(0, SESSION_CAP);
     seededEpochRef.current = sessionEpoch;
     setQueue(fresh);
+    // Session starts when a non-empty queue is seeded. Empty queues (no
+    // due cards) never fire the event — the user didn't actually do a
+    // session, they hit an empty-state screen and left.
+    if (fresh.length > 0) {
+      trackFocusSessionStarted({ queue_length: fresh.length });
+    }
   }, [source.isSuccess, sessionEpoch, isSingleMode, single.data, due.data]);
 
   const total = queue.length;
   const current = index < total ? queue[index] : null;
+
+  // Fire `focus_session_ended` when the user grades the last card. The
+  // «exited» / «backgrounded» reasons are wired at the screen level
+  // (useEffect cleanup + visibilitychange) to keep this hook focused on
+  // the happy path.
+  const endedForEpochRef = useRef(-1);
+  useEffect(() => {
+    if (total === 0) return;
+    if (current !== null) return;
+    if (endedForEpochRef.current === sessionEpoch) return;
+    endedForEpochRef.current = sessionEpoch;
+    trackFocusSessionEnded({
+      reason: 'completed',
+      reviews_count: summary.graded,
+      duration_ms: Date.now() - startedAtRef.current,
+    });
+  }, [current, total, sessionEpoch, summary.graded]);
 
   const phase: FocusPhase = (() => {
     if (source.isPending) return 'loading';
@@ -173,10 +205,15 @@ export function useFocusSession(options?: FocusSessionOptions): FocusSession {
   })();
 
   /** Toggle prompt ↔ revealed. Guarded against grading so a stray tap can't
-   * cancel a grade the user just committed. */
+   * cancel a grade the user just committed. Stamps `revealedAtRef` when
+   * flipping to revealed so submitGrade can compute `reveal_ms`. */
   const reveal = useCallback(() => {
     if (review.isPending) return;
-    setRevealed((r) => !r);
+    setRevealed((r) => {
+      const next = !r;
+      revealedAtRef.current = next ? Date.now() : null;
+      return next;
+    });
   }, [review.isPending]);
 
   const submitGrade = useCallback(
@@ -199,6 +236,9 @@ export function useFocusSession(options?: FocusSessionOptions): FocusSession {
         },
         {
           onSuccess: (data) => {
+            const revealMs = revealedAtRef.current !== null ? Date.now() - revealedAtRef.current : null;
+            revealedAtRef.current = null;
+            trackReviewCompleted({ tag, via: 'focus_grade', reveal_ms: revealMs });
             setSummary((s) => ({
               graded: s.graded + 1,
               perGrade: { ...s.perGrade, [g]: s.perGrade[g] + 1 },
@@ -232,6 +272,7 @@ export function useFocusSession(options?: FocusSessionOptions): FocusSession {
   const restart = useCallback(() => {
     setIndex(0);
     setRevealed(false);
+    revealedAtRef.current = null;
     setSummary(emptySummary());
     setSessionMisses([]);
     setNextPreviewAt(null);

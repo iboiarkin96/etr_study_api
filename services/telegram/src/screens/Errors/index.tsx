@@ -25,6 +25,7 @@ import type { ErrorsSearch } from '../../app/router';
 import { useIsTelegramClient } from '../../shared/chrome/useIsTelegramClient';
 import { useTelegramBackButton } from '../../shared/chrome/useTelegramBackButton';
 import { haptic } from '../../shared/haptics/haptics';
+import { trackErrorLogged } from '../../shared/observability';
 import { useToast } from '../../shared/toast/toast';
 import { Assemble } from '../Today/components/Assemble';
 import { ErrorInline } from '../Today/components/ErrorInline';
@@ -86,6 +87,10 @@ export function Errors() {
       {
         onSuccess: () => {
           haptic('notifySuccess');
+          trackErrorLogged({
+            from_screen: 'errors',
+            has_source_conspectus: prefill?.conspectus_uuid != null,
+          });
           setSheetOpen(false);
           setPrefill(null);
           toast({ tone: 'success', message: t('errors.toast.saved') });

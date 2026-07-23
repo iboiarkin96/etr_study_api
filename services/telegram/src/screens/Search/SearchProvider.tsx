@@ -10,6 +10,7 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { trackSearchOpened } from '../../shared/observability';
 import { SearchOverlay } from './components/SearchOverlay';
 import { SearchContext, type SearchApi } from './search-context';
 
@@ -18,9 +19,17 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<SearchApi>(
     () => ({
-      open: () => setOpen(true),
+      open: () => {
+        trackSearchOpened({ via: 'route' });
+        setOpen(true);
+      },
       close: () => setOpen(false),
-      toggle: () => setOpen((v) => !v),
+      toggle: () => {
+        setOpen((v) => {
+          if (!v) trackSearchOpened({ via: 'route' });
+          return !v;
+        });
+      },
     }),
     [],
   );
@@ -34,7 +43,10 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setOpen((v) => !v);
+        setOpen((v) => {
+          if (!v) trackSearchOpened({ via: 'cmd_k' });
+          return !v;
+        });
       }
     };
     window.addEventListener('keydown', onKey);

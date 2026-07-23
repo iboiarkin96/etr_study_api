@@ -4,11 +4,18 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import { installTelegramMock } from './app/mock-telegram-env';
 import { initI18n } from './shared/i18n';
+import { initObservability } from './shared/observability';
 import './styles/global.css';
 // Ember design system — tokens + primitives, product-owned. The full ui-kit
 // (~4800 lines including showcase chrome + variants B/C we don't ship) is the
 // *spec* at services/frontend/portal/assets_v2/ui-kit/components/tma-kit.css.
 import './styles/index.css';
+
+// Bring up Sentry + PostHog before React mounts so a crash inside the
+// first render is captured too. Both are env-guarded — dev laptops without
+// VITE_SENTRY_DSN / VITE_POSTHOG_KEY skip the whole layer (no network,
+// no console noise beyond a debug line).
+initObservability();
 
 // Install the Telegram SDK shim before React mounts so ThemeProvider +
 // ViewportProvider can read `window.Telegram.WebApp` synchronously on their
